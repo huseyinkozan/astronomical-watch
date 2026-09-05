@@ -1,53 +1,248 @@
-| Supported Targets | ESP32 | ESP32-C2 | ESP32-C3 | ESP32-C5 | ESP32-C6 | ESP32-C61 | ESP32-H2 | ESP32-H21 | ESP32-H4 | ESP32-P4 | ESP32-S2 | ESP32-S3 | ESP32-S31 | Linux |
-| ----------------- | ----- | -------- | -------- | -------- | -------- | --------- | -------- | --------- | -------- | -------- | -------- | -------- | --------- | ----- |
+# Astronomical Watch
 
-# Hello World Example
+A personal low-power astronomical watch based on the **Waveshare ESP32-S3-Touch-AMOLED-2.06** development board.
 
-Starts a FreeRTOS task to print "Hello World".
+The project is designed for personal use rather than as a general-purpose smartwatch. Its primary goal is to provide a simple watch interface with astronomical information while keeping power consumption as low as possible.
 
-(See the README.md file in the upper level 'examples' directory for more information about examples.)
+## Features
 
-## How to use example
+Planned features:
 
-Follow detailed instructions provided specifically for this example.
+* Digital date and time display
+* Manual date and time configuration
+* Manual latitude and longitude configuration
+* Sunrise and sunset calculations
+* Astronomical, nautical, and civil twilight calculations
+* Solar noon calculation
+* Moon phase display
+* Moon illumination percentage
+* Moon age
+* Moonrise and moonset times
+* Battery level and power information
+* Low-power operation with deep sleep
+* Touch-to-wake display
+* Automatic display timeout
 
-Select the instructions depending on Espressif chip installed on your development board:
+The device does not require a permanent network connection.
 
-- [ESP32 Getting Started Guide](https://docs.espressif.com/projects/esp-idf/en/stable/get-started/index.html)
-- [ESP32-S2 Getting Started Guide](https://docs.espressif.com/projects/esp-idf/en/latest/esp32s2/get-started/index.html)
+## Hardware
 
+Target hardware:
 
-## Example folder contents
+**Waveshare ESP32-S3-Touch-AMOLED-2.06**
 
-The project **hello_world** contains one source file in C language [hello_world_main.c](main/hello_world_main.c). The file is located in folder [main](main).
+The board provides the main hardware required by the project, including:
 
-ESP-IDF projects are built using CMake. The project build configuration is contained in `CMakeLists.txt` files that provide set of directives and instructions describing the project's source files and targets (executable, library, or both).
+* ESP32-S3
+* AMOLED display
+* Touch controller
+* PCF85063 RTC
+* AXP2101 power management IC
+* Battery support
 
-Below is short explanation of remaining files in the project folder.
+## Software
 
+The project is built with:
+
+* ESP-IDF
+* C
+* LVGL
+* ESP-IDF Component Manager
+
+All source code, comments, identifiers, and documentation are written in English.
+
+## Power Management
+
+Power consumption is a primary design requirement.
+
+During normal operation:
+
+* Wi-Fi is disabled.
+* Bluetooth is disabled.
+* GPS is not used.
+* The AMOLED display is turned off when not needed.
+* The ESP32 enters deep sleep when the display is inactive.
+* A touch event wakes the device.
+* The display remains active for approximately 10 seconds after interaction.
+
+The firmware should avoid unnecessary periodic wakeups and background processing.
+
+## Location
+
+The user enters the geographic location manually using:
+
+```text
+Latitude
+Longitude
 ```
+
+For example:
+
+```text
+Latitude:  41.0082
+Longitude: 28.9784
+```
+
+No GPS hardware is required.
+
+## Astronomical Calculations
+
+Astronomical calculations are performed locally on the ESP32.
+
+The project does not depend on an online astronomy service.
+
+Solar calculations will include:
+
+* Astronomical dawn
+* Nautical dawn
+* Civil dawn
+* Sunrise
+* Solar noon
+* Sunset
+* Civil dusk
+* Nautical dusk
+* Astronomical dusk
+
+Lunar calculations will include:
+
+* Moon phase
+* Moon illumination
+* Moon age
+* Moonrise
+* Moonset
+
+## Project Structure
+
+The project intentionally keeps a simple structure.
+
+```text
+astronomical-watch/
+├── AGENTS.md
+├── README.md
+├── .gitignore
 ├── CMakeLists.txt
-├── pytest_hello_world.py      Python script used for automated testing
-├── main
-│   ├── CMakeLists.txt
-│   └── hello_world_main.c
-└── README.md                  This is the file you are currently reading
+├── sdkconfig
+│
+└── main/
+    ├── CMakeLists.txt
+    ├── main.c
+    ├── idf_component.yml
+    ├── rtc.c
+    ├── rtc.h
+    ├── display.c
+    ├── display.h
+    ├── astronomy.c
+    ├── astronomy.h
+    ├── power.c
+    ├── power.h
+    ├── settings.c
+    └── settings.h
 ```
 
-For more information on structure and contents of ESP-IDF projects, please refer to Section [Build System](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/build-system.html) of the ESP-IDF Programming Guide.
+The structure may evolve during development, but unnecessary abstractions and components should be avoided.
 
-## Troubleshooting
+See `AGENTS.md` for the project's development guidelines.
 
-* Program upload failure
+## Building
 
-    * Hardware connection is not correct: run `idf.py -p PORT monitor`, and reboot your board to see if there are any output logs.
-    * The baud rate for downloading is too high: lower your baud rate in the `menuconfig` menu, and try again.
+Activate the ESP-IDF environment before building:
 
-## Technical support and feedback
+```bash
+get_idf
+```
 
-Please use the following feedback channels:
+Build the project:
 
-* For technical queries, go to the [esp32.com](https://esp32.com/) forum
-* For a feature request or bug report, create a [GitHub issue](https://github.com/espressif/esp-idf/issues)
+```bash
+idf.py build
+```
 
-We will get back to you as soon as possible.
+If the target needs to be configured:
+
+```bash
+idf.py set-target esp32s3
+```
+
+## Flashing
+
+The development board is currently connected through:
+
+```text
+/dev/ttyACM0
+```
+
+Flash the firmware with:
+
+```bash
+idf.py -p /dev/ttyACM0 flash
+```
+
+Open the serial monitor:
+
+```bash
+idf.py -p /dev/ttyACM0 monitor
+```
+
+Or flash and monitor in one command:
+
+```bash
+idf.py -p /dev/ttyACM0 flash monitor
+```
+
+The serial device may change depending on the host system.
+
+## Clean Build
+
+For a normal rebuild:
+
+```bash
+idf.py build
+```
+
+For a complete clean build:
+
+```bash
+idf.py fullclean
+idf.py build
+```
+
+## Development Workflow
+
+Development is performed incrementally.
+
+After each significant milestone:
+
+1. Build the firmware.
+2. Flash the device.
+3. Test the functionality on the actual hardware.
+4. Confirm that existing functionality still works.
+5. Commit the working state to Git.
+
+The Git history should therefore contain stable, hardware-tested checkpoints.
+
+## Component Selection
+
+When a new driver or dependency is required, the following priority order is used:
+
+1. ESP-IDF built-in driver
+2. Official Espressif component
+3. Waveshare component
+4. Well-maintained third-party component
+5. Small custom driver
+
+See `AGENTS.md` for the complete dependency selection guidelines.
+
+## Current Status
+
+The initial ESP-IDF project has been successfully built, flashed, and tested on the target hardware.
+
+Current development focus:
+
+* PCF85063 RTC integration
+* Reading date and time from the RTC
+* Displaying the current date and time
+* Low-power display and sleep management
+
+## License
+
+This project is intended for personal use.
