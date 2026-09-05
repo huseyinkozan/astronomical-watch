@@ -1,0 +1,2 @@
+dependencies:
+  waveshare/pcf85063a: '*'

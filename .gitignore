@@ -9,6 +9,13 @@ sdkconfig.old
 # Keep this if you want reproducible component versions.
 # idf_component.yml.lock
 
+# ESP-IDF temporary files
+# dependencies.lock
+
+# ESP-IDF managed components
+managed_components/
+
+
 # Python cache
 __pycache__/
 *.py[cod]
@@ -39,8 +46,6 @@ install_manifest.txt
 .ninja_log
 .ninja_*
 
-# ESP-IDF temporary files
-dependencies.lock
 
 # Flashing / monitoring logs
 *.log
@@ -58,4 +63,5 @@ dependencies.lock
 *.swo
 *~
 
+# clangd caches, etc.
 .cache/
