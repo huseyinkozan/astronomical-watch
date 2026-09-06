@@ -184,6 +184,83 @@ The next wake/sleep milestone is to validate GPIO21 as an ESP32-S3 EXT1
 deep-sleep wake source while preserving the known-good QMI8658
 configuration.
 
+### Documentation-First Hardware Integration
+
+Before implementing, tuning, or experimentally debugging a hardware
+peripheral or low-power feature, perform a documentation-first
+integration pass. This is the default priority for both human and
+AI-assisted development.
+
+Use this order:
+
+1.  Inspect the exact board schematic and identify the peripheral's
+    pins, interrupt lines, buses, pull-ups/pull-downs, power rails,
+    reset lines, and any shared or multiplexed signals.
+2.  Read the relevant sections of the peripheral manufacturer's
+    datasheet, application notes, and errata. Focus on the feature being
+    implemented, including register semantics, state transitions,
+    interrupt acknowledgement, timing, and low-power behavior.
+3.  Inspect the target board BSP, installed components, official vendor
+    drivers, and official/reference examples. Prefer examples for the
+    exact board or device over generic examples.
+4.  Compare the three views explicitly:
+    -   what the schematic proves about this board,
+    -   what the datasheet specifies,
+    -   what the reference software actually configures.
+5.  Record known facts, assumptions, contradictions, and unresolved
+    questions before writing experimental code.
+6.  Write the smallest possible validator only for the unresolved
+    questions.
+7.  Test on the actual board and record the measured result before
+    treating a behavior as validated.
+8.  Update `README.md` and/or `AGENTS.md` when the result changes the
+    durable understanding of the hardware or architecture.
+
+Do not use trial-and-error register changes as the first debugging
+method when the relevant documentation or reference implementation has
+not yet been reviewed.
+
+Do not copy register values from an example without decoding and
+verifying that they apply to the exact device variant, operating mode,
+and board wiring.
+
+When documentation and observed hardware behavior disagree, preserve
+both facts in the investigation. Do not silently force the observation
+to match the documentation. Design a focused test to resolve the
+discrepancy.
+
+For each new peripheral or substantial hardware feature, maintain a
+compact integration record when useful:
+
+  -----------------------------------------------------------------------
+  Area                                What to capture
+  ----------------------------------- -----------------------------------
+  Board wiring                        GPIOs, buses, IRQs, power/reset,
+                                      shared signals
+
+  Datasheet                           Required mode, registers, timing,
+                                      interrupt semantics
+
+  Reference software                  Initialization sequence and encoded
+                                      register values
+
+  Known-good state                    Configuration already validated on
+                                      hardware
+
+  Unknowns                            Questions that still require
+                                      measurement
+
+  Validator                           Minimal test designed only for
+                                      those unknowns
+
+  Result                              Measured behavior and resulting
+                                      design decision
+  -----------------------------------------------------------------------
+
+This process is intended to reduce exploratory debugging while
+preserving the project rule that hardware behavior must ultimately be
+verified on the target board.
+
 ## Development Workflow
 
 Make changes incrementally.

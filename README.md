@@ -321,6 +321,24 @@ idf.py build
 
 ## Development Workflow
 
+### Hardware Integration Method
+
+Hardware work follows a documentation-first process before experimental
+debugging. For each new peripheral or low-power feature, development
+first checks the exact board schematic, the relevant device
+datasheet/errata, and the BSP/vendor/reference implementation. These are
+compared to identify what is already known and what remains uncertain.
+
+Only unresolved questions should then receive a minimal hardware
+validator. Observed behavior on the actual board remains the final
+requirement before a hardware assumption is treated as validated.
+Durable findings are recorded in the project documentation so later work
+does not repeat the same investigation.
+
+This method is intended to make future work on components such as the
+PCF85063A, AXP2101, display power control, touch/light-sleep behavior,
+and QMI8658/deep-sleep wake more targeted and reproducible.
+
 Development is performed incrementally.
 
 After each significant milestone:
