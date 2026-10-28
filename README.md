@@ -42,14 +42,16 @@ astronomical-watch/
 ├── sdkconfig.defaults    project configuration (sdkconfig is generated)
 ├── dependencies.lock     locked component versions
 ├── docs/hardware.md      hardware fact base
+├── tools/guided_test.py  guided hardware tests
 ├── main/                 application
 └── archive/              earlier QMI8658 validator (reference only)
 ```
 
 ## Status
 
-Restarted on ESP-IDF with C++17. The project skeleton builds and runs on the board; it logs the
-boot count and wake cause.
+Restarted on ESP-IDF with C++17. The watch reads its power-management IC, stays awake for a short
+window and then enters deep sleep; the PWR key wakes it. Wake statistics are kept across sleep.
+Motion wake, display, RTC and the watch face are next.
 The earlier Wake-on-Motion validation results are kept in `docs/hardware.md`, and the validator
 itself in `archive/wom-validator/` (git tag `wom-validator`).
 

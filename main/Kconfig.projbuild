@@ -1,0 +1,19 @@
+menu "Astronomical Watch"
+
+    config WATCH_DEV_LOGGING
+        bool "Development logging across deep sleep"
+        default y
+        help
+            Waits for the USB Serial/JTAG host after each wake and flushes the
+            console before deep sleep, so that no log line is lost while USB
+            re-enumerates. Costs up to about 2 s of awake time per wake; disable
+            for battery tests.
+
+    config WATCH_AWAKE_WINDOW_MS
+        int "Awake window after the last PWR key press (ms)"
+        default 10000
+        help
+            Development aid until the display timeout exists: the watch stays
+            awake this long after boot or after the last PWR key press.
+
+endmenu

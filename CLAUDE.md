@@ -31,6 +31,7 @@ idf.py -p /dev/ttyACM0 flash monitor
 |---|---|
 | `main/` | Application component (`main.cpp` and project modules) |
 | `docs/hardware.md` | Hardware fact base: pins, power tree, register semantics, sources, unknowns |
+| `tools/guided_test.py` | Guided hardware tests: prompts the tester and checks the serial log; logs go to `test-logs/` (ignored) |
 | `archive/wom-validator/` | Earlier QMI8658 Wake-on-Motion validator and its docs (git tag `wom-validator`). Read-only reference; do not build or extend it |
 | `managed_components/`, `build/` | Generated; never edit |
 
@@ -116,6 +117,11 @@ that justifies the change.
 Work incrementally. After each significant milestone: build, flash, verify on the board, confirm
 existing functions still work, update the docs, then commit with a message that states what was
 verified. Never assume hardware behaviour without testing it on the device.
+
+Tests that need the tester to act (press keys, move the watch) are written as a step list in
+`tools/guided_test.py` and run by the user in a terminal (`python tools/guided_test.py <test>`),
+then the saved log is analysed. Wake/sleep logging relies on `CONFIG_WATCH_DEV_LOGGING`; disable it
+for battery-life runs.
 
 ### Power evaluation without external equipment
 

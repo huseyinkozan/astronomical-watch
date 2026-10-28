@@ -983,6 +983,15 @@ CONFIG_PARTITION_TABLE_MD5=y
 # end of Partition Table
 
 #
+# Astronomical Watch
+#
+# default:
+CONFIG_WATCH_DEV_LOGGING=y
+# default:
+CONFIG_WATCH_AWAKE_WINDOW_MS=10000
+# end of Astronomical Watch
+
+#
 # Compiler options
 #
 # default:

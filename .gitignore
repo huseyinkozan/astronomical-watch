@@ -65,3 +65,6 @@ install_manifest.txt
 
 # clangd caches, etc.
 .cache/
+
+# Guided hardware test logs
+test-logs/

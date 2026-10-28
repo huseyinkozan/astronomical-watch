@@ -137,6 +137,34 @@ Validated on this board [HW] (validator in `archive/wom-validator/`, tag `wom-va
 - The 14-bit ADC measures only VBAT, VBUS, VSYS, TS and die temperature; **there is no battery
   current measurement** [DS §6.10]. On-board power data is therefore indirect (see CLAUDE.md).
 - Quiescent current ≈ 40 µA [DS §6.5.4].
+- Accessed through a small custom class (`main/Axp2101.*`). XPowersLib was reviewed as a reference
+  but not added: only a few registers are needed, and a custom class keeps the register meaning
+  visible and the I2C timeout short (50 ms).
+
+Power-on defaults read on this board [HW] (eFuse values; nothing was written except IRQ clears):
+
+| Register | Value | Meaning |
+|---|---|---|
+| REG80 / REG82 | `0x0F` / 3300 mV | DCDC1–4 on, DCDC1 = 3.3 V |
+| REG90 / REG91 | `0xFF` / `0x01` | **all LDOs on**: ALDO1–4, BLDO1–2, CPUSLDO, DLDO1, DLDO2 |
+| REG92–95 | 3.3 / 3.3 / 3.0 / 1.8 V | ALDO1 / ALDO2 / ALDO3 (motor) / ALDO4 |
+| REG27 | `0x14` | long-press IRQ 1.5 s, power off 6 s, power on 128 ms |
+| REG30 | `0x03` | ADC: VBAT and TS channels on |
+| REG41 | `0xFC` | VBUS/battery insert/remove and PWRON short/long press IRQs enabled |
+| REG26 | `0x08` | sleep/wakeup at reset value |
+| REG20 | `0x04` / `0x01` | power-on source: VBUS insert / PWRON key |
+
+With USB connected: STATUS1 `0x38` (VBUS good, battery present), charging CC then CV, battery
+3.87–4.20 V. ALDO3 (motor supply) and the unused rails are on by default; switching them off is
+part of the sleep preparation (M2).
+
+PWR key [HW]:
+- GPIO10 reads 0 while idle and 1 while the key is pressed (schematic polarity confirmed).
+- EXT1 `ANY_HIGH` on GPIO10 wakes the ESP32 from deep sleep reliably (causes bit EXT1,
+  `esp_sleep_get_ext1_wakeup_status()` bit 10). RTC memory survives the sleep.
+- The press that wakes the chip also sets the AXP short-press flag (REG49 bit3).
+- Holding the key about 6 s powers the whole board off (AXP OFFLEVEL); a short press powers it on
+  again with RTC memory cleared and REG20 = `0x01`.
 
 ### Display (CO5300 AMOLED, 410 × 502, QSPI)
 - The BSP drives it with the `esp_lcd_sh8601` driver: RGB565, x-gap 22, QSPI 40 MHz; it offers
@@ -156,13 +184,18 @@ Validated on this board [HW] (validator in `archive/wom-validator/`, tag `wom-va
 - Reset to `app_main` takes about 255 ms with the default configuration (log timestamps, 160 MHz,
   DIO flash, INFO logging, image validation on) [HW]. This is the baseline for wake latency.
 - The internal RC slow clock drifts seconds per day: use it only as a wake timer; the PCF85063 is the clock.
-- The native USB-Serial-JTAG connection drops while the chip is in deep sleep.
+- The native USB-Serial-JTAG connection drops while the chip is in deep sleep. After a wake the
+  host needs about 0.4 s to re-enumerate and reopen the port; earlier log lines are lost, and so is
+  a line written just before sleep unless the console is flushed [HW]. Development builds
+  (`CONFIG_WATCH_DEV_LOGGING`) therefore wait for the host and flush before sleeping; with it,
+  logging starts about 0.77 s after the wake instead of about 0.26 s.
 
 ## 4. Open Questions
 
 1. Battery thermistor: the schematic has RP2 on TS, but the official AXP example disables TS
    ("no thermistor"). Check the board.
-2. Does the display work with ALDO2 off? Read REG90 at boot.
+2. Which rails does the display need? All rails are on by default [HW]; test the panel with ALDO2
+   off and on (M5).
 3. QMI8658C CTRL9 handshake: does CTRL8.bit7 = 1 keep CmdDone off INT1 on this chip, and does a
    STATUS1 read alone acknowledge it (C datasheet) as well as CTRL9 = `0x00` (A datasheet)?
 4. Can accel samples be read while WoM is active (needed for a wrist-pose check on wake)?

@@ -1,0 +1,159 @@
+#include "Axp2101.h"
+
+#include "esp_log.h"
+
+static const char *TAG = "axp2101";
+
+static const uint8_t s_address = 0x34;
+// Short so that a stuck bus cannot keep the watch awake.
+static const int s_timeoutMs = 50;
+
+static const uint8_t REG_STATUS1 = 0x00;
+static const uint8_t REG_STATUS2 = 0x01;
+static const uint8_t REG_PWRON_STATUS = 0x20;
+static const uint8_t REG_SLEEP_WAKEUP = 0x26;
+static const uint8_t REG_KEY_TIMING = 0x27;
+static const uint8_t REG_ADC_ENABLE = 0x30;
+static const uint8_t REG_VBAT_HIGH = 0x34;
+static const uint8_t REG_IRQ_ENABLE1 = 0x41;
+static const uint8_t REG_IRQ_STATUS1 = 0x49;
+static const uint8_t REG_DCDC_ENABLE = 0x80;
+static const uint8_t REG_DCDC1_VOLTAGE = 0x82;
+static const uint8_t REG_LDO_ENABLE0 = 0x90;
+static const uint8_t REG_LDO_ENABLE1 = 0x91;
+static const uint8_t REG_ALDO1_VOLTAGE = 0x92;
+static const uint8_t REG_BATTERY_PERCENT = 0xA4;
+
+static const uint8_t IRQ1_KEY_SHORT = 1 << 3;
+static const uint8_t IRQ1_KEY_LONG = 1 << 2;
+
+esp_err_t Axp2101::init( i2c_master_bus_handle_t bus )
+{
+    i2c_device_config_t config = {};
+    config.dev_addr_length = I2C_ADDR_BIT_LEN_7;
+    config.device_address = s_address;
+    config.scl_speed_hz = 400000;
+    return i2c_master_bus_add_device( bus, &config, &m_device );
+}
+
+esp_err_t Axp2101::readRegister( uint8_t reg, uint8_t &value )
+{
+    return i2c_master_transmit_receive( m_device, &reg, 1, &value, 1, s_timeoutMs );
+}
+
+esp_err_t Axp2101::writeRegister( uint8_t reg, uint8_t value )
+{
+    const uint8_t data[2] = { reg, value };
+    return i2c_master_transmit( m_device, data, sizeof( data ), s_timeoutMs );
+}
+
+esp_err_t Axp2101::readAdc14( uint8_t highReg, uint16_t &value )
+{
+    uint8_t high = 0;
+    uint8_t low = 0;
+    esp_err_t err = readRegister( highReg, high );
+    if ( err == ESP_OK ) {
+        err = readRegister( highReg + 1, low );
+    }
+    value = static_cast<uint16_t>( ( ( high & 0x3F ) << 8 ) | low );
+    return err;
+}
+
+static const char *chargeStateName( uint8_t status2 )
+{
+    switch ( status2 & 0x07 ) {
+    case 0: return "trickle";
+    case 1: return "pre-charge";
+    case 2: return "constant current";
+    case 3: return "constant voltage";
+    case 4: return "done";
+    case 5: return "not charging";
+    default: return "reserved";
+    }
+}
+
+static const char *currentDirectionName( uint8_t status2 )
+{
+    switch ( ( status2 >> 5 ) & 0x03 ) {
+    case 0: return "standby";
+    case 1: return "charge";
+    case 2: return "discharge";
+    default: return "reserved";
+    }
+}
+
+void Axp2101::logStatus()
+{
+    uint8_t status1 = 0;
+    uint8_t status2 = 0;
+    if ( readRegister( REG_STATUS1, status1 ) != ESP_OK || readRegister( REG_STATUS2, status2 ) != ESP_OK ) {
+        ESP_LOGE( TAG, "Status read failed" );
+        return;
+    }
+    ESP_LOGI( TAG, "STATUS1=0x%02X: VBUS %s, battery %s", status1,
+              ( status1 & ( 1 << 5 ) ) ? "good" : "absent", ( status1 & ( 1 << 3 ) ) ? "present" : "absent" );
+    ESP_LOGI( TAG, "STATUS2=0x%02X: current %s, charger %s", status2,
+              currentDirectionName( status2 ), chargeStateName( status2 ) );
+
+    uint8_t value = 0;
+    if ( readRegister( REG_PWRON_STATUS, value ) == ESP_OK ) {
+        ESP_LOGI( TAG, "PWRON status (REG20)=0x%02X", value );
+    }
+    if ( readRegister( REG_SLEEP_WAKEUP, value ) == ESP_OK ) {
+        ESP_LOGI( TAG, "Sleep/wakeup (REG26)=0x%02X", value );
+    }
+    if ( readRegister( REG_KEY_TIMING, value ) == ESP_OK ) {
+        static const char *irqLevel[] = { "1 s", "1.5 s", "2 s", "2.5 s" };
+        static const char *offLevel[] = { "4 s", "6 s", "8 s", "10 s" };
+        static const char *onLevel[] = { "128 ms", "512 ms", "1 s", "2 s" };
+        ESP_LOGI( TAG, "Key timing (REG27)=0x%02X: long press %s, power off %s, power on %s", value,
+                  irqLevel[( value >> 4 ) & 0x03], offLevel[( value >> 2 ) & 0x03], onLevel[value & 0x03] );
+    }
+    if ( readRegister( REG_ADC_ENABLE, value ) == ESP_OK ) {
+        ESP_LOGI( TAG, "ADC enable (REG30)=0x%02X", value );
+    }
+    if ( readRegister( REG_IRQ_ENABLE1, value ) == ESP_OK ) {
+        ESP_LOGI( TAG, "IRQ enable 1 (REG41)=0x%02X", value );
+    }
+
+    uint8_t dcdcEnable = 0;
+    uint8_t dcdc1 = 0;
+    if ( readRegister( REG_DCDC_ENABLE, dcdcEnable ) == ESP_OK && readRegister( REG_DCDC1_VOLTAGE, dcdc1 ) == ESP_OK ) {
+        // DCDC1: 1.5 V + 100 mV per step (datasheet REG82).
+        ESP_LOGI( TAG, "DCDC enable (REG80)=0x%02X, DCDC1 %s %d mV", dcdcEnable,
+                  ( dcdcEnable & 0x01 ) ? "on" : "off", 1500 + ( dcdc1 & 0x1F ) * 100 );
+    }
+
+    uint8_t ldoEnable0 = 0;
+    uint8_t ldoEnable1 = 0;
+    if ( readRegister( REG_LDO_ENABLE0, ldoEnable0 ) == ESP_OK && readRegister( REG_LDO_ENABLE1, ldoEnable1 ) == ESP_OK ) {
+        ESP_LOGI( TAG, "LDO enable (REG90)=0x%02X (REG91)=0x%02X", ldoEnable0, ldoEnable1 );
+        for ( int i = 0; i < 4; ++i ) {
+            uint8_t voltage = 0;
+            if ( readRegister( REG_ALDO1_VOLTAGE + i, voltage ) == ESP_OK ) {
+                // ALDOx: 0.5 V + 100 mV per step (datasheet REG92-95).
+                ESP_LOGI( TAG, "ALDO%d %s %d mV", i + 1, ( ldoEnable0 & ( 1 << i ) ) ? "on " : "off",
+                          500 + ( voltage & 0x1F ) * 100 );
+            }
+        }
+    }
+
+    uint16_t vbat = 0;
+    uint8_t percent = 0;
+    if ( readAdc14( REG_VBAT_HIGH, vbat ) == ESP_OK && readRegister( REG_BATTERY_PERCENT, percent ) == ESP_OK ) {
+        ESP_LOGI( TAG, "Battery %u mV, %u %%", vbat, percent );
+    }
+}
+
+esp_err_t Axp2101::clearPowerKeyIrq( bool &shortPress, bool &longPress )
+{
+    uint8_t status = 0;
+    esp_err_t err = readRegister( REG_IRQ_STATUS1, status );
+    if ( err != ESP_OK ) {
+        return err;
+    }
+    shortPress = ( status & IRQ1_KEY_SHORT ) != 0;
+    longPress = ( status & IRQ1_KEY_LONG ) != 0;
+    // Write 1 only to the key bits so that other IRQ flags are left untouched.
+    return writeRegister( REG_IRQ_STATUS1, status & ( IRQ1_KEY_SHORT | IRQ1_KEY_LONG ) );
+}
