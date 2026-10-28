@@ -22,36 +22,47 @@ import serial
 USB_CONNECTED = '<usb connected>'
 USB_DISCONNECTED = '<usb disconnected>'
 
-BOLD_YELLOW = '\033[1;33m'
+ACT_STYLE = '\033[1;30;43m'   # black on yellow: the tester must do something
+WAIT_STYLE = '\033[1;36m'     # bold cyan: hands off
 GREEN = '\033[32m'
 RED = '\033[31m'
 DIM = '\033[2m'
 RESET = '\033[0m'
 
-# A step is (instruction, regular expression, timeout in seconds).
-# An empty instruction means "keep waiting" without a new prompt.
+ACT = 'act'
+WAIT = 'wait'
+
+# A step is (kind, instruction, regular expression, timeout in seconds).
+# kind ACT rings the terminal bell; an empty instruction keeps waiting without a new prompt.
 TESTS = {
     'm1': [
-        ('The board is being reset. Do not touch it.', r'wake source: power-on/reset', 20),
-        ('Press PWR briefly, once.', r'GPIO10 -> 1', 30),
-        ('Do not touch. The watch sleeps 10 s after the last press.', r'PWR key IRQ: short 1', 25),
-        ('', r'Entering deep sleep', 10),
-        ('', USB_DISCONNECTED, 10),
-        ('Press PWR briefly to wake the watch (1/3).', r'wake source: wake: PWR key', 40),
-        ('Do not touch. Waiting for deep sleep.', r'Entering deep sleep', 25),
-        ('Press PWR briefly to wake the watch (2/3).', r'wake source: wake: PWR key', 40),
-        ('Do not touch. Waiting for deep sleep.', r'Entering deep sleep', 25),
-        ('Press PWR briefly to wake the watch (3/3).', r'wake source: wake: PWR key', 40),
-        ('Do not touch. Waiting for deep sleep.', r'Entering deep sleep', 25),
-        ('', USB_DISCONNECTED, 10),
-        ('Hold PWR down for about 8 s until the watch powers off, then release it.',
+        (WAIT, 'The board is being reset.', r'wake source: power-on/reset', 20),
+        (ACT, 'Press PWR briefly, once.', r'GPIO10 -> 1', 30),
+        (WAIT, 'The watch sleeps 10 s after the last press.', r'PWR key IRQ: short 1', 25),
+        (WAIT, '', r'Entering deep sleep', 10),
+        (WAIT, '', USB_DISCONNECTED, 10),
+        (ACT, 'Press PWR briefly to wake the watch (1/3).', r'wake source: wake: PWR key', 40),
+        (WAIT, 'Waiting for deep sleep.', r'Entering deep sleep', 25),
+        (ACT, 'Press PWR briefly to wake the watch (2/3).', r'wake source: wake: PWR key', 40),
+        (WAIT, 'Waiting for deep sleep.', r'Entering deep sleep', 25),
+        (ACT, 'Press PWR briefly to wake the watch (3/3).', r'wake source: wake: PWR key', 40),
+        (WAIT, 'Waiting for deep sleep.', r'Entering deep sleep', 25),
+        (WAIT, '', USB_DISCONNECTED, 10),
+        (ACT, 'Hold PWR down for about 8 s until the watch powers off, then release it.',
          r'wake source: wake: PWR key', 40),
-        ('', USB_DISCONNECTED, 20),
-        ('Press PWR briefly to power the watch on.', r'wake source: power-on/reset', 40),
-        ('', r'PWRON status', 10),
-        ('Do not touch. Waiting for deep sleep.', r'Entering deep sleep', 25),
+        (WAIT, '', USB_DISCONNECTED, 20),
+        (ACT, 'Press PWR briefly to power the watch on.', r'wake source: power-on/reset', 40),
+        (WAIT, '', r'PWRON status', 10),
+        (WAIT, 'Waiting for deep sleep.', r'Entering deep sleep', 25),
     ],
 }
+
+
+def printInstruction(kind, instruction):
+    if kind == ACT:
+        print(f'\n\a{ACT_STYLE} ACTION: {instruction} {RESET}')
+    else:
+        print(f'\n{WAIT_STYLE}WAIT - do not touch: {instruction}{RESET}')
 
 
 class SerialReader(threading.Thread):
@@ -110,9 +121,9 @@ class SerialReader(threading.Thread):
 def runSteps(reader, steps):
     results = []
     cursor = 0
-    for index, (instruction, pattern, timeout) in enumerate(steps, start=1):
+    for index, (kind, instruction, pattern, timeout) in enumerate(steps, start=1):
         if instruction:
-            print(f'\n{BOLD_YELLOW}>>> {instruction}{RESET}')
+            printInstruction(kind, instruction)
         regex = re.compile(re.escape(pattern) if pattern.startswith('<') else pattern)
         start = time.time()
         matched = False
@@ -143,6 +154,9 @@ def main():
 
     os.makedirs('test-logs', exist_ok=True)
     logPath = os.path.join('test-logs', f'{args.test}-{datetime.datetime.now():%Y%m%d-%H%M%S}.log')
+    print(f'Test {args.test}: {ACT_STYLE} ACTION {RESET} = do it now (bell), '
+          f'{WAIT_STYLE}WAIT{RESET} = do not touch.')
+    input('Press Enter when you are ready to start...')
     with open(logPath, 'w') as logFile:
         reader = SerialReader(args.port, logFile)
         reader.resetRequested = not args.no_reset
