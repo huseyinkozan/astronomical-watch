@@ -48,7 +48,8 @@ astronomical-watch/
 
 ## Status
 
-Restarted on ESP-IDF with C++17. The project skeleton builds; it logs the boot count and wake cause.
+Restarted on ESP-IDF with C++17. The project skeleton builds and runs on the board; it logs the
+boot count and wake cause.
 The earlier Wake-on-Motion validation results are kept in `docs/hardware.md`, and the validator
 itself in `archive/wom-validator/` (git tag `wom-validator`).
 

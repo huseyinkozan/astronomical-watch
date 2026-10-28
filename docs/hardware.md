@@ -38,7 +38,9 @@ VCC-RTC; official example uses `CONFIG_PMU_INTERRUPT_PIN=-1`), PCF85063 CLKOUT.
 ## 2. Parts and Power Tree
 
 - MCU: **ESP32-S3R8** (8 MB octal PSRAM in package). No 32 kHz crystal on the ESP32 [SCH].
-- Flash: **GD25Q256, 32 MB** [SCH]. **Known deviation:** the project (like the Waveshare examples)
+- Chip revision v0.2 [HW].
+- Flash: **GD25Q256, 32 MB** [SCH]; detected at boot as GigaDevice, 32768 KiB, running in DIO mode
+  [HW]. **Known deviation:** the project (like the Waveshare examples)
   configures 16 MB, because addresses above 16 MB need 32-bit flash addressing. Revisit only if the
   firmware or data ever needs more than 16 MB.
 - AXP2101 PMIC rails [SCH]:
@@ -150,6 +152,8 @@ Validated on this board [HW] (validator in `archive/wom-validator/`, tag `wom-va
 ### ESP32-S3
 - EXT0/EXT1 wake only on RTC GPIOs 0–21; EXT1 supports ANY_HIGH [DS].
 - Deep sleep ≈ 7–8 µA [DS Table 5-10]. Each wake from deep sleep is a full boot.
+- Reset to `app_main` takes about 255 ms with the default configuration (log timestamps, 160 MHz,
+  DIO flash, INFO logging, image validation on) [HW]. This is the baseline for wake latency.
 - The internal RC slow clock drifts seconds per day: use it only as a wake timer; the PCF85063 is the clock.
 - The native USB-Serial-JTAG connection drops while the chip is in deep sleep.
 
