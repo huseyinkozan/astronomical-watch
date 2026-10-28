@@ -40,9 +40,10 @@ VCC-RTC; official example uses `CONFIG_PMU_INTERRUPT_PIN=-1`), PCF85063 CLKOUT.
 - MCU: **ESP32-S3R8** (8 MB octal PSRAM in package). No 32 kHz crystal on the ESP32 [SCH].
 - Chip revision v0.2 [HW].
 - Flash: **GD25Q256, 32 MB** [SCH]; detected at boot as GigaDevice, 32768 KiB, running in DIO mode
-  [HW]. **Known deviation:** the project (like the Waveshare examples)
-  configures 16 MB, because addresses above 16 MB need 32-bit flash addressing. Revisit only if the
-  firmware or data ever needs more than 16 MB.
+  [HW]. The project configures 32 MB (the Waveshare examples use 16 MB). ESP-IDF supports 32-bit
+  addressing for the GD25Q256: the area above 16 MB can hold data; executing code from it needs the
+  experimental `CONFIG_BOOTLOADER_CACHE_32BIT_ADDR_QUAD_FLASH`, so application partitions stay
+  below 16 MB [ESP-IDF docs, SPI flash optional features].
 - AXP2101 PMIC rails [SCH]:
 
 | Rail | Net | Loads | Rule |

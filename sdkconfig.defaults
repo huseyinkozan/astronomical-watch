@@ -3,6 +3,7 @@
 
 CONFIG_IDF_TARGET="esp32s3"
 
-# The board has a 32 MB GD25Q256 flash. Addressing above 16 MB needs 32-bit
-# flash addressing; 16 MB is more than enough, as in the Waveshare examples.
-CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+# 32 MB GD25Q256. ESP-IDF supports its 32-bit addressing: the part above 16 MB
+# is usable for data. Code above 16 MB would need an experimental option; keep
+# the application partitions below 16 MB.
+CONFIG_ESPTOOLPY_FLASHSIZE_32MB=y
