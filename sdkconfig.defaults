@@ -1,0 +1,8 @@
+# Project defaults. `sdkconfig` is generated from this file on the first build
+# and is committed so that builds are reproducible.
+
+CONFIG_IDF_TARGET="esp32s3"
+
+# The board has a 32 MB GD25Q256 flash. Addressing above 16 MB needs 32-bit
+# flash addressing; 16 MB is more than enough, as in the Waveshare examples.
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y

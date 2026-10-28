@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(idf.py build)",
+      "Bash(idf.py size)",
+      "Bash(idf.py size-components)",
+      "Bash(idf.py reconfigure)"
+    ],
+    "deny": [
+      "Edit(managed_components/**)",
+      "Write(managed_components/**)",
+      "Edit(archive/**)",
+      "Write(archive/**)"
+    ]
+  }
+}

@@ -1,0 +1,67 @@
+# ESP-IDF build output
+build/
+
+# ESP-IDF generated files
+# sdkconfig     # intentially commented
+sdkconfig.old
+
+# ESP-IDF dependency lock file
+# Keep this if you want reproducible component versions.
+# idf_component.yml.lock
+
+# ESP-IDF temporary files
+# dependencies.lock
+
+# ESP-IDF managed components
+managed_components/
+
+
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# C/C++ build artifacts
+*.o
+*.a
+*.so
+*.d
+*.elf
+*.bin
+*.map
+*.hex
+
+# Compilation database
+compile_commands.json
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+install_manifest.txt
+
+# Ninja
+.ninja_deps
+.ninja_log
+.ninja_*
+
+
+# Flashing / monitoring logs
+*.log
+
+# VS Code
+.vscode/
+!.vscode/extensions.json
+
+# CLion / JetBrains
+.idea/
+*.iml
+
+# Vim / Emacs
+*.swp
+*.swo
+*~
+
+# clangd caches, etc.
+.cache/

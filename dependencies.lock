@@ -86,7 +86,7 @@ dependencies:
       type: service
     version: 2.9.0
   espressif/usb:
-    component_hash: 6c2cff118141dbbca181d0d27d71801fdddfc78f7ac03ae43f6e5a8cbd89cb99
+    component_hash: 99eee72ea224d9117d4c342442717a1f20bf8112e2ab5d7d7038b827874f4c92
     dependencies:
     - name: idf
       require: private
@@ -101,18 +101,42 @@ dependencies:
     - esp32p4
     - esp32h4
     - linux
-    version: 1.5.0
+    version: 1.6.0
   idf:
     source:
       type: idf
     version: 6.1.0
   lvgl/lvgl:
-    component_hash: 184e532558c1c45fefed631f3e235423d22582aafb4630f3e8885c35281a49ae
-    dependencies: []
+    component_hash: 7d82410747bbfb319531449749e940f440f8414f041f9eaba13f0d1dd7f58cdd
+    dependencies:
+    - name: espressif/freetype
+      registry_url: https://components.espressif.com
+      require: private
+      rules:
+      - if: idf_version >=5.5 && $CONFIG{LV_USE_FREETYPE} == True
+      version: ^2.14.3
+    - name: espressif/libjpeg-turbo
+      registry_url: https://components.espressif.com
+      require: private
+      rules:
+      - if: idf_version >=5.5 && $CONFIG{LV_USE_LIBJPEG_TURBO} == True
+      version: ^3.1.1
+    - name: espressif/libpng
+      registry_url: https://components.espressif.com
+      require: private
+      rules:
+      - if: idf_version >=5.5 && $CONFIG{LV_USE_LIBPNG} == True
+      version: ^1.6.58
+    - name: espressif/lz4
+      registry_url: https://components.espressif.com
+      require: private
+      rules:
+      - if: idf_version >=5.5 && $CONFIG{LV_USE_LZ4} == True && $CONFIG{LV_USE_LZ4_INTERNAL} == False
+      version: ^1.10.0
     source:
       registry_url: https://components.espressif.com
       type: service
-    version: 9.5.0
+    version: 9.6.0~1
   waveshare/esp32_s3_touch_amoled_2_06:
     component_hash: a68c5c26aabb00634f46834116a62413f75f34d672a8b3c639b8f8253160ec68
     dependencies:
@@ -170,7 +194,7 @@ dependencies:
       type: service
     version: 2.0.0
   waveshare/pcf85063a:
-    component_hash: e9edc341ee2b73e23ef4a2f0eaba0ccbee6c6eea4e9d1b958d3b25a224960d22
+    component_hash: 61a541e6d9db63e3a96cacb906fc8d455e2341d700a63021fcfbacd7a3a7e081
     dependencies:
     - name: idf
       require: private
@@ -178,10 +202,11 @@ dependencies:
     source:
       registry_url: https://components.espressif.com/
       type: service
-    version: 2.0.1
+    version: 2.1.0
 direct_dependencies:
+- idf
 - waveshare/esp32_s3_touch_amoled_2_06
 - waveshare/pcf85063a
-manifest_hash: 44c195b6523fcf81b3ddfc323a92c7fbc8a5219a1f4ae43a27e824d8b9f45328
+manifest_hash: 8c39a669c7eb703dd22cf4b59ad109f515bf62bec118bd5c84c9f2efa918866b
 target: esp32s3
 version: 3.0.0

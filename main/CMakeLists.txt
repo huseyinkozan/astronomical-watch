@@ -1,3 +1,5 @@
-idf_component_register(SRCS "hello_world_main.c"
-                       PRIV_REQUIRES esp_driver_gpio esp_driver_i2c esp_timer waveshare__esp32_s3_touch_amoled_2_06
+idf_component_register(SRCS "main.cpp"
                        INCLUDE_DIRS "")
+
+# ESP-IDF defaults to the newest C++ standard; this project is written in C++17.
+target_compile_options(${COMPONENT_LIB} PRIVATE -std=gnu++17)
