@@ -78,6 +78,10 @@ i.e. the chip behaves at least partly like the A description; SensorLib does the
 Whether CTRL8.bit7 has any effect on this chip, and whether a STATUS1 read alone also completes the
 handshake, is [?]. Both datasheets agree that INT1 is driven during the handshake.
 
+CTRL1 also differs: the C datasheet marks bits 4:1 as reserved, the A datasheet defines bit3 as
+INT1_EN and bit4 as INT2_EN. INT1 worked with `CTRL1=0x48` on this board [HW]; whether bit3 is
+required on the C chip is [?] (relevant for motion wake).
+
 The register notes below follow the A datasheet unless marked.
 
 - CTRL1 `0x02`: bit6 ADDR_AI, bit5 BE (big-endian, default 1), bit4 INT2_EN, bit3 INT1_EN,
@@ -178,6 +182,10 @@ PWR key [HW]:
 ### FT3168 Touch (`0x38`)
 - Register 0xA5 power mode: 0 active, 1 monitor, 2 standby, 3 hibernate (wake needs TP_RESET) [REF].
 - Current: active 1.5 mA, monitor 30 µA, sleep 10 µA [DS Table 3-2].
+- In monitor or sleep mode it may stop answering I2C after another device on the bus was accessed
+  [DS §2.3]; send its commands right after a reset, before other bus traffic.
+- After a reset it answers with power mode 0x00 (active); after `0xA5=0x03` it no longer answers
+  I2C, which confirms sleep [HW].
 
 ### ESP32-S3
 - EXT0/EXT1 wake only on RTC GPIOs 0–21; EXT1 supports ANY_HIGH [DS].
@@ -191,7 +199,34 @@ PWR key [HW]:
   (`CONFIG_WATCH_DEV_LOGGING`) therefore wait for the host and flush before sleeping; with it,
   logging starts about 0.77 s after the wake instead of about 0.26 s.
 
-## 4. Open Questions
+## 4. Sleep Preparation (`main/Peripherals.*`)
+
+Done once after power-on or reset (RTC flag); everything survives deep sleep. Verified with the
+guided test `m2` after a full power cycle [HW]:
+
+| Step | Read-back on the board | Datasheet current before → after |
+|---|---|---|
+| FT3168: reset pulse, `0xA5=0x03` | answered before (mode 0x00), no answer after | 1.5 mA (active) → 10 µA |
+| CO5300: reset pulse, QSPI `0x4F 0x01` (deep standby) | command accepted; panel stays dark | ~135 µA (Sleep In) → ~3 µA |
+| QMI8658: CTRL7 = 0, CTRL1 bit0 = 1 | CTRL1 `0x21`, CTRL7 `0x00`, WHO_AM_I `0x05` | ~15 µA → ~6 µA |
+| PCF85063: Control_2 COF = 111 | CONTROL2 `0x07` | CLKOUT 32.768 kHz → off |
+| AXP2101: DCDC2–4, ALDO2–4, BLDO1–2, CPUSLDO, DLDO1–2 off | REG80 `0x01`, REG90 `0x01`, REG91 `0x00` | not specified |
+
+- After each later deep-sleep wake the IMU and RTC still answer on I2C: switching the unused rails
+  off does not disturb the bus [HW].
+- GPIO8 (LCD_RESET) and GPIO9 (TP_RESET) have no pull resistor on the board; they are driven HIGH
+  and held (`gpio_hold_en`) through deep sleep, because a low level would leave deep standby/sleep.
+- The panel QSPI bus is opened with the BSP pin definitions for this one command: the BSP has no
+  API that opens the panel IO without switching the display on.
+- If the PWR key is still high when the awake window ends, the watch sleeps with a 60 s timer
+  instead of the key wake. With the window restarting on every press, this needs a key held for
+  more than 10 s, but the AXP powers the board off at 6 s, so it only guards against a stuck line.
+- Estimated sleep current after preparation, from datasheet values: ESP32-S3 ~8 µA, AXP2101
+  ~40 µA, touch 10 µA, IMU 6 µA, panel 3 µA, RTC <1 µA → **roughly 70 µA**, plus the unknown
+  ES8311/ES7210 standby current. Before preparation the touch controller alone was ~1.5 mA.
+  These are estimates; see the battery drain runs for evidence from the board.
+
+## 5. Open Questions
 
 1. Battery thermistor: the schematic has RP2 on TS, but the official AXP example disables TS
    ("no thermistor"). Check the board.
@@ -204,7 +239,7 @@ PWR key [HW]:
 6. Correct PCF85063 CAP_SEL for this crystal.
 7. ES8311/ES7210 standby current at power-on defaults.
 
-## 5. Sources
+## 6. Sources
 
 - Schematic: Waveshare repository, `Schematic/ESP32-S3-Touch-AMOLED-2.06-Schematic-V1.0.pdf`
   (https://github.com/waveshareteam/ESP32-S3-Touch-AMOLED-2.06)

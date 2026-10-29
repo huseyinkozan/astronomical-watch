@@ -20,8 +20,15 @@ public:
 
     void logStatus();
 
+    // VBAT (REG34/35, mV), fuel gauge (REGA4, %) and VBUS good (REG00 bit5).
+    esp_err_t readBattery( uint16_t &millivolts, uint8_t &percent, bool &vbusGood );
+
     // Reads and clears the PWRON short/long press IRQ flags (REG49, write 1 to clear).
     esp_err_t clearPowerKeyIrq( bool &shortPress, bool &longPress );
+
+    // Switches off every rail without a load on this board; keeps DCDC1 (VCC3V3) and
+    // ALDO1 (A3V3: an unpowered ES7210 would hang the shared I2C bus). See docs/hardware.md.
+    esp_err_t disableUnusedRails();
 
 private:
     i2c_master_dev_handle_t m_device = nullptr;

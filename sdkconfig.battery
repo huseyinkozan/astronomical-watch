@@ -1,0 +1,2 @@
+# Battery drain run: timer wakes log VBAT and gauge % to RTC memory (see CLAUDE.md).
+CONFIG_WATCH_BATTERY_LOG=y

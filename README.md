@@ -49,7 +49,8 @@ astronomical-watch/
 
 ## Status
 
-Restarted on ESP-IDF with C++17. The watch reads its power-management IC, stays awake for a short
+Restarted on ESP-IDF with C++17. The watch puts the unused peripherals into their lowest-power
+state, reads its power-management IC, stays awake for a short
 window and then enters deep sleep; the PWR key wakes it. Wake statistics are kept across sleep.
 Motion wake, display, RTC and the watch face are next.
 The earlier Wake-on-Motion validation results are kept in `docs/hardware.md`, and the validator

@@ -1,0 +1,2 @@
+# Battery drain run A: leave peripherals at their power-on defaults for comparison.
+# CONFIG_WATCH_QUIESCE is not set

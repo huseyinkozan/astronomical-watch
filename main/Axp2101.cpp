@@ -145,6 +145,60 @@ void Axp2101::logStatus()
     }
 }
 
+esp_err_t Axp2101::readBattery( uint16_t &millivolts, uint8_t &percent, bool &vbusGood )
+{
+    uint8_t status1 = 0;
+    esp_err_t err = readAdc14( REG_VBAT_HIGH, millivolts );
+    if ( err == ESP_OK ) {
+        err = readRegister( REG_BATTERY_PERCENT, percent );
+    }
+    if ( err == ESP_OK ) {
+        err = readRegister( REG_STATUS1, status1 );
+    }
+    vbusGood = ( status1 & ( 1 << 5 ) ) != 0;
+    return err;
+}
+
+// Read-modify-write: only the named enable bits change.
+static const uint8_t DCDC_OFF_MASK = 0x0E;    // DCDC2-4 (DCDC1 stays on)
+static const uint8_t LDO0_KEEP_MASK = 0x01;   // ALDO1 (all other REG90 rails go off)
+static const uint8_t LDO1_OFF_MASK = 0x01;    // DLDO2
+
+esp_err_t Axp2101::disableUnusedRails()
+{
+    uint8_t dcdc = 0;
+    uint8_t ldo0 = 0;
+    uint8_t ldo1 = 0;
+    esp_err_t err = readRegister( REG_DCDC_ENABLE, dcdc );
+    if ( err == ESP_OK ) {
+        err = writeRegister( REG_DCDC_ENABLE, dcdc & static_cast<uint8_t>( ~DCDC_OFF_MASK ) );
+    }
+    if ( err == ESP_OK ) {
+        err = readRegister( REG_LDO_ENABLE0, ldo0 );
+    }
+    if ( err == ESP_OK ) {
+        err = writeRegister( REG_LDO_ENABLE0, ldo0 & LDO0_KEEP_MASK );
+    }
+    if ( err == ESP_OK ) {
+        err = readRegister( REG_LDO_ENABLE1, ldo1 );
+    }
+    if ( err == ESP_OK ) {
+        err = writeRegister( REG_LDO_ENABLE1, ldo1 & static_cast<uint8_t>( ~LDO1_OFF_MASK ) );
+    }
+    if ( err != ESP_OK ) {
+        ESP_LOGE( TAG, "Rail write failed: %s", esp_err_to_name( err ) );
+        return err;
+    }
+
+    readRegister( REG_DCDC_ENABLE, dcdc );
+    readRegister( REG_LDO_ENABLE0, ldo0 );
+    readRegister( REG_LDO_ENABLE1, ldo1 );
+    ESP_LOGI( TAG, "Rails after: REG80=0x%02X REG90=0x%02X REG91=0x%02X", dcdc, ldo0, ldo1 );
+    const bool expected = ( dcdc & DCDC_OFF_MASK ) == 0 && ( dcdc & 0x01 ) && ldo0 == LDO0_KEEP_MASK &&
+                          ( ldo1 & LDO1_OFF_MASK ) == 0;
+    return expected ? ESP_OK : ESP_ERR_INVALID_STATE;
+}
+
 esp_err_t Axp2101::clearPowerKeyIrq( bool &shortPress, bool &longPress )
 {
     uint8_t status = 0;

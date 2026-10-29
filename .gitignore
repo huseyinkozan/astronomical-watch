@@ -68,3 +68,6 @@ install_manifest.txt
 
 # Guided hardware test logs
 test-logs/
+
+# Battery-run builds (separate build directory and sdkconfig)
+build-*/

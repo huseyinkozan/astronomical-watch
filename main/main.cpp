@@ -1,5 +1,7 @@
 #include "Axp2101.h"
+#include "BatteryLog.h"
 #include "DeepSleep.h"
+#include "Peripherals.h"
 
 #include "bsp/esp32_s3_touch_amoled_2_06.h"
 #include "driver/gpio.h"
@@ -16,6 +18,8 @@ static const gpio_num_t s_powerKeyGpio = GPIO_NUM_10;
 
 static Axp2101 s_pmu;
 static DeepSleep s_deepSleep;
+static Peripherals s_peripherals;
+[[maybe_unused]] static BatteryLog s_batteryLog;
 
 static void logPowerKeyIrq()
 {
@@ -41,6 +45,7 @@ static void watchPowerKey( int windowMs )
             ESP_LOGI( TAG, "GPIO10 -> %d", level );
             if ( level == 1 ) {
                 s_deepSleep.addEvent( DeepSleep::Event::PowerKeyPressed );
+                ESP_LOGI( TAG, "Awake window restarted" );
             }
             lastLevel = level;
             idleMs = 0;
@@ -50,24 +55,48 @@ static void watchPowerKey( int windowMs )
     }
 }
 
+static void sleepNow()
+{
+    s_peripherals.holdResetLines();
+    s_deepSleep.enter();
+}
+
 extern "C" void app_main( void )
 {
-    s_deepSleep.onBoot();
+    [[maybe_unused]] const DeepSleep::Event wake = s_deepSleep.onBoot();
 
     gpio_config_t keyConfig = {};
     keyConfig.pin_bit_mask = 1ULL << s_powerKeyGpio;
     keyConfig.mode = GPIO_MODE_INPUT;
     gpio_config( &keyConfig );
 
-    if ( s_pmu.init( bsp_i2c_get_handle() ) == ESP_OK ) {
+    i2c_master_bus_handle_t bus = bsp_i2c_get_handle();
+    const bool pmuReady = s_pmu.init( bus ) == ESP_OK;
+    if ( !pmuReady ) {
+        ESP_LOGE( TAG, "AXP2101 init failed" );
+    }
+
+#if CONFIG_WATCH_BATTERY_LOG
+    if ( wake == DeepSleep::Event::WakeTimer ) {
+        if ( pmuReady ) {
+            s_batteryLog.record( s_pmu );
+        }
+        sleepNow();
+    }
+#endif
+
+    s_peripherals.quiesceOnce( bus, s_pmu );
+    if ( pmuReady ) {
         s_pmu.logStatus();
         logPowerKeyIrq();
-    } else {
-        ESP_LOGE( TAG, "AXP2101 init failed" );
+#if CONFIG_WATCH_BATTERY_LOG
+        s_batteryLog.record( s_pmu );
+        s_batteryLog.print();
+#endif
     }
 
     watchPowerKey( s_awakeWindowMs );
     logPowerKeyIrq();
 
-    s_deepSleep.enter();
+    sleepNow();
 }

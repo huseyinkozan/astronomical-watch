@@ -135,6 +135,18 @@ Power-related changes are evaluated with on-board data instead:
 
 Report such results as estimates, never as measured current.
 
+Battery drain runs use separate builds, so the committed `sdkconfig` stays unchanged
+(`sdkconfig.battery` enables the timer log; add `sdkconfig.noquiesce` for a baseline run):
+
+```bash
+idf.py -B build-battery -D SDKCONFIG=build-battery/sdkconfig \
+       -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.battery" build flash
+```
+
+Power-cycle the watch (hold PWR 6 s, then press) so that the log and all chips start from their
+power-on state, unplug USB for the run, then plug it in and read the log with
+`python tools/guided_test.py battery` (this test does not reset the board).
+
 ## Documentation
 
 - `README.md`: human-facing and concise (purpose, features, hardware, build, status).

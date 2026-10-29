@@ -4,10 +4,10 @@ menu "Astronomical Watch"
         bool "Development logging across deep sleep"
         default y
         help
-            Waits for the USB Serial/JTAG host after each wake and flushes the
-            console before deep sleep, so that no log line is lost while USB
-            re-enumerates. Costs up to about 2 s of awake time per wake; disable
-            for battery tests.
+            Waits for the USB Serial/JTAG host after each key or power-on wake
+            and flushes the console before deep sleep, so that no log line is
+            lost while USB re-enumerates. Costs up to about 2 s of awake time
+            per such wake. Timer wakes never wait.
 
     config WATCH_AWAKE_WINDOW_MS
         int "Awake window after the last PWR key press (ms)"
@@ -15,5 +15,26 @@ menu "Astronomical Watch"
         help
             Development aid until the display timeout exists: the watch stays
             awake this long after boot or after the last PWR key press.
+
+    config WATCH_QUIESCE
+        bool "Put unused peripherals into their lowest-power state"
+        default y
+        help
+            Touch sleep, panel deep standby, IMU power-down, RTC CLKOUT off and
+            unused AXP2101 rails off, once after power-on. Disable only to
+            compare battery drain with the default state.
+
+    config WATCH_BATTERY_LOG
+        bool "Battery drain log"
+        default n
+        help
+            Wakes on a timer, stores battery voltage and gauge percentage in
+            RTC memory and sleeps again at once. A PWR key wake prints the log.
+            Used to estimate the average current without a meter.
+
+    config WATCH_BATTERY_LOG_INTERVAL_MIN
+        int "Battery log interval (minutes)"
+        default 15
+        depends on WATCH_BATTERY_LOG
 
 endmenu

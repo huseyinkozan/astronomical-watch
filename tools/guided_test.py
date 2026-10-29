@@ -55,7 +55,38 @@ TESTS = {
         (WAIT, '', r'PWRON status', 10),
         (WAIT, 'Waiting for deep sleep.', r'Entering deep sleep', 25),
     ],
+    'm2': [
+        (WAIT, 'The board is being reset.', r'wake source: power-on/reset', 20),
+        # A full power cycle returns every chip and AXP rail to its power-on default.
+        (ACT, 'Hold PWR down for about 8 s until the watch powers off, then release it.', USB_DISCONNECTED, 40),
+        (ACT, 'Press PWR briefly to power the watch on.', r'wake source: power-on/reset', 40),
+        (WAIT, '', r'Touch: before ESP_OK.*sleep command ESP_OK', 10),
+        (WAIT, '', r'Panel: deep standby command ESP_OK', 10),
+        (WAIT, '', r'IMU: .*powered down', 10),
+        (WAIT, '', r'RTC: .*CLKOUT off', 10),
+        (WAIT, '', r'Rails after: REG80=0x01 REG90=0x01 REG91=0x00', 10),
+        (WAIT, '', r'Quiesce done: 5/5 steps OK', 10),
+        (ACT, 'Press PWR briefly, once, within 10 s.', r'Awake window restarted', 30),
+        (WAIT, 'The watch sleeps 10 s after the last press.', r'Entering deep sleep', 25),
+        (WAIT, '', USB_DISCONNECTED, 10),
+        (ACT, 'Press PWR briefly to wake the watch (1/3).', r'wake source: wake: PWR key', 40),
+        (WAIT, '', r'Already quiesced\. I2C check: IMU ok .*RTC ok', 10),
+        (WAIT, 'Waiting for deep sleep.', r'Entering deep sleep', 25),
+        (ACT, 'Press PWR briefly to wake the watch (2/3).', r'wake source: wake: PWR key', 40),
+        (WAIT, '', r'Already quiesced\. I2C check: IMU ok .*RTC ok', 10),
+        (WAIT, 'Waiting for deep sleep.', r'Entering deep sleep', 25),
+        (ACT, 'Press PWR briefly to wake the watch (3/3).', r'wake source: wake: PWR key', 40),
+        (WAIT, '', r'Already quiesced\. I2C check: IMU ok .*RTC ok', 10),
+        (WAIT, 'Waiting for deep sleep. Check that the screen stayed dark.', r'Entering deep sleep', 25),
+    ],
+    # Reads the battery drain log; the board must not be reset, or RTC memory is cleared.
+    'battery': [
+        (WAIT, 'Reading the battery log.', r'Battery log: \d+ of \d+ samples', 30),
+        (WAIT, '', r'Entering deep sleep', 40),
+    ],
 }
+
+NO_RESET_TESTS = {'battery'}
 
 
 def printInstruction(kind, instruction):
@@ -171,7 +202,7 @@ def main():
     input('Press Enter when you are ready to start...')
     with open(logPath, 'w') as logFile:
         reader = SerialReader(args.port, logFile)
-        reader.resetRequested = not args.no_reset
+        reader.resetRequested = not args.no_reset and args.test not in NO_RESET_TESTS
         reader.start()
         try:
             if waitForBoard(reader):

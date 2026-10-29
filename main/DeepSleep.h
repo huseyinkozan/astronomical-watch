@@ -19,7 +19,8 @@ public:
     };
 
     // Classifies the wake cause, updates and logs the statistics and the recent events.
-    void onBoot();
+    // Returns the wake event (PowerOn, WakePowerKey, WakeTimer or WakeOther).
+    Event onBoot();
 
     // Events are kept in RTC memory, so they survive a lost log line.
     void addEvent( Event event );

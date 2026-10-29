@@ -45,6 +45,8 @@ RTC_DATA_ATTR static WakeStatistics s_stats;
 RTC_DATA_ATTR static EventRecord s_events[s_eventCapacity];
 RTC_DATA_ATTR static uint32_t s_eventCount;
 
+static DeepSleep::Event s_currentWake = DeepSleep::Event::PowerOn;
+
 static const char *eventName( DeepSleep::Event event )
 {
     switch ( event ) {
@@ -89,11 +91,8 @@ void DeepSleep::addEvent( Event event )
     ++s_eventCount;
 }
 
-void DeepSleep::onBoot()
+DeepSleep::Event DeepSleep::onBoot()
 {
-#if CONFIG_WATCH_DEV_LOGGING
-    waitForUsbHost();
-#endif
     const uint32_t causes = esp_sleep_get_wakeup_causes();
     Event wakeEvent = Event::WakeOther;
 
@@ -118,22 +117,34 @@ void DeepSleep::onBoot()
         ++s_stats.otherWakes;
     }
     ++s_stats.bootCount;
+    s_currentWake = wakeEvent;
 
+    // Timer wakes are short measurement wakes: no waiting for USB and no event dump.
+    const bool timerWake = wakeEvent == Event::WakeTimer;
+#if CONFIG_WATCH_DEV_LOGGING
+    if ( !timerWake ) {
+        waitForUsbHost();
+    }
+#endif
     ESP_LOGI( TAG, "Boot #%" PRIu32 ", wake source: %s (causes=0x%" PRIx32 ")", s_stats.bootCount,
               eventName( wakeEvent ), causes );
-    ESP_LOGI( TAG, "Wakes: power-on %" PRIu32 ", PWR %" PRIu32 ", timer %" PRIu32 ", other %" PRIu32
-              ", fallback sleeps %" PRIu32,
-              s_stats.powerOnWakes, s_stats.powerKeyWakes, s_stats.timerWakes, s_stats.otherWakes,
-              s_stats.fallbackSleeps );
-    ESP_LOGI( TAG, "Awake: last %" PRIu32 " ms, total %" PRIu64 " ms", s_stats.lastAwakeMs, s_stats.totalAwakeMs );
+    if ( !timerWake ) {
+        ESP_LOGI( TAG, "Wakes: power-on %" PRIu32 ", PWR %" PRIu32 ", timer %" PRIu32 ", other %" PRIu32
+                  ", fallback sleeps %" PRIu32,
+                  s_stats.powerOnWakes, s_stats.powerKeyWakes, s_stats.timerWakes, s_stats.otherWakes,
+                  s_stats.fallbackSleeps );
+        ESP_LOGI( TAG, "Awake: last %" PRIu32 " ms, total %" PRIu64 " ms", s_stats.lastAwakeMs,
+                  s_stats.totalAwakeMs );
 
-    const uint32_t first = s_eventCount > s_eventCapacity ? s_eventCount - s_eventCapacity : 0;
-    for ( uint32_t i = first; i < s_eventCount; ++i ) {
-        const EventRecord &record = s_events[i % s_eventCapacity];
-        ESP_LOGI( TAG, "Event: boot #%" PRIu32 " at %" PRIu32 " ms: %s", record.boot, record.timeMs,
-                  eventName( record.event ) );
+        const uint32_t first = s_eventCount > s_eventCapacity ? s_eventCount - s_eventCapacity : 0;
+        for ( uint32_t i = first; i < s_eventCount; ++i ) {
+            const EventRecord &record = s_events[i % s_eventCapacity];
+            ESP_LOGI( TAG, "Event: boot #%" PRIu32 " at %" PRIu32 " ms: %s", record.boot, record.timeMs,
+                      eventName( record.event ) );
+        }
     }
     addEvent( wakeEvent );
+    return wakeEvent;
 }
 
 static bool waitForKeyRelease()
@@ -163,6 +174,9 @@ void DeepSleep::enter()
         esp_sleep_enable_timer_wakeup( s_fallbackWakeUs );
         addEvent( Event::SleepFallbackTimer );
     }
+#if CONFIG_WATCH_BATTERY_LOG
+    esp_sleep_enable_timer_wakeup( CONFIG_WATCH_BATTERY_LOG_INTERVAL_MIN * 60ULL * 1000 * 1000 );
+#endif
 
     // esp_timer starts after the bootloader, so this misses about 250 ms of boot time.
     s_stats.lastAwakeMs = static_cast<uint32_t>( esp_timer_get_time() / 1000 );
@@ -171,7 +185,9 @@ void DeepSleep::enter()
     ESP_LOGI( TAG, "Entering deep sleep after %" PRIu32 " ms (wake: %s)", s_stats.lastAwakeMs,
               keyReleased ? "PWR key" : "60 s timer, key still high" );
 #if CONFIG_WATCH_DEV_LOGGING
-    flushConsole();
+    if ( s_currentWake != Event::WakeTimer ) {
+        flushConsole();
+    }
 #endif
     esp_deep_sleep_start();
 }
