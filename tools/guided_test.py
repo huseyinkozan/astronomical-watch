@@ -145,6 +145,18 @@ def runSteps(reader, steps):
     return results
 
 
+def waitForBoard(reader):
+    """A sleeping watch has no USB port: ask for a wake before the test resets it."""
+    time.sleep(1.5)
+    if reader.serial is not None:
+        return True
+    printInstruction(ACT, 'The watch is asleep. Press PWR briefly to wake it.')
+    start = time.time()
+    while reader.serial is None and time.time() - start < 60:
+        time.sleep(0.05)
+    return reader.serial is not None
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('test', choices=sorted(TESTS))
@@ -162,7 +174,11 @@ def main():
         reader.resetRequested = not args.no_reset
         reader.start()
         try:
-            results = runSteps(reader, TESTS[args.test])
+            if waitForBoard(reader):
+                results = runSteps(reader, TESTS[args.test])
+            else:
+                print(f'{RED}No USB connection; check the cable and the port.{RESET}')
+                results = []
         except KeyboardInterrupt:
             print('\nInterrupted.')
             results = []
