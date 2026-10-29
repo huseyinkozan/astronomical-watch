@@ -162,7 +162,8 @@ PWR key [HW]:
 - GPIO10 reads 0 while idle and 1 while the key is pressed (schematic polarity confirmed).
 - EXT1 `ANY_HIGH` on GPIO10 wakes the ESP32 from deep sleep reliably (causes bit EXT1,
   `esp_sleep_get_ext1_wakeup_status()` bit 10). RTC memory survives the sleep.
-- The press that wakes the chip also sets the AXP short-press flag (REG49 bit3).
+- The press that wakes the chip also sets the AXP short-press flag (REG49 bit3); so does a
+  160 ms press while the chip is awake, seen at the same time as GPIO10 going high.
 - Holding the key about 6 s powers the whole board off (AXP OFFLEVEL); a short press powers it on
   again with RTC memory cleared and REG20 = `0x01`.
 
