@@ -22,7 +22,7 @@ import serial
 USB_CONNECTED = '<usb connected>'
 USB_DISCONNECTED = '<usb disconnected>'
 
-ACT_STYLE = '\033[1;30;43m'   # black on yellow: the tester must do something
+ACT_STYLE = '\033[1;38;5;208m'   # bold orange: the tester must do something
 WAIT_STYLE = '\033[1;36m'     # bold cyan: hands off
 GREEN = '\033[32m'
 RED = '\033[31m'
@@ -37,7 +37,7 @@ WAIT = 'wait'
 TESTS = {
     'm1': [
         (WAIT, 'The board is being reset.', r'wake source: power-on/reset', 20),
-        (ACT, 'Press PWR briefly, once.', r'GPIO10 -> 1', 30),
+        (ACT, 'Press PWR briefly, once, within 10 s.', r'GPIO10 -> 1', 30),
         (WAIT, 'The watch sleeps 10 s after the last press.', r'PWR key IRQ: short 1', 25),
         (WAIT, '', r'Entering deep sleep', 10),
         (WAIT, '', USB_DISCONNECTED, 10),
@@ -60,7 +60,7 @@ TESTS = {
 
 def printInstruction(kind, instruction):
     if kind == ACT:
-        print(f'\n\a{ACT_STYLE} ACTION: {instruction} {RESET}')
+        print(f'\n\a{ACT_STYLE}ACTION: {instruction}{RESET}')
     else:
         print(f'\n{WAIT_STYLE}WAIT - do not touch: {instruction}{RESET}')
 
@@ -154,7 +154,7 @@ def main():
 
     os.makedirs('test-logs', exist_ok=True)
     logPath = os.path.join('test-logs', f'{args.test}-{datetime.datetime.now():%Y%m%d-%H%M%S}.log')
-    print(f'Test {args.test}: {ACT_STYLE} ACTION {RESET} = do it now (bell), '
+    print(f'Test {args.test}: {ACT_STYLE}ACTION{RESET} = do it now (bell), '
           f'{WAIT_STYLE}WAIT{RESET} = do not touch.')
     input('Press Enter when you are ready to start...')
     with open(logPath, 'w') as logFile:
