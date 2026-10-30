@@ -226,6 +226,26 @@ guided test `m2` after a full power cycle [HW]:
   ES8311/ES7210 standby current. Before preparation the touch controller alone was ~1.5 mA.
   These are estimates; see the battery drain runs for evidence from the board.
 
+### Battery drain runs (estimates, not measured current)
+
+Method: the watch sleeps on battery only and wakes every 15 min to log VBAT and the AXP2101 gauge
+(`CONFIG_WATCH_BATTERY_LOG`). Slopes are least-squares fits over the samples after the first hour
+(charger relaxation excluded). Current = gauge slope × 400 mAh (Waveshare's recommended cell; the
+capacity of the fitted cell is not verified). The AXP2101 gauge has no current sense, so its
+percentage is a model of the voltage, not an independent measurement. Each logging wake costs
+about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
+
+| Run | Firmware state | Duration | VBAT slope | Gauge slope | Estimated average current |
+|---|---|---|---|---|---|
+| A (2026-10-29/30) | peripherals at power-on defaults (`sdkconfig.noquiesce`) | 9.5 h fitted (10.7 h total), 4.10 → 4.01 V | −8.8 ± 0.6 mV/h | −1.00 ± 0.02 %/h | **≈ 4 mA** |
+
+- About 8.8 mV per gauge percent in the 86–98 % range.
+- Run A is more than twice the datasheet sum for the known loads (touch active 1.5 mA, panel
+  Sleep In ~0.13 mA, IMU, ESP32, AXP). The rest is unexplained: candidates are the ES8311/ES7210
+  codecs, the unused but enabled AXP rails and the capacity assumption.
+- VBAT readings scatter by up to ~20 mV between neighbouring samples (single reading right after
+  boot); use fits over many samples, not single values.
+
 ## 5. Open Questions
 
 1. Battery thermistor: the schematic has RP2 on TS, but the official AXP example disables TS
