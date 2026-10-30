@@ -80,7 +80,8 @@ handshake, is [?]. Both datasheets agree that INT1 is driven during the handshak
 
 CTRL1 also differs: the C datasheet marks bits 4:1 as reserved, the A datasheet defines bit3 as
 INT1_EN and bit4 as INT2_EN. INT1 worked with `CTRL1=0x48` on this board [HW]; whether bit3 is
-required on the C chip is [?] (relevant for motion wake).
+required on the C chip is [?]. The watch no longer wakes on motion (it samples the accelerometer at
+wide intervals instead), so INT1 and WoM are kept here as background only.
 
 The register notes below follow the A datasheet unless marked.
 
@@ -176,8 +177,18 @@ PWR key [HW]:
   display on/off (0x29/0x28) and brightness (0x51) only. `bsp_display_start()` always resets the panel [REF].
 - CO5300 commands: 0x28 display off, 0x10 sleep in, 0x11 sleep out (wait 120 ms; must precede 0x29),
   0x39 idle mode, 0x4F deep standby, 0x51 brightness [REF].
-- Whether the image is kept while the ESP32 deep-sleeps with the panel powered is [?]
-  (needed for always-on). The CO5300 datasheet was not reviewed (file too large to fetch).
+- CO5300 datasheet currents [DS §6, p.103]: Sleep In ≈ 85–110 µA (VDDI) + 25 µA (VCI); deep
+  standby ≈ 2 µA + 1 µA. **No figures are given for normal, idle or partial display**, so the
+  always-on panel current must come from a battery run.
+- Idle mode (0x39) reduces colours to 8, set by the MSB of R, G and B; 0x38 leaves it. Partial mode
+  (0x12) shows only the window set by 0x30/0x31; 0x13 returns to normal mode [DS §7.5]. AMOLED
+  current grows with lit pixels and brightness.
+- The panel refreshes itself from its GRAM. Whether the image is kept while the ESP32 deep-sleeps
+  with the panel powered is [?] (needed for always-on). The QSPI pins (GPIO4–7, 11, 12) are digital
+  pads; on the ESP32-S3 they can keep their level through deep sleep with `gpio_hold_en()` plus
+  `gpio_deep_sleep_hold_en()` (CS must stay high) [ESP-IDF `gpio.h`].
+- Reference: the infinition Rust firmware estimates its always-on mode (HH:MM at ~10 % brightness
+  on black, CPU awake between minute updates) at ~8 mA; this is an estimate, not a measurement [REF].
 
 ### FT3168 Touch (`0x38`)
 - Register 0xA5 power mode: 0 active, 1 monitor, 2 standby, 3 hibernate (wake needs TP_RESET) [REF].
@@ -251,11 +262,13 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
 1. Battery thermistor: the schematic has RP2 on TS, but the official AXP example disables TS
    ("no thermistor"). Check the board.
 2. Which rails does the display need? All rails are on by default [HW]; test the panel with ALDO2
-   off and on (M5).
+   off and on (display milestone).
 3. QMI8658C CTRL9 handshake: does CTRL8.bit7 = 1 keep CmdDone off INT1 on this chip, and does a
    STATUS1 read alone acknowledge it (C datasheet) as well as CTRL9 = `0x00` (A datasheet)?
-4. Can accel samples be read while WoM is active (needed for a wrist-pose check on wake)?
-5. Does the CO5300 keep its image while the ESP32 deep-sleeps with the panel powered?
+4. How much does one accelerometer sample change between motion checks on a desk and on the wrist
+   (sets the no-motion threshold), and how long must the accelerometer run for one valid sample?
+5. Does the CO5300 keep its image while the ESP32 deep-sleeps with the panel powered and the QSPI
+   pins held? What does the always-on mode draw at low brightness, with and without idle mode?
 6. Correct PCF85063 CAP_SEL for this crystal.
 7. ES8311/ES7210 standby current at power-on defaults.
 

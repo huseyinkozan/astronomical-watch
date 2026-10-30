@@ -4,7 +4,8 @@ A personal low-power astronomical watch based on the **Waveshare ESP32-S3-Touch-
 
 It shows the time, date and astronomical information computed on the device. Location, date/time
 and UTC offset are entered manually; no network, GPS or online service is used. Battery life has
-priority over features: the watch sleeps most of the time and wakes on wrist motion or the PWR key.
+priority over features: the processor sleeps most of the time. Between interactions a dim
+always-on face shows the time; when the watch has not moved for a while, the display turns off.
 
 ## Planned Features
 
@@ -12,7 +13,9 @@ priority over features: the watch sleeps most of the time and wakes on wrist mot
 - Sunrise, sunset, solar noon, civil/nautical/astronomical twilight, day length
 - Moon phase, illumination, age, moonrise and moonset
 - Battery level
-- Wake on wrist motion or PWR key, configurable display timeout, optional always-on display
+- PWR key opens the interactive mode (touch, pages); after a configurable timeout the watch
+  returns to a dim always-on face, updated once a minute
+- Display off after a long time without motion (checked at wide intervals); the PWR key turns it on
 
 ## Hardware
 
@@ -52,7 +55,7 @@ astronomical-watch/
 Restarted on ESP-IDF with C++17. The watch puts the unused peripherals into their lowest-power
 state, reads its power-management IC, stays awake for a short
 window and then enters deep sleep; the PWR key wakes it. Wake statistics are kept across sleep.
-Motion wake, display, RTC and the watch face are next.
+RTC, display and the always-on face are next.
 The earlier Wake-on-Motion validation results are kept in `docs/hardware.md`, and the validator
 itself in `archive/wom-validator/` (git tag `wom-validator`).
 

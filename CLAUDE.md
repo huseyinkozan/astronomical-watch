@@ -53,21 +53,35 @@ idf.py -p /dev/ttyACM0 flash monitor
 ## Power Management Rules
 
 - Wi-Fi and Bluetooth stay disabled. GPS is not used.
-- The display is off when not needed. Default display timeout: 10 s after interaction.
-  User-selectable: 5, 10, 20, 30, 60 s, plus an optional always-on mode.
-- Always-on must use the lowest-power approach the panel and RTC allow, not simply a CPU that
-  stays awake. Do not call any mode low-power without evidence from the board
-  (see "Power evaluation without external equipment").
-- Deep-sleep wake sources: QMI8658 INT1 (GPIO21) and the PWR key (GPIO10), both active high (EXT1).
-  Touch (GPIO38) and the RTC interrupt (GPIO39) cannot wake from deep sleep.
+- The watch has three modes:
+  - **Active**: display on, touch and pages. The PWR key enters it from the other two modes. After
+    the display timeout without interaction (default 10 s; user-selectable 5, 10, 20, 30, 60 s)
+    the watch goes to always-on.
+  - **Always-on**: the panel keeps showing a dim, minimal face from its own memory while the ESP32
+    is in deep sleep; a timer wake once per minute updates it. At wide intervals (default every
+    10 min) the accelerometer is sampled once; when the watch has not moved for a while (default
+    30 min) it goes to sleep. Shift the face by a few pixels each minute against AMOLED burn-in.
+  - **Sleep**: panel in deep standby, ESP32 in deep sleep, no timer wake. Only the PWR key wakes
+    the watch, into active mode.
+- Always-on must use the lowest-power approach the panel allows (low brightness, few lit pixels,
+  idle or partial mode where they help), never a CPU that stays awake. Do not call any mode
+  low-power without evidence from the board (see "Power evaluation without external equipment").
+- Deep-sleep wake sources: the PWR key (GPIO10, active high, EXT1) and, in always-on only, the
+  minute timer. Motion does not wake the watch: the QMI8658 is powered down between motion checks
+  and its INT1 is not used. Touch (GPIO38) and the RTC interrupt (GPIO39) cannot wake from deep sleep.
 - Avoid periodic wakeups and background tasks unless they provide a necessary function.
 - Settings are persistent, simple and limited to meaningful user-facing trade-offs.
 
 ## Architecture
 
 Intended runtime flow: wake → initialise only what is needed → read time from the RTC →
-update astronomy data when required → render → handle touch → apply timeout → display off →
-deep sleep.
+by wake source:
+- PWR key: active mode → update astronomy data when required → render → handle touch → after the
+  timeout draw the always-on face and dim the panel.
+- Minute timer: update the always-on face; when due, check motion and go to sleep mode if the
+  watch has not moved.
+
+Then deep sleep (with the minute timer in always-on, without it in sleep mode).
 
 - Small, focused modules; no layers or abstractions without a clear benefit.
 - Astronomy code is independent of UI and ESP-IDF so it can be tested on the host.
@@ -109,8 +123,8 @@ Do not use trial-and-error register changes as the first debugging method. Do no
 values from examples without decoding them for this device, mode and wiring. When the datasheet and
 the observed behaviour disagree, keep both and design a focused test.
 
-Do not tune QMI8658 WoM threshold, blanking or related parameters without a hardware measurement
-that justifies the change.
+Do not tune the motion-check threshold or interval without a hardware measurement that justifies
+the change.
 
 ## Development Workflow
 
@@ -128,7 +142,7 @@ for battery-life runs.
 No current meter or power profiler is available, and the AXP2101 cannot measure battery current.
 Power-related changes are evaluated with on-board data instead:
 
-- Wake statistics kept in RTC memory: wakes per source, rejected motion wakes, awake time per wake
+- Wake statistics kept in RTC memory: wakes per source, awake time per wake
   (`esp_timer`), refused sleep entries.
 - Battery voltage and gauge percentage logged over long runs on battery only (USB charges the battery).
 - An energy budget estimated from datasheet currents and the measured awake time.
