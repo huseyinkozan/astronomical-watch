@@ -16,6 +16,9 @@ public:
     // Time, date and battery state; the time is UTC until the settings provide an offset.
     void showStatus( const Rtc::DateTime &time, uint16_t millivolts, uint8_t percent, bool vbusGood );
 
+    // Before deep sleep: takes the display lock and keeps it, so LVGL no longer uses the bus.
+    void stop();
+
 private:
     lv_obj_t *m_timeLabel = nullptr;
     lv_obj_t *m_dateLabel = nullptr;

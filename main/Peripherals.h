@@ -16,4 +16,11 @@ public:
     // Holds the touch and panel reset lines HIGH through deep sleep; a floating low level
     // would wake both chips.
     void holdResetLines();
+
+    // Releases those holds (lines stay HIGH), so that the BSP can reset the panel and wake the
+    // touch controller from its sleep.
+    void releaseResetLines();
+
+    // Puts the touch controller to sleep (1.5 mA active, 10 uA asleep) after the BSP started it.
+    void sleepTouch( i2c_master_bus_handle_t bus );
 };

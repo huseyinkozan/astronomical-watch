@@ -32,7 +32,6 @@ static const uint8_t RTC_COF_CLKOUT_OFF = 0x07;
 
 // Kept in RTC memory: cleared on power-on and reset, so the steps run again then.
 RTC_DATA_ATTR static bool s_quiesced;
-RTC_DATA_ATTR static bool s_resetLinesHeld;
 
 #if CONFIG_WATCH_QUIESCE
 static const bool s_quiesceEnabled = true;
@@ -77,7 +76,7 @@ static void pulseReset( gpio_num_t gpio, int lowMs, int settleMs )
 
 // FT3168: a reset puts it into active mode; it must get the sleep command before any other
 // device on the bus is accessed (FT3168 datasheet 2.3).
-static bool sleepTouch( i2c_master_bus_handle_t bus )
+static bool sleepTouchController( i2c_master_bus_handle_t bus )
 {
     pulseReset( BSP_LCD_TOUCH_RST, 10, 100 );
     i2c_master_dev_handle_t touch = nullptr;
@@ -231,7 +230,7 @@ void Peripherals::quiesceOnce( i2c_master_bus_handle_t bus, Axp2101 &pmu )
         return;
     }
     int passed = 0;
-    passed += sleepTouch( bus ) ? 1 : 0;
+    passed += sleepTouchController( bus ) ? 1 : 0;
     passed += standbyPanel() ? 1 : 0;
     passed += powerDownImu( bus ) ? 1 : 0;
     passed += stopRtcClockOut( bus ) ? 1 : 0;
@@ -241,9 +240,28 @@ void Peripherals::quiesceOnce( i2c_master_bus_handle_t bus, Axp2101 &pmu )
     ESP_LOGI( TAG, "Quiesce done: %d/6 steps OK", passed );
 }
 
+void Peripherals::releaseResetLines()
+{
+    const gpio_num_t lines[2] = { BSP_LCD_RST, BSP_LCD_TOUCH_RST };
+    for ( int i = 0; i < 2; ++i ) {
+        gpio_set_level( lines[i], 1 );
+        gpio_config_t config = {};
+        config.pin_bit_mask = 1ULL << lines[i];
+        config.mode = GPIO_MODE_OUTPUT;
+        gpio_config( &config );
+        gpio_hold_dis( lines[i] );
+    }
+}
+
+void Peripherals::sleepTouch( i2c_master_bus_handle_t bus )
+{
+    sleepTouchController( bus );
+}
+
 void Peripherals::holdResetLines()
 {
-    if ( !s_quiesceEnabled || s_resetLinesHeld ) {
+    // Applied on every sleep: a touch or panel reset pulse releases the hold.
+    if ( !s_quiesceEnabled ) {
         return;
     }
     const gpio_num_t lines[2] = { BSP_LCD_RST, BSP_LCD_TOUCH_RST };
@@ -256,5 +274,4 @@ void Peripherals::holdResetLines()
         gpio_config( &config );
         gpio_hold_en( lines[i] );
     }
-    s_resetLinesHeld = true;
 }

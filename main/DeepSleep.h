@@ -25,6 +25,7 @@ public:
     // Events are kept in RTC memory, so they survive a lost log line.
     void addEvent( Event event );
 
-    // Configures the wake sources and enters deep sleep. Does not return.
-    void enter();
+    // Configures the wake sources (PWR key, and a timer when timerUs > 0) and enters deep
+    // sleep. Does not return.
+    void enter( uint64_t timerUs = 0 );
 };

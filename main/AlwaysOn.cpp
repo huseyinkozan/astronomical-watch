@@ -1,0 +1,122 @@
+#include "AlwaysOn.h"
+
+#include "Panel.h"
+#include "esp_attr.h"
+#include "sdkconfig.h"
+
+// Seven-segment geometry in pixels; every value is even (panel rounding).
+static const int DIGIT_WIDTH = 56;
+static const int DIGIT_HEIGHT = 104;
+static const int STROKE = 12;
+static const int DIGIT_STEP = 68;
+static const int COLON_GAP = 24;
+static const int FACE_WIDTH = 4 * DIGIT_STEP - ( DIGIT_STEP - DIGIT_WIDTH ) + COLON_GAP;
+static const int FACE_X = ( ( Panel::WIDTH - FACE_WIDTH ) / 2 ) & ~1;
+static const int FACE_Y = ( ( Panel::HEIGHT - DIGIT_HEIGHT ) / 2 ) & ~1;
+
+// Segments a to g in bits 0 to 6.
+static const uint8_t s_digitSegments[10] = { 0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F };
+
+// Kept in RTC memory: cleared on power-on and reset.
+RTC_DATA_ATTR static bool s_active;
+RTC_DATA_ATTR static bool s_screenCleared;
+RTC_DATA_ATTR static int s_minutesLeft;
+RTC_DATA_ATTR static int s_lastMinuteOfDay;
+RTC_DATA_ATTR static int s_faceX;
+RTC_DATA_ATTR static int s_faceY;
+
+static void drawDigit( Panel &panel, int x, int y, int digit )
+{
+    const int half = DIGIT_HEIGHT / 2;
+    const uint8_t segments = s_digitSegments[digit];
+    // a, b, c, d, e, f, g as rectangles: x, y, width, height.
+    const int rects[7][4] = {
+        { x, y, DIGIT_WIDTH, STROKE },
+        { x + DIGIT_WIDTH - STROKE, y, STROKE, half },
+        { x + DIGIT_WIDTH - STROKE, y + half, STROKE, half },
+        { x, y + DIGIT_HEIGHT - STROKE, DIGIT_WIDTH, STROKE },
+        { x, y + half, STROKE, half },
+        { x, y, STROKE, half },
+        { x, y + half - STROKE / 2, DIGIT_WIDTH, STROKE },
+    };
+    for ( int i = 0; i < 7; ++i ) {
+        if ( segments & ( 1 << i ) ) {
+            panel.fill( rects[i][0], rects[i][1], rects[i][2], rects[i][3], true );
+        }
+    }
+}
+
+void AlwaysOn::begin( int minutes )
+{
+    s_active = true;
+    s_screenCleared = false;
+    s_minutesLeft = minutes;
+    s_lastMinuteOfDay = -1;
+    s_faceX = FACE_X;
+    s_faceY = FACE_Y;
+}
+
+void AlwaysOn::end()
+{
+    s_active = false;
+}
+
+bool AlwaysOn::isActive() const
+{
+    return s_active;
+}
+
+uint64_t AlwaysOn::update( const Rtc::DateTime &time )
+{
+    // A wake up to 2 s early (RC timer drift) already shows the coming minute.
+    int minuteOfDay = time.hour * 60 + time.minute;
+    int secondsToNext = 60 - time.second;
+    if ( time.second >= 58 ) {
+        minuteOfDay = ( minuteOfDay + 1 ) % ( 24 * 60 );
+        secondsToNext += 60;
+    }
+    if ( minuteOfDay != s_lastMinuteOfDay ) {
+        if ( s_lastMinuteOfDay >= 0 ) {
+            --s_minutesLeft;
+        }
+        s_lastMinuteOfDay = minuteOfDay;
+    }
+    if ( s_minutesLeft <= 0 ) {
+        s_active = false;
+        return 0;
+    }
+
+    Panel panel;
+    if ( !panel.open() ) {
+        s_active = false;
+        return 0;
+    }
+    if ( !s_screenCleared ) {
+        // Dim first: the panel still runs at the active-mode brightness.
+        panel.setBrightness( CONFIG_WATCH_AOD_BRIGHTNESS );
+        panel.fill( 0, 0, Panel::WIDTH, Panel::HEIGHT, false );
+        s_screenCleared = true;
+    } else {
+        panel.fill( s_faceX, s_faceY, FACE_WIDTH, DIGIT_HEIGHT, false );
+    }
+
+    // Burn-in: the face moves within +-8 pixels, one step per minute.
+    s_faceX = FACE_X + ( minuteOfDay % 5 - 2 ) * 4;
+    s_faceY = FACE_Y + ( ( minuteOfDay / 5 ) % 5 - 2 ) * 4;
+    const int hour = minuteOfDay / 60;
+    const int minute = minuteOfDay % 60;
+    drawDigit( panel, s_faceX, s_faceY, hour / 10 );
+    drawDigit( panel, s_faceX + DIGIT_STEP, s_faceY, hour % 10 );
+    const int colonX = s_faceX + 2 * DIGIT_STEP - ( DIGIT_STEP - DIGIT_WIDTH ) + ( COLON_GAP - STROKE ) / 2;
+    panel.fill( colonX & ~1, s_faceY + 30, STROKE, STROKE, true );
+    panel.fill( colonX & ~1, s_faceY + DIGIT_HEIGHT - 30 - STROKE, STROKE, STROKE, true );
+    const int minutesX = s_faceX + 2 * DIGIT_STEP + COLON_GAP;
+    drawDigit( panel, minutesX, s_faceY, minute / 10 );
+    drawDigit( panel, minutesX + DIGIT_STEP, s_faceY, minute % 10 );
+    // The brightness command is sent after the drawing has finished.
+    panel.setBrightness( CONFIG_WATCH_AOD_BRIGHTNESS );
+    Panel::holdPins();
+
+    // Land just after the minute changes; the RTC read on the next wake corrects any drift.
+    return static_cast<uint64_t>( secondsToNext ) * 1000 * 1000 + 100 * 1000;
+}

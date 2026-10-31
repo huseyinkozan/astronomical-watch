@@ -24,6 +24,20 @@ menu "Astronomical Watch"
             Panel brightness in the awake window (DBV, command 0x51). AMOLED
             current grows with brightness and with the number of lit pixels.
 
+    config WATCH_AOD_BRIGHTNESS
+        int "Always-on brightness (%)"
+        range 1 100
+        default 10
+        help
+            Panel brightness of the always-on face.
+
+    config WATCH_AOD_MINUTES
+        int "Always-on duration (minutes)"
+        default 30
+        help
+            Until the motion check exists (M6), the always-on face ends after
+            this time and the watch powers off.
+
     config WATCH_QUIESCE
         bool "Put unused peripherals into their lowest-power state"
         default y

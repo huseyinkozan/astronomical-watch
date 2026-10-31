@@ -63,7 +63,9 @@ astronomical-watch/
 Restarted on ESP-IDF with C++17. The watch puts the unused peripherals into their lowest-power
 state, shows the UTC time, date and battery state on the display during a short awake window
 and then switches itself off through the power-management IC; a PWR press of at least half a
-second turns it on again. The always-on face is next.
+second turns it on again. After the awake window a dim seven-segment HH:MM stays on the
+display while the processor deep-sleeps, redrawn once a minute; for now it ends after 30 min and
+the watch switches off. Its battery run is next.
 The earlier Wake-on-Motion validation results are kept in `docs/hardware.md`, and the validator
 itself in `archive/wom-validator/` (git tag `wom-validator`).
 
@@ -79,8 +81,8 @@ Each step is built, verified on the board and documented before the next one sta
 4. **M3** (done; crystal drift measurement running): RTC (PCF85063) time in UTC, set from the
    host, kept through off mode.
 5. **M4** (done): display basics (time, date and battery through LVGL; panel power on ALDO2).
-6. **M5**: always-on face with a minute-aligned wake, validated with a battery run; wake time
-   measured, with and without `CONFIG_BOOTLOADER_SKIP_VALIDATE_IN_DEEP_SLEEP`.
+6. **M5** (face and wake time done; battery run next): always-on face with a minute-aligned
+   wake; wake time 0.37 s per minute with `CONFIG_BOOTLOADER_SKIP_VALIDATE_IN_DEEP_SLEEP`.
 7. **M6**: motion check at wide intervals.
 8. **M7**: active mode (touch, pages, display timeout).
 9. **M8**: settings in NVS and the settings page on the watch (setup button, password and IP

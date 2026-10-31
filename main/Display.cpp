@@ -42,6 +42,13 @@ bool Display::start( int brightnessPercent )
     return true;
 }
 
+void Display::stop()
+{
+    if ( m_timeLabel != nullptr ) {
+        bsp_display_lock( s_lockTimeoutMs );
+    }
+}
+
 void Display::showStatus( const Rtc::DateTime &time, uint16_t millivolts, uint8_t percent, bool vbusGood )
 {
     if ( m_timeLabel == nullptr || !bsp_display_lock( s_lockTimeoutMs ) ) {

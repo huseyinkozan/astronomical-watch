@@ -1,9 +1,11 @@
 #include <cstdio>
 
+#include "AlwaysOn.h"
 #include "Axp2101.h"
 #include "BatteryLog.h"
 #include "DeepSleep.h"
 #include "Display.h"
+#include "Panel.h"
 #include "Peripherals.h"
 #include "Rtc.h"
 
@@ -28,6 +30,7 @@ static Peripherals s_peripherals;
 static Rtc s_rtc;
 static Display s_display;
 static bool s_displayOn = false;
+static AlwaysOn s_alwaysOn;
 [[maybe_unused]] static BatteryLog s_batteryLog;
 
 static void logPowerKeyIrq()
@@ -154,6 +157,40 @@ static void powerOff( [[maybe_unused]] bool pmuReady )
     sleepNow();
 }
 
+#if !CONFIG_WATCH_BATTERY_LOG
+// Always-on timer wake: redraw the face and sleep until the next minute; nothing else starts.
+static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
+{
+    Rtc::DateTime time = {};
+    bool oscillatorStopped = false;
+    uint64_t sleepUs = 0;
+    if ( s_rtc.init( bus ) == ESP_OK && s_rtc.read( time, oscillatorStopped ) == ESP_OK ) {
+        sleepUs = s_alwaysOn.update( time );
+    }
+    if ( sleepUs == 0 ) {
+        // The always-on time is over (or the face failed).
+        powerOff( pmuReady );
+    }
+    s_peripherals.holdResetLines();
+    s_deepSleep.enter( sleepUs );
+}
+
+// End of the awake window: the always-on face follows. Its first drawing is done by a timer
+// wake half a second later, the same path as every minute.
+static void enterAlwaysOn( i2c_master_bus_handle_t bus, bool pmuReady )
+{
+    if ( !s_displayOn ) {
+        powerOff( pmuReady );
+    }
+    s_display.stop();
+    s_peripherals.sleepTouch( bus );
+    s_alwaysOn.begin( CONFIG_WATCH_AOD_MINUTES );
+    Panel::holdPins();
+    s_peripherals.holdResetLines();
+    s_deepSleep.enter( 500 * 1000 );
+}
+#endif
+
 extern "C" void app_main( void )
 {
     [[maybe_unused]] const DeepSleep::Event wake = s_deepSleep.onBoot();
@@ -176,7 +213,15 @@ extern "C" void app_main( void )
         }
         sleepNow();
     }
+#else
+    if ( wake == DeepSleep::Event::WakeTimer && s_alwaysOn.isActive() ) {
+        alwaysOnTick( bus, pmuReady );
+    }
 #endif
+    // Active mode: the BSP takes over the panel pins and resets the panel and touch.
+    s_alwaysOn.end();
+    Panel::releasePins();
+    s_peripherals.releaseResetLines();
 
 #if CONFIG_WATCH_DEV_LOGGING
     // Reading USB input needs the driver. Its writes never block: without a host they return at
@@ -209,5 +254,9 @@ extern "C" void app_main( void )
     watchPowerKey( s_awakeWindowMs );
     logPowerKeyIrq();
 
+#if CONFIG_WATCH_BATTERY_LOG
     powerOff( pmuReady );
+#else
+    enterAlwaysOn( bus, pmuReady );
+#endif
 }

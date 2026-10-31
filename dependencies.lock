@@ -190,12 +190,13 @@ dependencies:
       require: private
       version: '>=5.3'
     source:
-      registry_url: https://components.espressif.com
+      registry_url: https://components.espressif.com/
       type: service
     version: 2.0.0
 direct_dependencies:
 - idf
 - waveshare/esp32_s3_touch_amoled_2_06
-manifest_hash: 6459f88df0a05ad6ec6a9fce7aebec76c9cfd958eee41d4e6faedd406d4fe672
+- waveshare/esp_lcd_sh8601
+manifest_hash: 724683accdfd9d9f6fb0892f220e0d2b0702d4d58c811f6c0d88d7b377fe2c34
 target: esp32s3
 version: 3.0.0

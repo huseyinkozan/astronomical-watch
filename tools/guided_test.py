@@ -87,6 +87,23 @@ TESTS = {
         (ASK, 'Did the screen show the time with running seconds, the date with UTC and the battery?',
          '', 0),
     ],
+    # Always-on face (M5): the image must stay while the ESP32 deep-sleeps, and change each minute
+    # (docs/hardware.md, open question 4). Only the screen needs watching until the questions.
+    'aod': [
+        (WAIT, 'The board is being reset.', r'wake source: power-on/reset', 20),
+        (WAIT, 'Watch the SCREEN for about 3 minutes. After about 10 s the active face is replaced '
+         'by a dim HH:MM (UTC) in large segments; it should change at each new minute and move by '
+         'a few pixels. The questions follow afterwards.', r'Display started', 20),
+        (WAIT, '', r'Entering deep sleep', 30),
+        (QUIET, '', r'Guru Meditation|abort\(\)', 180),
+        (ASK, 'Did the dim HH:MM appear and stay on the screen between the minutes?', '', 0),
+        (ASK, 'Did it change at each new minute without the screen going black or flashing?', '', 0),
+        (ASK, 'Did it move by a few pixels from one minute to the next?', '', 0),
+        (ACT, 'Press PWR briefly to wake the watch.', r'wake source: wake: PWR key', 60),
+        (WAIT, '', r'Last timer wake', 10),
+        (WAIT, 'Watch the screen: the active face should come back.', r'Display started', 20),
+        (ASK, 'Did the active face (time with seconds, date, battery) come back?', '', 0),
+    ],
     # Reads the RTC once against the host clock (drift over hours or days).
     'clock': [
         (WAIT, 'The board is being reset.', r'wake source: power-on/reset', 20),

@@ -100,6 +100,10 @@ by wake source:
 Then deep sleep with the minute timer (always-on) or the alarm timer (alarm pending), or power
 off through the AXP2101 (off mode).
 
+Always-on wakes never start the BSP display (it resets the panel and would blank the image);
+they open the panel directly, redraw only what changed and hold the panel pins again
+(`main/Panel.*`, `main/AlwaysOn.*`).
+
 - Small, focused modules; no layers or abstractions without a clear benefit.
 - Astronomy code is independent of UI and ESP-IDF so it can be tested on the host.
 - Settings are separate from UI code and persist across reboots, deep sleep and off mode (NVS).

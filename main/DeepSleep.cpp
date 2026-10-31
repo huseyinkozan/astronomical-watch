@@ -31,6 +31,9 @@ struct WakeStatistics
     uint32_t fallbackSleeps;
     uint32_t lastAwakeMs;
     uint64_t totalAwakeMs;
+    // Last timer wake: from chip reset to app_main (bootloader included) and app run time.
+    uint32_t lastTimerBootMs;
+    uint32_t lastTimerAwakeMs;
 };
 
 struct EventRecord
@@ -107,6 +110,7 @@ DeepSleep::Event DeepSleep::onBoot()
     } else if ( causes & ( 1UL << ESP_SLEEP_WAKEUP_TIMER ) ) {
         wakeEvent = Event::WakeTimer;
         ++s_stats.timerWakes;
+        s_stats.lastTimerBootMs = esp_log_timestamp();
     } else if ( causes == 0 || causes == ( 1UL << ESP_SLEEP_WAKEUP_UNDEFINED ) ) {
         // A power-on or reset clears RTC memory, so the statistics start again here.
         s_stats = WakeStatistics();
@@ -135,6 +139,8 @@ DeepSleep::Event DeepSleep::onBoot()
                   s_stats.fallbackSleeps );
         ESP_LOGI( TAG, "Awake: last %" PRIu32 " ms, total %" PRIu64 " ms", s_stats.lastAwakeMs,
                   s_stats.totalAwakeMs );
+        ESP_LOGI( TAG, "Last timer wake: reset to app %" PRIu32 " ms, app %" PRIu32 " ms",
+                  s_stats.lastTimerBootMs, s_stats.lastTimerAwakeMs );
 
         const uint32_t first = s_eventCount > s_eventCapacity ? s_eventCount - s_eventCapacity : 0;
         for ( uint32_t i = first; i < s_eventCount; ++i ) {
@@ -158,7 +164,7 @@ static bool waitForKeyRelease()
     return false;
 }
 
-void DeepSleep::enter()
+void DeepSleep::enter( uint64_t timerUs )
 {
     // ANY_HIGH would wake again at once while the key is still held.
     const bool keyReleased = waitForKeyRelease();
@@ -174,6 +180,9 @@ void DeepSleep::enter()
         esp_sleep_enable_timer_wakeup( s_fallbackWakeUs );
         addEvent( Event::SleepFallbackTimer );
     }
+    if ( timerUs > 0 ) {
+        esp_sleep_enable_timer_wakeup( timerUs );
+    }
 #if CONFIG_WATCH_BATTERY_LOG
     esp_sleep_enable_timer_wakeup( CONFIG_WATCH_BATTERY_LOG_INTERVAL_MIN * 60ULL * 1000 * 1000 );
 #endif
@@ -181,6 +190,9 @@ void DeepSleep::enter()
     // esp_timer starts after the bootloader, so this misses about 250 ms of boot time.
     s_stats.lastAwakeMs = static_cast<uint32_t>( esp_timer_get_time() / 1000 );
     s_stats.totalAwakeMs += s_stats.lastAwakeMs;
+    if ( s_currentWake == Event::WakeTimer ) {
+        s_stats.lastTimerAwakeMs = s_stats.lastAwakeMs;
+    }
 
     ESP_LOGI( TAG, "Entering deep sleep after %" PRIu32 " ms (wake: %s)", s_stats.lastAwakeMs,
               keyReleased ? "PWR key" : "60 s timer, key still high" );

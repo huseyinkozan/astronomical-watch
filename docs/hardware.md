@@ -254,6 +254,25 @@ Validated on this board [HW] (guided test `display`, 2026-10-31; `main/Display.*
 - The BSP aborts (`ESP_ERROR_CHECK`) if the QSPI bus cannot be initialised; the sleep
   preparation frees the bus after its deep-standby command, so the BSP finds it free.
 
+Always-on face [HW] (guided test `aod`, 2026-10-31; `main/Panel.*`, `main/AlwaysOn.*`):
+- **The CO5300 keeps its image while the ESP32 deep-sleeps**, with ALDO2 on and the panel pins
+  held (CS high, SCLK and SIO0–3 low, LCD_RESET high; all are RTC pads, so `gpio_hold_en` holds
+  them through deep sleep). A timer wake opens the QSPI bus and the `esp_lcd_sh8601` panel without
+  a reset or init commands and redraws only the digits: the HH:MM changed at each minute with no
+  blanking or flicker, over 4 minutes in two runs.
+- The BSP is not used on these wakes: `bsp_display_start()` would reset the panel. A PWR wake
+  releases the holds and the BSP starts the active face as usual; the sleeping touch controller
+  wakes from the BSP's reset pulse.
+- Face: seven-segment HH:MM drawn as filled rectangles (no LVGL, no fonts) at brightness 10 %,
+  moved within ±8 pixels each minute against burn-in.
+- Wake length per minute (RTC memory statistics): 382 ms from reset to `app_main` plus 112 ms in
+  the app with the image check on; **230 + 137 ms** with
+  `CONFIG_BOOTLOADER_SKIP_VALIDATE_IN_DEEP_SLEEP` (now the default; the check still runs after
+  power-on and reset). The remaining 230 ms likely include the bootloader and startup logs
+  written to UART0 at 115200 baud [?].
+- The wake lands about 1–1.5 s after the minute changes (the sleep is computed from whole RTC
+  seconds plus 100 ms); the digits change that much late.
+
 ### FT3168 Touch (`0x38`)
 - Register 0xA5 power mode: 0 active, 1 monitor, 2 standby, 3 hibernate (wake needs TP_RESET) [REF].
 - Current: active 1.5 mA, monitor 30 µA, sleep 10 µA [DS Table 3-2].
@@ -386,8 +405,8 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
    STATUS1 read alone acknowledge it (C datasheet) as well as CTRL9 = `0x00` (A datasheet)?
 3. How much does one accelerometer sample change between motion checks on a desk and on the wrist
    (sets the no-motion threshold), and how long must the accelerometer run for one valid sample?
-4. Does the CO5300 keep its image while the ESP32 deep-sleeps with the panel powered and the QSPI
-   pins held? What does the always-on mode draw at low brightness, with and without idle mode?
+4. What does the always-on mode draw at brightness 10 %, with and without idle mode (39h), and
+   how much of it is the ~4 mA deep-sleep floor (question 7)? (Battery run, M5.)
 5. Does Offset `0x76` (−10, MODE 0) bring the RTC drift near 0 ppm? Check with the guided test
    `clock` over several hours and days, and on the wrist (temperature).
 6. ES8311/ES7210 standby current at their reset state (neither datasheet gives a figure), and
