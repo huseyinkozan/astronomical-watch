@@ -16,6 +16,14 @@ menu "Astronomical Watch"
             Development aid until the display timeout exists: the watch stays
             awake this long after boot or after the last PWR key press.
 
+    config WATCH_DISPLAY_BRIGHTNESS
+        int "Display brightness (%)"
+        range 1 100
+        default 50
+        help
+            Panel brightness in the awake window (DBV, command 0x51). AMOLED
+            current grows with brightness and with the number of lit pixels.
+
     config WATCH_QUIESCE
         bool "Put unused peripherals into their lowest-power state"
         default y

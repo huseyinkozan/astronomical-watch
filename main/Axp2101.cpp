@@ -221,6 +221,24 @@ esp_err_t Axp2101::disableUnusedRails()
     return expected ? ESP_OK : ESP_ERR_INVALID_STATE;
 }
 
+esp_err_t Axp2101::setPanelPower( bool on )
+{
+    const uint8_t aldo2 = 1 << 1;
+    uint8_t value = 0;
+    esp_err_t err = readRegister( REG_LDO_ENABLE0, value );
+    if ( err == ESP_OK ) {
+        err = writeRegister( REG_LDO_ENABLE0, on ? ( value | aldo2 ) : ( value & static_cast<uint8_t>( ~aldo2 ) ) );
+    }
+    if ( err == ESP_OK ) {
+        err = readRegister( REG_LDO_ENABLE0, value );
+    }
+    if ( err == ESP_OK && ( ( value & aldo2 ) != 0 ) != on ) {
+        err = ESP_ERR_INVALID_STATE;
+    }
+    ESP_LOGI( TAG, "Panel power (ALDO2) %s: REG90=0x%02X %s", on ? "on" : "off", value, esp_err_to_name( err ) );
+    return err;
+}
+
 esp_err_t Axp2101::limitIrqs()
 {
     // Status bits are write-1-to-clear (datasheet REG48-4A).

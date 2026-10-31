@@ -30,6 +30,9 @@ public:
     // ALDO1 (A3V3: an unpowered ES7210 would hang the shared I2C bus). See docs/hardware.md.
     esp_err_t disableUnusedRails();
 
+    // ALDO2 feeds the only pull-up of the AMOLED power enable DSI_PWR_EN (R10, docs/hardware.md).
+    esp_err_t setPanelPower( bool on );
+
     // Enables only the PWR key short/long press IRQs and clears every pending IRQ flag. A
     // pending enabled IRQ holds the IRQ line low through its 10k pull-up to VCC-RTC.
     esp_err_t limitIrqs();

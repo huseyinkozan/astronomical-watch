@@ -7,3 +7,7 @@ CONFIG_IDF_TARGET="esp32s3"
 # is usable for data. Code above 16 MB would need an experimental option; keep
 # the application partitions below 16 MB.
 CONFIG_ESPTOOLPY_FLASHSIZE_32MB=y
+
+# Fonts for the watch face (each adds flash only, no RAM).
+CONFIG_LV_FONT_MONTSERRAT_28=y
+CONFIG_LV_FONT_MONTSERRAT_48=y

@@ -52,7 +52,7 @@ to VCC-RTC; official example uses `CONFIG_PMU_INTERRUPT_PIN=-1`), PCF85063 CLKOU
 |---|---|---|---|
 | DCDC1 | VCC3V3 | ESP32, flash, QMI8658, AMOLED VCI/VDDIO, touch, SD card, ES8311 digital, I2C pull-ups | always on |
 | ALDO1 | A3V3 | ES8311 AVDD and **all of ES7210** (which sits on the shared I2C bus) | **keep on**: an unpowered ES7210 hangs the I2C bus |
-| ALDO2 | — | pull-up of DSI_PWR_EN (AMOLED panel power enable) | off when the panel is off [?] |
+| ALDO2 | — | pull-up of DSI_PWR_EN (AMOLED panel power enable) | **on while the display shows anything**: with ALDO2 off the image goes dark at once [HW] |
 | ALDO3 | — | vibration motor | off unless haptics |
 | RTCLDO | VCC-RTC | PCF85063 VDD, AXP IRQ pull-up | RTC keeps time while a battery is present, even with the system off |
 | others | — | no load found | – |
@@ -152,7 +152,9 @@ Validated on this board [HW] (guided test `rtc`, 2026-10-31):
   still included up to 0.1 s of host read latency (since fixed in `tools/guided_test.py`). The
   PCF85063 keeps time while the AXP2101 is off, as expected from RTCLDO.
 - Drift and the right CAP_SEL: repeat the guided test `clock` over hours and days; each RTC line
-  in its log carries the RTC − host difference.
+  in its log carries the RTC − host difference. First two readings after the reader fix, 14.5 min
+  apart: −0.128 s → −0.164 s, i.e. about −40 ppm (3.5 s/day slow), on a desk at room
+  temperature. Too short a baseline to act on; if it holds, the Offset register can correct it.
 
 ### AXP2101 PMIC (`0x34`)
 - **The BSP never initialises the AXP2101**; rails are at their eFuse defaults unless configured [REF].
@@ -229,6 +231,17 @@ Off mode [HW] (guided test `off`, 2026-10-31; `main/Axp2101.*`):
   `gpio_deep_sleep_hold_en()` (CS must stay high) [ESP-IDF `gpio.h`].
 - Reference: the infinition Rust firmware estimates its always-on mode (HH:MM at ~10 % brightness
   on black, CPU awake between minute updates) at ~8 mA; this is an estimate, not a measurement [REF].
+
+Validated on this board [HW] (guided test `display`, 2026-10-31; `main/Display.*`):
+- `bsp_display_start()` (LVGL 9.6, `esp_lvgl_port` 2.9) shows the image after the sleep
+  preparation's deep standby: its reset pulse leaves deep standby. Panel start, touch included,
+  takes about 0.4 s after ALDO2 is switched on. The LVGL draw buffer is 410 × 100 pixels in
+  internal RAM (the BSP ignores its PSRAM flag); PSRAM is not enabled.
+- DSI_PWR_EN needs ALDO2: with the time on screen, switching ALDO2 off darkened the panel at once
+  while the controller kept running. So the panel's high-voltage supply follows ALDO2, and ALDO2
+  off also removes that supply's quiescent current whenever the display is not needed.
+- The BSP aborts (`ESP_ERROR_CHECK`) if the QSPI bus cannot be initialised; the sleep
+  preparation frees the bus after its deep-standby command, so the BSP finds it free.
 
 ### FT3168 Touch (`0x38`)
 - Register 0xA5 power mode: 0 active, 1 monitor, 2 standby, 3 hibernate (wake needs TP_RESET) [REF].
@@ -358,22 +371,21 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
 
 1. Battery thermistor: the schematic has RP2 on TS, but the official AXP example disables TS
    ("no thermistor"). Check the board.
-2. Which rails does the display need? All rails are on by default [HW]; test the panel with ALDO2
-   off and on (display milestone).
-3. QMI8658C CTRL9 handshake: does CTRL8.bit7 = 1 keep CmdDone off INT1 on this chip, and does a
+2. QMI8658C CTRL9 handshake: does CTRL8.bit7 = 1 keep CmdDone off INT1 on this chip, and does a
    STATUS1 read alone acknowledge it (C datasheet) as well as CTRL9 = `0x00` (A datasheet)?
-4. How much does one accelerometer sample change between motion checks on a desk and on the wrist
+3. How much does one accelerometer sample change between motion checks on a desk and on the wrist
    (sets the no-motion threshold), and how long must the accelerometer run for one valid sample?
-5. Does the CO5300 keep its image while the ESP32 deep-sleeps with the panel powered and the QSPI
+4. Does the CO5300 keep its image while the ESP32 deep-sleeps with the panel powered and the QSPI
    pins held? What does the always-on mode draw at low brightness, with and without idle mode?
-6. Correct PCF85063 CAP_SEL (and Offset) for this crystal: drift at the reset value 7 pF, measured
+5. Correct PCF85063 CAP_SEL (and Offset) for this crystal: drift at the reset value 7 pF, measured
    with the guided test `clock` over several days.
-7. ES8311/ES7210 standby current at their reset state (neither datasheet gives a figure), and
+6. ES8311/ES7210 standby current at their reset state (neither datasheet gives a figure), and
    which write of the run C power-down step raised the drain (suspect: ES7210 pull-ups off).
-8. Which on-state load draws the ~4 mA of runs A, B and D in deep sleep (ESP32 pad states,
+7. Which on-state load draws the ~4 mA of runs A, B and D in deep sleep (ESP32 pad states,
    AXP2101 on state, codecs at their reset state)?
-9. Does the AXP2101 charge the battery in the off state? (The off test ran with a full battery,
-   charger done.)
+8. Does the AXP2101 charge the battery in the off state? (The off test ran with a full battery,
+   charger done.) Plan: after M4, discharge the cell with the display on and the gauge shown,
+   then repeat the guided test `off` at about 80 %.
 
 ## 6. Sources
 

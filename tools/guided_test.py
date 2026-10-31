@@ -33,6 +33,7 @@ ACT = 'act'
 WAIT = 'wait'
 QUIET = 'quiet'
 SEND_TIME = 'send_time'
+ASK = 'ask'
 
 RTC_LINE = re.compile(r'RTC (\d{4})-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d) UTC')
 
@@ -40,6 +41,7 @@ RTC_LINE = re.compile(r'RTC (\d{4})-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d) UTC')
 # kind ACT rings the terminal bell; an empty instruction keeps waiting without a new prompt.
 # kind QUIET (shown as CHECK) passes when the pattern does NOT appear within the timeout.
 # kind SEND_TIME sends the host's UTC time to the watch, then waits for the pattern.
+# kind ASK asks the tester a yes/no question (a visual check) and logs the answer.
 # Every 'RTC ... UTC' line, logged at the RTC's second tick, gets the RTC - host difference.
 TESTS = {
     # Off mode (docs/hardware.md, PWR key). Software power-off returns every chip
@@ -64,7 +66,7 @@ TESTS = {
         (WAIT, '', USB_DISCONNECTED, 10),
     ],
     # Sets the RTC from the host clock and checks that it keeps time through off mode
-    # (docs/hardware.md, open question 10).
+    # (docs/hardware.md, PCF85063A section).
     'rtc': [
         (WAIT, 'The board is being reset.', r'wake source: power-on/reset', 20),
         (WAIT, '', r'RTC \d{4}-', 10),
@@ -74,6 +76,16 @@ TESTS = {
         (ACT, 'Wait about 1 min, then press PWR for about 1 s.', r'wake source: power-on/reset', 180),
         (WAIT, '', r'RTC \d{4}-.* OS 0', 10),
         (WAIT, 'Waiting for the power-off.', r'Powering off', 25),
+    ],
+    # Display basics (M4). Only the screen needs watching until the question comes.
+    'display': [
+        (WAIT, 'The board is being reset.', r'wake source: power-on/reset', 20),
+        (WAIT, 'Watch the SCREEN now (about 15 s): time with running seconds, date with UTC and '
+         'battery. The question follows afterwards.', r'Display started', 20),
+        (WAIT, '', r'Powering off', 30),
+        (WAIT, '', USB_DISCONNECTED, 20),
+        (ASK, 'Did the screen show the time with running seconds, the date with UTC and the battery?',
+         '', 0),
     ],
     # Reads the RTC once against the host clock (drift over hours or days).
     'clock': [
@@ -96,6 +108,8 @@ def printInstruction(kind, instruction):
         print(f'\n\a{ACT_STYLE}ACTION: {instruction}{RESET}')
     elif kind == QUIET:
         print(f'\n\a{ACT_STYLE}CHECK: {instruction}{RESET}')
+    elif kind == ASK:
+        print(f'\n\a{ACT_STYLE}QUESTION: {instruction}{RESET}')
     else:
         print(f'\n{WAIT_STYLE}WAIT - do not touch: {instruction}{RESET}')
 
@@ -179,6 +193,14 @@ def runSteps(reader, steps):
     for index, (kind, instruction, pattern, timeout) in enumerate(steps, start=1):
         if instruction:
             printInstruction(kind, instruction)
+        if kind == ASK:
+            answer = input('    y/n: ').strip().lower()
+            passed = answer.startswith('y')
+            reader.emit(f'<answer: {answer or "-"}: {instruction}>')
+            mark = f'{GREEN}YES{RESET}' if passed else f'{RED}NO{RESET}'
+            print(f'    [{index:2}] {mark}')
+            results.append((index, instruction, passed))
+            continue
         if kind == SEND_TIME:
             sendTime(reader)
         regex = re.compile(re.escape(pattern) if pattern.startswith('<') else pattern)

@@ -3,6 +3,7 @@
 #include "Axp2101.h"
 #include "BatteryLog.h"
 #include "DeepSleep.h"
+#include "Display.h"
 #include "Peripherals.h"
 #include "Rtc.h"
 
@@ -25,6 +26,8 @@ static Axp2101 s_pmu;
 static DeepSleep s_deepSleep;
 static Peripherals s_peripherals;
 static Rtc s_rtc;
+static Display s_display;
+static bool s_displayOn = false;
 [[maybe_unused]] static BatteryLog s_batteryLog;
 
 static void logPowerKeyIrq()
@@ -79,6 +82,18 @@ static void pollHostTime()
 }
 #endif
 
+static void updateDisplay()
+{
+    Rtc::DateTime time = {};
+    bool oscillatorStopped = false;
+    uint16_t millivolts = 0;
+    uint8_t percent = 0;
+    bool vbusGood = false;
+    s_rtc.read( time, oscillatorStopped );
+    s_pmu.readBattery( millivolts, percent, vbusGood );
+    s_display.showStatus( time, millivolts, percent, vbusGood );
+}
+
 // Logs every level change of the PWR key line to confirm its polarity.
 // Each press restarts the window, as the display timeout will later do.
 static void watchPowerKey( int windowMs )
@@ -86,7 +101,12 @@ static void watchPowerKey( int windowMs )
     int lastLevel = gpio_get_level( s_powerKeyGpio );
     ESP_LOGI( TAG, "GPIO10 level %d; awake for %d ms after the last press", lastLevel, windowMs );
     int idleMs = 0;
+    int sinceUpdateMs = 1000;
     while ( idleMs < windowMs ) {
+        if ( s_displayOn && sinceUpdateMs >= 1000 ) {
+            updateDisplay();
+            sinceUpdateMs = 0;
+        }
         const int level = gpio_get_level( s_powerKeyGpio );
         if ( level != lastLevel ) {
             ESP_LOGI( TAG, "GPIO10 -> %d", level );
@@ -102,6 +122,7 @@ static void watchPowerKey( int windowMs )
 #endif
         vTaskDelay( pdMS_TO_TICKS( 20 ) );
         idleMs += 20;
+        sinceUpdateMs += 20;
     }
 }
 
@@ -176,6 +197,8 @@ extern "C" void app_main( void )
         s_pmu.setPowerOnPress();
         s_pmu.logStatus();
         logPowerKeyIrq();
+        s_pmu.setPanelPower( true );
+        s_displayOn = s_display.start( CONFIG_WATCH_DISPLAY_BRIGHTNESS );
 #if CONFIG_WATCH_BATTERY_LOG
         s_batteryLog.record( s_pmu );
         s_batteryLog.print();
