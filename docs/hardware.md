@@ -249,11 +249,31 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
 | Run | Firmware state | Duration | VBAT slope | Gauge slope | Estimated average current |
 |---|---|---|---|---|---|
 | A (2026-10-29/30) | peripherals at power-on defaults (`sdkconfig.noquiesce`) | 9.5 h fitted (10.7 h total), 4.10 → 4.01 V | −8.8 ± 0.6 mV/h | −1.00 ± 0.02 %/h | **≈ 4 mA** |
+| B (2026-10-30) | sleep preparation on (section 4) | 9.5 h fitted (10.5 h total), 4.04 → 3.94 V | −8.8 ± 0.5 mV/h | −0.96 ± 0.02 %/h | **≈ 3.9 mA** |
 
-- About 8.8 mV per gauge percent in the 86–98 % range.
-- Run A is more than twice the datasheet sum for the known loads (touch active 1.5 mA, panel
-  Sleep In ~0.13 mA, IMU, ESP32, AXP). The rest is unexplained: candidates are the ES8311/ES7210
-  codecs, the unused but enabled AXP rails and the capacity assumption.
+- About 8.8 mV per gauge percent in the 80–98 % range.
+- In both runs the slopes of the first and second half agree: the drain is steady, not a
+  relaxation tail after charging.
+- **The sleep preparation made no visible difference.** A − B = 0.04 ± 0.02 %/h (0.16 ± 0.09 mA)
+  on the gauge and 0.0 ± 0.8 mV/h on VBAT, so the saving is below about 0.4 mA. The expected
+  1.5 mA from the touch controller is not there; FocalTech controllers usually fall back to
+  Monitor mode (30 µA [DS]) by themselves when idle, but the FT3168 datasheet does not state this
+  default [?].
+- So about 4 mA comes from something the preparation does not touch, or from the method itself.
+  Candidates: the ES8311/ES7210 codecs (ALDO1 and DCDC1 stay on), the ESP32 sleep configuration,
+  the AXP2101 itself, and the 400 mAh capacity assumption (a smaller cell scales every estimate
+  down). The fitted cell is labelled 400 mAh.
+- **Off run (2026-10-30/31):** the watch was switched off with the PWR key (6 s) for 11.25 h,
+  between 2 h of logging before and 1 h after. The morning boot read PWROFF status (REG21) `0x01`
+  (PWR key) and started its wake counters from zero, so the AXP had really cut every rail except
+  RTCLDO. VBAT before and after, each projected to the switch moment with the −8.8 mV/h of runs
+  A/B: 4072 → 4068 mV, **−0.3 ± 0.6 mV/h** (gauge 94 → 93 %). The AXP2101 datasheet gives about
+  40 µA in the off state (≈ 0.1 mV/h).
+- So the ~4 mA is not the cell or the method: at least about 90 % of it flows only while the
+  rails are on and the ESP32 sleeps, which makes it a load software may be able to switch off.
+  Candidates: the ES8311/ES7210 codecs at their power-on state, the AXP2101 in its on state (ADC
+  enabled in REG30, sleep mode in REG26 unused, DCDC mode in REG81 not read), and the ESP32 sleep
+  configuration.
 - VBAT readings scatter by up to ~20 mV between neighbouring samples (single reading right after
   boot); use fits over many samples, not single values.
 
@@ -271,6 +291,7 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
    pins held? What does the always-on mode draw at low brightness, with and without idle mode?
 6. Correct PCF85063 CAP_SEL for this crystal.
 7. ES8311/ES7210 standby current at power-on defaults.
+8. Which on-state load draws the ~4 mA of runs A and B in deep sleep (codecs, AXP2101, ESP32)?
 
 ## 6. Sources
 

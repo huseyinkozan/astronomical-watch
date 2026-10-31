@@ -11,6 +11,7 @@ static const int s_timeoutMs = 50;
 static const uint8_t REG_STATUS1 = 0x00;
 static const uint8_t REG_STATUS2 = 0x01;
 static const uint8_t REG_PWRON_STATUS = 0x20;
+static const uint8_t REG_PWROFF_STATUS = 0x21;
 static const uint8_t REG_SLEEP_WAKEUP = 0x26;
 static const uint8_t REG_KEY_TIMING = 0x27;
 static const uint8_t REG_ADC_ENABLE = 0x30;
@@ -98,6 +99,10 @@ void Axp2101::logStatus()
     uint8_t value = 0;
     if ( readRegister( REG_PWRON_STATUS, value ) == ESP_OK ) {
         ESP_LOGI( TAG, "PWRON status (REG20)=0x%02X", value );
+    }
+    // Reason of the last power-off; kept while a battery is present.
+    if ( readRegister( REG_PWROFF_STATUS, value ) == ESP_OK ) {
+        ESP_LOGI( TAG, "PWROFF status (REG21)=0x%02X%s", value, ( value & 0x01 ) ? ": PWR key" : "" );
     }
     if ( readRegister( REG_SLEEP_WAKEUP, value ) == ESP_OK ) {
         ESP_LOGI( TAG, "Sleep/wakeup (REG26)=0x%02X", value );
