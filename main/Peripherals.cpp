@@ -236,8 +236,9 @@ void Peripherals::quiesceOnce( i2c_master_bus_handle_t bus, Axp2101 &pmu )
     passed += powerDownImu( bus ) ? 1 : 0;
     passed += stopRtcClockOut( bus ) ? 1 : 0;
     passed += pmu.disableUnusedRails() == ESP_OK ? 1 : 0;
+    passed += pmu.limitIrqs() == ESP_OK ? 1 : 0;
     s_quiesced = true;
-    ESP_LOGI( TAG, "Quiesce done: %d/5 steps OK", passed );
+    ESP_LOGI( TAG, "Quiesce done: %d/6 steps OK", passed );
 }
 
 void Peripherals::holdResetLines()

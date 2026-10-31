@@ -16,10 +16,10 @@ examples, SensorLib/XPowersLib, Rust watch firmwares), **[HW]** validated on thi
 | 4–7 | QSPI SIO0–3 (display) | [SCH][REF] | – |
 | 8 | LCD_RESET | [SCH] | yes (can be held) |
 | 9 | TP_RESET (touch) | [SCH] | yes (can be held) |
-| 10 | PWR key state (SYS_OUT) | BSS138 inverter, 10k pull-up to VCC3V3, **HIGH while pressed** [SCH] | **yes** |
+| 10 | PWR key state (SYS_OUT) | BSS138 inverter, 10k pull-up (R11) to VCC3V3, **HIGH while pressed**; the MOSFET conducts while the key is idle, so R11 draws ~0.33 mA all the time [SCH] | **yes** |
 | 11 / 12 | QSPI SCLK / LCD_CS | [SCH] | – |
 | 13 | LCD_TE | [SCH] | – |
-| 14 / 15 | I2C SCL / SDA (shared) | 2.2k pull-ups to **VCC3V3**; BSP: port 1, 400 kHz [SCH][REF] | – |
+| 14 / 15 | I2C SCL / SDA (shared) | 2.2k pull-ups (R49 / R23) to **VCC3V3**; a line held low would draw ~1.5 mA; BSP: port 1, 400 kHz [SCH][REF] | – |
 | 16 / 40 / 41 / 42 / 45 | I2S MCLK / DSDIN / SCLK / ASDOUT / LRCK | [SCH] | – |
 | 18 | Vibration motor | NPN low-side, motor supply = ALDO3 [SCH] | – |
 | 19 / 20 | USB D− / D+ | native USB-Serial-JTAG [SCH] | – |
@@ -30,10 +30,12 @@ examples, SensorLib/XPowersLib, Rust watch firmwares), **[HW]** validated on thi
 | 46 | Speaker amplifier enable (PA_CTRL) | [SCH] | – |
 
 I2C devices on the shared bus [SCH][REF]: FT3168 touch `0x38`, PCF85063 `0x51`, QMI8658 `0x6B`,
-AXP2101 `0x34`, ES8311 codec, ES7210 ADC.
+AXP2101 `0x34`, ES8311 codec `0x18` (CE low through R50), ES7210 ADC `0x40` (AD0/AD1 to AGND).
+Speaker amplifier NS4150B: CTRL (GPIO46) has a 10k pull-down, so it is off unless driven. The
+microphones are biased from ES7210 MICBIAS12.
 
-Not connected to the ESP32 [SCH]: QMI8658 INT2 (test point TP15 only), AXP2101 IRQ (pulled up to
-VCC-RTC; official example uses `CONFIG_PMU_INTERRUPT_PIN=-1`), PCF85063 CLKOUT.
+Not connected to the ESP32 [SCH]: QMI8658 INT2 (test point TP15 only), AXP2101 IRQ (RP5 10k pull-up
+to VCC-RTC; official example uses `CONFIG_PMU_INTERRUPT_PIN=-1`), PCF85063 CLKOUT.
 
 ## 2. Parts and Power Tree
 
@@ -157,6 +159,7 @@ Power-on defaults read on this board [HW] (eFuse values; nothing was written exc
 | REG30 | `0x03` | ADC: VBAT and TS channels on |
 | REG41 | `0xFC` | VBUS/battery insert/remove and PWRON short/long press IRQs enabled |
 | REG26 | `0x08` | sleep/wakeup at reset value |
+| REG81 | `0x00` | DCDC1 automatic PWM/PFM (no forced PWM) |
 | REG20 | `0x04` / `0x01` | power-on source: VBUS insert / PWRON key |
 
 With USB connected: STATUS1 `0x38` (VBUS good, battery present), charging CC then CV, battery
@@ -222,9 +225,31 @@ guided test `m2` after a full power cycle [HW]:
 | QMI8658: CTRL7 = 0, CTRL1 bit0 = 1 | CTRL1 `0x21`, CTRL7 `0x00`, WHO_AM_I `0x05` | ~15 µA → ~6 µA |
 | PCF85063: Control_2 COF = 111 | CONTROL2 `0x07` | CLKOUT 32.768 kHz → off |
 | AXP2101: DCDC2–4, ALDO2–4, BLDO1–2, CPUSLDO, DLDO1–2 off | REG80 `0x01`, REG90 `0x01`, REG91 `0x00` | not specified |
+| AXP2101: IRQ enables only PWR short/long press, all IRQ flags cleared | REG40–42 `0x00 0x0C 0x00`, REG48–4A `0x00 0x00 0x00` | see below |
 
 - After each later deep-sleep wake the IMU and RTC still answer on I2C: switching the unused rails
   off does not disturb the bus [HW].
+- **The codecs are left at their reset state.** After a power cycle they read their datasheet
+  reset values [HW]: ES8311 0x14 `0x10`, 0x0E `0x6A`, 0x0D `0xFC`, 0x01 `0x00` (analog blocks
+  already powered down); ES7210 0x40 `0x80`, 0x01 `0x20`, 0x06 `0x00`. A power-down step was
+  tried in battery run C (ES8311: 0x14 `0x00`, 0x0E `0x6E`, 0x0D `0xF8`, 0x01 `0x00`; ES7210:
+  0x40 `0xC0`, 0x01 `0x7F`, 0x06 `0x07`, the ES7210 values being those of Espressif's
+  `es7210_stop()`). Every write read back correctly, but the sleep drain rose about tenfold, and
+  run D without the step returned to the level of runs A/B; it was removed. Which write caused it
+  is not tested. Two observations:
+  - ES8311 0x0D, written as `0xF8`, read `0xFC` again after the 5 h run while the drain stayed
+    high, so PDN_VREF is probably not the cause (its datasheet polarity, "0 – disable", is the
+    opposite of every other PDN bit in the register; Espressif's `es8311_suspend()` ends with
+    `0xFC`).
+  - Main suspect: ES7210 0x06 bit0 (PUPDN_OFF) switches off the pin pull-ups. The I2S lines
+    (MCLK GPIO16, SCLK GPIO41, LRCK GPIO45) go to both codecs and are not driven by the ESP32 in
+    deep sleep, so without the pull-ups they float, and floating CMOS inputs can draw current.
+  Neither datasheet gives a standby current.
+- AXP2101 IRQ: the line has a 10k pull-up to VCC-RTC and is not read by the ESP32. Any pending
+  enabled IRQ (the defaults enable charger, gauge and VBUS events) holds it low and draws up to
+  ~0.3 mA through the pull-up. Only the PWR key IRQs stay enabled; their flag is cleared on every
+  wake. The PWRON edge flags (REG49 bits 1:0) still latch on a press (REG49 `0x0B` after a PWR
+  wake [HW]) but, being disabled, do not drive the line.
 - GPIO8 (LCD_RESET) and GPIO9 (TP_RESET) have no pull resistor on the board; they are driven HIGH
   and held (`gpio_hold_en`) through deep sleep, because a low level would leave deep standby/sleep.
 - The panel QSPI bus is opened with the BSP pin definitions for this one command: the BSP has no
@@ -234,8 +259,9 @@ guided test `m2` after a full power cycle [HW]:
   more than 10 s, but the AXP powers the board off at 6 s, so it only guards against a stuck line.
 - Estimated sleep current after preparation, from datasheet values: ESP32-S3 ~8 µA, AXP2101
   ~40 µA, touch 10 µA, IMU 6 µA, panel 3 µA, RTC <1 µA → **roughly 70 µA**, plus the unknown
-  ES8311/ES7210 standby current. Before preparation the touch controller alone was ~1.5 mA.
-  These are estimates; see the battery drain runs for evidence from the board.
+  ES8311/ES7210 reset-state current and **~0.33 mA through the PWR key pull-up R11**, which no
+  software can switch off (about 0.4 mA in total). Before preparation the touch controller alone
+  was ~1.5 mA. These are estimates; see the battery drain runs for evidence from the board.
 
 ### Battery drain runs (estimates, not measured current)
 
@@ -250,6 +276,8 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
 |---|---|---|---|---|---|
 | A (2026-10-29/30) | peripherals at power-on defaults (`sdkconfig.noquiesce`) | 9.5 h fitted (10.7 h total), 4.10 → 4.01 V | −8.8 ± 0.6 mV/h | −1.00 ± 0.02 %/h | **≈ 4 mA** |
 | B (2026-10-30) | sleep preparation on (section 4) | 9.5 h fitted (10.5 h total), 4.04 → 3.94 V | −8.8 ± 0.5 mV/h | −0.96 ± 0.02 %/h | **≈ 3.9 mA** |
+| C (2026-10-31) | B + codec power-down + AXP IRQ step | 4.0 h fitted (5.2 h total), 4.10 → 3.71 V | −69 ± 2 mV/h | −9.4 ± 0.1 %/h | **≈ 35–40 mA** |
+| D (2026-10-31) | B + AXP IRQ step (codec step skipped) | 2.0 h fitted (3.1 h total), 3.92 → 3.89 V | −11 ± 5 mV/h | unusable (see below) | **same level as A/B** |
 
 - About 8.8 mV per gauge percent in the 80–98 % range.
 - In both runs the slopes of the first and second half agree: the drain is steady, not a
@@ -272,8 +300,20 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
 - So the ~4 mA is not the cell or the method: at least about 90 % of it flows only while the
   rails are on and the ESP32 sleeps, which makes it a load software may be able to switch off.
   Candidates: the ES8311/ES7210 codecs at their power-on state, the AXP2101 in its on state (ADC
-  enabled in REG30, sleep mode in REG26 unused, DCDC mode in REG81 not read), and the ESP32 sleep
-  configuration.
+  enabled in REG30, sleep mode in REG26 unused), and the ESP32 sleep configuration. REG81 reads
+  `0x00` (automatic PWM/PFM), so a forced-PWM DCDC1 is ruled out [HW].
+- **Run C** added a codec power-down step and the AXP IRQ step (section 4): the drain rose about
+  tenfold, steady over the whole run (first and second half −9.0 and −10.1 %/h).
+- **Run D** kept the AXP IRQ step and skipped the codec step: back to the level of runs A/B.
+  So the codec step caused the rise and was removed; the AXP IRQ step shows no visible effect
+  either way. Run D started at about half charge right after a power cycle: the gauge then rose
+  from 57 to 72 % on battery while it re-learned the state of charge, so only VBAT is usable.
+  Two dips of 15–25 mV in single samples widen the VBAT fit; without them the slope is about
+  −7.5 mV/h. At about 3.9 V the mV-to-mAh relation of runs A/B does not apply exactly.
+- The remaining ~4 mA only matters while the watch sleeps with its rails on (always-on and a
+  pending alarm), since the display-off state powers the board off. Its search continues with
+  the always-on battery run (M5); candidates left: the ESP32 pad states in deep sleep and the
+  AXP2101 on state (REG30 ADC, REG26).
 - VBAT readings scatter by up to ~20 mV between neighbouring samples (single reading right after
   boot); use fits over many samples, not single values.
 
@@ -290,8 +330,10 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
 5. Does the CO5300 keep its image while the ESP32 deep-sleeps with the panel powered and the QSPI
    pins held? What does the always-on mode draw at low brightness, with and without idle mode?
 6. Correct PCF85063 CAP_SEL for this crystal.
-7. ES8311/ES7210 standby current at power-on defaults.
-8. Which on-state load draws the ~4 mA of runs A and B in deep sleep (codecs, AXP2101, ESP32)?
+7. ES8311/ES7210 standby current at their reset state (neither datasheet gives a figure), and
+   which write of the run C power-down step raised the drain (suspect: ES7210 pull-ups off).
+8. Which on-state load draws the ~4 mA of runs A, B and D in deep sleep (ESP32 pad states,
+   AXP2101 on state, codecs at their reset state)?
 
 ## 6. Sources
 
@@ -304,6 +346,9 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
 - AXP2101 datasheet: https://files.waveshare.com/wiki/common/X-power-AXP2101_SWcharge_V1.0.pdf
 - CO5300 datasheet: https://files.waveshare.com/wiki/common/Co5300_Datasheet.pdf
 - FT3168 datasheet: https://files.waveshare.com/wiki/common/FT3168.pdf
+- ES8311 datasheet rev 10.0: https://files.waveshare.com/wiki/common/ES8311.DS.pdf (user guide:
+  https://files.waveshare.com/wiki/common/ES8311.user.Guide.pdf)
+- ES7210 datasheet rev 21.0: https://files.waveshare.com/wiki/common/ES7210_DS.pdf
 - ESP32-S3 sleep modes: https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/system/sleep_modes.html
 - SensorLib (QMI8658, PCF85063): https://github.com/lewisxhe/SensorLib
 - XPowersLib (AXP2101): https://github.com/lewisxhe/XPowersLib

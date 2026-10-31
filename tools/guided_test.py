@@ -65,7 +65,7 @@ TESTS = {
         (WAIT, '', r'IMU: .*powered down', 10),
         (WAIT, '', r'RTC: .*CLKOUT off', 10),
         (WAIT, '', r'Rails after: REG80=0x01 REG90=0x01 REG91=0x00', 10),
-        (WAIT, '', r'Quiesce done: 5/5 steps OK', 10),
+        (WAIT, '', r'Quiesce done: 6/6 steps OK', 10),
         (ACT, 'Press PWR briefly, once, within 10 s.', r'Awake window restarted', 30),
         (WAIT, 'The watch sleeps 10 s after the last press.', r'Entering deep sleep', 25),
         (WAIT, '', USB_DISCONNECTED, 10),

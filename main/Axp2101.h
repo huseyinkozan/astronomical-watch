@@ -30,6 +30,10 @@ public:
     // ALDO1 (A3V3: an unpowered ES7210 would hang the shared I2C bus). See docs/hardware.md.
     esp_err_t disableUnusedRails();
 
+    // Enables only the PWR key short/long press IRQs and clears every pending IRQ flag. A
+    // pending enabled IRQ holds the IRQ line low through its 10k pull-up to VCC-RTC.
+    esp_err_t limitIrqs();
+
 private:
     i2c_master_dev_handle_t m_device = nullptr;
 };

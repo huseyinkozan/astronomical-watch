@@ -16,9 +16,14 @@ static const uint8_t REG_SLEEP_WAKEUP = 0x26;
 static const uint8_t REG_KEY_TIMING = 0x27;
 static const uint8_t REG_ADC_ENABLE = 0x30;
 static const uint8_t REG_VBAT_HIGH = 0x34;
+static const uint8_t REG_IRQ_ENABLE0 = 0x40;
 static const uint8_t REG_IRQ_ENABLE1 = 0x41;
+static const uint8_t REG_IRQ_ENABLE2 = 0x42;
+static const uint8_t REG_IRQ_STATUS0 = 0x48;
 static const uint8_t REG_IRQ_STATUS1 = 0x49;
+static const uint8_t REG_IRQ_STATUS2 = 0x4A;
 static const uint8_t REG_DCDC_ENABLE = 0x80;
+static const uint8_t REG_DCDC_PWM = 0x81;
 static const uint8_t REG_DCDC1_VOLTAGE = 0x82;
 static const uint8_t REG_LDO_ENABLE0 = 0x90;
 static const uint8_t REG_LDO_ENABLE1 = 0x91;
@@ -117,8 +122,17 @@ void Axp2101::logStatus()
     if ( readRegister( REG_ADC_ENABLE, value ) == ESP_OK ) {
         ESP_LOGI( TAG, "ADC enable (REG30)=0x%02X", value );
     }
-    if ( readRegister( REG_IRQ_ENABLE1, value ) == ESP_OK ) {
-        ESP_LOGI( TAG, "IRQ enable 1 (REG41)=0x%02X", value );
+    uint8_t irq[3] = {};
+    if ( readRegister( REG_IRQ_ENABLE0, irq[0] ) == ESP_OK && readRegister( REG_IRQ_ENABLE1, irq[1] ) == ESP_OK &&
+         readRegister( REG_IRQ_ENABLE2, irq[2] ) == ESP_OK ) {
+        ESP_LOGI( TAG, "IRQ enable (REG40-42)=0x%02X 0x%02X 0x%02X", irq[0], irq[1], irq[2] );
+    }
+    if ( readRegister( REG_IRQ_STATUS0, irq[0] ) == ESP_OK && readRegister( REG_IRQ_STATUS1, irq[1] ) == ESP_OK &&
+         readRegister( REG_IRQ_STATUS2, irq[2] ) == ESP_OK ) {
+        ESP_LOGI( TAG, "IRQ status (REG48-4A)=0x%02X 0x%02X 0x%02X", irq[0], irq[1], irq[2] );
+    }
+    if ( readRegister( REG_DCDC_PWM, value ) == ESP_OK ) {
+        ESP_LOGI( TAG, "DCDC PWM control (REG81)=0x%02X: DCDC1 %s", value, ( value & 0x04 ) ? "always PWM" : "auto PWM/PFM" );
     }
 
     uint8_t dcdcEnable = 0;
@@ -201,6 +215,38 @@ esp_err_t Axp2101::disableUnusedRails()
     ESP_LOGI( TAG, "Rails after: REG80=0x%02X REG90=0x%02X REG91=0x%02X", dcdc, ldo0, ldo1 );
     const bool expected = ( dcdc & DCDC_OFF_MASK ) == 0 && ( dcdc & 0x01 ) && ldo0 == LDO0_KEEP_MASK &&
                           ( ldo1 & LDO1_OFF_MASK ) == 0;
+    return expected ? ESP_OK : ESP_ERR_INVALID_STATE;
+}
+
+esp_err_t Axp2101::limitIrqs()
+{
+    // Status bits are write-1-to-clear (datasheet REG48-4A).
+    const uint8_t values[6][2] = {
+        { REG_IRQ_ENABLE0, 0x00 },
+        { REG_IRQ_ENABLE1, IRQ1_KEY_SHORT | IRQ1_KEY_LONG },
+        { REG_IRQ_ENABLE2, 0x00 },
+        { REG_IRQ_STATUS0, 0xFF },
+        { REG_IRQ_STATUS1, 0xFF },
+        { REG_IRQ_STATUS2, 0xFF },
+    };
+    esp_err_t err = ESP_OK;
+    for ( int i = 0; i < 6 && err == ESP_OK; ++i ) {
+        err = writeRegister( values[i][0], values[i][1] );
+    }
+    uint8_t enable[3] = {};
+    uint8_t status[3] = {};
+    for ( int i = 0; i < 3 && err == ESP_OK; ++i ) {
+        err = readRegister( REG_IRQ_ENABLE0 + i, enable[i] );
+        if ( err == ESP_OK ) {
+            err = readRegister( REG_IRQ_STATUS0 + i, status[i] );
+        }
+    }
+    ESP_LOGI( TAG, "IRQs after: enable 0x%02X 0x%02X 0x%02X, status 0x%02X 0x%02X 0x%02X %s", enable[0], enable[1],
+              enable[2], status[0], status[1], status[2], esp_err_to_name( err ) );
+    if ( err != ESP_OK ) {
+        return err;
+    }
+    const bool expected = enable[0] == 0x00 && enable[1] == ( IRQ1_KEY_SHORT | IRQ1_KEY_LONG ) && enable[2] == 0x00;
     return expected ? ESP_OK : ESP_ERR_INVALID_STATE;
 }
 

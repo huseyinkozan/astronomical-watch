@@ -20,9 +20,10 @@ menu "Astronomical Watch"
         bool "Put unused peripherals into their lowest-power state"
         default y
         help
-            Touch sleep, panel deep standby, IMU power-down, RTC CLKOUT off and
-            unused AXP2101 rails off, once after power-on. Disable only to
-            compare battery drain with the default state.
+            Touch sleep, panel deep standby, IMU power-down, RTC CLKOUT off,
+            unused AXP2101 rails off and AXP2101 IRQs limited to the PWR key,
+            once after power-on. Disable only to compare battery drain with the
+            default state.
 
     config WATCH_BATTERY_LOG
         bool "Battery drain log"
