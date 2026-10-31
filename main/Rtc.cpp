@@ -20,6 +20,11 @@ static const uint8_t CONTROL1_12_24 = 1 << 1;
 static const uint8_t CONTROL1_CAP_SEL = 1 << 0;
 static const uint8_t SECONDS_OS = 1 << 7;
 
+// Measured on this board (docs/hardware.md): the crystal runs 41.8 ppm slow at CAP_SEL 7 pF.
+// Offset -10 in MODE 0 (4.34 ppm per step, applied once every two hours, the low-power mode)
+// leaves about +1.6 ppm. A slow clock takes a negative value (datasheet Figure 11).
+static const uint8_t s_offsetCalibration = 0x76;
+
 static uint8_t fromBcd( uint8_t value )
 {
     return static_cast<uint8_t>( ( value >> 4 ) * 10 + ( value & 0x0F ) );
@@ -37,6 +42,17 @@ esp_err_t Rtc::init( i2c_master_bus_handle_t bus )
     config.device_address = s_address;
     config.scl_speed_hz = 400000;
     return i2c_master_bus_add_device( bus, &config, &m_device );
+}
+
+esp_err_t Rtc::applyCalibration()
+{
+    uint8_t value = 0;
+    esp_err_t err = readRegisters( REG_OFFSET, &value, 1 );
+    if ( err == ESP_OK && value != s_offsetCalibration ) {
+        err = writeRegister( REG_OFFSET, s_offsetCalibration );
+        ESP_LOGI( TAG, "Offset 0x%02X -> 0x%02X: %s", value, s_offsetCalibration, esp_err_to_name( err ) );
+    }
+    return err;
 }
 
 esp_err_t Rtc::readRegisters( uint8_t reg, uint8_t *values, int count )

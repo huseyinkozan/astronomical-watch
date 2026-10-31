@@ -189,6 +189,7 @@ extern "C" void app_main( void )
 
     s_peripherals.quiesceOnce( bus, s_pmu );
     if ( s_rtc.init( bus ) == ESP_OK ) {
+        s_rtc.applyCalibration();
         s_rtc.logAtTick();
     } else {
         ESP_LOGE( TAG, "RTC init failed" );

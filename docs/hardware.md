@@ -154,7 +154,14 @@ Validated on this board [HW] (guided test `rtc`, 2026-10-31):
 - Drift and the right CAP_SEL: repeat the guided test `clock` over hours and days; each RTC line
   in its log carries the RTC − host difference. First two readings after the reader fix, 14.5 min
   apart: −0.128 s → −0.164 s, i.e. about −40 ppm (3.5 s/day slow), on a desk at room
-  temperature. Too short a baseline to act on; if it holds, the Offset register can correct it.
+  temperature. Two more readings (`clock`, `display`) over 33 min in all: **−41.8 ± 0.2 ppm**
+  (3.6 s/day slow), residuals under 0.5 ms. A higher load capacitance (CAP_SEL 12.5 pF) would slow
+  it further, so CAP_SEL stays 7 pF and the Offset register corrects the rate: −41.8 / 4.34 ≈ −10
+  in MODE 0 (`0x76`; a slow clock takes a negative value, datasheet Figure 11), leaving about
+  +1.6 ppm. MODE 0 corrects once every two hours, one pulse per minute in minutes 00 to 09 of
+  that hour (about 31 ms each, 0.31 s in all; datasheet Table 13), so the check needs readings
+  several hours apart. Offset `0x76` was written at 18:11 UTC; one hour later the readings still
+  followed −42 ppm, as expected before the first correction cycle.
 
 ### AXP2101 PMIC (`0x34`)
 - **The BSP never initialises the AXP2101**; rails are at their eFuse defaults unless configured [REF].
@@ -213,6 +220,10 @@ Off mode [HW] (guided test `off`, 2026-10-31; `main/Axp2101.*`):
   present does not power it on (only a VBUS insert does, REG20 `0x04`).
 - Logging starts about 0.8 s after the ESP32 boots, as after a deep-sleep wake; the press itself
   must last at least 512 ms first.
+- The battery charges in the off state: after the cell was discharged to 80 % with the display on
+  (`sdkconfig.drain`), 5.3 min off with USB plugged in raised the gauge from 80 to 85 % (about
+  20 mAh, roughly 0.2 A on average; an estimate), and the charger read constant current at the
+  next power-on.
 
 ### Display (CO5300 AMOLED, 410 × 502, QSPI)
 - The BSP drives it with the `esp_lcd_sh8601` driver: RGB565, x-gap 22, QSPI 40 MHz; it offers
@@ -377,15 +388,12 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
    (sets the no-motion threshold), and how long must the accelerometer run for one valid sample?
 4. Does the CO5300 keep its image while the ESP32 deep-sleeps with the panel powered and the QSPI
    pins held? What does the always-on mode draw at low brightness, with and without idle mode?
-5. Correct PCF85063 CAP_SEL (and Offset) for this crystal: drift at the reset value 7 pF, measured
-   with the guided test `clock` over several days.
+5. Does Offset `0x76` (−10, MODE 0) bring the RTC drift near 0 ppm? Check with the guided test
+   `clock` over several hours and days, and on the wrist (temperature).
 6. ES8311/ES7210 standby current at their reset state (neither datasheet gives a figure), and
    which write of the run C power-down step raised the drain (suspect: ES7210 pull-ups off).
 7. Which on-state load draws the ~4 mA of runs A, B and D in deep sleep (ESP32 pad states,
    AXP2101 on state, codecs at their reset state)?
-8. Does the AXP2101 charge the battery in the off state? (The off test ran with a full battery,
-   charger done.) Plan: after M4, discharge the cell with the display on and the gauge shown,
-   then repeat the guided test `off` at about 80 %.
 
 ## 6. Sources
 

@@ -22,6 +22,10 @@ public:
 
     esp_err_t init( i2c_master_bus_handle_t bus );
 
+    // Writes this board's rate correction to the Offset register when it differs. The register
+    // keeps its value while a battery is present, like the time.
+    esp_err_t applyCalibration();
+
     // Reads seconds through years in one access, as the datasheet requires. oscillatorStopped is
     // the OS flag: the clock stopped since the time was last set, so the time is not valid.
     esp_err_t read( DateTime &time, bool &oscillatorStopped );
