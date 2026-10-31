@@ -5,7 +5,8 @@ A personal low-power astronomical watch based on the **Waveshare ESP32-S3-Touch-
 It shows the time, date and astronomical information computed on the device. Location, date/time
 and UTC offset are entered manually; no network, GPS or online service is used. Battery life has
 priority over features: the processor sleeps most of the time. Between interactions a dim
-always-on face shows the time; when the watch has not moved for a while, the display turns off.
+always-on face shows the time; when the watch has not moved for a while, it switches itself off
+and the PWR key turns it on again.
 
 ## Planned Features
 
@@ -13,9 +14,11 @@ always-on face shows the time; when the watch has not moved for a while, the dis
 - Sunrise, sunset, solar noon, civil/nautical/astronomical twilight, day length
 - Moon phase, illumination, age, moonrise and moonset
 - Battery level
+- Alarms at a clock time or relative to a sun or moon event (sunrise, twilights, solar noon,
+  sunset, moonrise, moonset), with an offset; a countdown timer; signalled by vibration
 - PWR key opens the interactive mode (touch, pages); after a configurable timeout the watch
-  returns to a dim always-on face, updated once a minute
-- Display off after a long time without motion (checked at wide intervals); the PWR key turns it on
+  returns to a dim always-on face, updated once a minute, or switches off (setting)
+- Switches off after a long time without motion (checked at wide intervals); the PWR key turns it on
 
 ## Hardware
 
@@ -58,6 +61,23 @@ window and then enters deep sleep; the PWR key wakes it. Wake statistics are kep
 RTC, display and the always-on face are next.
 The earlier Wake-on-Motion validation results are kept in `docs/hardware.md`, and the validator
 itself in `archive/wom-validator/` (git tag `wom-validator`).
+
+## Roadmap
+
+Each step is built, verified on the board and documented before the next one starts.
+
+1. **M1** (done): PWR key wake from deep sleep, wake statistics kept across sleep.
+2. **M2** (done): unused peripherals in their lowest-power state, battery drain runs (about 4 mA
+   remain in deep sleep; the search continues in M5).
+3. Off mode (next): software power-off through the AXP2101 and power-on with the PWR key.
+4. **M3**: RTC (PCF85063) time, minute-aligned wake, time kept through off mode.
+5. **M4**: display basics.
+6. **M5**: always-on face, validated with a battery run.
+7. **M6**: motion check at wide intervals.
+8. **M7**: active mode (touch, pages, display timeout).
+9. **M8+**: settings, astronomy, battery display.
+10. Vibration motor.
+11. Alarms (clock time and sun/moon events) and countdown timer.
 
 ## License
 

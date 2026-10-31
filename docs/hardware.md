@@ -144,6 +144,11 @@ Validated on this board [HW] (validator in `archive/wom-validator/`, tag `wom-va
 - The 14-bit ADC measures only VBAT, VBUS, VSYS, TS and die temperature; **there is no battery
   current measurement** [DS §6.10]. On-board power data is therefore indirect (see CLAUDE.md).
 - Quiescent current ≈ 40 µA [DS §6.5.4].
+- Power-on sources from the off state [DS §6.5.4.2]: PWRON key longer than ONLEVEL, and, only if
+  enabled "by customization" (factory eFuse, not a register), VBUS or VBAT rising, IRQ pin low
+  for more than 16 ms, or the battery charged above 3.3 V. On this board the IRQ pin has only its
+  pull-up (net label EXIO5/AXP_IRQ, not routed) and the PCF85063 INT goes only to GPIO39 [SCH],
+  so an RTC alarm cannot power the board on.
 - Accessed through a small custom class (`main/Axp2101.*`). XPowersLib was reviewed as a reference
   but not added: only a few registers are needed, and a custom class keeps the register meaning
   visible and the I2C timeout short (50 ms).
@@ -334,6 +339,14 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
    which write of the run C power-down step raised the drain (suspect: ES7210 pull-ups off).
 8. Which on-state load draws the ~4 mA of runs A, B and D in deep sleep (ESP32 pad states,
    AXP2101 on state, codecs at their reset state)?
+9. Off mode (software power-off, REG10 bit0): does the PWR key power the watch on again, what do
+   REG20/REG21 report, and how much later does logging start than after a deep-sleep wake? Does a
+   power-on time written to REG27 survive the off state, or does it return to the eFuse 128 ms?
+10. With USB plugged in: does the AXP2101 charge in the off state, and does a power-off while VBUS
+    is present stay off?
+11. Does the PCF85063 keep time through the off state (compare the time and the Seconds register
+    OS flag before and after)? Expected from the AXP2101 datasheet §6.5.4 (RTCLDO stays on) and
+    the schematic (PCF85063 VDD = VCC-RTC).
 
 ## 6. Sources
 

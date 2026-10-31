@@ -6,7 +6,7 @@ location, date/time and UTC offset. No Wi-Fi, Bluetooth, GPS or network time.
 The goal is a guide, not a fixed specification; it may be refined during development.
 
 **Battery life has priority over functionality and visual complexity.** The ESP32 stays in
-deep sleep whenever the display is not needed.
+deep sleep, or is powered off, whenever the display is not needed.
 
 ## Technology
 
@@ -53,22 +53,32 @@ idf.py -p /dev/ttyACM0 flash monitor
 ## Power Management Rules
 
 - Wi-Fi and Bluetooth stay disabled. GPS is not used.
-- The watch has three modes:
+- The watch has three modes, and a variant of off while an alarm is pending:
   - **Active**: display on, touch and pages. The PWR key enters it from the other two modes. After
     the display timeout without interaction (default 10 s; user-selectable 5, 10, 20, 30, 60 s)
-    the watch goes to always-on.
+    the watch goes to always-on, or straight to off when always-on is disabled in the settings.
   - **Always-on**: the panel keeps showing a dim, minimal face from its own memory while the ESP32
     is in deep sleep; a timer wake once per minute updates it. At wide intervals (default every
     10 min) the accelerometer is sampled once; when the watch has not moved for a while (default
-    30 min) it goes to sleep. Shift the face by a few pixels each minute against AMOLED burn-in.
-  - **Sleep**: panel in deep standby, ESP32 in deep sleep, no timer wake. Only the PWR key wakes
-    the watch, into active mode.
+    30 min) it powers off. Shift the face by a few pixels each minute against AMOLED burn-in.
+  - **Off**: the ESP32 powers the AXP2101 off (REG10 bit0). Every rail except RTCLDO is off
+    (about 40 µA; the PCF85063 keeps time on VCC-RTC) and ESP32 RTC memory is lost, so settings
+    live in NVS. The AXP2101 watches the PWR key and powers the watch on into active mode.
+    Pending board validation (docs/hardware.md, open questions); if it fails, the fallback is ESP32
+    deep sleep without a timer, with the panel in deep standby.
+  - **Alarm pending**: while an alarm or countdown is set, the watch does not power off: nothing
+    on the board can power the AXP2101 on at a set time (the PCF85063 INT reaches only GPIO39,
+    which cannot wake from deep sleep either). Instead the ESP32 deep-sleeps with one timer wake
+    for the next alarm, waking a little early to re-read the PCF85063 because the internal RC
+    timer drifts. In always-on the minute wake checks the alarms.
 - Always-on must use the lowest-power approach the panel allows (low brightness, few lit pixels,
   idle or partial mode where they help), never a CPU that stays awake. Do not call any mode
   low-power without evidence from the board (see "Power evaluation without external equipment").
-- Deep-sleep wake sources: the PWR key (GPIO10, active high, EXT1) and, in always-on only, the
-  minute timer. Motion does not wake the watch: the QMI8658 is powered down between motion checks
-  and its INT1 is not used. Touch (GPIO38) and the RTC interrupt (GPIO39) cannot wake from deep sleep.
+- Deep-sleep wake sources: the PWR key (GPIO10, active high, EXT1), the minute timer in
+  always-on and the alarm timer while an alarm is pending. In off mode the AXP2101 itself powers
+  the watch on from the PWR key. Motion does not wake the watch: the QMI8658 is powered down
+  between motion checks and its INT1 is not used. Touch (GPIO38) and the RTC interrupt (GPIO39)
+  cannot wake from deep sleep.
 - Avoid periodic wakeups and background tasks unless they provide a necessary function.
 - Settings are persistent, simple and limited to meaningful user-facing trade-offs.
 
@@ -78,14 +88,22 @@ Intended runtime flow: wake → initialise only what is needed → read time fro
 by wake source:
 - PWR key: active mode → update astronomy data when required → render → handle touch → after the
   timeout draw the always-on face and dim the panel.
-- Minute timer: update the always-on face; when due, check motion and go to sleep mode if the
-  watch has not moved.
+- Minute timer: update the always-on face; when due, check motion and power off if the watch
+  has not moved.
+- Alarm timer: re-read the time; when an alarm is due, vibrate and show it, otherwise sleep the
+  remaining seconds.
 
-Then deep sleep (with the minute timer in always-on, without it in sleep mode).
+Then deep sleep with the minute timer (always-on) or the alarm timer (alarm pending), or power
+off through the AXP2101 (off mode).
 
 - Small, focused modules; no layers or abstractions without a clear benefit.
 - Astronomy code is independent of UI and ESP-IDF so it can be tested on the host.
-- Settings are separate from UI code and persist across reboots and deep sleep.
+- Settings are separate from UI code and persist across reboots, deep sleep and off mode (NVS).
+- Alarms are stored as definitions (clock time, or sun/moon event plus offset; repeat) in NVS,
+  never as a computed time. The next occurrence is computed from the definition, location and
+  UTC offset, and again after each firing and after any change to them. An event that does not
+  occur on a day (no moonrise, no astronomical dusk at high latitude) moves to the next day it
+  occurs.
 
 ## Dependency Selection
 
