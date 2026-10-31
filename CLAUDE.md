@@ -1,8 +1,9 @@
 # Astronomical Watch
 
 A personal, low-power astronomical watch on the Waveshare ESP32-S3-Touch-AMOLED-2.06.
-It shows time, date, sun and moon data computed on the device from a manually entered
-location, date/time and UTC offset. No Wi-Fi, Bluetooth, GPS or network time.
+It shows time, date, sun and moon data computed on the device from a location, date/time and UTC
+offset entered by the user. No Bluetooth, GPS, internet or network time; Wi-Fi only for the setup
+portal, started by the user.
 The goal is a guide, not a fixed specification; it may be refined during development.
 
 **Battery life has priority over functionality and visual complexity.** The ESP32 stays in
@@ -52,7 +53,9 @@ idf.py -p /dev/ttyACM0 flash monitor
 
 ## Power Management Rules
 
-- Wi-Fi and Bluetooth stay disabled. GPS is not used.
+- Bluetooth stays disabled. GPS is not used. Wi-Fi runs only for the setup portal: started by
+  the user on the watch, on battery or USB power, for a limited time (a soft AP draws roughly
+  100–150 mA, so a 5 min setup costs about 2–3 % of the 400 mAh cell; an estimate).
 - The watch has three modes, and a variant of off while an alarm is pending:
   - **Active**: display on, touch and pages. The PWR key enters it from the other two modes. After
     the display timeout without interaction (default 10 s; user-selectable 5, 10, 20, 30, 60 s)
@@ -100,6 +103,17 @@ off through the AXP2101 (off mode).
 - Small, focused modules; no layers or abstractions without a clear benefit.
 - Astronomy code is independent of UI and ESP-IDF so it can be tested on the host.
 - Settings are separate from UI code and persist across reboots, deep sleep and off mode (NVS).
+- Setup portal (M9): a button on the watch's settings page starts it (not every charge); the
+  same button stops it, and it stops by itself after a timeout or when the settings are saved.
+  The watch opens a WPA2 soft AP with a captive portal (DNS answers every name with the watch's
+  address, so phones and computers open the page by themselves; otherwise the IP address shown
+  on the watch is typed in). The password is set on the watch and shown on its settings page.
+  The page sends the browser's UTC time (timed like the guided test, with the round trip
+  measured) and UTC offset, a location (country/city list, a simple world map or coordinates;
+  browsers give no geolocation to a plain HTTP page) and every setting. If the Wi-Fi stack
+  lengthens the deep-sleep wakes too much even with
+  `CONFIG_BOOTLOADER_SKIP_VALIDATE_IN_DEEP_SLEEP`, a build option (`CONFIG_WATCH_SETUP_PORTAL`)
+  removes it and the watch's own settings page remains.
 - Alarms are stored as definitions (clock time, or sun/moon event plus offset; repeat) in NVS,
   never as a computed time. The next occurrence is computed from the definition, location and
   UTC offset, and again after each firing and after any change to them. An event that does not

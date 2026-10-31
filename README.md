@@ -2,9 +2,11 @@
 
 A personal low-power astronomical watch based on the **Waveshare ESP32-S3-Touch-AMOLED-2.06**.
 
-It shows the time, date and astronomical information computed on the device. Location, date/time
-and UTC offset are entered manually; no network, GPS or online service is used. Battery life has
-priority over features: the processor sleeps most of the time. Between interactions a dim
+It shows the time, date and astronomical information computed on the device. Location, date/time,
+UTC offset and the other settings are entered on a setup page that the watch serves over its own
+Wi-Fi for a few minutes (started on the watch), from any phone or computer browser; no internet,
+GPS or online service is used. Battery life has priority over features: the processor sleeps most
+of the time. Between interactions a dim
 always-on face shows the time; when the watch has not moved for a while, it switches itself off
 and the PWR key turns it on again.
 
@@ -19,6 +21,9 @@ and the PWR key turns it on again.
 - PWR key opens the interactive mode (touch, pages); after a configurable timeout the watch
   returns to a dim always-on face, updated once a minute, or switches off (setting)
 - Switches off after a long time without motion (checked at wide intervals); the PWR key turns it on
+- Setup page over the watch's own Wi-Fi, started with a button on the watch's settings page and
+  stopped by the button or a timeout (captive portal, password shown on the watch): time and UTC offset from the browser, location from a country/city list, a world map or
+  coordinates, and every other setting
 
 ## Hardware
 
@@ -74,12 +79,17 @@ Each step is built, verified on the board and documented before the next one sta
 4. **M3** (done; crystal drift measurement running): RTC (PCF85063) time in UTC, set from the
    host, kept through off mode.
 5. **M4**: display basics.
-6. **M5**: always-on face with a minute-aligned wake, validated with a battery run.
+6. **M5**: always-on face with a minute-aligned wake, validated with a battery run; wake time
+   measured, with and without `CONFIG_BOOTLOADER_SKIP_VALIDATE_IN_DEEP_SLEEP`.
 7. **M6**: motion check at wide intervals.
 8. **M7**: active mode (touch, pages, display timeout).
-9. **M8+**: settings, astronomy, battery display.
-10. Vibration motor.
-11. Alarms (clock time and sun/moon events) and countdown timer.
+9. **M8**: settings in NVS and the settings page on the watch (setup button, password and IP
+   address).
+10. **M9**: setup portal over Wi-Fi (time, UTC offset, location, all settings); wake time measured
+    again with the larger image.
+11. **M10+**: astronomy, battery display.
+12. Vibration motor.
+13. Alarms (clock time and sun/moon events) and countdown timer, also set through the portal.
 
 ## License
 
