@@ -6,7 +6,7 @@ disconnect/reconnect) appears. Missed steps time out and the test continues.
 The full log, with host timestamps, is saved under test-logs/.
 
 Run inside the ESP-IDF environment, which provides pyserial:
-    python tools/guided_test.py m1 [--port /dev/ttyACM0]
+    python tools/guided_test.py off [--port /dev/ttyACM0]
 """
 
 import argparse
@@ -31,53 +31,32 @@ RESET = '\033[0m'
 
 ACT = 'act'
 WAIT = 'wait'
+QUIET = 'quiet'
 
 # A step is (kind, instruction, regular expression, timeout in seconds).
 # kind ACT rings the terminal bell; an empty instruction keeps waiting without a new prompt.
+# kind QUIET (shown as CHECK) passes when the pattern does NOT appear within the timeout.
 TESTS = {
-    'm1': [
+    # Off mode (docs/hardware.md, PWR key). Software power-off returns every chip
+    # and AXP rail to its power-on default, so each power-on runs the full sleep preparation.
+    'off': [
         (WAIT, 'The board is being reset.', r'wake source: power-on/reset', 20),
-        (ACT, 'Press PWR briefly, once, within 10 s.', r'GPIO10 -> 1', 30),
-        (WAIT, 'The watch sleeps 10 s after the last press.', r'PWR key IRQ: short 1', 25),
-        (WAIT, '', r'Entering deep sleep', 10),
-        (WAIT, '', USB_DISCONNECTED, 10),
-        (ACT, 'Press PWR briefly to wake the watch (1/3).', r'wake source: wake: PWR key', 40),
-        (WAIT, 'Waiting for deep sleep.', r'Entering deep sleep', 25),
-        (ACT, 'Press PWR briefly to wake the watch (2/3).', r'wake source: wake: PWR key', 40),
-        (WAIT, 'Waiting for deep sleep.', r'Entering deep sleep', 25),
-        (ACT, 'Press PWR briefly to wake the watch (3/3).', r'wake source: wake: PWR key', 40),
-        (WAIT, 'Waiting for deep sleep.', r'Entering deep sleep', 25),
-        (WAIT, '', USB_DISCONNECTED, 10),
-        (ACT, 'Hold PWR down for about 8 s until the watch powers off, then release it.',
-         r'wake source: wake: PWR key', 40),
-        (WAIT, '', USB_DISCONNECTED, 20),
-        (ACT, 'Press PWR briefly to power the watch on.', r'wake source: power-on/reset', 40),
-        (WAIT, '', r'PWRON status', 10),
-        (WAIT, 'Waiting for deep sleep.', r'Entering deep sleep', 25),
-    ],
-    'm2': [
-        (WAIT, 'The board is being reset.', r'wake source: power-on/reset', 20),
-        # A full power cycle returns every chip and AXP rail to its power-on default.
-        (ACT, 'Hold PWR down for about 8 s until the watch powers off, then release it.', USB_DISCONNECTED, 40),
-        (ACT, 'Press PWR briefly to power the watch on.', r'wake source: power-on/reset', 40),
-        (WAIT, '', r'Touch: before ESP_OK.*sleep command ESP_OK', 10),
-        (WAIT, '', r'Panel: deep standby command ESP_OK', 10),
-        (WAIT, '', r'IMU: .*powered down', 10),
-        (WAIT, '', r'RTC: .*CLKOUT off', 10),
-        (WAIT, '', r'Rails after: REG80=0x01 REG90=0x01 REG91=0x00', 10),
         (WAIT, '', r'Quiesce done: 6/6 steps OK', 10),
+        (WAIT, '', r'Power-on press \(REG27\)', 10),
         (ACT, 'Press PWR briefly, once, within 10 s.', r'Awake window restarted', 30),
-        (WAIT, 'The watch sleeps 10 s after the last press.', r'Entering deep sleep', 25),
+        (WAIT, 'The watch powers off 10 s after the last press. Keep USB plugged in.',
+         r'Powering off', 25),
         (WAIT, '', USB_DISCONNECTED, 10),
-        (ACT, 'Press PWR briefly to wake the watch (1/3).', r'wake source: wake: PWR key', 40),
-        (WAIT, '', r'Already quiesced\. I2C check: IMU ok .*RTC ok', 10),
-        (WAIT, 'Waiting for deep sleep.', r'Entering deep sleep', 25),
-        (ACT, 'Press PWR briefly to wake the watch (2/3).', r'wake source: wake: PWR key', 40),
-        (WAIT, '', r'Already quiesced\. I2C check: IMU ok .*RTC ok', 10),
-        (WAIT, 'Waiting for deep sleep.', r'Entering deep sleep', 25),
-        (ACT, 'Press PWR briefly to wake the watch (3/3).', r'wake source: wake: PWR key', 40),
-        (WAIT, '', r'Already quiesced\. I2C check: IMU ok .*RTC ok', 10),
-        (WAIT, 'Waiting for deep sleep. Check that the screen stayed dark.', r'Entering deep sleep', 25),
+        (QUIET, 'Do not touch for 5 min: the watch must stay off with USB plugged in (and charge).',
+         USB_CONNECTED, 300),
+        (QUIET, 'Tap PWR very briefly (well under half a second): the watch must stay off.',
+         USB_CONNECTED, 15),
+        (ACT, 'Press and hold PWR for about 1 s, then release it.', r'wake source: power-on/reset', 40),
+        (WAIT, '', r'Quiesce done: 6/6 steps OK', 10),
+        (WAIT, '', r'Power-on press \(REG27\) 0x15 -> 0x15', 10),
+        (WAIT, '', r'PWROFF status \(REG21\)=0x02', 10),
+        (WAIT, 'Waiting for the power-off.', r'Powering off', 25),
+        (WAIT, '', USB_DISCONNECTED, 10),
     ],
     # Reads the battery drain log; the board must not be reset, or RTC memory is cleared.
     'battery': [
@@ -92,6 +71,8 @@ NO_RESET_TESTS = {'battery'}
 def printInstruction(kind, instruction):
     if kind == ACT:
         print(f'\n\a{ACT_STYLE}ACTION: {instruction}{RESET}')
+    elif kind == QUIET:
+        print(f'\n\a{ACT_STYLE}CHECK: {instruction}{RESET}')
     else:
         print(f'\n{WAIT_STYLE}WAIT - do not touch: {instruction}{RESET}')
 
@@ -170,18 +151,24 @@ def runSteps(reader, steps):
                 break
             time.sleep(0.05)
         elapsed = time.time() - start
-        mark = f'{GREEN}OK{RESET}' if matched else f'{RED}TIMEOUT{RESET}'
-        print(f'    [{index:2}] {mark} {pattern} ({elapsed:.1f} s)')
-        results.append((index, pattern, matched))
+        if kind == QUIET:
+            passed = not matched
+            mark = f'{GREEN}OK{RESET}' if passed else f'{RED}UNEXPECTED{RESET}'
+            print(f'    [{index:2}] {mark} no {pattern} ({elapsed:.1f} s)')
+        else:
+            passed = matched
+            mark = f'{GREEN}OK{RESET}' if passed else f'{RED}TIMEOUT{RESET}'
+            print(f'    [{index:2}] {mark} {pattern} ({elapsed:.1f} s)')
+        results.append((index, pattern, passed))
     return results
 
 
 def waitForBoard(reader):
-    """A sleeping watch has no USB port: ask for a wake before the test resets it."""
+    """A sleeping or switched-off watch has no USB port: ask for a press before the reset."""
     time.sleep(1.5)
     if reader.serial is not None:
         return True
-    printInstruction(ACT, 'The watch is asleep. Press PWR briefly to wake it.')
+    printInstruction(ACT, 'The watch is asleep or off. Press PWR for about 1 s.')
     start = time.time()
     while reader.serial is None and time.time() - start < 60:
         time.sleep(0.05)

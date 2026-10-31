@@ -1,6 +1,8 @@
 #include "Axp2101.h"
 
 #include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 static const char *TAG = "axp2101";
 
@@ -10,6 +12,7 @@ static const int s_timeoutMs = 50;
 
 static const uint8_t REG_STATUS1 = 0x00;
 static const uint8_t REG_STATUS2 = 0x01;
+static const uint8_t REG_COMMON_CONFIG = 0x10;
 static const uint8_t REG_PWRON_STATUS = 0x20;
 static const uint8_t REG_PWROFF_STATUS = 0x21;
 static const uint8_t REG_SLEEP_WAKEUP = 0x26;
@@ -261,4 +264,37 @@ esp_err_t Axp2101::clearPowerKeyIrq( bool &shortPress, bool &longPress )
     longPress = ( status & IRQ1_KEY_LONG ) != 0;
     // Write 1 only to the key bits so that other IRQ flags are left untouched.
     return writeRegister( REG_IRQ_STATUS1, status & ( IRQ1_KEY_SHORT | IRQ1_KEY_LONG ) );
+}
+
+esp_err_t Axp2101::setPowerOnPress()
+{
+    const uint8_t onLevelMask = 0x03;
+    const uint8_t onLevel512ms = 0x01;
+    uint8_t before = 0;
+    esp_err_t err = readRegister( REG_KEY_TIMING, before );
+    uint8_t after = before;
+    if ( err == ESP_OK && ( before & onLevelMask ) != onLevel512ms ) {
+        err = writeRegister( REG_KEY_TIMING, ( before & ~onLevelMask ) | onLevel512ms );
+        if ( err == ESP_OK ) {
+            err = readRegister( REG_KEY_TIMING, after );
+        }
+    }
+    ESP_LOGI( TAG, "Power-on press (REG27) 0x%02X -> 0x%02X %s", before, after, esp_err_to_name( err ) );
+    return err;
+}
+
+esp_err_t Axp2101::powerOff()
+{
+    const uint8_t softPowerOff = 0x01;
+    uint8_t value = 0;
+    esp_err_t err = readRegister( REG_COMMON_CONFIG, value );
+    if ( err == ESP_OK ) {
+        err = writeRegister( REG_COMMON_CONFIG, value | softPowerOff );
+    }
+    if ( err == ESP_OK ) {
+        // The rails fall within milliseconds; still running after this means the write had no effect.
+        vTaskDelay( pdMS_TO_TICKS( 500 ) );
+        err = ESP_FAIL;
+    }
+    return err;
 }

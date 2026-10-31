@@ -1,3 +1,5 @@
+#include <cstdio>
+
 #include "Axp2101.h"
 #include "BatteryLog.h"
 #include "DeepSleep.h"
@@ -61,6 +63,28 @@ static void sleepNow()
     s_deepSleep.enter();
 }
 
+// Display-off state (CLAUDE.md, off mode): the AXP2101 cuts every rail except RTCLDO and the PWR
+// key powers the watch on again. Battery-log builds keep deep sleep for their timer wake, and a
+// failed power-off also ends in deep sleep.
+static void powerOff( [[maybe_unused]] bool pmuReady )
+{
+#if !CONFIG_WATCH_BATTERY_LOG
+    if ( pmuReady ) {
+        uint16_t millivolts = 0;
+        uint8_t percent = 0;
+        bool vbusGood = false;
+        s_pmu.readBattery( millivolts, percent, vbusGood );
+        ESP_LOGI( TAG, "Powering off: battery %u mV, %u %%, VBUS %d", millivolts, percent, vbusGood );
+        // The USB console loses its last lines unless they are flushed before the rails fall.
+        fflush( stdout );
+        vTaskDelay( pdMS_TO_TICKS( 100 ) );
+        s_pmu.powerOff();
+        ESP_LOGE( TAG, "Power-off failed; entering deep sleep" );
+    }
+#endif
+    sleepNow();
+}
+
 extern "C" void app_main( void )
 {
     [[maybe_unused]] const DeepSleep::Event wake = s_deepSleep.onBoot();
@@ -87,6 +111,7 @@ extern "C" void app_main( void )
 
     s_peripherals.quiesceOnce( bus, s_pmu );
     if ( pmuReady ) {
+        s_pmu.setPowerOnPress();
         s_pmu.logStatus();
         logPowerKeyIrq();
 #if CONFIG_WATCH_BATTERY_LOG
@@ -98,5 +123,5 @@ extern "C" void app_main( void )
     watchPowerKey( s_awakeWindowMs );
     logPowerKeyIrq();
 
-    sleepNow();
+    powerOff( pmuReady );
 }

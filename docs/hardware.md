@@ -180,6 +180,18 @@ PWR key [HW]:
 - Holding the key about 6 s powers the whole board off (AXP OFFLEVEL); a short press powers it on
   again with RTC memory cleared and REG20 = `0x01`.
 
+Off mode [HW] (guided test `off`, 2026-10-31; `main/Axp2101.*`):
+- Writing REG10 bit0 powers the board off: the USB connection drops within 40 ms of the last log
+  line. A PWR press powers it on again with REG20 = `0x01` (PWR key) and REG21 = `0x02`
+  (software power-off), RTC memory cleared; the sleep preparation then runs again (6/6).
+- REG27 ONLEVEL set to 512 ms (`0x14` → `0x15`) is still `0x15` after each off/on cycle, as the
+  datasheet's POR reset type says; it returns to the eFuse value only after a power-on reset
+  (battery removed). Three brief taps left the watch off; a press of about 1 s powered it on.
+- With USB plugged in the watch stayed off for 5 min after the power-off: VBUS that is already
+  present does not power it on (only a VBUS insert does, REG20 `0x04`).
+- Logging starts about 0.8 s after the ESP32 boots, as after a deep-sleep wake; the press itself
+  must last at least 512 ms first.
+
 ### Display (CO5300 AMOLED, 410 × 502, QSPI)
 - The BSP drives it with the `esp_lcd_sh8601` driver: RGB565, x-gap 22, QSPI 40 MHz; it offers
   display on/off (0x29/0x28) and brightness (0x51) only. `bsp_display_start()` always resets the panel [REF].
@@ -221,7 +233,7 @@ PWR key [HW]:
 ## 4. Sleep Preparation (`main/Peripherals.*`)
 
 Done once after power-on or reset (RTC flag); everything survives deep sleep. Verified with the
-guided test `m2` after a full power cycle [HW]:
+guided tests `m2` (until commit `dd54aec`) and `off` after a full power cycle [HW]:
 
 | Step | Read-back on the board | Datasheet current before → after |
 |---|---|---|
@@ -339,12 +351,9 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
    which write of the run C power-down step raised the drain (suspect: ES7210 pull-ups off).
 8. Which on-state load draws the ~4 mA of runs A, B and D in deep sleep (ESP32 pad states,
    AXP2101 on state, codecs at their reset state)?
-9. Off mode (software power-off, REG10 bit0): does the PWR key power the watch on again, what do
-   REG20/REG21 report, and how much later does logging start than after a deep-sleep wake? Does a
-   power-on time written to REG27 survive the off state, or does it return to the eFuse 128 ms?
-10. With USB plugged in: does the AXP2101 charge in the off state, and does a power-off while VBUS
-    is present stay off?
-11. Does the PCF85063 keep time through the off state (compare the time and the Seconds register
+9. Does the AXP2101 charge the battery in the off state? (The off test ran with a full battery,
+   charger done.)
+10. Does the PCF85063 keep time through the off state (compare the time and the Seconds register
     OS flag before and after)? Expected from the AXP2101 datasheet §6.5.4 (RTCLDO stays on) and
     the schematic (PCF85063 VDD = VCC-RTC).
 

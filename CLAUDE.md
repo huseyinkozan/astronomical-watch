@@ -64,8 +64,9 @@ idf.py -p /dev/ttyACM0 flash monitor
   - **Off**: the ESP32 powers the AXP2101 off (REG10 bit0). Every rail except RTCLDO is off
     (about 40 µA; the PCF85063 keeps time on VCC-RTC) and ESP32 RTC memory is lost, so settings
     live in NVS. The AXP2101 watches the PWR key and powers the watch on into active mode.
-    Pending board validation (docs/hardware.md, open questions); if it fails, the fallback is ESP32
-    deep sleep without a timer, with the panel in deep standby.
+    The press must last at least 512 ms (REG27 ONLEVEL, kept while a battery is present), so a
+    brief touch does not switch the watch on. Validated on the board (docs/hardware.md); still
+    open: charging in the off state and the PCF85063 time across it (M3).
   - **Alarm pending**: while an alarm or countdown is set, the watch does not power off: nothing
     on the board can power the AXP2101 on at a set time (the PCF85063 INT reaches only GPIO39,
     which cannot wake from deep sleep either). Instead the ESP32 deep-sleeps with one timer wake

@@ -34,6 +34,13 @@ public:
     // pending enabled IRQ holds the IRQ line low through its 10k pull-up to VCC-RTC.
     esp_err_t limitIrqs();
 
+    // Sets the PWR press that powers the watch on from off (REG27 ONLEVEL) to 512 ms, so that a
+    // brief touch of the key does not. Logs the value found first: REG27 resets only at POR.
+    esp_err_t setPowerOnPress();
+
+    // Software power-off (REG10 bit0): every rail except RTCLDO goes off. Returns only on failure.
+    esp_err_t powerOff();
+
 private:
     i2c_master_dev_handle_t m_device = nullptr;
 };

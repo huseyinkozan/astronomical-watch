@@ -56,8 +56,8 @@ astronomical-watch/
 ## Status
 
 Restarted on ESP-IDF with C++17. The watch puts the unused peripherals into their lowest-power
-state, reads its power-management IC, stays awake for a short
-window and then enters deep sleep; the PWR key wakes it. Wake statistics are kept across sleep.
+state, reads its power-management IC, stays awake for a short window and then switches itself
+off through the power-management IC; a PWR press of at least half a second turns it on again.
 RTC, display and the always-on face are next.
 The earlier Wake-on-Motion validation results are kept in `docs/hardware.md`, and the validator
 itself in `archive/wom-validator/` (git tag `wom-validator`).
@@ -69,7 +69,8 @@ Each step is built, verified on the board and documented before the next one sta
 1. **M1** (done): PWR key wake from deep sleep, wake statistics kept across sleep.
 2. **M2** (done): unused peripherals in their lowest-power state, battery drain runs (about 4 mA
    remain in deep sleep; the search continues in M5).
-3. Off mode (next): software power-off through the AXP2101 and power-on with the PWR key.
+3. Off mode (done): software power-off through the AXP2101 and power-on with the PWR key
+   (charging while off still to be checked).
 4. **M3**: RTC (PCF85063) time, minute-aligned wake, time kept through off mode.
 5. **M4**: display basics.
 6. **M5**: always-on face, validated with a battery run.
