@@ -71,9 +71,10 @@ Each step is built, verified on the board and documented before the next one sta
    remain in deep sleep; the search continues in M5).
 3. Off mode (done): software power-off through the AXP2101 and power-on with the PWR key
    (charging while off still to be checked).
-4. **M3**: RTC (PCF85063) time, minute-aligned wake, time kept through off mode.
+4. **M3** (done; crystal drift measurement running): RTC (PCF85063) time in UTC, set from the
+   host, kept through off mode.
 5. **M4**: display basics.
-6. **M5**: always-on face, validated with a battery run.
+6. **M5**: always-on face with a minute-aligned wake, validated with a battery run.
 7. **M6**: motion check at wide intervals.
 8. **M7**: active mode (touch, pages, display timeout).
 9. **M8+**: settings, astronomy, battery display.

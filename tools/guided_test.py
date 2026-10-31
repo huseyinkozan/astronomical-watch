@@ -32,10 +32,15 @@ RESET = '\033[0m'
 ACT = 'act'
 WAIT = 'wait'
 QUIET = 'quiet'
+SEND_TIME = 'send_time'
+
+RTC_LINE = re.compile(r'RTC (\d{4})-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d) UTC')
 
 # A step is (kind, instruction, regular expression, timeout in seconds).
 # kind ACT rings the terminal bell; an empty instruction keeps waiting without a new prompt.
 # kind QUIET (shown as CHECK) passes when the pattern does NOT appear within the timeout.
+# kind SEND_TIME sends the host's UTC time to the watch, then waits for the pattern.
+# Every 'RTC ... UTC' line, logged at the RTC's second tick, gets the RTC - host difference.
 TESTS = {
     # Off mode (docs/hardware.md, PWR key). Software power-off returns every chip
     # and AXP rail to its power-on default, so each power-on runs the full sleep preparation.
@@ -57,6 +62,24 @@ TESTS = {
         (WAIT, '', r'PWROFF status \(REG21\)=0x02', 10),
         (WAIT, 'Waiting for the power-off.', r'Powering off', 25),
         (WAIT, '', USB_DISCONNECTED, 10),
+    ],
+    # Sets the RTC from the host clock and checks that it keeps time through off mode
+    # (docs/hardware.md, open question 10).
+    'rtc': [
+        (WAIT, 'The board is being reset.', r'wake source: power-on/reset', 20),
+        (WAIT, '', r'RTC \d{4}-', 10),
+        (SEND_TIME, 'Setting the RTC from the host clock.', r'RTC set to .* ESP_OK', 10),
+        (WAIT, 'The watch powers off 10 s after boot. Keep USB plugged in.', r'Powering off', 25),
+        (WAIT, '', USB_DISCONNECTED, 10),
+        (ACT, 'Wait about 1 min, then press PWR for about 1 s.', r'wake source: power-on/reset', 180),
+        (WAIT, '', r'RTC \d{4}-.* OS 0', 10),
+        (WAIT, 'Waiting for the power-off.', r'Powering off', 25),
+    ],
+    # Reads the RTC once against the host clock (drift over hours or days).
+    'clock': [
+        (WAIT, 'The board is being reset.', r'wake source: power-on/reset', 20),
+        (WAIT, '', r'RTC \d{4}-', 10),
+        (WAIT, 'Waiting for the power-off.', r'Powering off', 25),
     ],
     # Reads the battery drain log; the board must not be reset, or RTC memory is cleared.
     'battery': [
@@ -91,12 +114,17 @@ class SerialReader(threading.Thread):
         self.resetRequested = False
 
     def emit(self, line):
-        stamp = datetime.datetime.now().strftime('%H:%M:%S.%f')[:-3]
+        now = datetime.datetime.now(datetime.timezone.utc)
+        stamp = now.astimezone().strftime('%H:%M:%S.%f')[:-3]
+        match = RTC_LINE.search(line)
+        if match:
+            rtc = datetime.datetime(*map(int, match.groups()), tzinfo=datetime.timezone.utc)
+            line += f' [RTC - host: {(rtc - now).total_seconds():+.3f} s]'
         self.logFile.write(f'{stamp} {line}\n')
         self.logFile.flush()
         with self.lock:
             self.lines.append(line)
-        if line.startswith('<') or re.search(r'\b(main|sleep):', line):
+        if line.startswith('<') or re.search(r'\b(main|sleep|rtc):', line):
             print(f'{DIM}    {line}{RESET}')
 
     def run(self):
@@ -112,7 +140,9 @@ class SerialReader(threading.Thread):
                     self.serial.rts = True
                     time.sleep(0.1)
                     self.serial.rts = False
-                data = self.serial.read(4096)
+                # Return as soon as anything arrives: a full read waits for the 0.1 s timeout,
+                # which would delay the host timestamps of the RTC lines.
+                data = self.serial.read(self.serial.in_waiting or 1)
                 if data:
                     pending += data.decode(errors='replace')
                     while '\n' in pending:
@@ -130,12 +160,27 @@ class SerialReader(threading.Thread):
                 time.sleep(0.05)
 
 
+def sendTime(reader):
+    """Sends second S at S + 0.48 s: the watch polls every 20 ms and its RTC ticks 0.508 s after
+    it is set, so the RTC's next second lands on the host's."""
+    now = time.time()
+    target = int(now) + 0.48
+    if target <= now:
+        target += 1
+    time.sleep(target - now)
+    second = datetime.datetime.fromtimestamp(int(target), datetime.timezone.utc)
+    if reader.serial is not None:
+        reader.serial.write(f'T {second:%Y-%m-%d %H:%M:%S}\n'.encode())
+
+
 def runSteps(reader, steps):
     results = []
     cursor = 0
     for index, (kind, instruction, pattern, timeout) in enumerate(steps, start=1):
         if instruction:
             printInstruction(kind, instruction)
+        if kind == SEND_TIME:
+            sendTime(reader)
         regex = re.compile(re.escape(pattern) if pattern.startswith('<') else pattern)
         start = time.time()
         matched = False

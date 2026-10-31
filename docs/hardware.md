@@ -127,12 +127,32 @@ Validated on this board [HW] (validator in `archive/wom-validator/`, tag `wom-va
 ### PCF85063A RTC (`0x51`)
 - INT is open-drain [DS Table 3]; on this board it goes to GPIO39 (no deep-sleep wake).
 - Control_1 `0x00` bit0 CAP_SEL: 0 = 7 pF, 1 = 12.5 pF. The Waveshare component writes `0x01`
-  (12.5 pF); the correct value for Y1 + C22/C23 is [?] → compare drift over several days.
+  (12.5 pF); the correct value for Y1 + C22/C23 is [?] → compare drift over several days (the
+  watch currently runs with the reset value, 7 pF).
 - Control_2 `0x01`: AIE(7) AF(6) MI(5) HMI(4) TF(3) COF[2:0]. Flags clear by writing 0.
   **CLKOUT runs at 32.768 kHz from power-on (COF = 000); disable with COF = 111** [DS §7.2.2.4].
   The Waveshare component never disables it, and `enable_alarm` rewrites the whole register [REF].
 - Timer mode `0x11`: when unused, keep TCF = 1/60 Hz for lowest power [DS].
 - Supply current ≈ 220 nA typical with CLKOUT off [DS Table 40].
+- Time access [DS §7.4]: seconds through years must be read or written in one I2C access (the
+  counters are frozen during it, for at most 1 s). Seconds bit7 is the OS flag: set while the
+  oscillator is stopped or starting after power-on, cleared only by writing the seconds.
+- Setting to the exact second [DS §7.2.1.2]: STOP = 1 holds the prescaler in reset; after the
+  time is written and STOP is cleared, the first increment follows 0.507 8 s later.
+- Accessed through a small custom class (`main/Rtc.*`): the Waveshare component writes Control_1
+  (CAP_SEL 12.5 pF) and Offset on every init, masks the OS flag when reading, sets the time
+  without STOP and uses a 1 s I2C timeout. The class keeps the time in UTC, 24-hour mode.
+
+Validated on this board [HW] (guided test `rtc`, 2026-10-31):
+- First read: Control_1 `0x00` (CAP_SEL 7 pF, running), Offset `0x00` (the reset values), OS = 1
+  and the time 2000-01-03 20:07:21, i.e. counting since a power-on reset about 2 days 20 h earlier
+  and never set.
+- Set with STOP from the host clock (sent at the host's second + 0.48 s); OS then reads 0.
+- After 72 s in off mode the RTC read OS = 0 and 0.10 s behind the host timestamp, which then
+  still included up to 0.1 s of host read latency (since fixed in `tools/guided_test.py`). The
+  PCF85063 keeps time while the AXP2101 is off, as expected from RTCLDO.
+- Drift and the right CAP_SEL: repeat the guided test `clock` over hours and days; each RTC line
+  in its log carries the RTC − host difference.
 
 ### AXP2101 PMIC (`0x34`)
 - **The BSP never initialises the AXP2101**; rails are at their eFuse defaults unless configured [REF].
@@ -346,16 +366,14 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
    (sets the no-motion threshold), and how long must the accelerometer run for one valid sample?
 5. Does the CO5300 keep its image while the ESP32 deep-sleeps with the panel powered and the QSPI
    pins held? What does the always-on mode draw at low brightness, with and without idle mode?
-6. Correct PCF85063 CAP_SEL for this crystal.
+6. Correct PCF85063 CAP_SEL (and Offset) for this crystal: drift at the reset value 7 pF, measured
+   with the guided test `clock` over several days.
 7. ES8311/ES7210 standby current at their reset state (neither datasheet gives a figure), and
    which write of the run C power-down step raised the drain (suspect: ES7210 pull-ups off).
 8. Which on-state load draws the ~4 mA of runs A, B and D in deep sleep (ESP32 pad states,
    AXP2101 on state, codecs at their reset state)?
 9. Does the AXP2101 charge the battery in the off state? (The off test ran with a full battery,
    charger done.)
-10. Does the PCF85063 keep time through the off state (compare the time and the Seconds register
-    OS flag before and after)? Expected from the AXP2101 datasheet §6.5.4 (RTCLDO stays on) and
-    the schematic (PCF85063 VDD = VCC-RTC).
 
 ## 6. Sources
 

@@ -4,9 +4,12 @@
 #include "BatteryLog.h"
 #include "DeepSleep.h"
 #include "Peripherals.h"
+#include "Rtc.h"
 
 #include "bsp/esp32_s3_touch_amoled_2_06.h"
 #include "driver/gpio.h"
+#include "driver/usb_serial_jtag.h"
+#include "driver/usb_serial_jtag_vfs.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -21,6 +24,7 @@ static const gpio_num_t s_powerKeyGpio = GPIO_NUM_10;
 static Axp2101 s_pmu;
 static DeepSleep s_deepSleep;
 static Peripherals s_peripherals;
+static Rtc s_rtc;
 [[maybe_unused]] static BatteryLog s_batteryLog;
 
 static void logPowerKeyIrq()
@@ -33,6 +37,47 @@ static void logPowerKeyIrq()
         ESP_LOGE( TAG, "PWR key IRQ read failed" );
     }
 }
+
+#if CONFIG_WATCH_DEV_LOGGING
+static char s_hostLine[32];
+static int s_hostLineLength = 0;
+
+// Development aid until the settings page exists: the guided test sends the UTC time as
+// "T YYYY-MM-DD HH:MM:SS", timed so that the RTC's next second matches the host's.
+static void pollHostTime()
+{
+    char c = 0;
+    while ( usb_serial_jtag_read_bytes( &c, 1, 0 ) == 1 ) {
+        if ( c != '\n' ) {
+            if ( s_hostLineLength < static_cast<int>( sizeof( s_hostLine ) ) - 1 ) {
+                s_hostLine[s_hostLineLength++] = c;
+            }
+            continue;
+        }
+        s_hostLine[s_hostLineLength] = '\0';
+        s_hostLineLength = 0;
+        int year = 0;
+        int month = 0;
+        int day = 0;
+        int hour = 0;
+        int minute = 0;
+        int second = 0;
+        if ( sscanf( s_hostLine, "T %d-%d-%d %d:%d:%d", &year, &month, &day, &hour, &minute, &second ) != 6 ) {
+            continue;
+        }
+        Rtc::DateTime time = {};
+        time.year = static_cast<uint16_t>( year );
+        time.month = static_cast<uint8_t>( month );
+        time.day = static_cast<uint8_t>( day );
+        time.hour = static_cast<uint8_t>( hour );
+        time.minute = static_cast<uint8_t>( minute );
+        time.second = static_cast<uint8_t>( second );
+        const esp_err_t err = s_rtc.set( time );
+        ESP_LOGI( TAG, "RTC set to %04d-%02d-%02d %02d:%02d:%02d UTC: %s", year, month, day, hour, minute, second,
+                  esp_err_to_name( err ) );
+    }
+}
+#endif
 
 // Logs every level change of the PWR key line to confirm its polarity.
 // Each press restarts the window, as the display timeout will later do.
@@ -52,6 +97,9 @@ static void watchPowerKey( int windowMs )
             lastLevel = level;
             idleMs = 0;
         }
+#if CONFIG_WATCH_DEV_LOGGING
+        pollHostTime();
+#endif
         vTaskDelay( pdMS_TO_TICKS( 20 ) );
         idleMs += 20;
     }
@@ -109,7 +157,21 @@ extern "C" void app_main( void )
     }
 #endif
 
+#if CONFIG_WATCH_DEV_LOGGING
+    // Reading USB input needs the driver. Its writes never block: without a host they return at
+    // once, and a stalled host costs at most 50 ms before output is dropped.
+    usb_serial_jtag_driver_config_t usbConfig = USB_SERIAL_JTAG_DRIVER_CONFIG_DEFAULT();
+    if ( usb_serial_jtag_driver_install( &usbConfig ) == ESP_OK ) {
+        usb_serial_jtag_vfs_use_driver();
+    }
+#endif
+
     s_peripherals.quiesceOnce( bus, s_pmu );
+    if ( s_rtc.init( bus ) == ESP_OK ) {
+        s_rtc.logAtTick();
+    } else {
+        ESP_LOGE( TAG, "RTC init failed" );
+    }
     if ( pmuReady ) {
         s_pmu.setPowerOnPress();
         s_pmu.logStatus();

@@ -11,7 +11,7 @@ deep sleep, or is powered off, whenever the display is not needed.
 ## Technology
 
 - ESP-IDF v6.1 (CMake via `idf.py`), C++17, LVGL (through the board BSP)
-- Waveshare `esp32_s3_touch_amoled_2_06` BSP, Waveshare `pcf85063a` component
+- Waveshare `esp32_s3_touch_amoled_2_06` BSP; small custom classes for the AXP2101 and the PCF85063
 - Dependencies are declared in `main/idf_component.yml`; versions are locked in `dependencies.lock`
 
 ## Build
@@ -65,8 +65,8 @@ idf.py -p /dev/ttyACM0 flash monitor
     (about 40 µA; the PCF85063 keeps time on VCC-RTC) and ESP32 RTC memory is lost, so settings
     live in NVS. The AXP2101 watches the PWR key and powers the watch on into active mode.
     The press must last at least 512 ms (REG27 ONLEVEL, kept while a battery is present), so a
-    brief touch does not switch the watch on. Validated on the board (docs/hardware.md); still
-    open: charging in the off state and the PCF85063 time across it (M3).
+    brief touch does not switch the watch on. Validated on the board, the PCF85063 keeping time
+    included (docs/hardware.md); still open: charging in the off state.
   - **Alarm pending**: while an alarm or countdown is set, the watch does not power off: nothing
     on the board can power the AXP2101 on at a set time (the PCF85063 INT reaches only GPIO39,
     which cannot wake from deep sleep either). Instead the ESP32 deep-sleeps with one timer wake
