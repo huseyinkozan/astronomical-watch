@@ -10,6 +10,7 @@ static const char *TAG = "panel";
 
 // CO5300 QSPI write: opcode 0x02 in bits 31:24, command in bits 15:8 (as in esp_lcd_sh8601).
 static const int PANEL_CMD_BRIGHTNESS = ( 0x02 << 24 ) | ( 0x51 << 8 );
+static const int PANEL_CMD_IDLE_ON = ( 0x02 << 24 ) | ( 0x39 << 8 );
 // The panel's columns start 22 pixels into its memory (BSP: esp_lcd_panel_set_gap 0x16).
 static const int s_columnGap = 22;
 
@@ -95,6 +96,13 @@ void Panel::setBrightness( int percent )
     }
     const uint8_t value = static_cast<uint8_t>( percent * 255 / 100 );
     esp_lcd_panel_io_tx_param( m_io, PANEL_CMD_BRIGHTNESS, &value, 1 );
+}
+
+void Panel::setIdleMode()
+{
+    if ( m_io != nullptr ) {
+        esp_lcd_panel_io_tx_param( m_io, PANEL_CMD_IDLE_ON, nullptr, 0 );
+    }
 }
 
 void Panel::holdPins()

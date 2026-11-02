@@ -38,6 +38,14 @@ menu "Astronomical Watch"
             Until the motion check exists (M6), the always-on face ends after
             this time and the watch powers off.
 
+    config WATCH_AOD_IDLE_MODE
+        bool "Always-on face in idle mode (8 colours)"
+        default y
+        help
+            Sends Idle Mode On (39h) with the first always-on drawing. Battery
+            runs E and F (docs/hardware.md) estimate about 9 mA in always-on
+            with it and about 14 mA without it.
+
     config WATCH_QUIESCE
         bool "Put unused peripherals into their lowest-power state"
         default y
@@ -59,5 +67,14 @@ menu "Astronomical Watch"
         int "Battery log interval (minutes)"
         default 15
         depends on WATCH_BATTERY_LOG
+
+    config WATCH_BATTERY_LOG_AOD
+        bool "Show the always-on face during the battery log"
+        default n
+        depends on WATCH_BATTERY_LOG
+        help
+            After the awake window the always-on face runs (make
+            WATCH_AOD_MINUTES long enough), and one of its minute wakes per
+            logging interval records the battery.
 
 endmenu

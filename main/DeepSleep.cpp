@@ -34,6 +34,8 @@ struct WakeStatistics
     // Last timer wake: from chip reset to app_main (bootloader included) and app run time.
     uint32_t lastTimerBootMs;
     uint32_t lastTimerAwakeMs;
+    // Timer set for the last sleep, 0 when only the PWR key could wake.
+    uint64_t lastSleepTimerUs;
 };
 
 struct EventRecord
@@ -141,6 +143,7 @@ DeepSleep::Event DeepSleep::onBoot()
                   s_stats.totalAwakeMs );
         ESP_LOGI( TAG, "Last timer wake: reset to app %" PRIu32 " ms, app %" PRIu32 " ms",
                   s_stats.lastTimerBootMs, s_stats.lastTimerAwakeMs );
+        ESP_LOGI( TAG, "Last sleep: timer %" PRIu64 " ms", s_stats.lastSleepTimerUs / 1000 );
 
         const uint32_t first = s_eventCount > s_eventCapacity ? s_eventCount - s_eventCapacity : 0;
         for ( uint32_t i = first; i < s_eventCount; ++i ) {
@@ -180,12 +183,16 @@ void DeepSleep::enter( uint64_t timerUs )
         esp_sleep_enable_timer_wakeup( s_fallbackWakeUs );
         addEvent( Event::SleepFallbackTimer );
     }
+#if CONFIG_WATCH_BATTERY_LOG
+    // The always-on minute timer, when set, also takes the log samples.
+    if ( timerUs == 0 ) {
+        timerUs = CONFIG_WATCH_BATTERY_LOG_INTERVAL_MIN * 60ULL * 1000 * 1000;
+    }
+#endif
     if ( timerUs > 0 ) {
         esp_sleep_enable_timer_wakeup( timerUs );
     }
-#if CONFIG_WATCH_BATTERY_LOG
-    esp_sleep_enable_timer_wakeup( CONFIG_WATCH_BATTERY_LOG_INTERVAL_MIN * 60ULL * 1000 * 1000 );
-#endif
+    s_stats.lastSleepTimerUs = timerUs;
 
     // esp_timer starts after the bootloader, so this misses about 250 ms of boot time.
     s_stats.lastAwakeMs = static_cast<uint32_t>( esp_timer_get_time() / 1000 );

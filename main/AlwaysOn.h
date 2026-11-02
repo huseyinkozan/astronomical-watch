@@ -19,6 +19,7 @@ public:
     bool isActive() const;
 
     // Timer wake: draws the face for `time` and returns the microseconds until just after the
-    // next minute, or 0 when the always-on time is over.
-    uint64_t update( const Rtc::DateTime &time );
+    // next minute, or 0 when the always-on time is over. Without a valid time it draws nothing
+    // and asks for another wake in a minute.
+    uint64_t update( const Rtc::DateTime &time, bool timeRead );
 };

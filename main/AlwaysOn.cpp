@@ -14,6 +14,12 @@ static const int FACE_WIDTH = 4 * DIGIT_STEP - ( DIGIT_STEP - DIGIT_WIDTH ) + CO
 static const int FACE_X = ( ( Panel::WIDTH - FACE_WIDTH ) / 2 ) & ~1;
 static const int FACE_Y = ( ( Panel::HEIGHT - DIGIT_HEIGHT ) / 2 ) & ~1;
 
+#if CONFIG_WATCH_AOD_IDLE_MODE
+static const bool s_idleMode = true;
+#else
+static const bool s_idleMode = false;
+#endif
+
 // Segments a to g in bits 0 to 6.
 static const uint8_t s_digitSegments[10] = { 0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F };
 
@@ -24,6 +30,8 @@ RTC_DATA_ATTR static int s_minutesLeft;
 RTC_DATA_ATTR static int s_lastMinuteOfDay;
 RTC_DATA_ATTR static int s_faceX;
 RTC_DATA_ATTR static int s_faceY;
+
+static const uint64_t s_retryUs = 60ULL * 1000 * 1000;
 
 static void drawDigit( Panel &panel, int x, int y, int digit )
 {
@@ -66,8 +74,18 @@ bool AlwaysOn::isActive() const
     return s_active;
 }
 
-uint64_t AlwaysOn::update( const Rtc::DateTime &time )
+uint64_t AlwaysOn::update( const Rtc::DateTime &time, bool timeRead )
 {
+    // A failed or corrupt read must not turn into a long sleep: try again in a minute, and count
+    // the minute so that a lasting fault still ends the always-on time.
+    if ( !timeRead || time.hour > 23 || time.minute > 59 || time.second > 59 ) {
+        if ( --s_minutesLeft <= 0 ) {
+            s_active = false;
+            return 0;
+        }
+        return s_retryUs;
+    }
+
     // A wake up to 2 s early (RC timer drift) already shows the coming minute.
     int minuteOfDay = time.hour * 60 + time.minute;
     int secondsToNext = 60 - time.second;
@@ -94,6 +112,9 @@ uint64_t AlwaysOn::update( const Rtc::DateTime &time )
     if ( !s_screenCleared ) {
         // Dim first: the panel still runs at the active-mode brightness.
         panel.setBrightness( CONFIG_WATCH_AOD_BRIGHTNESS );
+        if ( s_idleMode ) {
+            panel.setIdleMode();
+        }
         panel.fill( 0, 0, Panel::WIDTH, Panel::HEIGHT, false );
         s_screenCleared = true;
     } else {

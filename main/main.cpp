@@ -31,7 +31,7 @@ static Rtc s_rtc;
 static Display s_display;
 static bool s_displayOn = false;
 static AlwaysOn s_alwaysOn;
-[[maybe_unused]] static BatteryLog s_batteryLog;
+static BatteryLog s_batteryLog;
 
 static void logPowerKeyIrq()
 {
@@ -157,18 +157,19 @@ static void powerOff( [[maybe_unused]] bool pmuReady )
     sleepNow();
 }
 
-#if !CONFIG_WATCH_BATTERY_LOG
 // Always-on timer wake: redraw the face and sleep until the next minute; nothing else starts.
+// A battery-log build with the face also records the battery here when a sample is due.
 static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
 {
     Rtc::DateTime time = {};
     bool oscillatorStopped = false;
-    uint64_t sleepUs = 0;
-    if ( s_rtc.init( bus ) == ESP_OK && s_rtc.read( time, oscillatorStopped ) == ESP_OK ) {
-        sleepUs = s_alwaysOn.update( time );
+    const bool timeRead = s_rtc.init( bus ) == ESP_OK && s_rtc.read( time, oscillatorStopped ) == ESP_OK;
+    const uint64_t sleepUs = s_alwaysOn.update( time, timeRead );
+    if ( pmuReady ) {
+        s_batteryLog.recordIfDue( s_pmu );
     }
     if ( sleepUs == 0 ) {
-        // The always-on time is over (or the face failed).
+        // The always-on time is over (or the panel failed).
         powerOff( pmuReady );
     }
     s_peripherals.holdResetLines();
@@ -177,7 +178,7 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
 
 // End of the awake window: the always-on face follows. Its first drawing is done by a timer
 // wake half a second later, the same path as every minute.
-static void enterAlwaysOn( i2c_master_bus_handle_t bus, bool pmuReady )
+[[maybe_unused]] static void enterAlwaysOn( i2c_master_bus_handle_t bus, bool pmuReady )
 {
     if ( !s_displayOn ) {
         powerOff( pmuReady );
@@ -189,7 +190,6 @@ static void enterAlwaysOn( i2c_master_bus_handle_t bus, bool pmuReady )
     s_peripherals.holdResetLines();
     s_deepSleep.enter( 500 * 1000 );
 }
-#endif
 
 extern "C" void app_main( void )
 {
@@ -206,18 +206,17 @@ extern "C" void app_main( void )
         ESP_LOGE( TAG, "AXP2101 init failed" );
     }
 
-#if CONFIG_WATCH_BATTERY_LOG
     if ( wake == DeepSleep::Event::WakeTimer ) {
+        if ( s_alwaysOn.isActive() ) {
+            alwaysOnTick( bus, pmuReady );
+        }
+#if CONFIG_WATCH_BATTERY_LOG
         if ( pmuReady ) {
             s_batteryLog.record( s_pmu );
         }
         sleepNow();
-    }
-#else
-    if ( wake == DeepSleep::Event::WakeTimer && s_alwaysOn.isActive() ) {
-        alwaysOnTick( bus, pmuReady );
-    }
 #endif
+    }
     // Active mode: the BSP takes over the panel pins and resets the panel and touch.
     s_alwaysOn.end();
     Panel::releasePins();
@@ -254,7 +253,8 @@ extern "C" void app_main( void )
     watchPowerKey( s_awakeWindowMs );
     logPowerKeyIrq();
 
-#if CONFIG_WATCH_BATTERY_LOG
+#if CONFIG_WATCH_BATTERY_LOG && !CONFIG_WATCH_BATTERY_LOG_AOD
+    // Battery-log runs without the face sleep with their logging timer instead.
     powerOff( pmuReady );
 #else
     enterAlwaysOn( bus, pmuReady );

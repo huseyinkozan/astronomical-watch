@@ -8,5 +8,9 @@ class BatteryLog
 {
 public:
     void record( Axp2101 &pmu );
+
+    // Records when the logging interval has passed since the last sample (always-on minute
+    // wakes); does nothing without CONFIG_WATCH_BATTERY_LOG.
+    void recordIfDue( Axp2101 &pmu );
     void print();
 };

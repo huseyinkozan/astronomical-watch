@@ -263,8 +263,9 @@ Always-on face [HW] (guided test `aod`, 2026-10-31; `main/Panel.*`, `main/Always
 - The BSP is not used on these wakes: `bsp_display_start()` would reset the panel. A PWR wake
   releases the holds and the BSP starts the active face as usual; the sleeping touch controller
   wakes from the BSP's reset pulse.
-- Face: seven-segment HH:MM drawn as filled rectangles (no LVGL, no fonts) at brightness 10 %,
-  moved within ±8 pixels each minute against burn-in.
+- Face: seven-segment HH:MM drawn as filled rectangles (no LVGL, no fonts) at brightness 10 %
+  in idle mode (39h), moved within ±8 pixels each minute against burn-in. It shows UTC until the
+  UTC offset setting exists (M8).
 - Wake length per minute (RTC memory statistics): 382 ms from reset to `app_main` plus 112 ms in
   the app with the image check on; **230 + 137 ms** with
   `CONFIG_BOOTLOADER_SKIP_VALIDATE_IN_DEEP_SLEEP` (now the default; the check still runs after
@@ -358,6 +359,8 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
 | B (2026-10-30) | sleep preparation on (section 4) | 9.5 h fitted (10.5 h total), 4.04 → 3.94 V | −8.8 ± 0.5 mV/h | −0.96 ± 0.02 %/h | **≈ 3.9 mA** |
 | C (2026-10-31) | B + codec power-down + AXP IRQ step | 4.0 h fitted (5.2 h total), 4.10 → 3.71 V | −69 ± 2 mV/h | −9.4 ± 0.1 %/h | **≈ 35–40 mA** |
 | D (2026-10-31) | B + AXP IRQ step (codec step skipped) | 2.0 h fitted (3.1 h total), 3.92 → 3.89 V | −11 ± 5 mV/h | unusable (see below) | **same level as A/B** |
+| E (2026-10-31/11-01) | always-on face, brightness 10 %, idle mode off (`sdkconfig.aodlog`) | 10.8 h fitted (11.8 h total), 4.06 → 3.74 V | −28.8 mV/h | −3.96 %/h | **≈ 13–16 mA** |
+| F (2026-11-01/02) | E with idle mode on (39h) | 10.5 h fitted (18.9 h total), 4.09 → 3.87 V | −18.5 mV/h | −2.33 %/h | **≈ 8.5–9.5 mA** |
 
 - About 8.8 mV per gauge percent in the 80–98 % range.
 - In both runs the slopes of the first and second half agree: the drain is steady, not a
@@ -394,6 +397,19 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
   pending alarm), since the display-off state powers the board off. Its search continues with
   the always-on battery run (M5); candidates left: the ESP32 pad states in deep sleep and the
   AXP2101 on state (REG30 ADC, REG26).
+- **Run E** (always-on face drawn each minute, battery samples taken on every 15th minute wake):
+  about four times the deep-sleep drain, so the face adds about 9–12 mA. The minute wakes
+  account for only about 0.3 mA (0.37 s × ~50 mA per minute), so nearly all of it is the panel
+  in normal display mode at 10 % with about 6 % of its pixels lit. At this rate a 400 mAh cell
+  lasts about a day in always-on. The gauge fell 100 → 48 % in 11.8 h.
+- **Run F**: idle mode (39h) lowers the always-on drain by about 40 % (5–6 mA), with no visible
+  change to the white digits; the face adds about 5 mA over the deep-sleep floor. Both halves
+  of the fit agree (−20.0 and −17.4 mV/h). Idle mode is now the default
+  (`CONFIG_WATCH_AOD_IDLE_MODE`). A 400 mAh cell lasts about 45 h in always-on.
+- Both runs woke once a minute without a miss: 710 timer wakes in about 708 min (E) and 1139 in
+  about 1137 min (F). A failed or out-of-range RTC read would have computed a negative sleep;
+  `AlwaysOn::update` now retries such a read a minute later, and a PWR wake logs the timer of
+  the last sleep.
 - VBAT readings scatter by up to ~20 mV between neighbouring samples (single reading right after
   boot); use fits over many samples, not single values.
 
@@ -405,8 +421,9 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
    STATUS1 read alone acknowledge it (C datasheet) as well as CTRL9 = `0x00` (A datasheet)?
 3. How much does one accelerometer sample change between motion checks on a desk and on the wrist
    (sets the no-motion threshold), and how long must the accelerometer run for one valid sample?
-4. What does the always-on mode draw at brightness 10 %, with and without idle mode (39h), and
-   how much of it is the ~4 mA deep-sleep floor (question 7)? (Battery run, M5.)
+4. Which other CO5300 settings lower the always-on panel current further (frame rate, partial
+   mode)? With idle mode it is about 9 mA, of which about 4 mA is the deep-sleep floor (runs E
+   and F, question 7).
 5. Does Offset `0x76` (−10, MODE 0) bring the RTC drift near 0 ppm? Check with the guided test
    `clock` over several hours and days, and on the wrist (temperature).
 6. ES8311/ES7210 standby current at their reset state (neither datasheet gives a figure), and

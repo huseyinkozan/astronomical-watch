@@ -5,6 +5,7 @@
 
 #include "esp_attr.h"
 #include "esp_log.h"
+#include "sdkconfig.h"
 
 static const char *TAG = "battery";
 
@@ -42,6 +43,20 @@ void BatteryLog::record( Axp2101 &pmu )
     sample.percent = percent;
     sample.vbus = vbus ? 1 : 0;
     ++s_count;
+}
+
+void BatteryLog::recordIfDue( [[maybe_unused]] Axp2101 &pmu )
+{
+#if CONFIG_WATCH_BATTERY_LOG
+    timeval now = {};
+    gettimeofday( &now, nullptr );
+    // 30 s early still counts: the minute wakes do not land on exact seconds.
+    const uint32_t intervalS = CONFIG_WATCH_BATTERY_LOG_INTERVAL_MIN * 60 - 30;
+    if ( s_count > 0 && static_cast<uint32_t>( now.tv_sec ) - s_samples[s_count - 1].seconds < intervalS ) {
+        return;
+    }
+    record( pmu );
+#endif
 }
 
 void BatteryLog::print()

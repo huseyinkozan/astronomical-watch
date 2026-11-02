@@ -81,8 +81,9 @@ Each step is built, verified on the board and documented before the next one sta
 4. **M3** (done; crystal drift measurement running): RTC (PCF85063) time in UTC, set from the
    host, kept through off mode.
 5. **M4** (done): display basics (time, date and battery through LVGL; panel power on ALDO2).
-6. **M5** (face and wake time done; battery run next): always-on face with a minute-aligned
-   wake; wake time 0.37 s per minute with `CONFIG_BOOTLOADER_SKIP_VALIDATE_IN_DEEP_SLEEP`.
+6. **M5** (done): always-on face with a minute-aligned wake; wake time 0.37 s per minute with
+   `CONFIG_BOOTLOADER_SKIP_VALIDATE_IN_DEEP_SLEEP`; about 9 mA in always-on with the panel's
+   idle mode (estimate from battery runs; about 45 h on a 400 mAh cell).
 7. **M6**: motion check at wide intervals.
 8. **M7**: active mode (touch, pages, display timeout).
 9. **M8**: settings in NVS and the settings page on the watch (setup button, password and IP
