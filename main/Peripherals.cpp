@@ -181,6 +181,79 @@ static bool powerDownImu( i2c_master_bus_handle_t bus )
     return ok;
 }
 
+#if CONFIG_WATCH_CODEC_POWER_DOWN
+struct CodecWrite
+{
+    uint8_t address;
+    uint8_t reg;
+    uint8_t value;
+};
+
+// Battery test (docs/hardware.md, section 4): the codec power-down of run C, which drained about
+// ten times more even with the I2S lines held (run I). CONFIG_WATCH_CODEC_WRITE_MASK selects
+// the writes, bit i for entry i, to find the one that raises the drain. The ES7210 values are
+// those of Espressif's es7210_stop().
+static const uint8_t ES8311_ADDRESS = 0x18;
+static const uint8_t ES7210_ADDRESS = 0x40;
+static const int s_codecWriteCount = 7;
+static const CodecWrite s_codecWrites[s_codecWriteCount] = {
+    { ES8311_ADDRESS, 0x14, 0x00 }, { ES8311_ADDRESS, 0x0E, 0x6E }, { ES8311_ADDRESS, 0x0D, 0xF8 },
+    { ES8311_ADDRESS, 0x01, 0x00 }, { ES7210_ADDRESS, 0x40, 0xC0 }, { ES7210_ADDRESS, 0x01, 0x7F },
+    { ES7210_ADDRESS, 0x06, 0x07 },
+};
+
+static esp_err_t readCodec( i2c_master_bus_handle_t bus, const CodecWrite &entry, uint8_t &value )
+{
+    i2c_master_dev_handle_t device = nullptr;
+    esp_err_t err = addDevice( bus, entry.address, device );
+    if ( err == ESP_OK ) {
+        err = readRegister( device, entry.reg, value );
+        i2c_master_bus_rm_device( device );
+    }
+    return err;
+}
+
+static bool powerDownCodecs( i2c_master_bus_handle_t bus )
+{
+    bool ok = true;
+    for ( int i = 0; i < s_codecWriteCount; ++i ) {
+        if ( ( CONFIG_WATCH_CODEC_WRITE_MASK & ( 1 << i ) ) == 0 ) {
+            continue;
+        }
+        const CodecWrite &entry = s_codecWrites[i];
+        uint8_t before = 0;
+        uint8_t after = 0;
+        i2c_master_dev_handle_t device = nullptr;
+        esp_err_t err = addDevice( bus, entry.address, device );
+        if ( err == ESP_OK ) {
+            err = readRegister( device, entry.reg, before );
+            if ( err == ESP_OK ) {
+                err = writeRegister( device, entry.reg, entry.value );
+            }
+            if ( err == ESP_OK ) {
+                err = readRegister( device, entry.reg, after );
+            }
+            i2c_master_bus_rm_device( device );
+        }
+        ok = ok && err == ESP_OK && after == entry.value;
+        ESP_LOGI( TAG, "Codec 0x%02X reg 0x%02X: 0x%02X -> 0x%02X %s", entry.address, entry.reg, before, after,
+                  esp_err_to_name( err ) );
+    }
+    return ok;
+}
+
+// Run C found the ES8311 back at a reset value after the run; log every register on each wake.
+static void logCodecs( i2c_master_bus_handle_t bus )
+{
+    for ( int i = 0; i < s_codecWriteCount; ++i ) {
+        uint8_t value = 0;
+        const esp_err_t err = readCodec( bus, s_codecWrites[i], value );
+        ESP_LOGI( TAG, "Codec 0x%02X reg 0x%02X = 0x%02X %s", s_codecWrites[i].address, s_codecWrites[i].reg,
+                  value, esp_err_to_name( err ) );
+    }
+}
+#endif
+
 // PCF85063: CLKOUT runs at 32.768 kHz from power-on; COF = 111 stops it. Writing 1 to the AF/TF
 // flag bits leaves them unchanged, so the read value can be written back with COF set.
 static bool stopRtcClockOut( i2c_master_bus_handle_t bus )
@@ -272,8 +345,12 @@ void Peripherals::quiesceOnce( i2c_master_bus_handle_t bus, Axp2101 &pmu )
     }
     if ( s_quiesced ) {
         checkI2cDevices( bus );
+#if CONFIG_WATCH_CODEC_POWER_DOWN
+        logCodecs( bus );
+#endif
         return;
     }
+    int steps = 6;
     int passed = 0;
     passed += sleepTouchController( bus ) ? 1 : 0;
     passed += standbyPanel() ? 1 : 0;
@@ -281,8 +358,12 @@ void Peripherals::quiesceOnce( i2c_master_bus_handle_t bus, Axp2101 &pmu )
     passed += stopRtcClockOut( bus ) ? 1 : 0;
     passed += pmu.disableUnusedRails() == ESP_OK ? 1 : 0;
     passed += pmu.limitIrqs() == ESP_OK ? 1 : 0;
+#if CONFIG_WATCH_CODEC_POWER_DOWN
+    ++steps;
+    passed += powerDownCodecs( bus ) ? 1 : 0;
+#endif
     s_quiesced = true;
-    ESP_LOGI( TAG, "Quiesce done: %d/6 steps OK", passed );
+    ESP_LOGI( TAG, "Quiesce done: %d/%d steps OK", passed, steps );
 }
 
 void Peripherals::releaseSleepLines()

@@ -1,0 +1,5 @@
+# Codec power-down battery test, on top of sdkconfig.battery. The mask selects the writes
+# (Kconfig help). ES8311 0x0D = 0xF8 (bit 2) raises the drain by about 30 mA (runs I to L);
+# run M applies every other write to see whether they lower the floor.
+CONFIG_WATCH_CODEC_POWER_DOWN=y
+CONFIG_WATCH_CODEC_WRITE_MASK=0x7B

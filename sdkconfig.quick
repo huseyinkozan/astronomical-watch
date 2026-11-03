@@ -1,0 +1,2 @@
+# Short screening battery run (about 4 h): a sample every 5 min fills the 48-sample log.
+CONFIG_WATCH_BATTERY_LOG_INTERVAL_MIN=5

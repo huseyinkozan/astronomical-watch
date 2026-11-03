@@ -316,15 +316,13 @@ guided tests `m2` (until commit `dd54aec`) and `off` after a full power cycle [H
   tried in battery run C (ES8311: 0x14 `0x00`, 0x0E `0x6E`, 0x0D `0xF8`, 0x01 `0x00`; ES7210:
   0x40 `0xC0`, 0x01 `0x7F`, 0x06 `0x07`, the ES7210 values being those of Espressif's
   `es7210_stop()`). Every write read back correctly, but the sleep drain rose about tenfold, and
-  run D without the step returned to the level of runs A/B; it was removed. Which write caused it
-  is not tested. Two observations:
-  - ES8311 0x0D, written as `0xF8`, read `0xFC` again after the 5 h run while the drain stayed
-    high, so PDN_VREF is probably not the cause (its datasheet polarity, "0 – disable", is the
-    opposite of every other PDN bit in the register; Espressif's `es8311_suspend()` ends with
-    `0xFC`).
-  - Main suspect: ES7210 0x06 bit0 (PUPDN_OFF) switches off the pin pull-ups. The I2S lines
-    (MCLK GPIO16, SCLK GPIO41, LRCK GPIO45) go to both codecs and are not driven by the ESP32 in
-    deep sleep, so without the pull-ups they float, and floating CMOS inputs can draw current.
+  run D without the step returned to the level of runs A/B; it was removed. Runs I to L traced
+  the rise to ES8311 0x0D `0xF8` (PDN_VREF cleared, section 4 below). Earlier observations:
+  - Run C read ES8311 0x0D as `0xFC` again after the 5 h run while the drain stayed high, which
+    first argued against PDN_VREF; run L shows that this write alone raises the drain, so the
+    raised state outlasts the register value (not explained).
+  - The suspicion on ES7210 0x06 (pin pull-ups off, floating I2S lines) is ruled out by runs I
+    and J.
   Neither datasheet gives a standby current.
 - AXP2101 IRQ: the line has a 10k pull-up to VCC-RTC and is not read by the ESP32. Any pending
   enabled IRQ (the defaults enable charger, gauge and VBUS events) holds it low and draws up to
@@ -363,6 +361,10 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
 | F (2026-11-01/02) | E with idle mode on (39h) | 10.5 h fitted (18.9 h total), 4.09 → 3.87 V | −18.5 mV/h | −2.33 %/h | **≈ 8.5–9.5 mA** |
 | G (2026-11-02) | B + idle pads held in every second hour (see below) | 10.75 h fitted (11.75 h total), 4.09 → 4.01 V | −6.7 mV/h overall | −0.79 %/h overall | held vs. free not resolved |
 | H (2026-11-02/03) | B + idle pads held through every sleep | 10.5 h fitted (11.5 h total), 4.11 → 4.03 V | −6.2 ± 0.4 mV/h | −0.71 ± 0.02 %/h | **≈ 2.8–2.9 mA** |
+| I (2026-11-03) | H + codec power-down of run C, 5 min samples | 2.9 h fitted (3.9 h total), 4.01 → 3.78 V | −68 ± 2 mV/h | −9.0 ± 0.1 %/h | **≈ 30–36 mA** |
+| J (2026-11-03) | H + ES7210 0x06 = `0x07` only (pull-ups, TDMIN pull-down, DLL off) | 1.2 h fitted (1.5 h total), 3.85 → 3.84 V | −7.2 ± 0.4 mV/h without two dips | unusable (re-learning after the power cycle) | **floor level** |
+| K (2026-11-03) | H + the four ES8311 writes only | 1.2 h fitted (1.5 h total), 3.87 → 3.80 V | −68 ± 5 mV/h | −5 %/h, still re-learning | **≈ 30 mA, as run I** |
+| L (2026-11-03) | H + ES8311 0x0D = `0xF8` only (PDN_VREF cleared) | 1.2 h fitted (1.5 h total), 3.81 → 3.73 V | −68 ± 5 mV/h | −10 %/h | **≈ 30 mA, as run I** |
 
 - About 8.8 mV per gauge percent in the 80–98 % range.
 - In both runs the slopes of the first and second half agree: the drain is steady, not a
@@ -427,6 +429,22 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
   −2.6 mV/h; both halves of the run agree). Run G's average lies between B and H, as expected
   for half the time held. Which of the held lines carries the saving is not tested. About
   2.5 mA of the floor remain unexplained besides R11 (~0.33 mA).
+- **Run I** repeated the codec power-down of run C with the I2S lines held: the same tenfold
+  drain. Floating I2S lines are therefore not the cause; one of the register writes is. Run I
+  was the first short screening run (a sample every 5 min, `sdkconfig.quick`); an effect of
+  this size shows within the first hour. The writes are now selected one group at a time
+  (`CONFIG_WATCH_CODEC_WRITE_MASK`) to find the one responsible.
+- **Run J** wrote only ES7210 0x06: the drain stayed at the floor, so the pin pull-ups are not
+  the cause. A PWR wake read every codec register back unchanged (0x06 `0x07`, the rest at their
+  reset values). The gauge rose 57 → 63 % on battery while it re-learned, as in run D.
+- **Run K** wrote only the four ES8311 registers: the drain rose as in run I, so the ES8311
+  causes it. Its 0x01 write is a no-op (the register reads `0x00` from reset), leaving 0x14
+  (input selection off), 0x0E (LPVREFBUF) and 0x0D (PDN_VREF cleared). All four still read
+  their written values after 1.5 h.
+- **Run L** wrote only ES8311 0x0D = `0xF8`: the same rise. **Clearing PDN_VREF (0x0D bit2)
+  raises the sleep drain by about 30 mA**, although the datasheet calls the cleared bit
+  "disable internal reference circuits". The register must keep its reset value `0xFC`, which
+  is also the value Espressif's `es8311_suspend()` ends with. This explains runs C and I.
 - VBAT readings scatter by up to ~20 mV between neighbouring samples (single reading right after
   boot); use fits over many samples, not single values.
 
@@ -444,7 +462,8 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
 5. Does Offset `0x76` (−10, MODE 0) bring the RTC drift near 0 ppm? Check with the guided test
    `clock` over several hours and days, and on the wrist (temperature).
 6. ES8311/ES7210 standby current at their reset state (neither datasheet gives a figure), and
-   which write of the run C power-down step raised the drain (suspect: ES7210 pull-ups off).
+   whether the other writes of the run C step (all but ES8311 0x0D, which raised the drain
+   by about 30 mA in runs I to L) lower it.
 7. Which on-state load draws the remaining ~2.9 mA in deep sleep (run H; about 1 mA of the
    ~4 mA of runs A, B and D came from idle pads)? Candidates: the codecs at their reset state
    (their power-down may behave differently now that the I2S lines are held), the AXP2101 on

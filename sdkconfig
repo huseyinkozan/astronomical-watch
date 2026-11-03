@@ -1001,6 +1001,8 @@ CONFIG_WATCH_AOD_IDLE_MODE=y
 # default:
 CONFIG_WATCH_QUIESCE=y
 # default:
+# CONFIG_WATCH_CODEC_POWER_DOWN is not set
+# default:
 # CONFIG_WATCH_BATTERY_LOG is not set
 # end of Astronomical Watch
 

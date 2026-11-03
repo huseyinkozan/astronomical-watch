@@ -55,6 +55,25 @@ menu "Astronomical Watch"
             once after power-on. Disable only to compare battery drain with the
             default state.
 
+    config WATCH_CODEC_POWER_DOWN
+        bool "Power the codecs down (battery test)"
+        default n
+        depends on WATCH_QUIESCE
+        help
+            Adds the ES8311/ES7210 power-down of battery run C to the sleep
+            preparation. That run drained about ten times more, and so did run I
+            with the I2S lines held.
+
+    config WATCH_CODEC_WRITE_MASK
+        hex "Codec writes to apply"
+        default 0x7F
+        range 0x01 0x7F
+        depends on WATCH_CODEC_POWER_DOWN
+        help
+            Bit i applies entry i of the power-down table in Peripherals.cpp:
+            bits 0-3 ES8311 0x14, 0x0E, 0x0D, 0x01; bits 4-6 ES7210 0x40,
+            0x01, 0x06.
+
     config WATCH_BATTERY_LOG
         bool "Battery drain log"
         default n
