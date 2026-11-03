@@ -75,7 +75,8 @@ Each step is built, verified on the board and documented before the next one sta
 
 1. **M1** (done): PWR key wake from deep sleep, wake statistics kept across sleep.
 2. **M2** (done): unused peripherals in their lowest-power state, battery drain runs (about 4 mA
-   remain in deep sleep; the search continues in M5).
+   remained in deep sleep; holding the idle pads lowered it to about 2.9 mA, an estimate; the
+   search continues).
 3. Off mode (done): software power-off through the AXP2101 and power-on with the PWR key; the
    battery charges while the watch is off.
 4. **M3** (done; crystal drift measurement running): RTC (PCF85063) time in UTC, set from the

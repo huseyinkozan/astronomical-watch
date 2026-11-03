@@ -2,6 +2,7 @@
 
 #include "bsp/esp32_s3_touch_amoled_2_06.h"
 #include "driver/gpio.h"
+#include "driver/rtc_io.h"
 #include "driver/spi_master.h"
 #include "esp_lcd_panel_io.h"
 #include "esp_log.h"
@@ -29,6 +30,12 @@ static const uint8_t IMU_CTRL1_SENSOR_DISABLE = 0x01;
 static const uint8_t RTC_ADDRESS = 0x51;
 static const uint8_t RTC_REG_CONTROL2 = 0x01;
 static const uint8_t RTC_COF_CLKOUT_OFF = 0x07;
+
+// I2S lines from the ESP32 to the codecs: MCLK, DSDIN, SCLK, LRCK. ASDOUT comes from the ES7210.
+static const gpio_num_t s_audioOutputs[4] = { GPIO_NUM_16, GPIO_NUM_40, GPIO_NUM_41, GPIO_NUM_45 };
+static const gpio_num_t s_audioInput = GPIO_NUM_42;
+// Unused RTC inputs: LCD_TE and QMI8658 INT1 (high impedance while disabled).
+static const gpio_num_t s_idleRtcInputs[2] = { GPIO_NUM_13, GPIO_NUM_21 };
 
 // Kept in RTC memory: cleared on power-on and reset, so the steps run again then.
 RTC_DATA_ATTR static bool s_quiesced;
@@ -219,6 +226,44 @@ static void checkI2cDevices( i2c_master_bus_handle_t bus )
               whoAmI, rtcOk ? "ok" : "FAIL", control2 );
 }
 
+static void holdIdlePads()
+{
+    gpio_config_t config = {};
+    config.mode = GPIO_MODE_OUTPUT;
+    for ( int i = 0; i < 4; ++i ) {
+        gpio_set_level( s_audioOutputs[i], 0 );
+        config.pin_bit_mask |= 1ULL << s_audioOutputs[i];
+    }
+    gpio_config( &config );
+
+    config = {};
+    config.pin_bit_mask = 1ULL << s_audioInput;
+    config.mode = GPIO_MODE_INPUT;
+    config.pull_down_en = GPIO_PULLDOWN_ENABLE;
+    gpio_config( &config );
+
+    for ( int i = 0; i < 4; ++i ) {
+        gpio_hold_en( s_audioOutputs[i] );
+    }
+    gpio_hold_en( s_audioInput );
+    for ( int i = 0; i < 2; ++i ) {
+        rtc_gpio_isolate( s_idleRtcInputs[i] );
+    }
+    gpio_deep_sleep_hold_en();
+}
+
+static void releaseIdlePads()
+{
+    gpio_deep_sleep_hold_dis();
+    for ( int i = 0; i < 4; ++i ) {
+        gpio_hold_dis( s_audioOutputs[i] );
+    }
+    gpio_hold_dis( s_audioInput );
+    for ( int i = 0; i < 2; ++i ) {
+        rtc_gpio_hold_dis( s_idleRtcInputs[i] );
+    }
+}
+
 void Peripherals::quiesceOnce( i2c_master_bus_handle_t bus, Axp2101 &pmu )
 {
     if ( !s_quiesceEnabled ) {
@@ -240,8 +285,9 @@ void Peripherals::quiesceOnce( i2c_master_bus_handle_t bus, Axp2101 &pmu )
     ESP_LOGI( TAG, "Quiesce done: %d/6 steps OK", passed );
 }
 
-void Peripherals::releaseResetLines()
+void Peripherals::releaseSleepLines()
 {
+    releaseIdlePads();
     const gpio_num_t lines[2] = { BSP_LCD_RST, BSP_LCD_TOUCH_RST };
     for ( int i = 0; i < 2; ++i ) {
         gpio_set_level( lines[i], 1 );
@@ -258,7 +304,7 @@ void Peripherals::sleepTouch( i2c_master_bus_handle_t bus )
     sleepTouchController( bus );
 }
 
-void Peripherals::holdResetLines()
+void Peripherals::holdSleepLines()
 {
     // Applied on every sleep: a touch or panel reset pulse releases the hold.
     if ( !s_quiesceEnabled ) {
@@ -274,4 +320,5 @@ void Peripherals::holdResetLines()
         gpio_config( &config );
         gpio_hold_en( lines[i] );
     }
+    holdIdlePads();
 }

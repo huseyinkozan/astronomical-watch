@@ -13,13 +13,16 @@ public:
     // that the I2C devices still respond. The touch step must be the first I2C traffic.
     void quiesceOnce( i2c_master_bus_handle_t bus, Axp2101 &pmu );
 
-    // Holds the touch and panel reset lines HIGH through deep sleep; a floating low level
-    // would wake both chips.
-    void holdResetLines();
+    // Gives every line a defined state through deep sleep. The touch and panel reset lines are
+    // held HIGH (a floating low level would wake both chips). The I2S lines to the codecs are
+    // held low (GPIO45 low is also its strap default), the codec data output gets a pull-down,
+    // the unused RTC inputs are isolated, and ESP-IDF isolates every other digital pad once
+    // the deep-sleep hold is enabled.
+    void holdSleepLines();
 
-    // Releases those holds (lines stay HIGH), so that the BSP can reset the panel and wake the
-    // touch controller from its sleep.
-    void releaseResetLines();
+    // Releases those holds (reset lines stay HIGH), so that the BSP can reset the panel and
+    // wake the touch controller from its sleep.
+    void releaseSleepLines();
 
     // Puts the touch controller to sleep (1.5 mA active, 10 uA asleep) after the BSP started it.
     void sleepTouch( i2c_master_bus_handle_t bus );

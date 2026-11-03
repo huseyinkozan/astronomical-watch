@@ -361,6 +361,8 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
 | D (2026-10-31) | B + AXP IRQ step (codec step skipped) | 2.0 h fitted (3.1 h total), 3.92 → 3.89 V | −11 ± 5 mV/h | unusable (see below) | **same level as A/B** |
 | E (2026-10-31/11-01) | always-on face, brightness 10 %, idle mode off (`sdkconfig.aodlog`) | 10.8 h fitted (11.8 h total), 4.06 → 3.74 V | −28.8 mV/h | −3.96 %/h | **≈ 13–16 mA** |
 | F (2026-11-01/02) | E with idle mode on (39h) | 10.5 h fitted (18.9 h total), 4.09 → 3.87 V | −18.5 mV/h | −2.33 %/h | **≈ 8.5–9.5 mA** |
+| G (2026-11-02) | B + idle pads held in every second hour (see below) | 10.75 h fitted (11.75 h total), 4.09 → 4.01 V | −6.7 mV/h overall | −0.79 %/h overall | held vs. free not resolved |
+| H (2026-11-02/03) | B + idle pads held through every sleep | 10.5 h fitted (11.5 h total), 4.11 → 4.03 V | −6.2 ± 0.4 mV/h | −0.71 ± 0.02 %/h | **≈ 2.8–2.9 mA** |
 
 - About 8.8 mV per gauge percent in the 80–98 % range.
 - In both runs the slopes of the first and second half agree: the drain is steady, not a
@@ -394,9 +396,8 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
   Two dips of 15–25 mV in single samples widen the VBAT fit; without them the slope is about
   −7.5 mV/h. At about 3.9 V the mV-to-mAh relation of runs A/B does not apply exactly.
 - The remaining ~4 mA only matters while the watch sleeps with its rails on (always-on and a
-  pending alarm), since the display-off state powers the board off. Its search continues with
-  the always-on battery run (M5); candidates left: the ESP32 pad states in deep sleep and the
-  AXP2101 on state (REG30 ADC, REG26).
+  pending alarm), since the display-off state powers the board off. Runs G and H below lowered
+  it to about 2.9 mA.
 - **Run E** (always-on face drawn each minute, battery samples taken on every 15th minute wake):
   about four times the deep-sleep drain, so the face adds about 9–12 mA. The minute wakes
   account for only about 0.3 mA (0.37 s × ~50 mA per minute), so nearly all of it is the panel
@@ -410,6 +411,22 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
   about 1137 min (F). A failed or out-of-range RTC read would have computed a negative sleep;
   `AlwaysOn::update` now retries such a read a minute later, and a PWR wake logs the timer of
   the last sleep.
+- **Run G** (idle pads): in deep sleep nothing drives the I2S lines to the codecs (GPIO16, 40,
+  41, 45 out, 42 in), and the ESP32 digital pads GPIO38–42 come out of reset with the input
+  buffer on and no pull [ESP32-S3 DS Table 2-1]; run C showed that switching the ES7210 pin
+  pull-ups off raises the drain about tenfold, so floating I2S inputs are a plausible part of
+  the floor. Run G held the I2S outputs low (GPIO45 low is its strap default), pulled GPIO42
+  down, isolated GPIO13 and GPIO21 (`rtc_gpio_isolate`) and enabled `gpio_deep_sleep_hold_en`,
+  which makes ESP-IDF isolate every other digital pad; this state alternated hourly with the
+  plain one. Wakes and the following PWR wake were normal. The overall slope was about 20 %
+  below runs A/B, but the hourly difference was not resolved (VBAT +3 ± 9 mV/h, or +7.7 ±
+  4.4 mV/h without the single-sample dips; gauge +0.15 ± 0.31 %/h): four samples per hour do
+  not beat the VBAT scatter, and the gauge smooths over hours.
+- **Run H** held the idle pads through every sleep (`Peripherals::holdSleepLines`, now part of
+  every sleep): the drain fell by about 1 mA against run B (gauge −0.25 ± 0.03 %/h, VBAT about
+  −2.6 mV/h; both halves of the run agree). Run G's average lies between B and H, as expected
+  for half the time held. Which of the held lines carries the saving is not tested. About
+  2.5 mA of the floor remain unexplained besides R11 (~0.33 mA).
 - VBAT readings scatter by up to ~20 mV between neighbouring samples (single reading right after
   boot); use fits over many samples, not single values.
 
@@ -422,14 +439,16 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
 3. How much does one accelerometer sample change between motion checks on a desk and on the wrist
    (sets the no-motion threshold), and how long must the accelerometer run for one valid sample?
 4. Which other CO5300 settings lower the always-on panel current further (frame rate, partial
-   mode)? With idle mode it is about 9 mA, of which about 4 mA is the deep-sleep floor (runs E
-   and F, question 7).
+   mode)? With idle mode it was about 9 mA, of which about 4 mA was the deep-sleep floor (runs
+   E and F, question 7); with the idle pads held the floor is about 2.9 mA (run H).
 5. Does Offset `0x76` (−10, MODE 0) bring the RTC drift near 0 ppm? Check with the guided test
    `clock` over several hours and days, and on the wrist (temperature).
 6. ES8311/ES7210 standby current at their reset state (neither datasheet gives a figure), and
    which write of the run C power-down step raised the drain (suspect: ES7210 pull-ups off).
-7. Which on-state load draws the ~4 mA of runs A, B and D in deep sleep (ESP32 pad states,
-   AXP2101 on state, codecs at their reset state)?
+7. Which on-state load draws the remaining ~2.9 mA in deep sleep (run H; about 1 mA of the
+   ~4 mA of runs A, B and D came from idle pads)? Candidates: the codecs at their reset state
+   (their power-down may behave differently now that the I2S lines are held), the AXP2101 on
+   state (REG30 ADC, REG50 TS current source, REG26).
 
 ## 6. Sources
 

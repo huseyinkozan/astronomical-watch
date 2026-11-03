@@ -131,7 +131,7 @@ static void watchPowerKey( int windowMs )
 
 static void sleepNow()
 {
-    s_peripherals.holdResetLines();
+    s_peripherals.holdSleepLines();
     s_deepSleep.enter();
 }
 
@@ -172,7 +172,7 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
         // The always-on time is over (or the panel failed).
         powerOff( pmuReady );
     }
-    s_peripherals.holdResetLines();
+    s_peripherals.holdSleepLines();
     s_deepSleep.enter( sleepUs );
 }
 
@@ -187,7 +187,7 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
     s_peripherals.sleepTouch( bus );
     s_alwaysOn.begin( CONFIG_WATCH_AOD_MINUTES );
     Panel::holdPins();
-    s_peripherals.holdResetLines();
+    s_peripherals.holdSleepLines();
     s_deepSleep.enter( 500 * 1000 );
 }
 
@@ -220,7 +220,7 @@ extern "C" void app_main( void )
     // Active mode: the BSP takes over the panel pins and resets the panel and touch.
     s_alwaysOn.end();
     Panel::releasePins();
-    s_peripherals.releaseResetLines();
+    s_peripherals.releaseSleepLines();
 
 #if CONFIG_WATCH_DEV_LOGGING
     // Reading USB input needs the driver. Its writes never block: without a host they return at
@@ -242,8 +242,13 @@ extern "C" void app_main( void )
         s_pmu.setPowerOnPress();
         s_pmu.logStatus();
         logPowerKeyIrq();
+#if CONFIG_WATCH_BATTERY_LOG && !CONFIG_WATCH_BATTERY_LOG_AOD
+        // Battery runs without the face keep the panel in the deep standby of the sleep
+        // preparation, as in runs A to D: nothing switches the panel off before deep sleep.
+#else
         s_pmu.setPanelPower( true );
         s_displayOn = s_display.start( CONFIG_WATCH_DISPLAY_BRIGHTNESS );
+#endif
 #if CONFIG_WATCH_BATTERY_LOG
         s_batteryLog.record( s_pmu );
         s_batteryLog.print();
