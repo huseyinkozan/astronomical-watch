@@ -46,6 +46,26 @@ to VCC-RTC; official example uses `CONFIG_PMU_INTERRUPT_PIN=-1`), PCF85063 CLKOU
   addressing for the GD25Q256: the area above 16 MB can hold data; executing code from it needs the
   experimental `CONFIG_BOOTLOADER_CACHE_32BIT_ADDR_QUAD_FLASH`, so application partitions stay
   below 16 MB [ESP-IDF docs, SPI flash optional features].
+- Board check against the documents (2026-11-04) [HW]: esptool reads ESP32-S3 (QFN56) v0.2 with
+  embedded 8 MB PSRAM (AP, 3.3 V) and flash JEDEC ID `0xC8` / `0x4019` (GigaDevice GD25Q256).
+  Package markings in photos of both sides: `063A` (PCF85063A, the variant with alarm
+  registers), `GigaDevice 25Q256EYIG`, `ESP32-S3 ... R8...`, `7210` (ES7210), `AXP2101`,
+  `NS4150B`, `8658` (QMI8658; the marking does not show A or C) and a 40 MHz crystal. The ES8311
+  marking was not legible and the FT3168 sits on the display flex. The silkscreen shows no board
+  revision. Identity registers read once after power-on (`logChipIds`, touch step):
+
+  | Part | Register | Read | Datasheet / reference |
+  |---|---|---|---|
+  | ES8311 | 0xFD / 0xFE / 0xFF | `0x83 0x11 0x01` | `0x83 0x11 0x00`: newer chip version |
+  | ES7210 | 0x3D / 0x3E / 0x3F | `0x72 0x10 0x04` | `0x72 0x10 0x00`: newer chip version |
+  | QMI8658 | 0x00 / 0x01 | `0x05 0x7C` | QMI8658A (section 3) |
+  | AXP2101 | REG03 | `0x4A` | `0x4A` (XPowersLib) |
+  | FT3168 | 0xA0 / 0xA3 / 0xA6 / 0xA8 | `0x03 0x64 0x02 0x11` | 0xA0 `0x03` = FT3168 (Waveshare `Arduino_FT3x68`); vendor `0x11` FocalTech; 0xA3 `0x64` is shared with the FT6336U in SensorLib's table |
+
+  So the parts match the schematic and the datasheets used, except that both codecs are a
+  later chip version than their datasheets (ES8311 rev 10.0, ES7210 rev 21.0), which may bear on
+  the ES8311 0x0D result (section 4). The cell is labelled
+  `402728 3.7V 400mAh` (4.0 × 27 × 28 mm, a size that fits 400 mAh).
 - AXP2101 PMIC rails [SCH]:
 
 | Rail | Net | Loads | Rule |
@@ -62,9 +82,11 @@ to VCC-RTC; official example uses `CONFIG_PMU_INTERRUPT_PIN=-1`), PCF85063 CLKOU
 
 ## 3. Device Notes
 
-### QMI8658C IMU (`0x6B`, SA0 = GND)
+### QMI8658A IMU (`0x6B`, SA0 = GND)
 Two datasheets were compared: QMI8658**A** Rev A (2022) and QMI8658**C** Rev 0.6 (2021, "advance
-information"); the board has the QMI8658**C**. The WoM section (C: §9, Table 33, Fig. 10) and the
+information"). **The board has the QMI8658A** [HW, 2026-11-04]: REVISION_ID reads `0x7C`, the
+value in the A datasheet text (both register tables say `0x68`, the C text `0x79`), and the
+package marking ends in `RB`, the A marking scheme (C: `DA`). The WoM section (C: §9, Table 33, Fig. 10) and the
 CTRL2 ODR table are identical in both; codes 1001–1011 are "N/A", which explains why `CTRL2=0x0A`
 failed. **They differ on the CTRL9 handshake:**
 
@@ -81,8 +103,8 @@ Whether CTRL8.bit7 has any effect on this chip, and whether a STATUS1 read alone
 handshake, is [?]. Both datasheets agree that INT1 is driven during the handshake.
 
 CTRL1 also differs: the C datasheet marks bits 4:1 as reserved, the A datasheet defines bit3 as
-INT1_EN and bit4 as INT2_EN. INT1 worked with `CTRL1=0x48` on this board [HW]; whether bit3 is
-required on the C chip is [?]. The watch no longer wakes on motion (it samples the accelerometer at
+INT1_EN and bit4 as INT2_EN. INT1 worked with `CTRL1=0x48` on this board [HW], as the A
+datasheet describes. The watch no longer wakes on motion (it samples the accelerometer at
 wide intervals instead), so INT1 and WoM are kept here as background only.
 
 The register notes below follow the A datasheet unless marked.
@@ -365,6 +387,7 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
 | J (2026-11-03) | H + ES7210 0x06 = `0x07` only (pull-ups, TDMIN pull-down, DLL off) | 1.2 h fitted (1.5 h total), 3.85 → 3.84 V | −7.2 ± 0.4 mV/h without two dips | unusable (re-learning after the power cycle) | **floor level** |
 | K (2026-11-03) | H + the four ES8311 writes only | 1.2 h fitted (1.5 h total), 3.87 → 3.80 V | −68 ± 5 mV/h | −5 %/h, still re-learning | **≈ 30 mA, as run I** |
 | L (2026-11-03) | H + ES8311 0x0D = `0xF8` only (PDN_VREF cleared) | 1.2 h fitted (1.5 h total), 3.81 → 3.73 V | −68 ± 5 mV/h | −10 %/h | **≈ 30 mA, as run I** |
+| M (2026-11-03/04) | H + every codec write except ES8311 0x0D | 10.75 h fitted (11.75 h total), 4.09 → 4.01 V | −6.7 ± 0.4 mV/h | −0.75 ± 0.01 %/h | **≈ 3 mA, as run H** |
 
 - About 8.8 mV per gauge percent in the 80–98 % range.
 - In both runs the slopes of the first and second half agree: the drain is steady, not a
@@ -445,6 +468,11 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
   raises the sleep drain by about 30 mA**, although the datasheet calls the cleared bit
   "disable internal reference circuits". The register must keep its reset value `0xFC`, which
   is also the value Espressif's `es8311_suspend()` ends with. This explains runs C and I.
+- **Run M** applied every other write of the step (ES8311 0x14, 0x0E, 0x01; ES7210 0x40,
+  0x01, 0x06), all read back unchanged after 11.75 h: no saving against run H (gauge +0.04 ±
+  0.02 %/h, VBAT −0.5 ± 0.6 mV/h, i.e. at most a fraction of a milliamp either way). The codecs
+  at their reset state are not the remaining floor, so they stay at reset (the test option
+  remains for later checks).
 - VBAT readings scatter by up to ~20 mV between neighbouring samples (single reading right after
   boot); use fits over many samples, not single values.
 
@@ -452,8 +480,8 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
 
 1. Battery thermistor: the schematic has RP2 on TS, but the official AXP example disables TS
    ("no thermistor"). Check the board.
-2. QMI8658C CTRL9 handshake: does CTRL8.bit7 = 1 keep CmdDone off INT1 on this chip, and does a
-   STATUS1 read alone acknowledge it (C datasheet) as well as CTRL9 = `0x00` (A datasheet)?
+2. QMI8658A CTRL9 handshake: does CTRL8.bit7 = 1 keep CmdDone off INT1 on this chip, as the A
+   datasheet states?
 3. How much does one accelerometer sample change between motion checks on a desk and on the wrist
    (sets the no-motion threshold), and how long must the accelerometer run for one valid sample?
 4. Which other CO5300 settings lower the always-on panel current further (frame rate, partial
@@ -461,13 +489,12 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
    E and F, question 7); with the idle pads held the floor is about 2.9 mA (run H).
 5. Does Offset `0x76` (−10, MODE 0) bring the RTC drift near 0 ppm? Check with the guided test
    `clock` over several hours and days, and on the wrist (temperature).
-6. ES8311/ES7210 standby current at their reset state (neither datasheet gives a figure), and
-   whether the other writes of the run C step (all but ES8311 0x0D, which raised the drain
-   by about 30 mA in runs I to L) lower it.
+6. Why does ES8311 0x0D = `0xF8` (PDN_VREF cleared) raise the sleep drain by about 30 mA
+   (runs I to L), against the datasheet wording?
 7. Which on-state load draws the remaining ~2.9 mA in deep sleep (run H; about 1 mA of the
-   ~4 mA of runs A, B and D came from idle pads)? Candidates: the codecs at their reset state
-   (their power-down may behave differently now that the I2S lines are held), the AXP2101 on
-   state (REG30 ADC, REG50 TS current source, REG26).
+   ~4 mA of runs A, B and D came from idle pads; run M ruled out the codecs)? Candidates: a
+   card in the SD slot (on VCC3V3), the AXP2101 on state (REG30 ADC, REG50 TS current source,
+   REG26), the remaining ESP32 pads.
 
 ## 6. Sources
 

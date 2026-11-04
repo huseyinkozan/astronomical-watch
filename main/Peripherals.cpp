@@ -17,6 +17,11 @@ static const int s_i2cTimeoutMs = 50;
 static const uint8_t TOUCH_ADDRESS = 0x38;
 static const uint8_t TOUCH_REG_POWER_MODE = 0xA5;
 static const uint8_t TOUCH_POWER_MODE_SLEEP = 0x03;
+// Waveshare's Arduino_FT3x68 driver reads the device type from 0xA0 (0x03 = FT3168).
+static const uint8_t TOUCH_REG_DEVICE = 0xA0;
+static const uint8_t TOUCH_REG_CHIP_ID = 0xA3;
+static const uint8_t TOUCH_REG_FIRMWARE = 0xA6;
+static const uint8_t TOUCH_REG_VENDOR = 0xA8;
 
 // CO5300 QSPI write: opcode 0x02 in bits 31:24, command in bits 15:8 (as in esp_lcd_sh8601).
 static const int PANEL_CMD_DEEP_STANDBY = ( 0x02 << 24 ) | ( 0x4F << 8 );
@@ -66,6 +71,17 @@ static esp_err_t writeRegister( i2c_master_dev_handle_t device, uint8_t reg, uin
     return i2c_master_transmit( device, data, sizeof( data ), s_i2cTimeoutMs );
 }
 
+static esp_err_t readDeviceRegister( i2c_master_bus_handle_t bus, uint8_t address, uint8_t reg, uint8_t &value )
+{
+    i2c_master_dev_handle_t device = nullptr;
+    esp_err_t err = addDevice( bus, address, device );
+    if ( err == ESP_OK ) {
+        err = readRegister( device, reg, value );
+        i2c_master_bus_rm_device( device );
+    }
+    return err;
+}
+
 // Drives a reset line LOW for lowMs, then HIGH, and waits settleMs.
 static void pulseReset( gpio_num_t gpio, int lowMs, int settleMs )
 {
@@ -92,14 +108,23 @@ static bool sleepTouchController( i2c_master_bus_handle_t bus )
     }
     uint8_t mode = 0;
     const esp_err_t before = readRegister( touch, TOUCH_REG_POWER_MODE, mode );
+    uint8_t device = 0;
+    uint8_t chipId = 0;
+    uint8_t firmware = 0;
+    uint8_t vendor = 0;
+    readRegister( touch, TOUCH_REG_DEVICE, device );
+    readRegister( touch, TOUCH_REG_CHIP_ID, chipId );
+    readRegister( touch, TOUCH_REG_FIRMWARE, firmware );
+    readRegister( touch, TOUCH_REG_VENDOR, vendor );
     const esp_err_t write = writeRegister( touch, TOUCH_REG_POWER_MODE, TOUCH_POWER_MODE_SLEEP );
     vTaskDelay( pdMS_TO_TICKS( 20 ) );
     uint8_t modeAfter = 0;
     const esp_err_t after = readRegister( touch, TOUCH_REG_POWER_MODE, modeAfter );
     i2c_master_bus_rm_device( touch );
 
-    ESP_LOGI( TAG, "Touch: before %s (power mode 0x%02X), sleep command %s, after %s", esp_err_to_name( before ), mode,
-              esp_err_to_name( write ), after == ESP_OK ? "still responds" : "no response" );
+    ESP_LOGI( TAG, "Touch: before %s (power mode 0x%02X, device 0x%02X, chip ID 0x%02X, firmware 0x%02X, vendor "
+              "0x%02X), sleep command %s, after %s", esp_err_to_name( before ), mode, device, chipId, firmware, vendor, esp_err_to_name( write ),
+              after == ESP_OK ? "still responds" : "no response" );
     return before == ESP_OK && write == ESP_OK;
 }
 
@@ -202,17 +227,6 @@ static const CodecWrite s_codecWrites[s_codecWriteCount] = {
     { ES7210_ADDRESS, 0x06, 0x07 },
 };
 
-static esp_err_t readCodec( i2c_master_bus_handle_t bus, const CodecWrite &entry, uint8_t &value )
-{
-    i2c_master_dev_handle_t device = nullptr;
-    esp_err_t err = addDevice( bus, entry.address, device );
-    if ( err == ESP_OK ) {
-        err = readRegister( device, entry.reg, value );
-        i2c_master_bus_rm_device( device );
-    }
-    return err;
-}
-
 static bool powerDownCodecs( i2c_master_bus_handle_t bus )
 {
     bool ok = true;
@@ -247,7 +261,7 @@ static void logCodecs( i2c_master_bus_handle_t bus )
 {
     for ( int i = 0; i < s_codecWriteCount; ++i ) {
         uint8_t value = 0;
-        const esp_err_t err = readCodec( bus, s_codecWrites[i], value );
+        const esp_err_t err = readDeviceRegister( bus, s_codecWrites[i].address, s_codecWrites[i].reg, value );
         ESP_LOGI( TAG, "Codec 0x%02X reg 0x%02X = 0x%02X %s", s_codecWrites[i].address, s_codecWrites[i].reg,
                   value, esp_err_to_name( err ) );
     }
@@ -278,6 +292,32 @@ static bool stopRtcClockOut( i2c_master_bus_handle_t bus )
 }
 
 // After a deep-sleep wake: the devices that stay reachable must still answer.
+struct IdRegister
+{
+    const char *name;
+    uint8_t address;
+    uint8_t reg;
+};
+
+// Identity registers, logged once after power-on to confirm the parts against the datasheets
+// (docs/hardware.md, section 2). Expected: ES8311 0x83 0x11 and a version, ES7210 0x72 0x10 0x00,
+// QMI8658A 0x05 0x7C, AXP2101 0x4A. The touch IDs are read in its sleep step.
+static const int s_idRegisterCount = 9;
+static const IdRegister s_idRegisters[s_idRegisterCount] = {
+    { "ES8311 0xFD", 0x18, 0xFD }, { "ES8311 0xFE", 0x18, 0xFE },   { "ES8311 0xFF", 0x18, 0xFF },
+    { "ES7210 0x3D", 0x40, 0x3D }, { "ES7210 0x3E", 0x40, 0x3E },   { "ES7210 0x3F", 0x40, 0x3F },
+    { "QMI8658 0x00", IMU_ADDRESS, 0x00 }, { "QMI8658 0x01", IMU_ADDRESS, 0x01 }, { "AXP2101 0x03", 0x34, 0x03 },
+};
+
+static void logChipIds( i2c_master_bus_handle_t bus )
+{
+    for ( int i = 0; i < s_idRegisterCount; ++i ) {
+        uint8_t value = 0;
+        const esp_err_t err = readDeviceRegister( bus, s_idRegisters[i].address, s_idRegisters[i].reg, value );
+        ESP_LOGI( TAG, "ID %s = 0x%02X %s", s_idRegisters[i].name, value, esp_err_to_name( err ) );
+    }
+}
+
 static void checkI2cDevices( i2c_master_bus_handle_t bus )
 {
     i2c_master_dev_handle_t device = nullptr;
@@ -358,6 +398,7 @@ void Peripherals::quiesceOnce( i2c_master_bus_handle_t bus, Axp2101 &pmu )
     passed += stopRtcClockOut( bus ) ? 1 : 0;
     passed += pmu.disableUnusedRails() == ESP_OK ? 1 : 0;
     passed += pmu.limitIrqs() == ESP_OK ? 1 : 0;
+    logChipIds( bus );
 #if CONFIG_WATCH_CODEC_POWER_DOWN
     ++steps;
     passed += powerDownCodecs( bus ) ? 1 : 0;
