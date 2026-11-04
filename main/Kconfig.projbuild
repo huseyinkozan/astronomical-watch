@@ -74,6 +74,17 @@ menu "Astronomical Watch"
             bits 0-3 ES8311 0x14, 0x0E, 0x0D, 0x01; bits 4-6 ES7210 0x40,
             0x01, 0x06.
 
+    config WATCH_AXP_MEASURE_OFF_IN_SLEEP
+        bool "AXP2101 ADCs and fuel gauge off in deep sleep (battery test)"
+        default n
+        depends on WATCH_BATTERY_LOG
+        help
+            Battery run O: every AXP2101 ADC channel (REG30) and the fuel gauge
+            (REG18 bit3) are switched off before deep sleep and on again after
+            each wake, before the battery is read. Shows how much of the sleep
+            drain the AXP2101 measurement circuits take. The gauge percentage
+            is not valid in this run.
+
     config WATCH_BATTERY_LOG
         bool "Battery drain log"
         default n

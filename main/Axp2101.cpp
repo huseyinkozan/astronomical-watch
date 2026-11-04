@@ -13,11 +13,13 @@ static const int s_timeoutMs = 50;
 static const uint8_t REG_STATUS1 = 0x00;
 static const uint8_t REG_STATUS2 = 0x01;
 static const uint8_t REG_COMMON_CONFIG = 0x10;
+static const uint8_t REG_MODULE_ENABLE = 0x18;
 static const uint8_t REG_PWRON_STATUS = 0x20;
 static const uint8_t REG_PWROFF_STATUS = 0x21;
 static const uint8_t REG_SLEEP_WAKEUP = 0x26;
 static const uint8_t REG_KEY_TIMING = 0x27;
 static const uint8_t REG_ADC_ENABLE = 0x30;
+static const uint8_t REG_TS_CONTROL = 0x50;
 static const uint8_t REG_VBAT_HIGH = 0x34;
 static const uint8_t REG_IRQ_ENABLE0 = 0x40;
 static const uint8_t REG_IRQ_ENABLE1 = 0x41;
@@ -124,6 +126,9 @@ void Axp2101::logStatus()
     }
     if ( readRegister( REG_ADC_ENABLE, value ) == ESP_OK ) {
         ESP_LOGI( TAG, "ADC enable (REG30)=0x%02X", value );
+    }
+    if ( readRegister( REG_TS_CONTROL, value ) == ESP_OK ) {
+        ESP_LOGI( TAG, "TS pin control (REG50)=0x%02X", value );
     }
     uint8_t irq[3] = {};
     if ( readRegister( REG_IRQ_ENABLE0, irq[0] ) == ESP_OK && readRegister( REG_IRQ_ENABLE1, irq[1] ) == ESP_OK &&
@@ -236,6 +241,21 @@ esp_err_t Axp2101::setPanelPower( bool on )
         err = ESP_ERR_INVALID_STATE;
     }
     ESP_LOGI( TAG, "Panel power (ALDO2) %s: REG90=0x%02X %s", on ? "on" : "off", value, esp_err_to_name( err ) );
+    return err;
+}
+
+esp_err_t Axp2101::setMeasurement( bool on )
+{
+    // REG30 0x03 is this board's power-on value: VBAT and TS channels (docs/hardware.md).
+    esp_err_t err = writeRegister( REG_ADC_ENABLE, on ? 0x03 : 0x00 );
+    uint8_t module = 0;
+    if ( err == ESP_OK ) {
+        err = readRegister( REG_MODULE_ENABLE, module );
+    }
+    if ( err == ESP_OK ) {
+        const uint8_t gaugeEnable = 0x08;
+        err = writeRegister( REG_MODULE_ENABLE, on ? ( module | gaugeEnable ) : ( module & ~gaugeEnable ) );
+    }
     return err;
 }
 

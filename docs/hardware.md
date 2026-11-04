@@ -213,6 +213,7 @@ Power-on defaults read on this board [HW] (eFuse values; nothing was written exc
 | REG92–95 | 3.3 / 3.3 / 3.0 / 1.8 V | ALDO1 / ALDO2 / ALDO3 (motor) / ALDO4 |
 | REG27 | `0x14` | long-press IRQ 1.5 s, power off 6 s, power on 128 ms |
 | REG30 | `0x03` | ADC: VBAT and TS channels on |
+| REG50 | `0x12` | TS pin is a fixed input that does not affect the charger; TS current source off (50 µA when on) |
 | REG41 | `0xFC` | VBUS/battery insert/remove and PWRON short/long press IRQs enabled |
 | REG26 | `0x08` | sleep/wakeup at reset value |
 | REG81 | `0x00` | DCDC1 automatic PWM/PFM (no forced PWM) |
@@ -388,6 +389,8 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
 | K (2026-11-03) | H + the four ES8311 writes only | 1.2 h fitted (1.5 h total), 3.87 → 3.80 V | −68 ± 5 mV/h | −5 %/h, still re-learning | **≈ 30 mA, as run I** |
 | L (2026-11-03) | H + ES8311 0x0D = `0xF8` only (PDN_VREF cleared) | 1.2 h fitted (1.5 h total), 3.81 → 3.73 V | −68 ± 5 mV/h | −10 %/h | **≈ 30 mA, as run I** |
 | M (2026-11-03/04) | H + every codec write except ES8311 0x0D | 10.75 h fitted (11.75 h total), 4.09 → 4.01 V | −6.7 ± 0.4 mV/h | −0.75 ± 0.01 %/h | **≈ 3 mA, as run H** |
+| N (2026-11-04) | H + panel QSPI lines held (CS high, SCLK and SIO0–3 low), 5 min samples | 2.9 h fitted (3.9 h total), 4.10 → 4.08 V | −7.0 ± 0.1 mV/h without dips (H over the same 1–4 h: −7.1 ± 0.2) | −0.76 %/h (H: −0.77) | **same as H** |
+| O (2026-11-04) | H + AXP2101 ADCs (REG30 = 0) and fuel gauge (REG18 bit3) off in deep sleep, on again at each wake, 5 min samples | 3.9 h, 4.11 → 4.07 V | ≈ −7 mV/h between the steps of the stale readings (see below) | none (gauge off, 100 % throughout) | **same as H within ≈ 0.5 mA** |
 
 - About 8.8 mV per gauge percent in the 80–98 % range.
 - In both runs the slopes of the first and second half agree: the drain is steady, not a
@@ -473,13 +476,32 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
   0.02 %/h, VBAT −0.5 ± 0.6 mV/h, i.e. at most a fraction of a milliamp either way). The codecs
   at their reset state are not the remaining floor, so they stay at reset (the test option
   remains for later checks).
+- **Run N**: ESP-IDF isolates only the digital pads (GPIO26–48, `SOC_GPIO_VALID_DIGITAL_IO_PAD_MASK`)
+  when a deep-sleep hold is enabled; the RTC pads (GPIO0–21) keep their state, so without a hold
+  the panel QSPI lines are undriven at the CO5300 inputs, which stay powered from VCC3V3. Holding
+  them as the always-on face does made no difference against run H over the same hours of the
+  run (VBAT within 0.1 mV/h, i.e. within about 0.1 mA), so the hold was not kept for plain deep
+  sleep. The SD lines (GPIO1–3, 17) are not a candidate: they have 10k pull-ups and the ESP32
+  enables no pull on them at reset [ESP32-S3 DS Table 2-1].
+- **Run O**: with the ADCs off in sleep, VBAT read at the timer wakes stays stale: a wake of
+  about 0.15 s with the ADC switched on 0.1 s earlier rarely updates it, so the log is a
+  staircase (4106, 4088, 4083, 4069 mV) and the usual fit does not apply. Between the step
+  edges (about 0.8 h to 3.4 h) the drop is 19 mV in about 2.6 h, about −7 mV/h; the uncertainty
+  from the 5 min step timing and the 1 mV steps is about ±1 mV/h (±0.5 mA). The measurement
+  chain of the AXP2101 is therefore not the remaining floor and stays at its power-on state.
+  The ADC conversion time is not in the datasheet; 100 ms after enabling REG30 the reading
+  was still the stale value.
+- Screening resolution: with 5 min samples and the single-sample dips removed (readings more
+  than 10 mV below the fit), a 3 h window fits VBAT to about ±0.1–0.2 mV/h (about ±0.1 mA),
+  provided the run starts near full charge and runs are compared over the same hours.
 - VBAT readings scatter by up to ~20 mV between neighbouring samples (single reading right after
   boot); use fits over many samples, not single values.
 
 ## 5. Open Questions
 
 1. Battery thermistor: the schematic has RP2 on TS, but the official AXP example disables TS
-   ("no thermistor"). Check the board.
+   ("no thermistor"). The eFuse value REG50 `0x12` already makes TS a fixed input that does not
+   affect the charger, with its current source off [HW]; whether RP2 is fitted is unchecked.
 2. QMI8658A CTRL9 handshake: does CTRL8.bit7 = 1 keep CmdDone off INT1 on this chip, as the A
    datasheet states?
 3. How much does one accelerometer sample change between motion checks on a desk and on the wrist
@@ -493,8 +515,9 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
    (runs I to L), against the datasheet wording?
 7. Which on-state load draws the remaining ~2.9 mA in deep sleep (run H; about 1 mA of the
    ~4 mA of runs A, B and D came from idle pads; run M ruled out the codecs)? Candidates: a
-   card in the SD slot (on VCC3V3), the AXP2101 on state (REG30 ADC, REG50 TS current source,
-   REG26), the remaining ESP32 pads.
+   card in the SD slot (none is fitted), the panel's high-voltage supply with ALDO2 off (run N:
+   not its QSPI lines), DCDC1 itself. Ruled out: the AXP2101 ADCs and gauge (run O), the TS
+   current source (off at power-on, REG50).
 
 ## 6. Sources
 

@@ -41,6 +41,9 @@ public:
     // brief touch of the key does not. Logs the value found first: REG27 resets only at POR.
     esp_err_t setPowerOnPress();
 
+    // Battery test: switches every ADC channel (REG30) and the fuel gauge (REG18 bit3) on or off.
+    esp_err_t setMeasurement( bool on );
+
     // Software power-off (REG10 bit0): every rail except RTCLDO goes off. Returns only on failure.
     esp_err_t powerOff();
 

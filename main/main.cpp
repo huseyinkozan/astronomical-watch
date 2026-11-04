@@ -131,6 +131,9 @@ static void watchPowerKey( int windowMs )
 
 static void sleepNow()
 {
+#if CONFIG_WATCH_AXP_MEASURE_OFF_IN_SLEEP
+    s_pmu.setMeasurement( false );
+#endif
     s_peripherals.holdSleepLines();
     s_deepSleep.enter();
 }
@@ -205,6 +208,20 @@ extern "C" void app_main( void )
     if ( !pmuReady ) {
         ESP_LOGE( TAG, "AXP2101 init failed" );
     }
+#if CONFIG_WATCH_AXP_MEASURE_OFF_IN_SLEEP
+    // The ADC needs time for a fresh VBAT result; its conversion time is not in the datasheet.
+    if ( pmuReady ) {
+        uint16_t staleMv = 0;
+        uint16_t freshMv = 0;
+        uint8_t percent = 0;
+        bool vbus = false;
+        s_pmu.readBattery( staleMv, percent, vbus );
+        s_pmu.setMeasurement( true );
+        vTaskDelay( pdMS_TO_TICKS( 100 ) );
+        s_pmu.readBattery( freshMv, percent, vbus );
+        ESP_LOGI( TAG, "VBAT with the ADC off: %u mV, 100 ms after switching it on: %u mV", staleMv, freshMv );
+    }
+#endif
 
     if ( wake == DeepSleep::Event::WakeTimer ) {
         if ( s_alwaysOn.isActive() ) {

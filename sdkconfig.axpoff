@@ -1,0 +1,2 @@
+# Battery run O, on top of sdkconfig.battery: AXP2101 ADCs and gauge off in deep sleep.
+CONFIG_WATCH_AXP_MEASURE_OFF_IN_SLEEP=y
