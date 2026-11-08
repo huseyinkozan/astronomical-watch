@@ -392,6 +392,7 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
 | M (2026-11-03/04) | H + every codec write except ES8311 0x0D | 10.75 h fitted (11.75 h total), 4.09 → 4.01 V | −6.7 ± 0.4 mV/h | −0.75 ± 0.01 %/h | **≈ 3 mA, as run H** |
 | N (2026-11-04) | H + panel QSPI lines held (CS high, SCLK and SIO0–3 low), 5 min samples | 2.9 h fitted (3.9 h total), 4.10 → 4.08 V | −7.0 ± 0.1 mV/h without dips (H over the same 1–4 h: −7.1 ± 0.2) | −0.76 %/h (H: −0.77) | **same as H** |
 | O (2026-11-04) | H + AXP2101 ADCs (REG30 = 0) and fuel gauge (REG18 bit3) off in deep sleep, on again at each wake, 5 min samples | 3.9 h, 4.11 → 4.07 V | ≈ −7 mV/h between the steps of the stale readings (see below) | none (gauge off, 100 % throughout) | **same as H within ≈ 0.5 mA** |
+| P (2026-11-08) | H with the display FPC unplugged (panel, touch and panel supply removed), 5 min samples | 2.8 h fitted (3.8 h total), 4.11 → 4.06 V | −7.0 ± 0.2 mV/h without dips (H over the same hours: −7.1 ± 0.2, N: −7.0 ± 0.1) | 95 → 93 % in 2.75 h (H, N: 96 → 94 %) | **same as H: the floor is not in the panel module** |
 
 - About 8.8 mV per gauge percent in the 80–98 % range.
 - In both runs the slopes of the first and second half agree: the drain is steady, not a
@@ -492,6 +493,11 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
   chain of the AXP2101 is therefore not the remaining floor and stays at its power-on state.
   The ADC conversion time is not in the datasheet; 100 ms after enabling REG30 the reading
   was still the stale value.
+- **Run P**: with the display FPC unplugged the drain did not change (VBAT within 0.1 mV/h of
+  runs H and N over the same hours), so the panel module as a whole (CO5300, FT3168, the panel
+  supply and the lines to them) is not the remaining floor; it lies on the main board. A first
+  attempt did not start: after the 6 s power-off the PWR press did not switch the watch on, and
+  without the panel nothing showed it; the next USB insertion powered it on (REG20 `0x04`).
 - Screening resolution: with 5 min samples and the single-sample dips removed (readings more
   than 10 mV below the fit), a 3 h window fits VBAT to about ±0.1–0.2 mV/h (about ±0.1 mA),
   provided the run starts near full charge and runs are compared over the same hours.
@@ -515,11 +521,13 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
 6. Why does ES8311 0x0D = `0xF8` (PDN_VREF cleared) raise the sleep drain by about 30 mA
    (runs I to L), against the datasheet wording?
 7. Which on-state load draws the remaining ~2.9 mA in deep sleep (run H; about 1 mA of the
-   ~4 mA of runs A, B and D came from idle pads; run M ruled out the codecs)? Candidates: the
-   panel module as a whole (CO5300, FT3168 and the panel supply on one FPC), DCDC1 itself.
-   Ruled out: a card in the SD slot (none is fitted), the panel QSPI lines (run N), the panel's
-   high-voltage supply running with ALDO2 off (REG10 off-discharge on, so DSI_PWR_EN is low),
-   the AXP2101 ADCs and gauge (run O), the TS current source (off at power-on, REG50).
+   ~4 mA of runs A, B and D came from idle pads)? It is on the main board (run P).
+   Candidates: the AXP2101 on state and DCDC1 at light load, the ESP32 sleep state, and the
+   reset-state draw of the parts on ALDO1 (ES7210, ES8311 analog; run M only showed that the
+   tested codec writes save nothing). Ruled out: the panel module (run P), a card in the SD
+   slot (none is fitted), the panel QSPI lines (run N), the panel's high-voltage supply running
+   with ALDO2 off (REG10 off-discharge on, so DSI_PWR_EN is low), the AXP2101 ADCs and gauge
+   (run O), the TS current source (off at power-on, REG50).
 
 ## 6. Sources
 
