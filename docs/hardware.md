@@ -213,6 +213,7 @@ Power-on defaults read on this board [HW] (eFuse values; nothing was written exc
 | REG92–95 | 3.3 / 3.3 / 3.0 / 1.8 V | ALDO1 / ALDO2 / ALDO3 (motor) / ALDO4 |
 | REG27 | `0x14` | long-press IRQ 1.5 s, power off 6 s, power on 128 ms |
 | REG30 | `0x03` | ADC: VBAT and TS channels on |
+| REG10 | `0x34` | bit5: a rail switched off is discharged (so DSI_PWR_EN is held low through R10 while ALDO2 is off); bit2: holding PWRON 16 s shuts the PMIC enable |
 | REG50 | `0x12` | TS pin is a fixed input that does not affect the charger; TS current source off (50 µA when on) |
 | REG41 | `0xFC` | VBUS/battery insert/remove and PWRON short/long press IRQs enabled |
 | REG26 | `0x08` | sleep/wakeup at reset value |
@@ -514,10 +515,11 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
 6. Why does ES8311 0x0D = `0xF8` (PDN_VREF cleared) raise the sleep drain by about 30 mA
    (runs I to L), against the datasheet wording?
 7. Which on-state load draws the remaining ~2.9 mA in deep sleep (run H; about 1 mA of the
-   ~4 mA of runs A, B and D came from idle pads; run M ruled out the codecs)? Candidates: a
-   card in the SD slot (none is fitted), the panel's high-voltage supply with ALDO2 off (run N:
-   not its QSPI lines), DCDC1 itself. Ruled out: the AXP2101 ADCs and gauge (run O), the TS
-   current source (off at power-on, REG50).
+   ~4 mA of runs A, B and D came from idle pads; run M ruled out the codecs)? Candidates: the
+   panel module as a whole (CO5300, FT3168 and the panel supply on one FPC), DCDC1 itself.
+   Ruled out: a card in the SD slot (none is fitted), the panel QSPI lines (run N), the panel's
+   high-voltage supply running with ALDO2 off (REG10 off-discharge on, so DSI_PWR_EN is low),
+   the AXP2101 ADCs and gauge (run O), the TS current source (off at power-on, REG50).
 
 ## 6. Sources
 

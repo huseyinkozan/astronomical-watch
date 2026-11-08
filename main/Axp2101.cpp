@@ -124,6 +124,10 @@ void Axp2101::logStatus()
         ESP_LOGI( TAG, "Key timing (REG27)=0x%02X: long press %s, power off %s, power on %s", value,
                   irqLevel[( value >> 4 ) & 0x03], offLevel[( value >> 2 ) & 0x03], onLevel[value & 0x03] );
     }
+    if ( readRegister( REG_COMMON_CONFIG, value ) == ESP_OK ) {
+        // Bit5 discharges a rail when it is switched off; it keeps DSI_PWR_EN low with ALDO2 off.
+        ESP_LOGI( TAG, "Common config (REG10)=0x%02X: off-discharge %s", value, ( value & 0x20 ) ? "on" : "off" );
+    }
     if ( readRegister( REG_ADC_ENABLE, value ) == ESP_OK ) {
         ESP_LOGI( TAG, "ADC enable (REG30)=0x%02X", value );
     }
