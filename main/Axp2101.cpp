@@ -263,6 +263,14 @@ esp_err_t Axp2101::setMeasurement( bool on )
     return err;
 }
 
+esp_err_t Axp2101::setDcdc1Voltage( int millivolts )
+{
+    if ( millivolts < 1500 || millivolts > 3400 ) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    return writeRegister( REG_DCDC1_VOLTAGE, static_cast<uint8_t>( ( millivolts - 1500 ) / 100 ) );
+}
+
 esp_err_t Axp2101::limitIrqs()
 {
     // Status bits are write-1-to-clear (datasheet REG48-4A).

@@ -44,6 +44,9 @@ public:
     // Battery test: switches every ADC channel (REG30) and the fuel gauge (REG18 bit3) on or off.
     esp_err_t setMeasurement( bool on );
 
+    // Battery test: sets the DCDC1 (VCC3V3) output voltage, 1500-3400 mV in 100 mV steps (REG82).
+    esp_err_t setDcdc1Voltage( int millivolts );
+
     // Software power-off (REG10 bit0): every rail except RTCLDO goes off. Returns only on failure.
     esp_err_t powerOff();
 

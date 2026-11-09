@@ -1,0 +1,2 @@
+# Battery run Q, on top of sdkconfig.battery: DCDC1 (VCC3V3) at 3.0 V in deep sleep.
+CONFIG_WATCH_SLEEP_DCDC1_MV=3000

@@ -77,6 +77,9 @@ to VCC-RTC; official example uses `CONFIG_PMU_INTERRUPT_PIN=-1`), PCF85063 CLKOU
 | RTCLDO | VCC-RTC | PCF85063 VDD, AXP IRQ pull-up | RTC keeps time while a battery is present, even with the system off |
 | others | — | no load found | – |
 
+- The LDOs are fed from VSYS (ALDOIN "must be VSYS" [AXP DS]), not from DCDC1, so the DCDC1
+  voltage does not change the current of the ALDO1 loads.
+
 - AXP PWROK → ESP32 CHIP_PU. PWR key → AXP PWRON (short/long press) and GPIO10 [SCH].
 - Battery: MX1.25 connector; 10k thermistor RP2 on AXP TS [SCH].
 
@@ -393,6 +396,7 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
 | N (2026-11-04) | H + panel QSPI lines held (CS high, SCLK and SIO0–3 low), 5 min samples | 2.9 h fitted (3.9 h total), 4.10 → 4.08 V | −7.0 ± 0.1 mV/h without dips (H over the same 1–4 h: −7.1 ± 0.2) | −0.76 %/h (H: −0.77) | **same as H** |
 | O (2026-11-04) | H + AXP2101 ADCs (REG30 = 0) and fuel gauge (REG18 bit3) off in deep sleep, on again at each wake, 5 min samples | 3.9 h, 4.11 → 4.07 V | ≈ −7 mV/h between the steps of the stale readings (see below) | none (gauge off, 100 % throughout) | **same as H within ≈ 0.5 mA** |
 | P (2026-11-08) | H with the display FPC unplugged (panel, touch and panel supply removed), 5 min samples | 2.8 h fitted (3.8 h total), 4.11 → 4.06 V | −7.0 ± 0.2 mV/h without dips (H over the same hours: −7.1 ± 0.2, N: −7.0 ± 0.1) | 95 → 93 % in 2.75 h (H, N: 96 → 94 %) | **same as H: the floor is not in the panel module** |
+| Q (2026-11-09) | H with DCDC1 (VCC3V3) at 3.0 V in deep sleep, 3.3 V again at each wake (`sdkconfig.dcdc1`), 5 min samples | 2.8 h fitted (3.9 h total), 4.11 → 4.08 V | −6.2 ± 0.1 mV/h without dips (H, N, P over the same hours: −7.0 to −7.1) | 96 → 95 % in 2.9 h | **≈ 11 % lower: most of the floor is a load on VCC3V3** |
 
 - About 8.8 mV per gauge percent in the 80–98 % range.
 - In both runs the slopes of the first and second half agree: the drain is steady, not a
@@ -498,6 +502,14 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
   supply and the lines to them) is not the remaining floor; it lies on the main board. A first
   attempt did not start: after the 6 s power-off the PWR press did not switch the watch on, and
   without the panel nothing showed it; the next USB insertion powered it on (REG20 `0x04`).
+- **Run Q**: with DCDC1 lowered from 3.3 V to 3.0 V in deep sleep the VBAT slope fell by
+  0.8 ± 0.25 mV/h (about 11 ± 4 %, about 0.3 mA). The AXP2101's own current and the ALDO1 loads
+  (fed from VSYS) do not depend on the DCDC1 voltage; a load on VCC3V3 draws 9 % less battery
+  current if it is a constant current and 17 % less if it is resistive (DCDC1 efficiency taken
+  as unchanged). So between about 60 % (resistive) and all (constant current) of the ~2.9 mA
+  floor is drawn on VCC3V3: the ESP32 and the main-board parts on DCDC1, not the AXP2101 on
+  state or the codecs' analog side on ALDO1. The voltage itself was not read back; the REG82
+  write returned OK at each sleep entry and the 54 timer wakes ran normally at 3.0 V.
 - Screening resolution: with 5 min samples and the single-sample dips removed (readings more
   than 10 mV below the fit), a 3 h window fits VBAT to about ±0.1–0.2 mV/h (about ±0.1 mA),
   provided the run starts near full charge and runs are compared over the same hours.
@@ -521,10 +533,11 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
 6. Why does ES8311 0x0D = `0xF8` (PDN_VREF cleared) raise the sleep drain by about 30 mA
    (runs I to L), against the datasheet wording?
 7. Which on-state load draws the remaining ~2.9 mA in deep sleep (run H; about 1 mA of the
-   ~4 mA of runs A, B and D came from idle pads)? It is on the main board (run P).
-   Candidates: the AXP2101 on state and DCDC1 at light load, the ESP32 sleep state, and the
-   reset-state draw of the parts on ALDO1 (ES7210, ES8311 analog; run M only showed that the
-   tested codec writes save nothing). Ruled out: the panel module (run P), a card in the SD
+   ~4 mA of runs A, B and D came from idle pads)? It is on the main board (run P), and most or
+   all of it is drawn on VCC3V3 (run Q). Candidates: the ESP32 sleep state (domains, clocks or
+   the USB PHY kept on), the ES8311 digital supply, the QMI8658 and the KEYS pull-up R11
+   (about 0.33 mA, section 1). Unlikely as the main part: the AXP2101 on state and the parts on
+   ALDO1 (run Q). Ruled out: the panel module (run P), a card in the SD
    slot (none is fitted), the panel QSPI lines (run N), the panel's high-voltage supply running
    with ALDO2 off (REG10 off-discharge on, so DSI_PWR_EN is low), the AXP2101 ADCs and gauge
    (run O), the TS current source (off at power-on, REG50).

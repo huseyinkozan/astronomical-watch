@@ -134,6 +134,10 @@ static void sleepNow()
 #if CONFIG_WATCH_AXP_MEASURE_OFF_IN_SLEEP
     s_pmu.setMeasurement( false );
 #endif
+#if CONFIG_WATCH_SLEEP_DCDC1_MV > 0
+    const esp_err_t dcdc1Err = s_pmu.setDcdc1Voltage( CONFIG_WATCH_SLEEP_DCDC1_MV );
+    ESP_LOGI( TAG, "DCDC1 %d mV for deep sleep: %s", CONFIG_WATCH_SLEEP_DCDC1_MV, esp_err_to_name( dcdc1Err ) );
+#endif
     s_peripherals.holdSleepLines();
     s_deepSleep.enter();
 }
@@ -208,6 +212,12 @@ extern "C" void app_main( void )
     if ( !pmuReady ) {
         ESP_LOGE( TAG, "AXP2101 init failed" );
     }
+#if CONFIG_WATCH_SLEEP_DCDC1_MV > 0
+    // 3300 mV is the power-on value of DCDC1 on this board (docs/hardware.md).
+    if ( pmuReady ) {
+        s_pmu.setDcdc1Voltage( 3300 );
+    }
+#endif
 #if CONFIG_WATCH_AXP_MEASURE_OFF_IN_SLEEP
     // The ADC needs time for a fresh VBAT result; its conversion time is not in the datasheet.
     if ( pmuReady ) {

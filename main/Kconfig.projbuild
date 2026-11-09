@@ -85,6 +85,19 @@ menu "Astronomical Watch"
             drain the AXP2101 measurement circuits take. The gauge percentage
             is not valid in this run.
 
+    config WATCH_SLEEP_DCDC1_MV
+        int "DCDC1 (VCC3V3) voltage in deep sleep, mV (battery test, 0 = unchanged)"
+        default 0
+        range 0 3400
+        depends on WATCH_BATTERY_LOG
+        help
+            Battery run Q: DCDC1 is set to this voltage before deep sleep and back
+            to 3300 mV after each wake. A load on VCC3V3 draws less at a lower
+            voltage; the AXP2101's own current and the ALDO1 loads (fed from VSYS)
+            do not, so the change in the sleep drain shows which side the floor
+            is on. 3000 mV is the ESP32-S3
+            minimum supply voltage.
+
     config WATCH_BATTERY_LOG
         bool "Battery drain log"
         default n
