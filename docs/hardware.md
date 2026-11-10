@@ -403,6 +403,7 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
 | P (2026-11-08) | H with the display FPC unplugged (panel, touch and panel supply removed), 5 min samples | 2.8 h fitted (3.8 h total), 4.11 → 4.06 V | −7.0 ± 0.2 mV/h without dips (H over the same hours: −7.1 ± 0.2, N: −7.0 ± 0.1) | 95 → 93 % in 2.75 h (H, N: 96 → 94 %) | **same as H: the floor is not in the panel module** |
 | Q (2026-11-09) | H with DCDC1 (VCC3V3) at 3.0 V in deep sleep, 3.3 V again at each wake (`sdkconfig.dcdc1`), 5 min samples | 2.8 h fitted (3.9 h total), 4.11 → 4.08 V | −6.2 ± 0.1 mV/h without dips (H, N, P over the same hours: −7.0 to −7.1) | 96 → 95 % in 2.9 h | **≈ 11 % lower (≈ 0.14 mA): most of the floor is a load on VCC3V3** |
 | R (2026-11-09/10) | H + calibration load: GPIO1, 2, 3, 17 (10k pull-ups to VCC3V3, no SD card) held low in deep sleep (`sdkconfig.sdlow`), 5 min samples | 2.8 h fitted (3.8 h total), 4.11 → 4.06 V | −14.0 ± 0.4 mV/h without dips (P over the same hours: −7.0 ± 0.2) | 96 → 92 % in 2.8 h | **+1.2 mA known load → 5.8 mV/h per mA; floor ≈ 1.2 mA** |
+| S (2026-11-10) | H + USB pads GPIO19/20 isolated in deep sleep, given back to USB at each wake (`sdkconfig.usbiso`), 5 min samples | 2.8 h fitted (3.8 h total), 4.10 → 4.08 V | −6.9 ± 0.1 mV/h without dips (N, P over the same hours: −7.0, −7.1) | 96 → 93 % in 2.8 h | **same as H: floating USB pads are not the floor** |
 
 - mA figures in the notes below that were written before run R assume a 400 mAh cell;
   multiply them by about 0.38 (run R).
@@ -530,9 +531,17 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
   about 0.3 mA is R11; the rest, about 0.9 mA, is still unexplained. The LilyGo T-Watch S3
   (ESP32-S3R8 and AXP2101) is specified at 0.46–0.53 mA in deep sleep. A full discharge would
   measure the real capacity; it is not needed for comparing runs.
-- Screening resolution: with 5 min samples and the single-sample dips removed (readings more
-  than 10 mV below the fit), a 3 h window fits VBAT to about ±0.1–0.2 mV/h (about ±0.03 mA),
-  provided the run starts near full charge and runs are compared over the same hours.
+- **Run S**: the USB pads GPIO19/20 have no pull on the board and are RTC pads, which ESP-IDF
+  leaves alone in deep sleep, so with USB unplugged they float at the USB PHY inputs. Isolating
+  them (`rtc_gpio_isolate`) before deep sleep made no difference against runs N and P (within
+  about 0.2 mV/h, about 0.03 mA). Giving them back at the start of each wake (`rtc_gpio_deinit`)
+  restored the USB console on the next PWR wake; the log lines printed after the isolation
+  ("Entering deep sleep") are lost.
+- Screening resolution: with 5 min samples and the dips removed (readings more than 3 mV below
+  the fit, refitted until none is left), a 3 h window fits VBAT to about ±0.1–0.2 mV/h (about
+  ±0.03 mA), provided the run starts near full charge and runs are compared over the same hours.
+  Run S had several dips of 5–8 mV; the earlier 10 mV cut-off kept them and gave −6.1 ±
+  0.4 mV/h, while runs N, P, Q and R give the same slopes with either cut-off.
 - VBAT readings scatter by up to ~20 mV between neighbouring samples (single reading right after
   boot); use fits over many samples, not single values.
 
@@ -566,7 +575,7 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
    ALDO1 (run Q). Ruled out: the panel module (run P), a card in the SD
    slot (none is fitted), the panel QSPI lines (run N), the panel's high-voltage supply running
    with ALDO2 off (REG10 off-discharge on, so DSI_PWR_EN is low), the AXP2101 ADCs and gauge
-   (run O), the TS current source (off at power-on, REG50).
+   (run O), the TS current source (off at power-on, REG50), the floating USB pads (run S).
 
 ## 6. Sources
 

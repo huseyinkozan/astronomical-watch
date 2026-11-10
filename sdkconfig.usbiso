@@ -1,0 +1,2 @@
+# Battery run S, on top of sdkconfig.battery: USB pads (GPIO19/20) isolated in deep sleep.
+CONFIG_WATCH_SLEEP_ISOLATE_USB_PADS=y

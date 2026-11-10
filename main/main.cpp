@@ -11,6 +11,7 @@
 
 #include "bsp/esp32_s3_touch_amoled_2_06.h"
 #include "driver/gpio.h"
+#include "driver/rtc_io.h"
 #include "driver/usb_serial_jtag.h"
 #include "driver/usb_serial_jtag_vfs.h"
 #include "esp_log.h"
@@ -168,8 +169,31 @@ static void setSdLinesLow( bool low )
 }
 #endif
 
+#if CONFIG_WATCH_SLEEP_ISOLATE_USB_PADS
+// Battery run S: USB D- and D+ have no pull on the board and float while USB is unplugged.
+static const gpio_num_t s_usbPads[2] = { GPIO_NUM_19, GPIO_NUM_20 };
+
+static void isolateUsbPads( bool isolate )
+{
+    for ( int i = 0; i < 2; ++i ) {
+        if ( isolate ) {
+            rtc_gpio_isolate( s_usbPads[i] );
+        } else {
+            // Back to the digital pad, where the USB-Serial-JTAG PHY drives it again.
+            rtc_gpio_hold_dis( s_usbPads[i] );
+            rtc_gpio_deinit( s_usbPads[i] );
+        }
+    }
+}
+#endif
+
 static void sleepNow()
 {
+#if CONFIG_WATCH_SLEEP_ISOLATE_USB_PADS
+    ESP_LOGI( TAG, "USB pads isolated for deep sleep" );
+    fflush( stdout );
+    isolateUsbPads( true );
+#endif
 #if CONFIG_WATCH_SLEEP_SD_LINES_LOW
     setSdLinesLow( true );
     ESP_LOGI( TAG, "SD lines held low for deep sleep (calibration load)" );
@@ -243,6 +267,10 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
 
 extern "C" void app_main( void )
 {
+#if CONFIG_WATCH_SLEEP_ISOLATE_USB_PADS
+    // Before onBoot, which waits for the USB host.
+    isolateUsbPads( false );
+#endif
     [[maybe_unused]] const DeepSleep::Event wake = s_deepSleep.onBoot();
 #if CONFIG_WATCH_DEV_LOGGING
     if ( wake != DeepSleep::Event::WakeTimer ) {

@@ -109,6 +109,16 @@ menu "Astronomical Watch"
             converts the slopes of the other runs into current without relying
             on the cell capacity.
 
+    config WATCH_SLEEP_ISOLATE_USB_PADS
+        bool "Isolate the USB pads in deep sleep (battery test)"
+        default n
+        depends on WATCH_BATTERY_LOG
+        help
+            Battery run S: GPIO19 and GPIO20 (USB D- and D+) have no pull on the
+            board and float while USB is unplugged; ESP-IDF leaves these RTC pads
+            as they are in deep sleep. They are isolated before deep sleep and
+            given back to USB at the start of every wake.
+
     config WATCH_BATTERY_LOG
         bool "Battery drain log"
         default n
