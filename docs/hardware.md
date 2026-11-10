@@ -597,11 +597,18 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
    with ALDO2 off (REG10 off-discharge on, so DSI_PWR_EN is low), the AXP2101 ADCs and gauge
    (run O), the TS current source (off at power-on, REG50), the floating USB pads (run S), the
    AXP2101 backup charger (off, REG18 = 0x0A).
+8. Does the AXP2101 charge configuration (REG61–64: precharge, charge current, termination
+   current, target voltage) stop charging early and limit the usable capacity of the cell
+   (about 100–150 mAh against the 400 mAh label; issue #6)? Not read on this board yet.
 
 ## 6. Sources
 
-- Schematic: Waveshare repository, `Schematic/ESP32-S3-Touch-AMOLED-2.06-Schematic-V1.0.pdf`
-  (https://github.com/waveshareteam/ESP32-S3-Touch-AMOLED-2.06)
+- Schematic: Waveshare repository, `hardware/schematic/ESP32-S3-Touch-AMOLED-2.06-Schematic-V1.0.pdf`
+  (moved from `Schematic/` in October 2026, same file;
+  https://github.com/waveshareteam/ESP32-S3-Touch-AMOLED-2.06). As of 2026-11-10 neither the
+  repository (examples, factory firmware source in `examples/factory`) nor the BSP
+  (`waveshare/esp32_s3_touch_amoled_2_06` 2.0.0, the version used here) has deep-sleep or
+  low-power code.
 - Waveshare wiki: https://www.waveshare.com/wiki/ESP32-S3-Touch-AMOLED-2.06
 - QMI8658A datasheet Rev A: https://files.waveshare.com/upload/5/5f/QMI8658A_Datasheet_Rev_A.pdf
 - QMI8658C datasheet Rev 0.6: Waveshare wiki, Resources section
@@ -617,7 +624,17 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
 - XPowersLib (AXP2101): https://github.com/lewisxhe/XPowersLib
 - Rust watch firmwares for this board (reference only): waveshare-watch-rs (infinition) and its
   fork by bourumir-wyngs
-- Board issue #6 (deep sleep about 2.1 mA measured by a user; cell measured at about 100 mAh by
-  two users): https://github.com/waveshareteam/ESP32-S3-Touch-AMOLED-2.06/issues/6
+- Board issue #6 (deep sleep about 2.1 mA measured by a user with an INA228, firmware state not
+  given; cell measured at about 100 mAh by two users from the charge energy, under 400 mWh):
+  https://github.com/waveshareteam/ESP32-S3-Touch-AMOLED-2.06/issues/6. A Waveshare collaborator
+  promised a low-power example in March 2026 without a date. One user claims that a charge
+  termination current of 25–50 mA lets the cell charge fully; unverified (question 8). The
+  thread also corrects GPIO13 to the panel TE line (not a panel enable) and names ALDO2 as the
+  panel supply switch, as in section 1.
+- Board issues #7 (PCF85063 INT reaches only GPIO39), #9 (touch cannot wake from deep sleep) and
+  #30 (AXP2101 IRQ not connected) agree with the schematic reading in this file; #17 (AXP2101
+  IRQ on GPIO35) is disputed by Waveshare and contradicts the schematic.
+- Community firmwares for this board (S3Watch and OLEDS3Watch by joaquimorg, bind by xunicatt,
+  waveshare-watch-rs) publish no sleep current (checked 2026-11-10).
 - LilyGo T-Watch S3 (ESP32-S3R8 + AXP2101), deep sleep 0.46–0.53 mA, `LilyGoWatch2022::sleep()`:
   https://github.com/Xinyuan-LilyGO/LilyGoLib (`src/LilyGoWatchS3.cpp`)
