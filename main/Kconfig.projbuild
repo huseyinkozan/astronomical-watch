@@ -95,8 +95,19 @@ menu "Astronomical Watch"
             to 3300 mV after each wake. A load on VCC3V3 draws less at a lower
             voltage; the AXP2101's own current and the ALDO1 loads (fed from VSYS)
             do not, so the change in the sleep drain shows which side the floor
-            is on. 3000 mV is the ESP32-S3
-            minimum supply voltage.
+            is on. 3000 mV is the ESP32-S3 minimum supply voltage.
+
+    config WATCH_SLEEP_SD_LINES_LOW
+        bool "Hold the SD lines low in deep sleep (battery calibration load)"
+        default n
+        depends on WATCH_BATTERY_LOG
+        help
+            Battery run R: GPIO1, 2, 3 and 17 are driven low and held through
+            deep sleep; a PWR key wake releases them. Each has a 10k pull-up to
+            VCC3V3 and no card is fitted, so this adds a known load of about
+            4 x 0.33 mA = 1.32 mA on VCC3V3. The change in the VBAT slope
+            converts the slopes of the other runs into current without relying
+            on the cell capacity.
 
     config WATCH_BATTERY_LOG
         bool "Battery drain log"

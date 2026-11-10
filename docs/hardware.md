@@ -65,12 +65,13 @@ to VCC-RTC; official example uses `CONFIG_PMU_INTERRUPT_PIN=-1`), PCF85063 CLKOU
   So the parts match the schematic and the datasheets used, except that both codecs are a
   later chip version than their datasheets (ES8311 rev 10.0, ES7210 rev 21.0), which may bear on
   the ES8311 0x0D result (section 4). The cell is labelled
-  `402728 3.7V 400mAh` (4.0 × 27 × 28 mm, a size that fits 400 mAh).
+  `402728 3.7V 400mAh` (4.0 × 27 × 28 mm, a size that fits 400 mAh), but between 4.11 and 4.05 V
+  it behaves like a cell of about 150 mAh (battery run R, section 4).
 - AXP2101 PMIC rails [SCH]:
 
 | Rail | Net | Loads | Rule |
 |---|---|---|---|
-| DCDC1 | VCC3V3 | ESP32, flash, QMI8658, AMOLED VCI/VDDIO, touch, SD card, ES8311 digital, I2C pull-ups | always on |
+| DCDC1 | VCC3V3 | ESP32 (the flash and the in-package PSRAM through its VDD_SPI, which ESP-IDF switches off in deep sleep), QMI8658, AMOLED VCI/VDDIO, touch, SD card, ES8311 digital, I2C pull-ups | always on |
 | ALDO1 | A3V3 | ES8311 AVDD and **all of ES7210** (which sits on the shared I2C bus) | **keep on**: an unpowered ES7210 hangs the I2C bus |
 | ALDO2 | — | pull-up of DSI_PWR_EN (AMOLED panel power enable) | **on while the display shows anything**: with ALDO2 off the image goes dark at once [HW] |
 | ALDO3 | — | vibration motor | off unless haptics |
@@ -373,31 +374,38 @@ guided tests `m2` (until commit `dd54aec`) and `off` after a full power cycle [H
 
 Method: the watch sleeps on battery only and wakes every 15 min to log VBAT and the AXP2101 gauge
 (`CONFIG_WATCH_BATTERY_LOG`). Slopes are least-squares fits over the samples after the first hour
-(charger relaxation excluded). Current = gauge slope × 400 mAh (Waveshare's recommended cell; the
-capacity of the fitted cell is not verified). The AXP2101 gauge has no current sense, so its
+(charger relaxation excluded). Run R calibrated the slope with a known load: **about 5.8 mV/h of VBAT per 1 mA** of
+battery current (±12 %), valid near full charge (4.05–4.11 V). The current column uses that
+factor; runs that went below about 4.0 V (C, E, F, I, K, L) are rough there, since the mV-per-mAh
+relation changes with the state of charge. Before run R the column was gauge slope × 400 mAh,
+shown in brackets; it overstated every current by about 2.6 times. Durations from a slope (hours
+of always-on per charge) did not depend on the capacity assumption and stay valid. The AXP2101 gauge has no current sense, so its
 percentage is a model of the voltage, not an independent measurement. Each logging wake costs
 about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
 
 | Run | Firmware state | Duration | VBAT slope | Gauge slope | Estimated average current |
 |---|---|---|---|---|---|
-| A (2026-10-29/30) | peripherals at power-on defaults (`sdkconfig.noquiesce`) | 9.5 h fitted (10.7 h total), 4.10 → 4.01 V | −8.8 ± 0.6 mV/h | −1.00 ± 0.02 %/h | **≈ 4 mA** |
-| B (2026-10-30) | sleep preparation on (section 4) | 9.5 h fitted (10.5 h total), 4.04 → 3.94 V | −8.8 ± 0.5 mV/h | −0.96 ± 0.02 %/h | **≈ 3.9 mA** |
-| C (2026-10-31) | B + codec power-down + AXP IRQ step | 4.0 h fitted (5.2 h total), 4.10 → 3.71 V | −69 ± 2 mV/h | −9.4 ± 0.1 %/h | **≈ 35–40 mA** |
+| A (2026-10-29/30) | peripherals at power-on defaults (`sdkconfig.noquiesce`) | 9.5 h fitted (10.7 h total), 4.10 → 4.01 V | −8.8 ± 0.6 mV/h | −1.00 ± 0.02 %/h | **≈ 1.5 mA** (≈ 4) |
+| B (2026-10-30) | sleep preparation on (section 4) | 9.5 h fitted (10.5 h total), 4.04 → 3.94 V | −8.8 ± 0.5 mV/h | −0.96 ± 0.02 %/h | **≈ 1.5 mA** (≈ 3.9) |
+| C (2026-10-31) | B + codec power-down + AXP IRQ step | 4.0 h fitted (5.2 h total), 4.10 → 3.71 V | −69 ± 2 mV/h | −9.4 ± 0.1 %/h | **≈ 12 mA**, rough (≈ 35–40) |
 | D (2026-10-31) | B + AXP IRQ step (codec step skipped) | 2.0 h fitted (3.1 h total), 3.92 → 3.89 V | −11 ± 5 mV/h | unusable (see below) | **same level as A/B** |
-| E (2026-10-31/11-01) | always-on face, brightness 10 %, idle mode off (`sdkconfig.aodlog`) | 10.8 h fitted (11.8 h total), 4.06 → 3.74 V | −28.8 mV/h | −3.96 %/h | **≈ 13–16 mA** |
-| F (2026-11-01/02) | E with idle mode on (39h) | 10.5 h fitted (18.9 h total), 4.09 → 3.87 V | −18.5 mV/h | −2.33 %/h | **≈ 8.5–9.5 mA** |
+| E (2026-10-31/11-01) | always-on face, brightness 10 %, idle mode off (`sdkconfig.aodlog`) | 10.8 h fitted (11.8 h total), 4.06 → 3.74 V | −28.8 mV/h | −3.96 %/h | **≈ 5 mA**, rough (≈ 13–16) |
+| F (2026-11-01/02) | E with idle mode on (39h) | 10.5 h fitted (18.9 h total), 4.09 → 3.87 V | −18.5 mV/h | −2.33 %/h | **≈ 3.2 mA**, rough (≈ 8.5–9.5) |
 | G (2026-11-02) | B + idle pads held in every second hour (see below) | 10.75 h fitted (11.75 h total), 4.09 → 4.01 V | −6.7 mV/h overall | −0.79 %/h overall | held vs. free not resolved |
-| H (2026-11-02/03) | B + idle pads held through every sleep | 10.5 h fitted (11.5 h total), 4.11 → 4.03 V | −6.2 ± 0.4 mV/h | −0.71 ± 0.02 %/h | **≈ 2.8–2.9 mA** |
-| I (2026-11-03) | H + codec power-down of run C, 5 min samples | 2.9 h fitted (3.9 h total), 4.01 → 3.78 V | −68 ± 2 mV/h | −9.0 ± 0.1 %/h | **≈ 30–36 mA** |
+| H (2026-11-02/03) | B + idle pads held through every sleep | 10.5 h fitted (11.5 h total), 4.11 → 4.03 V | −6.2 ± 0.4 mV/h | −0.71 ± 0.02 %/h | **≈ 1.1 mA**; 1.2 mA over 1–4 h (≈ 2.8–2.9) |
+| I (2026-11-03) | H + codec power-down of run C, 5 min samples | 2.9 h fitted (3.9 h total), 4.01 → 3.78 V | −68 ± 2 mV/h | −9.0 ± 0.1 %/h | **≈ 12 mA**, rough (≈ 30–36) |
 | J (2026-11-03) | H + ES7210 0x06 = `0x07` only (pull-ups, TDMIN pull-down, DLL off) | 1.2 h fitted (1.5 h total), 3.85 → 3.84 V | −7.2 ± 0.4 mV/h without two dips | unusable (re-learning after the power cycle) | **floor level** |
-| K (2026-11-03) | H + the four ES8311 writes only | 1.2 h fitted (1.5 h total), 3.87 → 3.80 V | −68 ± 5 mV/h | −5 %/h, still re-learning | **≈ 30 mA, as run I** |
-| L (2026-11-03) | H + ES8311 0x0D = `0xF8` only (PDN_VREF cleared) | 1.2 h fitted (1.5 h total), 3.81 → 3.73 V | −68 ± 5 mV/h | −10 %/h | **≈ 30 mA, as run I** |
-| M (2026-11-03/04) | H + every codec write except ES8311 0x0D | 10.75 h fitted (11.75 h total), 4.09 → 4.01 V | −6.7 ± 0.4 mV/h | −0.75 ± 0.01 %/h | **≈ 3 mA, as run H** |
+| K (2026-11-03) | H + the four ES8311 writes only | 1.2 h fitted (1.5 h total), 3.87 → 3.80 V | −68 ± 5 mV/h | −5 %/h, still re-learning | **as run I** |
+| L (2026-11-03) | H + ES8311 0x0D = `0xF8` only (PDN_VREF cleared) | 1.2 h fitted (1.5 h total), 3.81 → 3.73 V | −68 ± 5 mV/h | −10 %/h | **as run I** |
+| M (2026-11-03/04) | H + every codec write except ES8311 0x0D | 10.75 h fitted (11.75 h total), 4.09 → 4.01 V | −6.7 ± 0.4 mV/h | −0.75 ± 0.01 %/h | **≈ 1.15 mA, as run H** (≈ 3) |
 | N (2026-11-04) | H + panel QSPI lines held (CS high, SCLK and SIO0–3 low), 5 min samples | 2.9 h fitted (3.9 h total), 4.10 → 4.08 V | −7.0 ± 0.1 mV/h without dips (H over the same 1–4 h: −7.1 ± 0.2) | −0.76 %/h (H: −0.77) | **same as H** |
-| O (2026-11-04) | H + AXP2101 ADCs (REG30 = 0) and fuel gauge (REG18 bit3) off in deep sleep, on again at each wake, 5 min samples | 3.9 h, 4.11 → 4.07 V | ≈ −7 mV/h between the steps of the stale readings (see below) | none (gauge off, 100 % throughout) | **same as H within ≈ 0.5 mA** |
+| O (2026-11-04) | H + AXP2101 ADCs (REG30 = 0) and fuel gauge (REG18 bit3) off in deep sleep, on again at each wake, 5 min samples | 3.9 h, 4.11 → 4.07 V | ≈ −7 mV/h between the steps of the stale readings (see below) | none (gauge off, 100 % throughout) | **same as H within ≈ 0.2 mA** (≈ 0.5) |
 | P (2026-11-08) | H with the display FPC unplugged (panel, touch and panel supply removed), 5 min samples | 2.8 h fitted (3.8 h total), 4.11 → 4.06 V | −7.0 ± 0.2 mV/h without dips (H over the same hours: −7.1 ± 0.2, N: −7.0 ± 0.1) | 95 → 93 % in 2.75 h (H, N: 96 → 94 %) | **same as H: the floor is not in the panel module** |
-| Q (2026-11-09) | H with DCDC1 (VCC3V3) at 3.0 V in deep sleep, 3.3 V again at each wake (`sdkconfig.dcdc1`), 5 min samples | 2.8 h fitted (3.9 h total), 4.11 → 4.08 V | −6.2 ± 0.1 mV/h without dips (H, N, P over the same hours: −7.0 to −7.1) | 96 → 95 % in 2.9 h | **≈ 11 % lower: most of the floor is a load on VCC3V3** |
+| Q (2026-11-09) | H with DCDC1 (VCC3V3) at 3.0 V in deep sleep, 3.3 V again at each wake (`sdkconfig.dcdc1`), 5 min samples | 2.8 h fitted (3.9 h total), 4.11 → 4.08 V | −6.2 ± 0.1 mV/h without dips (H, N, P over the same hours: −7.0 to −7.1) | 96 → 95 % in 2.9 h | **≈ 11 % lower (≈ 0.14 mA): most of the floor is a load on VCC3V3** |
+| R (2026-11-09/10) | H + calibration load: GPIO1, 2, 3, 17 (10k pull-ups to VCC3V3, no SD card) held low in deep sleep (`sdkconfig.sdlow`), 5 min samples | 2.8 h fitted (3.8 h total), 4.11 → 4.06 V | −14.0 ± 0.4 mV/h without dips (P over the same hours: −7.0 ± 0.2) | 96 → 92 % in 2.8 h | **+1.2 mA known load → 5.8 mV/h per mA; floor ≈ 1.2 mA** |
 
+- mA figures in the notes below that were written before run R assume a 400 mAh cell;
+  multiply them by about 0.38 (run R).
 - About 8.8 mV per gauge percent in the 80–98 % range.
 - In both runs the slopes of the first and second half agree: the drain is steady, not a
   relaxation tail after charging.
@@ -503,15 +511,27 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
   attempt did not start: after the 6 s power-off the PWR press did not switch the watch on, and
   without the panel nothing showed it; the next USB insertion powered it on (REG20 `0x04`).
 - **Run Q**: with DCDC1 lowered from 3.3 V to 3.0 V in deep sleep the VBAT slope fell by
-  0.8 ± 0.25 mV/h (about 11 ± 4 %, about 0.3 mA). The AXP2101's own current and the ALDO1 loads
+  0.8 ± 0.25 mV/h (about 11 ± 4 %, about 0.14 mA with the factor of run R). The AXP2101's own current and the ALDO1 loads
   (fed from VSYS) do not depend on the DCDC1 voltage; a load on VCC3V3 draws 9 % less battery
   current if it is a constant current and 17 % less if it is resistive (DCDC1 efficiency taken
-  as unchanged). So between about 60 % (resistive) and all (constant current) of the ~2.9 mA
+  as unchanged). So between about 60 % (resistive) and all (constant current) of the ~1.2 mA
   floor is drawn on VCC3V3: the ESP32 and the main-board parts on DCDC1, not the AXP2101 on
   state or the codecs' analog side on ALDO1. The voltage itself was not read back; the REG82
   write returned OK at each sleep entry and the 54 timer wakes ran normally at 3.0 V.
+- **Run R** (calibration): the four SD lines, each with a 10k pull-up to VCC3V3 and no card in
+  the slot, were driven low and held through deep sleep (the PWR wake next morning read them
+  low, so the hold lasted). That adds 4 × 3.3 V / 10 kΩ = 1.32 mA on VCC3V3, about 1.2 ± 0.1 mA
+  from the battery (DCDC1 efficiency taken as 85–92 %; the resistor tolerance is not known).
+  VBAT fell 7.0 ± 0.45 mV/h faster than in run P over the same hours, so **1 mA ≈ 5.8 mV/h**
+  (±12 %) near full charge. With 8.8 mV per gauge percent this is about 1.5 mAh per percent,
+  i.e. the cell behaves like about 150 mAh, close to the ~100 mAh two users measured for the cell
+  sold with this board (Waveshare issue #6); the gauge agrees (≈ 1.45 against ≈ 0.73 %/h, about
+  170 mAh). The deep-sleep floor of runs H, N and P is therefore **about 1.2 mA**, of which
+  about 0.3 mA is R11; the rest, about 0.9 mA, is still unexplained. The LilyGo T-Watch S3
+  (ESP32-S3R8 and AXP2101) is specified at 0.46–0.53 mA in deep sleep. A full discharge would
+  measure the real capacity; it is not needed for comparing runs.
 - Screening resolution: with 5 min samples and the single-sample dips removed (readings more
-  than 10 mV below the fit), a 3 h window fits VBAT to about ±0.1–0.2 mV/h (about ±0.1 mA),
+  than 10 mV below the fit), a 3 h window fits VBAT to about ±0.1–0.2 mV/h (about ±0.03 mA),
   provided the run starts near full charge and runs are compared over the same hours.
 - VBAT readings scatter by up to ~20 mV between neighbouring samples (single reading right after
   boot); use fits over many samples, not single values.
@@ -526,15 +546,21 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
 3. How much does one accelerometer sample change between motion checks on a desk and on the wrist
    (sets the no-motion threshold), and how long must the accelerometer run for one valid sample?
 4. Which other CO5300 settings lower the always-on panel current further (frame rate, partial
-   mode)? With idle mode it was about 9 mA, of which about 4 mA was the deep-sleep floor (runs
-   E and F, question 7); with the idle pads held the floor is about 2.9 mA (run H).
+   mode)? With idle mode it was about 3.2 mA, of which about 1.5 mA was the deep-sleep floor
+   (runs E and F, question 7, scaled with run R); with the idle pads held the floor is about
+   1.2 mA (run H).
 5. Does Offset `0x76` (−10, MODE 0) bring the RTC drift near 0 ppm? Check with the guided test
    `clock` over several hours and days, and on the wrist (temperature).
 6. Why does ES8311 0x0D = `0xF8` (PDN_VREF cleared) raise the sleep drain by about 30 mA
    (runs I to L), against the datasheet wording?
-7. Which on-state load draws the remaining ~2.9 mA in deep sleep (run H; about 1 mA of the
-   ~4 mA of runs A, B and D came from idle pads)? It is on the main board (run P), and most or
-   all of it is drawn on VCC3V3 (run Q). Candidates: the ESP32 sleep state (domains, clocks or
+7. Which on-state load draws the remaining ~1.2 mA in deep sleep (runs H and R; about 0.4 mA
+   of the ~1.5 mA of runs A, B and D came from idle pads; R11 takes about 0.3 mA)? It is on the main board (run P), and most or
+   all of it is drawn on VCC3V3 (run Q). The pull-up lines are not held low in sleep: right
+   after a PWR wake, before any driver touches them, GPIO0, 1, 2, 3, 14, 15 (I2C), 17, 38
+   (touch INT) and 39 (RTC INT) read high, GPIO18 and 46 low [HW, 2026-11-09]. ESP-IDF v6.1
+   powers down XTAL, RC_FAST, VDD_SPI, RTC_PERIPH and the digital domain in this configuration
+   (EXT1 does not keep RTC_PERIPH on) and leaves only the RTC pads (GPIO0–21) unmanaged
+   [ESP-IDF `sleep_modes.c`, `rtc_sleep.c`]. Candidates: the ESP32 sleep state (domains, clocks or
    the USB PHY kept on), the ES8311 digital supply, the QMI8658 and the KEYS pull-up R11
    (about 0.33 mA, section 1). Unlikely as the main part: the AXP2101 on state and the parts on
    ALDO1 (run Q). Ruled out: the panel module (run P), a card in the SD
@@ -561,3 +587,7 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
 - XPowersLib (AXP2101): https://github.com/lewisxhe/XPowersLib
 - Rust watch firmwares for this board (reference only): waveshare-watch-rs (infinition) and its
   fork by bourumir-wyngs
+- Board issue #6 (deep sleep about 2.1 mA measured by a user; cell measured at about 100 mAh by
+  two users): https://github.com/waveshareteam/ESP32-S3-Touch-AMOLED-2.06/issues/6
+- LilyGo T-Watch S3 (ESP32-S3R8 + AXP2101), deep sleep 0.46–0.53 mA, `LilyGoWatch2022::sleep()`:
+  https://github.com/Xinyuan-LilyGO/LilyGoLib (`src/LilyGoWatchS3.cpp`)

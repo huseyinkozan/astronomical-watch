@@ -55,7 +55,8 @@ idf.py -p /dev/ttyACM0 flash monitor
 
 - Bluetooth stays disabled. GPS is not used. Wi-Fi runs only for the setup portal: started by
   the user on the watch, on battery or USB power, for a limited time (a soft AP draws roughly
-  100–150 mA, so a 5 min setup costs about 2–3 % of the 400 mAh cell; an estimate).
+  100–150 mA, so a 5 min setup costs about 6–8 % of the cell, which is labelled 400 mAh but
+  behaves like about 150 mAh (docs/hardware.md, run R); an estimate).
 - The watch has three modes, and a variant of off while an alarm is pending:
   - **Active**: display on, touch and pages. The PWR key enters it from the other two modes. After
     the display timeout without interaction (default 10 s; user-selectable 5, 10, 20, 30, 60 s)

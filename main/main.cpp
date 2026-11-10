@@ -85,6 +85,26 @@ static void pollHostTime()
 }
 #endif
 
+// Deep-sleep floor check: a line that a chip holds low in sleep is still low right after the
+// wake. Read before the BSP configures the I2C pads. I2C, touch INT and RTC INT have pull-ups to
+// VCC3V3, so a low level there means current through the pull-up while sleeping.
+static void logPadLevels()
+{
+    // GPIO19/20 (USB) are left out: switching them to GPIO would drop the USB console.
+    const gpio_num_t pads[11] = { GPIO_NUM_0,  GPIO_NUM_1,  GPIO_NUM_2,  GPIO_NUM_3,  GPIO_NUM_14, GPIO_NUM_15,
+                                  GPIO_NUM_17, GPIO_NUM_18, GPIO_NUM_38, GPIO_NUM_39, GPIO_NUM_46 };
+    char text[160] = "";
+    int length = 0;
+    for ( int i = 0; i < 11; ++i ) {
+        gpio_config_t config = {};
+        config.pin_bit_mask = 1ULL << pads[i];
+        config.mode = GPIO_MODE_INPUT;
+        gpio_config( &config );
+        length += snprintf( text + length, sizeof( text ) - length, " %d=%d", pads[i], gpio_get_level( pads[i] ) );
+    }
+    ESP_LOGI( TAG, "Pad levels after wake:%s", text );
+}
+
 static void updateDisplay()
 {
     Rtc::DateTime time = {};
@@ -129,8 +149,31 @@ static void watchPowerKey( int windowMs )
     }
 }
 
+#if CONFIG_WATCH_SLEEP_SD_LINES_LOW
+// Battery run R: the SD lines have 10k pull-ups to VCC3V3 and no card is fitted.
+static const gpio_num_t s_sdLines[4] = { GPIO_NUM_1, GPIO_NUM_2, GPIO_NUM_3, GPIO_NUM_17 };
+
+static void setSdLinesLow( bool low )
+{
+    for ( int i = 0; i < 4; ++i ) {
+        if ( low ) {
+            gpio_set_level( s_sdLines[i], 0 );
+            gpio_set_direction( s_sdLines[i], GPIO_MODE_OUTPUT );
+            gpio_hold_en( s_sdLines[i] );
+        } else {
+            gpio_hold_dis( s_sdLines[i] );
+            gpio_reset_pin( s_sdLines[i] );
+        }
+    }
+}
+#endif
+
 static void sleepNow()
 {
+#if CONFIG_WATCH_SLEEP_SD_LINES_LOW
+    setSdLinesLow( true );
+    ESP_LOGI( TAG, "SD lines held low for deep sleep (calibration load)" );
+#endif
 #if CONFIG_WATCH_AXP_MEASURE_OFF_IN_SLEEP
     s_pmu.setMeasurement( false );
 #endif
@@ -201,6 +244,11 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
 extern "C" void app_main( void )
 {
     [[maybe_unused]] const DeepSleep::Event wake = s_deepSleep.onBoot();
+#if CONFIG_WATCH_DEV_LOGGING
+    if ( wake != DeepSleep::Event::WakeTimer ) {
+        logPadLevels();
+    }
+#endif
 
     gpio_config_t keyConfig = {};
     keyConfig.pin_bit_mask = 1ULL << s_powerKeyGpio;
@@ -244,6 +292,9 @@ extern "C" void app_main( void )
         sleepNow();
 #endif
     }
+#if CONFIG_WATCH_SLEEP_SD_LINES_LOW
+    setSdLinesLow( false );
+#endif
     // Active mode: the BSP takes over the panel pins and resets the panel and touch.
     s_alwaysOn.end();
     Panel::releasePins();

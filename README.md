@@ -74,17 +74,18 @@ itself in `archive/wom-validator/` (git tag `wom-validator`).
 Each step is built, verified on the board and documented before the next one starts.
 
 1. **M1** (done): PWR key wake from deep sleep, wake statistics kept across sleep.
-2. **M2** (done): unused peripherals in their lowest-power state, battery drain runs (about 4 mA
-   remained in deep sleep; holding the idle pads lowered it to about 2.9 mA, an estimate; the
-   search continues).
+2. **M2** (done): unused peripherals in their lowest-power state, battery drain runs (about 1.5 mA
+   remained in deep sleep; holding the idle pads lowered it to about 1.2 mA, an estimate
+   calibrated with a known load; the search continues).
 3. Off mode (done): software power-off through the AXP2101 and power-on with the PWR key; the
    battery charges while the watch is off.
 4. **M3** (done; crystal drift measurement running): RTC (PCF85063) time in UTC, set from the
    host, kept through off mode.
 5. **M4** (done): display basics (time, date and battery through LVGL; panel power on ALDO2).
 6. **M5** (done): always-on face with a minute-aligned wake; wake time 0.37 s per minute with
-   `CONFIG_BOOTLOADER_SKIP_VALIDATE_IN_DEEP_SLEEP`; about 9 mA in always-on with the panel's
-   idle mode (estimate from battery runs; about 45 h on a 400 mAh cell).
+   `CONFIG_BOOTLOADER_SKIP_VALIDATE_IN_DEEP_SLEEP`; about 3 mA in always-on with the panel's
+   idle mode (estimate from battery runs; about 45 h per charge of the supplied cell, which
+   behaves like about 150 mAh).
 7. **M6**: motion check at wide intervals.
 8. **M7**: active mode (touch, pages, display timeout).
 9. **M8**: settings in NVS and the settings page on the watch (setup button, password and IP

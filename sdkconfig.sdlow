@@ -1,0 +1,2 @@
+# Battery run R, on top of sdkconfig.battery: a known 1.32 mA load (SD pull-ups held low) in deep sleep.
+CONFIG_WATCH_SLEEP_SD_LINES_LOW=y
