@@ -71,7 +71,7 @@ to VCC-RTC; official example uses `CONFIG_PMU_INTERRUPT_PIN=-1`), PCF85063 CLKOU
 
 | Rail | Net | Loads | Rule |
 |---|---|---|---|
-| DCDC1 | VCC3V3 | ESP32 (the flash and the in-package PSRAM through its VDD_SPI, which ESP-IDF switches off in deep sleep), QMI8658, AMOLED VCI/VDDIO, touch, SD card, ES8311 digital, I2C pull-ups | always on |
+| DCDC1 | VCC3V3 | ESP32 (the flash and the in-package PSRAM through its VDD_SPI, which ESP-IDF switches off in deep sleep), QMI8658, AMOLED VCI/VDDIO, touch, SD card, ES8311 DVDD and PVDD (R51 0R), NS4150B VDD (shut down by the CTRL pull-down R31), pull-ups (I2C, SD, R8 on GPIO0, R9 on CHIP_PU, R11 on GPIO10) | always on |
 | ALDO1 | A3V3 | ES8311 AVDD and **all of ES7210** (which sits on the shared I2C bus) | **keep on**: an unpowered ES7210 hangs the I2C bus |
 | ALDO2 | — | pull-up of DSI_PWR_EN (AMOLED panel power enable) | **on while the display shows anything**: with ALDO2 off the image goes dark at once [HW] |
 | ALDO3 | — | vibration motor | off unless haptics |
@@ -81,7 +81,10 @@ to VCC-RTC; official example uses `CONFIG_PMU_INTERRUPT_PIN=-1`), PCF85063 CLKOU
 - The LDOs are fed from VSYS (ALDOIN "must be VSYS" [AXP DS]), not from DCDC1, so the DCDC1
   voltage does not change the current of the ALDO1 loads.
 
-- AXP PWROK → ESP32 CHIP_PU. PWR key → AXP PWRON (short/long press) and GPIO10 [SCH].
+- AXP PWROK → ESP32 CHIP_PU, with R9 10k to VCC3V3; PWROK only pulls low ("outputs low level,
+  which will be pulled up" [AXP DS §6.5.4]), so R9 carries no current while the chip runs.
+  PWR key → AXP PWRON (short/long press) and GPIO10 [SCH].
+- AXP VBACKUP (pin 27, net VBAT2) has only CP9 2.2 µF; no backup cell is fitted [SCH].
 - Battery: MX1.25 connector; 10k thermistor RP2 on AXP TS [SCH].
 
 ## 3. Device Notes
@@ -198,7 +201,15 @@ Validated on this board [HW] (guided test `rtc`, 2026-10-31):
 - Battery %: REGA4. VBAT: REG34[5:0] + REG35. ADC channel enable: REG30. Software power-off: REG10 bit0.
 - The 14-bit ADC measures only VBAT, VBUS, VSYS, TS and die temperature; **there is no battery
   current measurement** [DS §6.10]. On-board power data is therefore indirect (see CLAUDE.md).
-- Quiescent current ≈ 40 µA [DS §6.5.4].
+- Quiescent current ≈ 40 µA [DS Table 5-5], specified only with no VBUS, the BATFET disabled and
+  only RTCLDO on, i.e. the off state. The current with DCDC1 and an LDO on is not given.
+- Sleep mode (REG26 bit0) only records REG80/90/91 and restores them on wakeup; the datasheet
+  names no lower internal current for it [DS §6.5.4.4].
+- Backup charger (REG18 bit2, reset 0): a linear charger of 100 µA into VBACKUP, termination set by
+  REG6A [DS §6.12.2]. LilyGo lists deep-sleep currents with "backup power" on and off: 530 / 460 µA
+  (T-Watch S3) and 1.1 mA / 840 µA (T-Watch Ultra), and switches it off before sleep [REF]. On this
+  board it is off: REG18 = 0x0A (gauge and cell charger on, backup charger and watchdog off),
+  REG6A = 0x03 [HW, 2026-11-10]. The firmware only changes bit3 (gauge), read-modify-write.
 - Power-on sources from the off state [DS §6.5.4.2]: PWRON key longer than ONLEVEL, and, only if
   enabled "by customization" (factory eFuse, not a register), VBUS or VBAT rising, IRQ pin low
   for more than 16 ms, or the battery charged above 3.3 V. On this board the IRQ pin has only its
@@ -313,6 +324,15 @@ Always-on face [HW] (guided test `aod`, 2026-10-31; `main/Panel.*`, `main/Always
 ### ESP32-S3
 - EXT0/EXT1 wake only on RTC GPIOs 0–21; EXT1 supports ANY_HIGH [DS].
 - Deep sleep ≈ 7–8 µA [DS Table 5-10]. Each wake from deep sleep is a full boot.
+- VDD_SPI is in 3.3 V mode (VDD3P3_RTC through R_SPI) and feeds the GD25Q256 and the in-package
+  PSRAM. ESP-IDF v6.1 hands it to the sleep state machine with `RTC_CNTL_SDIO_PD_EN` set in deep
+  sleep, so the switch opens [TRM §10.3.4.3; `rtc_sleep.c`]. `CONFIG_SPIRAM` is off: the PSRAM is
+  never initialised. Its data lines GPIO33–37 are not reserved, so ESP-IDF isolates them in deep
+  sleep together with the other digital pads once `gpio_deep_sleep_hold_en` is set (always, run H).
+- Reports of mA-level deep sleep on ESP32-S3R8 boards (Arduino Nano ESP32: about 1.75 mA) trace
+  to flash lines left floating with the flash powered from the main 3.3 V rail; here the flash is
+  on VDD_SPI [SCH]. Another report (970 → 14 µA) was an ADC unit left open at sleep entry; this
+  firmware opens none.
 - Reset to `app_main` takes about 255 ms with the default configuration (log timestamps, 160 MHz,
   DIO flash, INFO logging, image validation on) [HW]. This is the baseline for wake latency.
 - The internal RC slow clock drifts seconds per day: use it only as a wake timer; the PCF85063 is the clock.
@@ -569,13 +589,14 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
    (touch INT) and 39 (RTC INT) read high, GPIO18 and 46 low [HW, 2026-11-09]. ESP-IDF v6.1
    powers down XTAL, RC_FAST, VDD_SPI, RTC_PERIPH and the digital domain in this configuration
    (EXT1 does not keep RTC_PERIPH on) and leaves only the RTC pads (GPIO0–21) unmanaged
-   [ESP-IDF `sleep_modes.c`, `rtc_sleep.c`]. Candidates: the ESP32 sleep state (domains, clocks or
-   the USB PHY kept on), the ES8311 digital supply, the QMI8658 and the KEYS pull-up R11
+   [ESP-IDF `sleep_modes.c`, `rtc_sleep.c`]. Candidates: the AXP2101 on-state current (not specified), the ESP32 sleep state (domains,
+   clocks or the USB PHY kept on), the ES8311 digital supply, the QMI8658 and the KEYS pull-up R11
    (about 0.33 mA, section 1). Unlikely as the main part: the AXP2101 on state and the parts on
    ALDO1 (run Q). Ruled out: the panel module (run P), a card in the SD
    slot (none is fitted), the panel QSPI lines (run N), the panel's high-voltage supply running
    with ALDO2 off (REG10 off-discharge on, so DSI_PWR_EN is low), the AXP2101 ADCs and gauge
-   (run O), the TS current source (off at power-on, REG50), the floating USB pads (run S).
+   (run O), the TS current source (off at power-on, REG50), the floating USB pads (run S), the
+   AXP2101 backup charger (off, REG18 = 0x0A).
 
 ## 6. Sources
 

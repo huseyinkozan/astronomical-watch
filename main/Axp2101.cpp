@@ -27,6 +27,7 @@ static const uint8_t REG_IRQ_ENABLE2 = 0x42;
 static const uint8_t REG_IRQ_STATUS0 = 0x48;
 static const uint8_t REG_IRQ_STATUS1 = 0x49;
 static const uint8_t REG_IRQ_STATUS2 = 0x4A;
+static const uint8_t REG_BACKUP_CHARGE_VOLTAGE = 0x6A;
 static const uint8_t REG_DCDC_ENABLE = 0x80;
 static const uint8_t REG_DCDC_PWM = 0x81;
 static const uint8_t REG_DCDC1_VOLTAGE = 0x82;
@@ -127,6 +128,15 @@ void Axp2101::logStatus()
     if ( readRegister( REG_COMMON_CONFIG, value ) == ESP_OK ) {
         // Bit5 discharges a rail when it is switched off; it keeps DSI_PWR_EN low with ALDO2 off.
         ESP_LOGI( TAG, "Common config (REG10)=0x%02X: off-discharge %s", value, ( value & 0x20 ) ? "on" : "off" );
+    }
+    if ( readRegister( REG_MODULE_ENABLE, value ) == ESP_OK ) {
+        // The button-battery charger (bit2) can draw current from VSYS although no backup cell is fitted.
+        uint8_t backupStop = 0;
+        readRegister( REG_BACKUP_CHARGE_VOLTAGE, backupStop );
+        ESP_LOGI( TAG, "Module enable (REG18)=0x%02X: gauge %s, backup charger %s (REG6A=0x%02X), cell charger %s, "
+                       "watchdog %s",
+                  value, ( value & 0x08 ) ? "on" : "off", ( value & 0x04 ) ? "on" : "off", backupStop,
+                  ( value & 0x02 ) ? "on" : "off", ( value & 0x01 ) ? "on" : "off" );
     }
     if ( readRegister( REG_ADC_ENABLE, value ) == ESP_OK ) {
         ESP_LOGI( TAG, "ADC enable (REG30)=0x%02X", value );
