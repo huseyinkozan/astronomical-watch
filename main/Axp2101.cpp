@@ -27,6 +27,10 @@ static const uint8_t REG_IRQ_ENABLE2 = 0x42;
 static const uint8_t REG_IRQ_STATUS0 = 0x48;
 static const uint8_t REG_IRQ_STATUS1 = 0x49;
 static const uint8_t REG_IRQ_STATUS2 = 0x4A;
+static const uint8_t REG_PRECHARGE_CURRENT = 0x61;
+static const uint8_t REG_CHARGE_CURRENT = 0x62;
+static const uint8_t REG_TERMINATION_CURRENT = 0x63;
+static const uint8_t REG_CHARGE_VOLTAGE = 0x64;
 static const uint8_t REG_BACKUP_CHARGE_VOLTAGE = 0x6A;
 static const uint8_t REG_DCDC_ENABLE = 0x80;
 static const uint8_t REG_DCDC_PWM = 0x81;
@@ -137,6 +141,22 @@ void Axp2101::logStatus()
                        "watchdog %s",
                   value, ( value & 0x08 ) ? "on" : "off", ( value & 0x04 ) ? "on" : "off", backupStop,
                   ( value & 0x02 ) ? "on" : "off", ( value & 0x01 ) ? "on" : "off" );
+    }
+    uint8_t charge[4] = {};
+    if ( readRegister( REG_PRECHARGE_CURRENT, charge[0] ) == ESP_OK &&
+         readRegister( REG_CHARGE_CURRENT, charge[1] ) == ESP_OK &&
+         readRegister( REG_TERMINATION_CURRENT, charge[2] ) == ESP_OK &&
+         readRegister( REG_CHARGE_VOLTAGE, charge[3] ) == ESP_OK ) {
+        // Decoding per datasheet §6.13.2.60-63. A termination current that is large for the cell
+        // ends the constant-voltage phase early and leaves the cell partly charged.
+        const int code = charge[1] & 0x1F;
+        const int chargeMa = code <= 8 ? 25 * code : 200 + 100 * ( code - 8 );
+        static const char *const voltage[8] = { "reserved", "4.0", "4.1", "4.2", "4.35", "4.4", "reserved", "reserved" };
+        ESP_LOGI( TAG,
+                  "Charger (REG61-64)=0x%02X 0x%02X 0x%02X 0x%02X: precharge %d mA, charge %d mA, termination %s "
+                  "%d mA, target %s V",
+                  charge[0], charge[1], charge[2], charge[3], 25 * ( charge[0] & 0x0F ), chargeMa,
+                  ( charge[2] & 0x10 ) ? "on" : "off", 25 * ( charge[2] & 0x0F ), voltage[charge[3] & 0x07] );
     }
     if ( readRegister( REG_ADC_ENABLE, value ) == ESP_OK ) {
         ESP_LOGI( TAG, "ADC enable (REG30)=0x%02X", value );
@@ -281,6 +301,23 @@ esp_err_t Axp2101::setDcdc1Voltage( int millivolts )
     return writeRegister( REG_DCDC1_VOLTAGE, static_cast<uint8_t>( ( millivolts - 1500 ) / 100 ) );
 }
 
+esp_err_t Axp2101::setSleepMode( bool on )
+{
+    const uint8_t sleepEnable = 0x01;
+    uint8_t before = 0;
+    esp_err_t err = readRegister( REG_SLEEP_WAKEUP, before );
+    if ( err == ESP_OK ) {
+        const uint8_t value = on ? ( before | sleepEnable ) : ( before & static_cast<uint8_t>( ~sleepEnable ) );
+        err = writeRegister( REG_SLEEP_WAKEUP, value );
+    }
+    uint8_t after = 0;
+    if ( err == ESP_OK ) {
+        err = readRegister( REG_SLEEP_WAKEUP, after );
+    }
+    ESP_LOGI( TAG, "Sleep mode %s: REG26 0x%02X -> 0x%02X %s", on ? "on" : "off", before, after, esp_err_to_name( err ) );
+    return err;
+}
+
 esp_err_t Axp2101::limitIrqs()
 {
     // Status bits are write-1-to-clear (datasheet REG48-4A).
@@ -340,6 +377,21 @@ esp_err_t Axp2101::setPowerOnPress()
         }
     }
     ESP_LOGI( TAG, "Power-on press (REG27) 0x%02X -> 0x%02X %s", before, after, esp_err_to_name( err ) );
+    return err;
+}
+
+esp_err_t Axp2101::setChargeCurrents()
+{
+    // REG61 25 mA per step; REG62 code 4 = 100 mA; REG63 bit4 keeps termination on, 25 mA per step.
+    const uint8_t values[3][2] = {
+        { REG_PRECHARGE_CURRENT, 0x01 },
+        { REG_CHARGE_CURRENT, 0x04 },
+        { REG_TERMINATION_CURRENT, 0x11 },
+    };
+    esp_err_t err = ESP_OK;
+    for ( int i = 0; i < 3 && err == ESP_OK; ++i ) {
+        err = writeRegister( values[i][0], values[i][1] );
+    }
     return err;
 }
 

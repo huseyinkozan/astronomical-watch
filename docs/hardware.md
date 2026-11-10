@@ -204,7 +204,19 @@ Validated on this board [HW] (guided test `rtc`, 2026-10-31):
 - Quiescent current ≈ 40 µA [DS Table 5-5], specified only with no VBUS, the BATFET disabled and
   only RTCLDO on, i.e. the off state. The current with DCDC1 and an LDO on is not given.
 - Sleep mode (REG26 bit0) only records REG80/90/91 and restores them on wakeup; the datasheet
-  names no lower internal current for it [DS §6.5.4.4].
+  names no lower internal current for it [DS §6.5.4.4]. Wakeup (bit1) restores the rails and,
+  with REG26 bit3 set (power-on value here, `0x08`), pulls PWROK low, which resets the ESP32.
+  Setting only bit0 before deep sleep and clearing it at each wake (battery run T) made no
+  difference to the drain, so the firmware does not use it.
+- Charger at power-on [HW, 2026-11-10]: REG61–64 = `0x05 0x08 0x15 0x03`: 125 mA precharge,
+  200 mA constant current, termination on at 125 mA, 4.2 V. That suits a 400 mAh cell, not this
+  one (about 100–150 mAh in use, at most about 220–300 mAh for its size): 200 mA is above 1C, and
+  125 mA ends the constant-voltage phase early, so charging stopped with the cell resting at
+  about 4.10–4.11 V. The firmware now writes 25 mA precharge, 100 mA constant current and 25 mA
+  termination (`0x01 0x04 0x11`) at every power-on and PWR wake (`Axp2101::setChargeCurrents`).
+  The values read back, and after a USB re-plug the charger restarted in constant current. A
+  lower termination gains only a few percent; 0 mA or termination off would hold the cell at
+  4.2 V indefinitely, which ages it. Effect on the rest voltage and the capacity: open question 8.
 - Backup charger (REG18 bit2, reset 0): a linear charger of 100 µA into VBACKUP, termination set by
   REG6A [DS §6.12.2]. LilyGo lists deep-sleep currents with "backup power" on and off: 530 / 460 µA
   (T-Watch S3) and 1.1 mA / 840 µA (T-Watch Ultra), and switches it off before sleep [REF]. On this
@@ -424,6 +436,7 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
 | Q (2026-11-09) | H with DCDC1 (VCC3V3) at 3.0 V in deep sleep, 3.3 V again at each wake (`sdkconfig.dcdc1`), 5 min samples | 2.8 h fitted (3.9 h total), 4.11 → 4.08 V | −6.2 ± 0.1 mV/h without dips (H, N, P over the same hours: −7.0 to −7.1) | 96 → 95 % in 2.9 h | **≈ 11 % lower (≈ 0.14 mA): most of the floor is a load on VCC3V3** |
 | R (2026-11-09/10) | H + calibration load: GPIO1, 2, 3, 17 (10k pull-ups to VCC3V3, no SD card) held low in deep sleep (`sdkconfig.sdlow`), 5 min samples | 2.8 h fitted (3.8 h total), 4.11 → 4.06 V | −14.0 ± 0.4 mV/h without dips (P over the same hours: −7.0 ± 0.2) | 96 → 92 % in 2.8 h | **+1.2 mA known load → 5.8 mV/h per mA; floor ≈ 1.2 mA** |
 | S (2026-11-10) | H + USB pads GPIO19/20 isolated in deep sleep, given back to USB at each wake (`sdkconfig.usbiso`), 5 min samples | 2.8 h fitted (3.8 h total), 4.10 → 4.08 V | −6.9 ± 0.1 mV/h without dips (N, P over the same hours: −7.0, −7.1) | 96 → 93 % in 2.8 h | **same as H: floating USB pads are not the floor** |
+| T (2026-11-10) | H + AXP2101 sleep mode (REG26 bit0) set before deep sleep, cleared at each wake (`sdkconfig.axpsleep`), 5 min samples | 2.8 h fitted (3.9 h total), 4.10 → 4.08 V | −6.9 ± 0.1 mV/h without dips (S, P over the same hours: −6.9, −7.1) | 96 → 94 % in 2.8 h | **same as H: the AXP2101 sleep mode does not lower the floor** |
 
 - mA figures in the notes below that were written before run R assume a 400 mAh cell;
   multiply them by about 0.38 (run R).
@@ -557,6 +570,13 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
   about 0.2 mV/h, about 0.03 mA). Giving them back at the start of each wake (`rtc_gpio_deinit`)
   restored the USB console on the next PWR wake; the log lines printed after the isolation
   ("Entering deep sleep") are lost.
+- **Run T**: LilyGo enables the AXP2101 sleep mode (REG26 bit0) before deep sleep on the watches
+  whose deep-sleep currents are the comparison (section 6). Set before every deep sleep and
+  cleared at every wake, read back each time (`0x08 → 0x09`, and `0x09` again at the next wake),
+  it made no difference against runs S and P over the same hours. The wakeup bit was never
+  written; all 50 timer wakes and the PWR wake were normal. This was the last run with the old
+  charger setting; later runs start from a fuller cell, so their slopes are not comparable with
+  runs A–T (run R calibrates 4.05–4.11 V).
 - Screening resolution: with 5 min samples and the dips removed (readings more than 3 mV below
   the fit, refitted until none is left), a 3 h window fits VBAT to about ±0.1–0.2 mV/h (about
   ±0.03 mA), provided the run starts near full charge and runs are compared over the same hours.
@@ -596,10 +616,11 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
    slot (none is fitted), the panel QSPI lines (run N), the panel's high-voltage supply running
    with ALDO2 off (REG10 off-discharge on, so DSI_PWR_EN is low), the AXP2101 ADCs and gauge
    (run O), the TS current source (off at power-on, REG50), the floating USB pads (run S), the
-   AXP2101 backup charger (off, REG18 = 0x0A).
-8. Does the AXP2101 charge configuration (REG61–64: precharge, charge current, termination
-   current, target voltage) stop charging early and limit the usable capacity of the cell
-   (about 100–150 mAh against the 400 mAh label; issue #6)? Not read on this board yet.
+   AXP2101 backup charger (off, REG18 = 0x0A), the AXP2101 sleep mode (run T).
+8. How much of the cell's small capacity (about 100–150 mAh against the 400 mAh label; issue
+   #6) was the early charge termination (125 mA at power-on, now 25 mA; AXP2101 section)? Check
+   the rest voltage after a full charge (old setting: about 4.10–4.11 V), then measure the
+   capacity with a full discharge at a known load.
 
 ## 6. Sources
 

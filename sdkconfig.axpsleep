@@ -1,0 +1,2 @@
+# Battery run T, on top of sdkconfig.battery: AXP2101 sleep mode (REG26 bit0) in deep sleep.
+CONFIG_WATCH_SLEEP_AXP_SLEEP_MODE=y

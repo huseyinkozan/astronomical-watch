@@ -201,6 +201,9 @@ static void sleepNow()
 #if CONFIG_WATCH_AXP_MEASURE_OFF_IN_SLEEP
     s_pmu.setMeasurement( false );
 #endif
+#if CONFIG_WATCH_SLEEP_AXP_SLEEP_MODE
+    s_pmu.setSleepMode( true );
+#endif
 #if CONFIG_WATCH_SLEEP_DCDC1_MV > 0
     const esp_err_t dcdc1Err = s_pmu.setDcdc1Voltage( CONFIG_WATCH_SLEEP_DCDC1_MV );
     ESP_LOGI( TAG, "DCDC1 %d mV for deep sleep: %s", CONFIG_WATCH_SLEEP_DCDC1_MV, esp_err_to_name( dcdc1Err ) );
@@ -288,6 +291,11 @@ extern "C" void app_main( void )
     if ( !pmuReady ) {
         ESP_LOGE( TAG, "AXP2101 init failed" );
     }
+#if CONFIG_WATCH_SLEEP_AXP_SLEEP_MODE
+    if ( pmuReady ) {
+        s_pmu.setSleepMode( false );
+    }
+#endif
 #if CONFIG_WATCH_SLEEP_DCDC1_MV > 0
     // 3300 mV is the power-on value of DCDC1 on this board (docs/hardware.md).
     if ( pmuReady ) {
@@ -346,6 +354,9 @@ extern "C" void app_main( void )
     }
     if ( pmuReady ) {
         s_pmu.setPowerOnPress();
+        if ( s_pmu.setChargeCurrents() != ESP_OK ) {
+            ESP_LOGE( TAG, "Charger setup failed" );
+        }
         s_pmu.logStatus();
         logPowerKeyIrq();
 #if CONFIG_WATCH_BATTERY_LOG && !CONFIG_WATCH_BATTERY_LOG_AOD

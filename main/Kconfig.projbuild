@@ -119,6 +119,17 @@ menu "Astronomical Watch"
             as they are in deep sleep. They are isolated before deep sleep and
             given back to USB at the start of every wake.
 
+    config WATCH_SLEEP_AXP_SLEEP_MODE
+        bool "AXP2101 sleep mode in deep sleep (battery test)"
+        default n
+        depends on WATCH_BATTERY_LOG
+        help
+            Battery run T: the AXP2101 sleep mode (REG26 bit0) is switched on
+            before deep sleep and off again at each wake, as LilyGo does on its
+            watches. The datasheet does not say whether it lowers the PMU's own
+            current. The rails stay as they are and the wakeup bit is never
+            written.
+
     config WATCH_BATTERY_LOG
         bool "Battery drain log"
         default n

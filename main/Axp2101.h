@@ -41,11 +41,20 @@ public:
     // brief touch of the key does not. Logs the value found first: REG27 resets only at POR.
     esp_err_t setPowerOnPress();
 
+    // Sets the charger for the small cell of this board: 100 mA constant current, 25 mA precharge
+    // and 25 mA termination (power-on values 200, 125 and 125 mA stop charging early).
+    esp_err_t setChargeCurrents();
+
     // Battery test: switches every ADC channel (REG30) and the fuel gauge (REG18 bit3) on or off.
     esp_err_t setMeasurement( bool on );
 
     // Battery test: sets the DCDC1 (VCC3V3) output voltage, 1500-3400 mV in 100 mV steps (REG82).
     esp_err_t setDcdc1Voltage( int millivolts );
+
+    // Battery test: switches the AXP2101 sleep mode (REG26 bit0) on or off and logs REG26 before
+    // and after. Never writes the wakeup bit (bit1): with REG26 bit3 set, a wakeup pulls PWROK low,
+    // which resets the ESP32 through CHIP_PU.
+    esp_err_t setSleepMode( bool on );
 
     // Software power-off (REG10 bit0): every rail except RTCLDO goes off. Returns only on failure.
     esp_err_t powerOff();
