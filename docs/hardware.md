@@ -216,7 +216,9 @@ Validated on this board [HW] (guided test `rtc`, 2026-10-31):
   termination (`0x01 0x04 0x11`) at every power-on and PWR wake (`Axp2101::setChargeCurrents`).
   The values read back, and after a USB re-plug the charger restarted in constant current. A
   lower termination gains only a few percent; 0 mA or termination off would hold the cell at
-  4.2 V indefinitely, which ages it. Effect on the rest voltage and the capacity: open question 8.
+  4.2 V indefinitely, which ages it. After a full charge with the new setting the cell rested at
+  about 4.155 V one hour after unplugging, against 4.10–4.11 V before (run U); the capacity
+  itself is still open (question 8).
 - Backup charger (REG18 bit2, reset 0): a linear charger of 100 µA into VBACKUP, termination set by
   REG6A [DS §6.12.2]. LilyGo lists deep-sleep currents with "backup power" on and off: 530 / 460 µA
   (T-Watch S3) and 1.1 mA / 840 µA (T-Watch Ultra), and switches it off before sleep [REF]. On this
@@ -437,6 +439,7 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
 | R (2026-11-09/10) | H + calibration load: GPIO1, 2, 3, 17 (10k pull-ups to VCC3V3, no SD card) held low in deep sleep (`sdkconfig.sdlow`), 5 min samples | 2.8 h fitted (3.8 h total), 4.11 → 4.06 V | −14.0 ± 0.4 mV/h without dips (P over the same hours: −7.0 ± 0.2) | 96 → 92 % in 2.8 h | **+1.2 mA known load → 5.8 mV/h per mA; floor ≈ 1.2 mA** |
 | S (2026-11-10) | H + USB pads GPIO19/20 isolated in deep sleep, given back to USB at each wake (`sdkconfig.usbiso`), 5 min samples | 2.8 h fitted (3.8 h total), 4.10 → 4.08 V | −6.9 ± 0.1 mV/h without dips (N, P over the same hours: −7.0, −7.1) | 96 → 93 % in 2.8 h | **same as H: floating USB pads are not the floor** |
 | T (2026-11-10) | H + AXP2101 sleep mode (REG26 bit0) set before deep sleep, cleared at each wake (`sdkconfig.axpsleep`), 5 min samples | 2.8 h fitted (3.9 h total), 4.10 → 4.08 V | −6.9 ± 0.1 mV/h without dips (S, P over the same hours: −6.9, −7.1) | 96 → 94 % in 2.8 h | **same as H: the AXP2101 sleep mode does not lower the floor** |
+| U (2026-11-11) | H after a full charge with the new charger setting (100 mA, termination 25 mA), 5 min samples | 2.8 h fitted (4.0 h total), 4.155 → 4.135 V | −7.6 ± 0.1 mV/h without dips | 100 → 99 % in 2.8 h | **new baseline, higher on the cell's curve: not comparable with runs A–T** |
 
 - mA figures in the notes below that were written before run R assume a 400 mAh cell;
   multiply them by about 0.38 (run R).
@@ -577,6 +580,16 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
   written; all 50 timer wakes and the PWR wake were normal. This was the last run with the old
   charger setting; later runs start from a fuller cell, so their slopes are not comparable with
   runs A–T (run R calibrates 4.05–4.11 V).
+- **Run U**: the first run after a full charge with the new charger setting (AXP2101 section).
+  At the flashing boot the charger reported "charger done" at 4159 mV with USB in. On battery,
+  VBAT read 4161 mV after 5 min, 4154 mV after 55 min and 4135 mV after 3.4 h: the rest voltage
+  one hour after unplugging is about 45 mV higher than with the old setting (4.10–4.11 V). The
+  gauge stayed at 100 % for 1.9 h. The slope over 1–3.8 h is −7.6 ± 0.1 mV/h, steeper than runs
+  S and T (−6.9) at 4.08–4.10 V. The firmware is the same as in H, so the difference is most
+  likely the steeper open-circuit curve of the cell above 4.11 V, not a higher drain: if the
+  floor is still about 1.2 mA, this range has about 6.3 mV per mAh against 5.8 in run R. On that
+  assumption the 45 mV are roughly 7 mAh, a few percent of the cell; an estimate, not a
+  capacity measurement. Runs from now on are compared with run U.
 - Screening resolution: with 5 min samples and the dips removed (readings more than 3 mV below
   the fit, refitted until none is left), a 3 h window fits VBAT to about ±0.1–0.2 mV/h (about
   ±0.03 mA), provided the run starts near full charge and runs are compared over the same hours.
@@ -617,10 +630,10 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
    with ALDO2 off (REG10 off-discharge on, so DSI_PWR_EN is low), the AXP2101 ADCs and gauge
    (run O), the TS current source (off at power-on, REG50), the floating USB pads (run S), the
    AXP2101 backup charger (off, REG18 = 0x0A), the AXP2101 sleep mode (run T).
-8. How much of the cell's small capacity (about 100–150 mAh against the 400 mAh label; issue
-   #6) was the early charge termination (125 mA at power-on, now 25 mA; AXP2101 section)? Check
-   the rest voltage after a full charge (old setting: about 4.10–4.11 V), then measure the
-   capacity with a full discharge at a known load.
+8. What is the real capacity of the cell (about 100–150 mAh in use against the 400 mAh label;
+   issue #6)? The early charge termination (125 mA at power-on, now 25 mA; AXP2101 section)
+   explains only a few percent: the rest voltage rose from about 4.10–4.11 V to about 4.155 V
+   (run U). Measure the capacity with a full discharge at a known load.
 
 ## 6. Sources
 
@@ -649,7 +662,9 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
   given; cell measured at about 100 mAh by two users from the charge energy, under 400 mWh):
   https://github.com/waveshareteam/ESP32-S3-Touch-AMOLED-2.06/issues/6. A Waveshare collaborator
   promised a low-power example in March 2026 without a date. One user claims that a charge
-  termination current of 25–50 mA lets the cell charge fully; unverified (question 8). The
+  termination current of 25–50 mA lets the cell charge fully; with 25 mA the rest voltage rose
+  by about 45 mV, a gain of a few percent (run U), so the termination does not explain the small
+  capacity. The
   thread also corrects GPIO13 to the panel TE line (not a panel enable) and names ALDO2 as the
   panel supply switch, as in section 1.
 - Board issues #7 (PCF85063 INT reaches only GPIO39), #9 (touch cannot wake from deep sleep) and
