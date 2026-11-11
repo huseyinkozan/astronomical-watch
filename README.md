@@ -98,4 +98,5 @@ Each step is built, verified on the board and documented before the next one sta
 
 ## License
 
-Personal use.
+MIT, see [LICENSE](LICENSE). Dependencies (ESP-IDF, the Waveshare BSP, LVGL) keep their own
+licenses.
