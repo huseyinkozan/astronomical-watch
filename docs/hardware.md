@@ -67,11 +67,12 @@ to VCC-RTC; official example uses `CONFIG_PMU_INTERRUPT_PIN=-1`), PCF85063 CLKOU
   the ES8311 0x0D result (section 4). The cell is labelled
   `402728 3.7V 400mAh`, but between 4.11 and 4.05 V it behaves like a cell of about 150 mAh
   (battery run R, section 4). The cell itself measures 28.1 × 23.3 × 4.0 mm and was not swollen
-  (2026-11-11); the case leaves about 35 × 21–23 × 5 mm for it. Quality cells of this volume
+  (2026-11-11); the cavity is about 35 × 5 mm, 21 mm wide at the bottom and widening by
+  1–2 mm towards the top. Quality cells of this volume
   (for example 402030, 4 × 20 × 30 mm) are rated about 160–200 mAh, so the cell is about what its
   size allows and only the 400 mAh label is wrong. A replacement that fits the cavity, with room
   for its protection board and for swelling, would gain at most a few tens of percent
-  (estimate from typical datasheets).
+  (estimate from typical datasheets); the cell is kept.
 - AXP2101 PMIC rails [SCH]:
 
 | Rail | Net | Loads | Rule |
