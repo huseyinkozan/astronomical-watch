@@ -355,6 +355,35 @@ LVGL start without `bsp_display_start()` [REF][HW] (M8, 2026-11-12; `main/Displa
 - Large dark-grey areas (0x202020 row backgrounds) shimmer continuously on this panel at every
   brightness; white on black does not. The settings rows are black with a grey outline.
 
+Internal RAM in active mode [HW] (log line "Display started", 2026-11-12; PSRAM is not enabled):
+- `esp_lvgl_port` allocates the draw buffer and, with `sw_rotate`, a second one of the same size.
+  With 100 lines (2 × 82 KB) 99.6 KB stayed free (largest block 55 KB); with 40 lines (2 × 33 KB)
+  203.8 KB (155 KB). Drawing in 40-line bands showed no visible difference.
+- With the setup portal linked (M9): 166 KB free before Wi-Fi starts and **97 KB free, largest
+  block 57 KB, with the soft AP, DHCP, DNS and HTTP servers running**. The Wi-Fi, lwIP IRAM
+  optimisations are off (`sdkconfig.defaults`).
+- Image (`idf.py size`): with the portal 1.0 MB of flash code, 101 KB loaded into RAM at every
+  start (IRAM code and .data) and 102 KB .bss; without it (`sdkconfig.noportal`) 0.47 MB, 84 KB
+  and 87 KB. The default 1 MB application partition is too small: `partitions.csv` gives 4 MB.
+- Development screenshots (`tools/screenshot.py`): rows are sent from the LVGL task while it
+  flushes; rendering a full screen in the main task overflowed its stack.
+
+Setup portal [HW] (M9, 2026-11-12; `main/Portal.*`):
+- Checked from a laptop joined to the access point: the DNS server answers every name
+  (connectivitycheck.gstatic.com, captive.apple.com) with 192.168.4.1; the OS captive-portal
+  checks (`/generate_204`, `/hotspot-detect.html`) get a 302 to the page; page 6.4 KB, city list
+  22.5 KB; shortest of five round trips 24–25 ms.
+- **Time from the page: RTC − host −0.004 s** at the next RTC tick, with the laptop on NTP
+  (offset about 1 ms). A phone in the earlier run gave −0.79 s: the browser sends the phone's
+  own clock, so the result is as good as that clock.
+- The example DNS server deleted its task while it waited in `recvfrom()`; the socket stayed
+  open and the next start of the portal in the same session could not bind port 53 (errno 112),
+  so the phone's captive check failed. Fixed in `main/dns_server.c` (receive timeout, the task
+  closes its socket).
+- Always-on minute wake with the portal linked: 228 ms from reset to `app_main` plus 138 ms in
+  the app, the same as without it (230 + 137 ms, M5).
+- The access point closed 5 min after the last request (`CONFIG_WATCH_SETUP_PORTAL_TIMEOUT_S`).
+
 Always-on face [HW] (guided test `aod`, 2026-10-31; `main/Panel.*`, `main/AlwaysOn.*`):
 - **The CO5300 keeps its image while the ESP32 deep-sleeps**, with ALDO2 on and the panel pins
   held (CS high, SCLK and SIO0–3 low, LCD_RESET high; all are RTC pads, so `gpio_hold_en` holds

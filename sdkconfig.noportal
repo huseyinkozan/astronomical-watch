@@ -1,0 +1,2 @@
+# Build without the Wi-Fi setup portal (CLAUDE.md, M9): compares image size and wake time.
+CONFIG_WATCH_SETUP_PORTAL=n

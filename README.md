@@ -21,9 +21,18 @@ and the PWR key turns it on again.
 - PWR key opens the interactive mode (touch, pages); after a configurable timeout the watch
   returns to a dim always-on face, updated once a minute, or switches off (setting)
 - Switches off after a long time without motion (checked at wide intervals); the PWR key turns it on
-- Setup page over the watch's own Wi-Fi, started with a button on the watch's settings page and
-  stopped by the button or a timeout (captive portal, password shown on the watch): time and UTC offset from the browser, location from a country/city list, a world map or
-  coordinates, and every other setting
+- Setup page over the watch's own Wi-Fi, started with a button on the watch's Setup page and
+  stopped by the button, a save or a timeout (captive portal, password shown on the watch): time
+  and UTC offset from the browser, location from a country/city list or coordinates, and every
+  other setting
+
+## Screenshots
+
+Active-mode pages, swiped sideways (taken from the watch with `tools/screenshot.py`):
+
+| Watch face | Battery | Settings | Setup | About |
+|---|---|---|---|---|
+| ![Watch face](docs/screenshots/0-face.png) | ![Battery](docs/screenshots/1-battery.png) | ![Settings](docs/screenshots/2-settings.png) | ![Setup portal](docs/screenshots/3-setup.png) | ![About](docs/screenshots/4-about.png) |
 
 ## Hardware
 
@@ -53,7 +62,11 @@ astronomical-watch/
 ├── sdkconfig.defaults    project configuration (sdkconfig is generated)
 ├── dependencies.lock     locked component versions
 ├── docs/hardware.md      hardware fact base
+├── partitions.csv        flash layout (4 MB application)
+├── docs/screenshots/     pictures of the watch pages
 ├── tools/guided_test.py  guided hardware tests
+├── tools/screenshot.py   screenshots from the watch (development build)
+├── tools/make_cities.py  city list of the setup page, from GeoNames
 ├── main/                 application
 └── archive/              earlier QMI8658 validator (reference only)
 ```
@@ -61,9 +74,11 @@ astronomical-watch/
 ## Status
 
 Restarted on ESP-IDF with C++17. The watch puts the unused peripherals into their lowest-power
-state. A PWR press starts active mode: pages swiped sideways show the UTC time, date and
-battery state, and the battery details; a third page holds the settings (display timeout,
-always-on, brightness, auto-off), one tap per value, kept in flash. 10 s after the last touch
+state. A PWR press starts active mode: pages swiped sideways show the local time, date and
+battery state, the battery details, the settings (display timeout, always-on, brightness,
+auto-off; one tap per value, kept in flash), the setup portal and an About page. The portal
+opens the watch's own Wi-Fi for a phone or computer, whose browser sets the time, UTC offset,
+location and settings. 10 s after the last touch
 (the default), or at the next PWR press, a
 dim seven-segment HH:MM stays on the display while the processor deep-sleeps, redrawn once a
 minute. Every 10 min the accelerometer is read once; when the watch has not moved for 30 min it
@@ -95,8 +110,10 @@ Each step is built, verified on the board and documented before the next one sta
 8. **M7** (done): active mode (touch, two swipeable pages, display timeout, PWR press to always-on).
 9. **M8** (done): settings in NVS and the settings page on the watch (display timeout, always-on,
    brightness, auto-off; the setup button, password and IP address follow with M9).
-10. **M9**: setup portal over Wi-Fi (time, UTC offset, location, all settings); wake time measured
-    again with the larger image.
+10. **M9** (done): setup portal over Wi-Fi (time, UTC offset, location, all settings; the page
+    opens by itself on a phone, the time is set to within a few milliseconds of the browser's
+    clock) and the local time on the faces; the minute wake did not grow with the Wi-Fi stack.
+    An About page and screenshots from the watch came with it.
 11. **M10+**: astronomy, battery display.
 12. Vibration motor.
 13. Alarms (clock time and sun/moon events) and countdown timer, also set through the portal.
@@ -104,4 +121,5 @@ Each step is built, verified on the board and documented before the next one sta
 ## License
 
 MIT, see [LICENSE](LICENSE). Dependencies (ESP-IDF, the Waveshare BSP, LVGL) keep their own
-licenses.
+licenses. The setup page's city list comes from [GeoNames](https://www.geonames.org/) (CC BY 4.0);
+`main/dns_server.*` is ESP-IDF example code (CC0).

@@ -1,0 +1,6 @@
+# Name,   Type, SubType, Offset,  Size
+# The Wi-Fi setup portal makes the application larger than the default 1 MB partition.
+# The 32 MB flash leaves room to grow; the application stays below 16 MB (sdkconfig.defaults).
+nvs,      data, nvs,     0x9000,  0x6000
+phy_init, data, phy,     0xf000,  0x1000
+factory,  app,  factory, 0x10000, 4M

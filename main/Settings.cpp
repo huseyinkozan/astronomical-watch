@@ -8,7 +8,7 @@
 #include "sdkconfig.h"
 
 static const char *TAG = "settings";
-static const char *s_namespace = "settings";
+[[maybe_unused]] static const char *s_namespace = "settings";
 
 #if CONFIG_WATCH_ALWAYS_ON
 static const int s_alwaysOnDefault = 1;
@@ -16,21 +16,27 @@ static const int s_alwaysOnDefault = 1;
 static const int s_alwaysOnDefault = 0;
 #endif
 
+// An item either has a list of values (count > 0) or takes any value from minimum to maximum.
 struct ItemInfo
 {
     const char *key;  // NVS key, at most 15 characters
     int defaultValue;
     int count;
     int values[5];
+    int minimum;
+    int maximum;
 };
 
 // The auto-off times are multiples of the motion check interval (10 min by default), which
-// decides when the time is reached.
+// decides when the time is reached. UTC offsets run from -12:00 to +14:00.
 static const ItemInfo s_items[Settings::ItemCount] = {
-    { "timeout_s", CONFIG_WATCH_DISPLAY_TIMEOUT_S, 5, { 5, 10, 20, 30, 60 } },
-    { "always_on", s_alwaysOnDefault, 2, { 1, 0 } },
-    { "brightness", CONFIG_WATCH_DISPLAY_BRIGHTNESS, 3, { 20, 50, 100 } },
-    { "auto_off_min", CONFIG_WATCH_MOTION_OFF_MIN, 4, { 20, 30, 60, 0 } },
+    { "timeout_s", CONFIG_WATCH_DISPLAY_TIMEOUT_S, 5, { 5, 10, 20, 30, 60 }, 0, 0 },
+    { "always_on", s_alwaysOnDefault, 2, { 1, 0 }, 0, 0 },
+    { "brightness", CONFIG_WATCH_DISPLAY_BRIGHTNESS, 3, { 20, 50, 100 }, 0, 0 },
+    { "auto_off_min", CONFIG_WATCH_MOTION_OFF_MIN, 4, { 20, 30, 60, 0 }, 0, 0 },
+    { "utc_offset_min", 0, 0, {}, -720, 840 },
+    { "latitude_ud", 0, 0, {}, -90000000, 90000000 },
+    { "longitude_ud", 0, 0, {}, -180000000, 180000000 },
 };
 
 static int indexOf( const ItemInfo &info, int value )
@@ -43,18 +49,27 @@ static int indexOf( const ItemInfo &info, int value )
     return -1;
 }
 
+static bool isValid( const ItemInfo &info, int value )
+{
+    if ( info.count > 0 ) {
+        return indexOf( info, value ) >= 0;
+    }
+    return value >= info.minimum && value <= info.maximum;
+}
+
 void Settings::load()
 {
     for ( int i = 0; i < ItemCount; ++i ) {
         m_values[i] = s_items[i].defaultValue;
     }
-#if !CONFIG_WATCH_TEST_SETTINGS
+    // Also in test builds: the Wi-Fi driver and the portal password need NVS.
     esp_err_t err = nvs_flash_init();
     if ( err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND ) {
-        // The partition holds nothing but these settings; starting over keeps the defaults.
+        // The partition holds nothing but settings; starting over keeps the defaults.
         nvs_flash_erase();
         err = nvs_flash_init();
     }
+#if !CONFIG_WATCH_TEST_SETTINGS
     nvs_handle_t handle = 0;
     if ( err == ESP_OK ) {
         err = nvs_open( s_namespace, NVS_READONLY, &handle );
@@ -62,7 +77,7 @@ void Settings::load()
     if ( err == ESP_OK ) {
         for ( int i = 0; i < ItemCount; ++i ) {
             int32_t saved = 0;
-            if ( nvs_get_i32( handle, s_items[i].key, &saved ) == ESP_OK && indexOf( s_items[i], saved ) >= 0 ) {
+            if ( nvs_get_i32( handle, s_items[i].key, &saved ) == ESP_OK && isValid( s_items[i], saved ) ) {
                 m_values[i] = saved;
             }
         }
@@ -75,8 +90,9 @@ void Settings::load()
     for ( int i = 0; i < ItemCount; ++i ) {
         m_savedValues[i] = m_values[i];
     }
-    ESP_LOGI( TAG, "Settings: timeout %d s, always-on %d, brightness %d %%, auto off %d min", m_values[DisplayTimeout],
-              m_values[AlwaysOnFace], m_values[Brightness], m_values[AutoOff] );
+    ESP_LOGI( TAG, "Settings: timeout %d s, always-on %d, brightness %d %%, auto off %d min, UTC offset %d min, "
+              "location %d, %d (micro-degrees)", m_values[DisplayTimeout], m_values[AlwaysOnFace], m_values[Brightness],
+              m_values[AutoOff], m_values[UtcOffset], m_values[Latitude], m_values[Longitude] );
 }
 
 void Settings::save()
@@ -118,6 +134,15 @@ void Settings::next( Item item )
     // A test-build value outside the list steps to the first value.
     const int index = indexOf( info, m_values[item] ) + 1;
     m_values[item] = info.values[index < info.count ? index : 0];
+}
+
+bool Settings::setValue( Item item, int value )
+{
+    if ( !isValid( s_items[item], value ) ) {
+        return false;
+    }
+    m_values[item] = value;
+    return true;
 }
 
 int Settings::value( Item item ) const

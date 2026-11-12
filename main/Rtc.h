@@ -34,6 +34,13 @@ public:
     // after the start (datasheet 7.2.1.2). Clears the OS flag. The weekday register is not used.
     esp_err_t set( const DateTime &time );
 
+    // Sets the clock from a Unix time in milliseconds that was valid at esp_timer time atTimerUs
+    // (the setup portal). Waits up to one second so that the RTC's seconds start on the true ones.
+    esp_err_t setFromUnixMs( int64_t unixMs, int64_t atTimerUs );
+
+    // `time` moved by `minutes` (calendar arithmetic, for the UTC offset).
+    static DateTime addMinutes( const DateTime &time, int minutes );
+
     // Waits for the next second (at most 1.1 s) and logs the time at that moment, so that the
     // host timestamp of the log line shows the clock error to within a few milliseconds.
     // Also logs Control_1 and Offset, which set the crystal load and the rate correction.

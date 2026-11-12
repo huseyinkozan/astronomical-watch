@@ -217,6 +217,32 @@ TESTS = {
         (ACT, 'Press PWR briefly.', r'Settings: timeout 10 s, always-on 1', 0),
         (WAIT, 'Do not touch.', r'Display timeout: active mode ends', 20),
     ],
+    # Setup portal (M9), default build; needs a phone or a computer with Wi-Fi. The time it sets
+    # is checked against the host at the next RTC line.
+    'portal': [
+        (WAIT, 'The board is being reset. Do not touch the screen.', r'Settings: timeout', 20),
+        (ACT, 'Press PWR briefly. Swipe left three times to the Setup page and tap "Setup".',
+         r'Portal on', 0),
+        (ACT, 'On your phone, join the Wi-Fi network shown on the watch with the password shown. '
+         'The setup page should open by itself; if not, open the address shown on the watch.',
+         r'Setup page served', 0),
+        (ASK, 'Did the setup page open by itself (without typing the address)?', '', 0),
+        (ACT, 'On the page choose your country and city, keep "Set the watch to this time" ticked '
+         'and press "Save to the watch".', r'Setup page saved', 0),
+        (WAIT, '', r'RTC set from the setup page: ESP_OK', 10),
+        (WAIT, '', r'Settings saved', 10),
+        (WAIT, '', r'Portal off', 10),
+        (ASK, 'Did the page say "Saved", and does the watch face show your local time and '
+         'UTC offset (for example UTC+3)?', '', 0),
+        (WAIT, 'Do not touch: always-on follows after the display timeout.', r'Entering deep sleep', 90),
+        (ACT, 'Press PWR briefly. (The RTC line shows the clock error against this computer.)',
+         r'RTC \d{4}-', 0),
+        (ACT, 'Turn the phone\'s Wi-Fi off (its checks would keep the portal open). Swipe to the '
+         'Setup page, tap "Setup" and leave the watch alone for 5 minutes.',
+         r'Portal on', 0),
+        (WAIT, 'The portal should close by itself after 5 minutes without requests.',
+         r'Setup portal timeout', 330),
+    ],
     # Reads the battery drain log; the board must not be reset, or RTC memory is cleared.
     'battery': [
         (WAIT, 'Reading the battery log.', r'Battery log: \d+ of \d+ samples', 30),

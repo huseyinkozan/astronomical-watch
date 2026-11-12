@@ -1,5 +1,7 @@
 #include "Rtc.h"
 
+#include <ctime>
+
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
@@ -102,6 +104,52 @@ esp_err_t Rtc::set( const DateTime &time )
     // Always try to restart the clock, even after a failed write.
     const esp_err_t startErr = writeRegister( REG_CONTROL1, control1 & static_cast<uint8_t>( ~CONTROL1_STOP ) );
     return err != ESP_OK ? err : startErr;
+}
+
+// The firmware never sets TZ, so mktime() and gmtime_r() work in UTC.
+static Rtc::DateTime fromUnixSeconds( time_t seconds )
+{
+    tm fields = {};
+    gmtime_r( &seconds, &fields );
+    Rtc::DateTime time = {};
+    time.year = static_cast<uint16_t>( fields.tm_year + 1900 );
+    time.month = static_cast<uint8_t>( fields.tm_mon + 1 );
+    time.day = static_cast<uint8_t>( fields.tm_mday );
+    time.hour = static_cast<uint8_t>( fields.tm_hour );
+    time.minute = static_cast<uint8_t>( fields.tm_min );
+    time.second = static_cast<uint8_t>( fields.tm_sec );
+    return time;
+}
+
+Rtc::DateTime Rtc::addMinutes( const DateTime &time, int minutes )
+{
+    tm fields = {};
+    fields.tm_year = time.year - 1900;
+    fields.tm_mon = time.month - 1;
+    fields.tm_mday = time.day;
+    fields.tm_hour = time.hour;
+    fields.tm_min = time.minute;
+    fields.tm_sec = time.second;
+    return fromUnixSeconds( mktime( &fields ) + static_cast<time_t>( minutes ) * 60 );
+}
+
+esp_err_t Rtc::setFromUnixMs( int64_t unixMs, int64_t atTimerUs )
+{
+    // The clock's next second follows 0.508 s after set() (datasheet 7.2.1.2): write second S
+    // when the true time is S + 0.492 s.
+    const int64_t nowMs = unixMs + ( esp_timer_get_time() - atTimerUs ) / 1000;
+    int64_t second = nowMs / 1000;
+    if ( nowMs % 1000 > 492 ) {
+        ++second;
+    }
+    const int64_t targetUs = atTimerUs + ( second * 1000 + 492 - unixMs ) * 1000;
+    const int64_t waitUs = targetUs - esp_timer_get_time();
+    if ( waitUs > 20000 ) {
+        vTaskDelay( pdMS_TO_TICKS( ( waitUs - 15000 ) / 1000 ) );
+    }
+    while ( esp_timer_get_time() < targetUs ) {
+    }
+    return set( fromUnixSeconds( static_cast<time_t>( second ) ) );
 }
 
 void Rtc::logAtTick()

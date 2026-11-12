@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Astronomical Watch setup</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; padding: 16px; background: #111; color: #eee; }
+  main { max-width: 480px; margin: 0 auto; }
+  h1 { font-size: 1.4em; }
+  fieldset { border: 1px solid #555; border-radius: 8px; margin: 0 0 16px; padding: 12px; }
+  legend { padding: 0 6px; color: #aaa; }
+  label { display: block; margin: 8px 0 4px; }
+  select, input { width: 100%; box-sizing: border-box; font-size: 1em; padding: 8px;
+                  background: #222; color: #eee; border: 1px solid #555; border-radius: 6px; }
+  .row { display: flex; gap: 8px; }
+  .row > div { flex: 1; }
+  button { width: 100%; font-size: 1.1em; padding: 12px; border: 0; border-radius: 8px;
+           background: #3a6ea5; color: #fff; }
+  #status { margin-top: 12px; min-height: 1.4em; }
+  small { color: #888; }
+  a { color: #8ab4f8; }
+</style>
+</head>
+<body>
+<main>
+<h1>Astronomical Watch</h1>
+
+<fieldset>
+  <legend>Time</legend>
+  <div id="now"></div>
+  <label><input type="checkbox" id="setTime" checked style="width:auto"> Set the watch to this time</label>
+  <small>The watch takes this device's clock, so it is as accurate as this device.</small>
+  <label for="offset">UTC offset</label>
+  <select id="offset"></select>
+  <small>Taken from this device; change it when daylight saving time starts or ends.</small>
+</fieldset>
+
+<fieldset>
+  <legend>Location</legend>
+  <label for="country">Country</label>
+  <select id="country"></select>
+  <label for="city">City</label>
+  <select id="city"></select>
+  <div class="row">
+    <div><label for="lat">Latitude</label><input id="lat" type="number" step="0.0001" min="-90" max="90"></div>
+    <div><label for="lon">Longitude</label><input id="lon" type="number" step="0.0001" min="-180" max="180"></div>
+  </div>
+  <small>Degrees; north and east are positive. A city fills them in.</small>
+</fieldset>
+
+<fieldset>
+  <legend>Watch</legend>
+  <label for="timeout">Screen off after</label>
+  <select id="timeout"></select>
+  <label for="alwaysOn">Always-on face</label>
+  <select id="alwaysOn"></select>
+  <label for="brightness">Brightness</label>
+  <select id="brightness"></select>
+  <label for="autoOff">Switch off without motion after</label>
+  <select id="autoOff"></select>
+</fieldset>
+
+<button id="save">Save to the watch</button>
+<div id="status"></div>
+<p><small>City data: <a href="https://www.geonames.org/">GeoNames</a> (CC BY 4.0).
+Source code: gitlab.com/huseyinkozan/astronomical-watch</small></p>
+</main>
+
+<script src="/cities.js"></script>
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+
+function fill(select, options, value) {
+  select.innerHTML = '';
+  for (const [v, text] of options) {
+    const option = document.createElement('option');
+    option.value = v;
+    option.textContent = text;
+    select.appendChild(option);
+  }
+  if (value !== undefined) select.value = String(value);
+}
+
+function offsetText(minutes) {
+  const sign = minutes < 0 ? '-' : '+';
+  const m = Math.abs(minutes);
+  return 'UTC' + sign + String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+}
+
+// The same value lists as the watch (main/Settings.cpp).
+fill($('timeout'), [[5, '5 s'], [10, '10 s'], [20, '20 s'], [30, '30 s'], [60, '60 s']]);
+fill($('alwaysOn'), [[1, 'On'], [0, 'Off']]);
+fill($('brightness'), [[20, 'Low'], [50, 'Mid'], [100, 'High']]);
+fill($('autoOff'), [[20, '20 min'], [30, '30 min'], [60, '60 min'], [0, 'Never']]);
+const offsets = [];
+for (let m = -720; m <= 840; m += 15) offsets.push([m, offsetText(m)]);
+fill($('offset'), offsets, -new Date().getTimezoneOffset());
+
+// Cities: "country|name|latitude|longitude" lines from /cities.js.
+const cities = CITIES.trim().split('\n').map((line) => line.split('|'));
+let countryNames = null;
+try { countryNames = new Intl.DisplayNames(['en'], { type: 'region' }); } catch (e) { }
+const countryName = (code) => { try { return countryNames ? countryNames.of(code) : code; } catch (e) { return code; } };
+const countries = [...new Set(cities.map((c) => c[0]))]
+  .map((code) => [code, countryName(code)])
+  .sort((a, b) => a[1].localeCompare(b[1]));
+fill($('country'), [['', 'Choose…']].concat(countries));
+
+$('country').addEventListener('change', () => {
+  const list = cities.filter((c) => c[0] === $('country').value)
+    .sort((a, b) => a[1].localeCompare(b[1]));
+  fill($('city'), [['', 'Choose…']].concat(list.map((c) => [c[2] + ',' + c[3], c[1]])));
+});
+$('city').addEventListener('change', () => {
+  if (!$('city').value) return;
+  const [lat, lon] = $('city').value.split(',');
+  $('lat').value = lat;
+  $('lon').value = lon;
+});
+
+setInterval(() => { $('now').textContent = 'This device: ' + new Date().toLocaleString(); }, 500);
+
+// Current values from the watch.
+fetch('/api/state').then((r) => r.json()).then((s) => {
+  for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff']) $(id).value = String(s[id]);
+  if (s.lat !== 0 || s.lon !== 0) {
+    $('lat').value = s.lat.toFixed(4);
+    $('lon').value = s.lon.toFixed(4);
+  }
+}).catch(() => { $('status').textContent = 'Could not read the watch.'; });
+
+// Round trip to the watch, the shortest of a few: half of it is the time a request travels.
+async function roundTrip() {
+  let best = 1000;
+  for (let i = 0; i < 5; i++) {
+    const start = performance.now();
+    await fetch('/api/ping', { cache: 'no-store' });
+    best = Math.min(best, performance.now() - start);
+  }
+  return Math.round(best);
+}
+
+$('save').addEventListener('click', async () => {
+  $('status').textContent = 'Saving…';
+  try {
+    const fields = new URLSearchParams();
+    for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'offset']) fields.set(id, $(id).value);
+    if ($('lat').value !== '' && $('lon').value !== '') {
+      fields.set('lat', $('lat').value);
+      fields.set('lon', $('lon').value);
+    }
+    if ($('setTime').checked) {
+      fields.set('rtt', String(await roundTrip()));
+      fields.set('time', String(Date.now()));
+    }
+    const response = await fetch('/api/save', { method: 'POST', body: fields });
+    $('status').textContent = response.ok ? 'Saved. The watch closes the setup network now.' : 'The watch refused the data.';
+  } catch (e) {
+    $('status').textContent = 'Could not reach the watch.';
+  }
+});
+</script>
+</body>
+</html>

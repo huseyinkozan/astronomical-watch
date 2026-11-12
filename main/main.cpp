@@ -8,6 +8,9 @@
 #include "Motion.h"
 #include "Panel.h"
 #include "Peripherals.h"
+#if CONFIG_WATCH_SETUP_PORTAL
+#include "Portal.h"
+#endif
 #include "Rtc.h"
 #include "Settings.h"
 
@@ -16,6 +19,7 @@
 #include "driver/rtc_io.h"
 #include "driver/usb_serial_jtag.h"
 #include "driver/usb_serial_jtag_vfs.h"
+#include "esp_attr.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -35,6 +39,13 @@ static AlwaysOn s_alwaysOn;
 static BatteryLog s_batteryLog;
 static Motion s_motion;
 static Settings s_settings;
+#if CONFIG_WATCH_SETUP_PORTAL
+static Portal s_portal;
+#endif
+
+// The UTC offset for the always-on face, copied when active mode ends: the minute wakes do not
+// read NVS.
+RTC_DATA_ATTR static int s_alwaysOnOffsetMinutes;
 
 static void logPowerKeyIrq()
 {
@@ -48,12 +59,17 @@ static void logPowerKeyIrq()
 }
 
 #if CONFIG_WATCH_DEV_LOGGING
+// Set by the host commands "P" and "N": the same as a tap on the setup page's rows.
+static int s_hostRequests = 0;
 static char s_hostLine[32];
 static int s_hostLineLength = 0;
 
-// Development aid until the settings page exists: the guided test sends the UTC time as
-// "T YYYY-MM-DD HH:MM:SS", timed so that the RTC's next second matches the host's.
-static void pollHostTime()
+// Development commands from the host: the guided test sends the UTC time as
+// "T YYYY-MM-DD HH:MM:SS", timed so that the RTC's next second matches the host's;
+// tools/screenshot.py sends "S <page>" for a screenshot of that page; "P" switches the setup
+// portal on or off and "N" makes a new portal password (so that a published screenshot does not
+// show the one in use).
+static void pollHostCommands()
 {
     char c = 0;
     while ( usb_serial_jtag_read_bytes( &c, 1, 0 ) == 1 ) {
@@ -65,6 +81,19 @@ static void pollHostTime()
         }
         s_hostLine[s_hostLineLength] = '\0';
         s_hostLineLength = 0;
+        int page = 0;
+        if ( sscanf( s_hostLine, "S %d", &page ) == 1 ) {
+            s_display.capture( page );
+            continue;
+        }
+        if ( s_hostLine[0] == 'P' && s_hostLine[1] == '\0' ) {
+            s_hostRequests |= Display::TogglePortal;
+            continue;
+        }
+        if ( s_hostLine[0] == 'N' && s_hostLine[1] == '\0' ) {
+            s_hostRequests |= Display::NewPassword;
+            continue;
+        }
         int year = 0;
         int month = 0;
         int day = 0;
@@ -116,8 +145,75 @@ static void updateDisplay()
     s_rtc.read( time, oscillatorStopped );
     s_pmu.readBattery( battery.millivolts, battery.percent, battery.vbusGood );
     battery.chargeState = s_pmu.chargeState();
-    s_display.update( time, battery );
+    const int offsetMinutes = s_settings.value( Settings::UtcOffset );
+    s_display.update( Rtc::addMinutes( time, offsetMinutes ), offsetMinutes, battery );
 }
+
+#if CONFIG_WATCH_SETUP_PORTAL
+static void showSetup()
+{
+    Display::Setup setup = {};
+    setup.running = s_portal.isRunning();
+    setup.ssid = s_portal.ssid();
+    setup.password = s_portal.password();
+    setup.address = s_portal.address();
+    setup.secondsLeft = CONFIG_WATCH_SETUP_PORTAL_TIMEOUT_S - s_portal.idleSeconds();
+    s_display.showSetup( setup );
+}
+
+// What the setup page sent: the settings at once (and into NVS), the time at its next second.
+static void applyPortalData( const Portal::Received &received )
+{
+    for ( int i = 0; i < Settings::ItemCount; ++i ) {
+        const Settings::Item item = static_cast<Settings::Item>( i );
+        if ( received.valueValid[i] && !s_settings.setValue( item, received.values[i] ) ) {
+            ESP_LOGW( TAG, "Setup page: value %d refused for setting %d", received.values[i], i );
+        }
+    }
+    s_settings.save();
+    s_display.refreshSettings();
+    if ( received.timeValid ) {
+        const esp_err_t err = s_rtc.setFromUnixMs( received.unixMs, received.atTimerUs );
+        ESP_LOGI( TAG, "RTC set from the setup page: %s", esp_err_to_name( err ) );
+    }
+}
+
+// Setup page taps, data from the browser and the portal timeout. Returns true while the portal
+// runs, which keeps active mode on.
+static bool servicePortal( bool everySecond )
+{
+    int requests = s_display.takeRequests();
+#if CONFIG_WATCH_DEV_LOGGING
+    requests |= s_hostRequests;
+    s_hostRequests = 0;
+#endif
+    if ( requests & Display::TogglePortal ) {
+        if ( s_portal.isRunning() ) {
+            s_portal.stop();
+        } else {
+            s_portal.start( s_settings );
+        }
+    }
+    if ( requests & Display::NewPassword ) {
+        s_portal.newPassword();
+    }
+    Portal::Received received = {};
+    if ( s_portal.takeReceived( received ) ) {
+        applyPortalData( received );
+        // Let the browser receive its answer before the access point goes.
+        vTaskDelay( pdMS_TO_TICKS( 500 ) );
+        s_portal.stop();
+    }
+    if ( s_portal.isRunning() && s_portal.idleSeconds() >= CONFIG_WATCH_SETUP_PORTAL_TIMEOUT_S ) {
+        ESP_LOGI( TAG, "Setup portal timeout" );
+        s_portal.stop();
+    }
+    if ( requests != 0 || everySecond ) {
+        showSetup();
+    }
+    return s_portal.isRunning();
+}
+#endif
 
 // Active mode: the display shows the pages until the display timeout has passed since the
 // start or the last touch, or until a new PWR press. The press that woke the watch may still
@@ -129,10 +225,17 @@ static void runActiveMode()
     uint32_t activeMs = 0;
     int sinceUpdateMs = 1000;
     while ( true ) {
-        if ( s_displayOn && sinceUpdateMs >= 1000 ) {
+        const bool everySecond = s_displayOn && sinceUpdateMs >= 1000;
+        if ( everySecond ) {
             updateDisplay();
             sinceUpdateMs = 0;
         }
+#if CONFIG_WATCH_SETUP_PORTAL
+        if ( s_displayOn && servicePortal( everySecond ) ) {
+            // The display stays on while the portal runs; the timeout counts again after it.
+            activeMs = 0;
+        }
+#endif
         const int level = gpio_get_level( s_powerKeyGpio );
         if ( level != lastLevel ) {
             lastLevel = level;
@@ -156,7 +259,7 @@ static void runActiveMode()
             return;
         }
 #if CONFIG_WATCH_DEV_LOGGING
-        pollHostTime();
+        pollHostCommands();
 #endif
         vTaskDelay( pdMS_TO_TICKS( 20 ) );
         activeMs += 20;
@@ -255,7 +358,7 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
     Rtc::DateTime time = {};
     bool oscillatorStopped = false;
     const bool timeRead = s_rtc.init( bus ) == ESP_OK && s_rtc.read( time, oscillatorStopped ) == ESP_OK;
-    const uint64_t sleepUs = s_alwaysOn.update( time, timeRead );
+    const uint64_t sleepUs = s_alwaysOn.update( Rtc::addMinutes( time, s_alwaysOnOffsetMinutes ), timeRead );
     // Without the device the readings fail, which the motion check counts as no motion.
     s_motion.init( bus );
 #if CONFIG_WATCH_MOTION_LOG
@@ -283,6 +386,7 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
     s_peripherals.sleepTouch( bus );
     s_alwaysOn.begin();
     s_motion.restart( s_settings.value( Settings::AutoOff ) );
+    s_alwaysOnOffsetMinutes = s_settings.value( Settings::UtcOffset );
     Panel::holdPins();
     s_peripherals.holdSleepLines();
     s_deepSleep.enter( 500 * 1000 );
@@ -367,6 +471,9 @@ extern "C" void app_main( void )
 
     s_peripherals.quiesceOnce( bus, s_pmu );
     s_settings.load();
+#if CONFIG_WATCH_SETUP_PORTAL
+    s_portal.init();
+#endif
     if ( s_rtc.init( bus ) == ESP_OK ) {
         s_rtc.applyCalibration();
         s_rtc.logAtTick();
@@ -398,6 +505,9 @@ extern "C" void app_main( void )
 
     runActiveMode();
     logPowerKeyIrq();
+#if CONFIG_WATCH_SETUP_PORTAL
+    s_portal.stop();
+#endif
     // No setting can change once LVGL has stopped.
     s_display.stop();
     s_settings.save();

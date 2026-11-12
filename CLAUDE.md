@@ -116,17 +116,19 @@ buffer while it is still being sent (docs/hardware.md, Display).
 - Touch input: full-width rows of about 9 mm, one tap steps a value; no vertical scrolling
   inside the swiped pages; sliding off a row cancels the tap. Large dark-grey areas shimmer on
   this panel; use black with outlines.
-- Setup portal (M9): a button on the watch's settings page starts it (not every charge); the
-  same button stops it, and it stops by itself after a timeout or when the settings are saved.
-  The watch opens a WPA2 soft AP with a captive portal (DNS answers every name with the watch's
-  address, so phones and computers open the page by themselves; otherwise the IP address shown
-  on the watch is typed in). The password is set on the watch and shown on its settings page.
-  The page sends the browser's UTC time (timed like the guided test, with the round trip
-  measured) and UTC offset, a location (country/city list, a simple world map or coordinates;
-  browsers give no geolocation to a plain HTTP page) and every setting. If the Wi-Fi stack
-  lengthens the deep-sleep wakes too much even with
-  `CONFIG_BOOTLOADER_SKIP_VALIDATE_IN_DEEP_SLEEP`, a build option (`CONFIG_WATCH_SETUP_PORTAL`)
-  removes it and the watch's own settings page remains.
+- Setup portal (M9, `main/Portal.*`, `main/portal/`): a row on the watch's Setup page starts it
+  (not every charge); the same row stops it, and it stops by itself 5 min after the last browser
+  request or when the page saves. The watch opens a WPA2 soft AP with a captive portal (DNS
+  answers every name with the watch's address, so phones and computers open the page by
+  themselves; otherwise the IP address shown on the watch is typed in). The password is four
+  random digits, each written twice (e.g. 33556688, easy to type), made on the watch, kept in
+  NVS and shown on the Setup page; a "New password" button replaces it. The page sends the browser's UTC time (the shortest of five round trips
+  measured, the RTC started on the true second) and UTC offset (fixed; daylight saving time
+  changes are set again through the portal), a location (country/city list from GeoNames or
+  coordinates; no map; browsers give no geolocation to a plain HTTP page) and every setting.
+  The faces show local time. The Wi-Fi stack stays out of IRAM (sdkconfig.defaults) so that the
+  deep-sleep wakes load little more; if they still grow too much, a build option
+  (`CONFIG_WATCH_SETUP_PORTAL`) removes the portal and the watch's own settings page remains.
 - Alarms are stored as definitions (clock time, or sun/moon event plus offset; repeat) in NVS,
   never as a computed time. The next occurrence is computed from the definition, location and
   UTC offset, and again after each firing and after any change to them. An event that does not
@@ -214,3 +216,8 @@ power-on state, unplug USB for the run, then plug it in and read the log with
 - `docs/hardware.md`: hardware facts with sources.
 
 Update the matching document in the same change when a design decision changes.
+
+Before a push that changes what the watch shows, refresh `docs/screenshots/` from the board with
+the development build: `python tools/screenshot.py --send P --after P --after N` (the setup
+portal on for its page, then off with a new password, so that the published one is not in use).
+`tools/screenshot.py` can also be used during development to check a layout without the tester.

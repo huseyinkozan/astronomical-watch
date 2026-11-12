@@ -9,6 +9,24 @@ menu "Astronomical Watch"
             lost while USB re-enumerates. Costs up to about 2 s of awake time
             per such wake. Timer wakes never wait.
 
+    config WATCH_SETUP_PORTAL
+        bool "Setup portal over Wi-Fi"
+        default y
+        help
+            A button on the watch's Setup page opens a WPA2 access point with
+            a captive portal: a phone or computer sets the time, UTC offset,
+            location and settings from a browser. Without it the Wi-Fi stack
+            is not linked and the watch's own settings page remains.
+
+    config WATCH_SETUP_PORTAL_TIMEOUT_S
+        int "Setup portal closes after no request for (s)"
+        default 300
+        range 60 1800
+        depends on WATCH_SETUP_PORTAL
+        help
+            The access point draws roughly 100-150 mA, so the portal closes
+            by itself when no browser asked for anything this long.
+
     config WATCH_TEST_SETTINGS
         bool "Use these settings, ignore the saved ones (test builds)"
         default n

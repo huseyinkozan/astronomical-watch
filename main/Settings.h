@@ -1,7 +1,8 @@
 #pragma once
 
-// User settings (CLAUDE.md): kept in NVS, so they survive deep sleep and off mode. Each setting
-// has a short list of values, and the settings page steps through it with one tap per value.
+// User settings (CLAUDE.md): kept in NVS, so they survive deep sleep and off mode. A setting on
+// the watch's page has a short list of values, stepped with one tap per value; the setup portal
+// sets every setting.
 // The Kconfig values are the defaults.
 class Settings
 {
@@ -12,8 +13,14 @@ public:
         AlwaysOnFace,    // 1: always-on face after active mode, 0: power off
         Brightness,      // active-mode panel brightness, percent
         AutoOff,         // minutes without motion in always-on until power-off, 0: never
+        UtcOffset,       // minutes added to the RTC's UTC for the displayed time
+        Latitude,        // micro-degrees, north positive
+        Longitude,       // micro-degrees, east positive
         ItemCount
     };
+    // The items before this one are on the watch's settings page; the rest come from the setup
+    // portal only.
+    static const int PageItemCount = UtcOffset;
 
     // Reads the saved values. A missing value, or one that is not in the item's list, keeps the
     // default. Test builds (CONFIG_WATCH_TEST_SETTINGS) ignore the saved values.
@@ -24,6 +31,9 @@ public:
 
     // Steps the item to the next value of its list; after the last comes the first.
     void next( Item item );
+
+    // Sets a value from the setup portal; false (and no change) when it is not valid.
+    bool setValue( Item item, int value );
 
     int value( Item item ) const;
 
