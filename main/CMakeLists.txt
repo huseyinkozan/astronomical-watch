@@ -1,4 +1,4 @@
-idf_component_register(SRCS "BatteryLog.cpp" "Peripherals.cpp" "DeepSleep.cpp" "Axp2101.cpp" "Rtc.cpp" "Display.cpp" "Panel.cpp" "AlwaysOn.cpp" "main.cpp"
+idf_component_register(SRCS "BatteryLog.cpp" "Peripherals.cpp" "DeepSleep.cpp" "Axp2101.cpp" "Rtc.cpp" "Display.cpp" "Panel.cpp" "AlwaysOn.cpp" "Motion.cpp" "main.cpp"
                        INCLUDE_DIRS ""
                        PRIV_REQUIRES esp_driver_gpio esp_driver_i2c esp_driver_spi esp_driver_usb_serial_jtag
                                      esp_lcd esp_timer)

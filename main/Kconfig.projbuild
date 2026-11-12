@@ -31,12 +31,24 @@ menu "Astronomical Watch"
         help
             Panel brightness of the always-on face.
 
-    config WATCH_AOD_MINUTES
-        int "Always-on duration (minutes)"
+    config WATCH_MOTION_CHECK_MIN
+        int "Motion check interval in always-on (minutes)"
+        range 1 60
+        default 10
+        help
+            The accelerometer is read once per interval (about 0.1 s awake)
+            and compared with the reading before. The default 10 min was
+            checked on the wrist (docs/hardware.md, QMI8658A section).
+
+    config WATCH_MOTION_OFF_MIN
+        int "Power off after no motion for (minutes, 0 = never)"
+        range 0 1440
         default 30
         help
-            Until the motion check exists (M6), the always-on face ends after
-            this time and the watch powers off.
+            In always-on, the watch powers off when the readings of this many
+            minutes (a multiple of the check interval) all stay within the
+            no-motion threshold. 0 keeps the face on, for measurement and
+            battery runs.
 
     config WATCH_AOD_IDLE_MODE
         bool "Always-on face in idle mode (8 colours)"
@@ -148,8 +160,18 @@ menu "Astronomical Watch"
         default n
         depends on WATCH_BATTERY_LOG
         help
-            After the awake window the always-on face runs (make
-            WATCH_AOD_MINUTES long enough), and one of its minute wakes per
-            logging interval records the battery.
+            After the awake window the always-on face runs (set
+            WATCH_MOTION_OFF_MIN to 0 to keep it on), and one of its minute
+            wakes per logging interval records the battery.
+
+    config WATCH_MOTION_LOG
+        bool "Motion measurement log"
+        default n
+        help
+            Every always-on minute wake takes one accelerometer reading
+            (average of 8 samples) and keeps it in RTC memory; a PWR wake
+            prints the log. Used to choose the no-motion threshold and to
+            measure how long one reading keeps the watch awake
+            (docs/hardware.md, open question 3).
 
 endmenu

@@ -10,8 +10,9 @@
 class AlwaysOn
 {
 public:
-    // Called when the awake window ends; the following timer wakes draw the face for `minutes`.
-    void begin( int minutes );
+    // Called when the awake window ends; the following timer wakes draw the face until the
+    // motion check powers the watch off (main.cpp) or a PWR wake ends it.
+    void begin();
 
     // A PWR wake returns to active mode and ends the always-on face.
     void end();
@@ -19,7 +20,8 @@ public:
     bool isActive() const;
 
     // Timer wake: draws the face for `time` and returns the microseconds until just after the
-    // next minute, or 0 when the always-on time is over. Without a valid time it draws nothing
-    // and asks for another wake in a minute.
+    // next minute, or 0 when the face cannot go on (the panel failed, or no valid time for
+    // s_maxFailedMinutes). Without a valid time it draws nothing and asks for another wake in a
+    // minute.
     uint64_t update( const Rtc::DateTime &time, bool timeRead );
 };

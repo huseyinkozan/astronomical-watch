@@ -1,4 +1,4 @@
-# Always-on battery run (M5), on top of sdkconfig.battery: the face runs for two days and one
-# minute wake every 15 min records the battery.
+# Always-on battery run (M5), on top of sdkconfig.battery: the face stays on (no motion
+# power-off) and one minute wake every 15 min records the battery.
 CONFIG_WATCH_BATTERY_LOG_AOD=y
-CONFIG_WATCH_AOD_MINUTES=2880
+CONFIG_WATCH_MOTION_OFF_MIN=0

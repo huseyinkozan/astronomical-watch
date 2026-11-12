@@ -26,12 +26,13 @@ static const uint8_t s_digitSegments[10] = { 0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D,
 // Kept in RTC memory: cleared on power-on and reset.
 RTC_DATA_ATTR static bool s_active;
 RTC_DATA_ATTR static bool s_screenCleared;
-RTC_DATA_ATTR static int s_minutesLeft;
-RTC_DATA_ATTR static int s_lastMinuteOfDay;
+RTC_DATA_ATTR static int s_failedMinutes;
 RTC_DATA_ATTR static int s_faceX;
 RTC_DATA_ATTR static int s_faceY;
 
 static const uint64_t s_retryUs = 60ULL * 1000 * 1000;
+// A lasting RTC fault ends the face, so that it cannot keep the watch out of off mode.
+static const int s_maxFailedMinutes = 30;
 
 static void drawDigit( Panel &panel, int x, int y, int digit )
 {
@@ -54,12 +55,11 @@ static void drawDigit( Panel &panel, int x, int y, int digit )
     }
 }
 
-void AlwaysOn::begin( int minutes )
+void AlwaysOn::begin()
 {
     s_active = true;
     s_screenCleared = false;
-    s_minutesLeft = minutes;
-    s_lastMinuteOfDay = -1;
+    s_failedMinutes = 0;
     s_faceX = FACE_X;
     s_faceY = FACE_Y;
 }
@@ -76,15 +76,15 @@ bool AlwaysOn::isActive() const
 
 uint64_t AlwaysOn::update( const Rtc::DateTime &time, bool timeRead )
 {
-    // A failed or corrupt read must not turn into a long sleep: try again in a minute, and count
-    // the minute so that a lasting fault still ends the always-on time.
+    // A failed or corrupt read must not turn into a long sleep: try again in a minute.
     if ( !timeRead || time.hour > 23 || time.minute > 59 || time.second > 59 ) {
-        if ( --s_minutesLeft <= 0 ) {
+        if ( ++s_failedMinutes >= s_maxFailedMinutes ) {
             s_active = false;
             return 0;
         }
         return s_retryUs;
     }
+    s_failedMinutes = 0;
 
     // A wake up to 2 s early (RC timer drift) already shows the coming minute.
     int minuteOfDay = time.hour * 60 + time.minute;
@@ -92,16 +92,6 @@ uint64_t AlwaysOn::update( const Rtc::DateTime &time, bool timeRead )
     if ( time.second >= 58 ) {
         minuteOfDay = ( minuteOfDay + 1 ) % ( 24 * 60 );
         secondsToNext += 60;
-    }
-    if ( minuteOfDay != s_lastMinuteOfDay ) {
-        if ( s_lastMinuteOfDay >= 0 ) {
-            --s_minutesLeft;
-        }
-        s_lastMinuteOfDay = minuteOfDay;
-    }
-    if ( s_minutesLeft <= 0 ) {
-        s_active = false;
-        return 0;
     }
 
     Panel panel;

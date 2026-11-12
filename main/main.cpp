@@ -5,6 +5,7 @@
 #include "BatteryLog.h"
 #include "DeepSleep.h"
 #include "Display.h"
+#include "Motion.h"
 #include "Panel.h"
 #include "Peripherals.h"
 #include "Rtc.h"
@@ -33,6 +34,7 @@ static Display s_display;
 static bool s_displayOn = false;
 static AlwaysOn s_alwaysOn;
 static BatteryLog s_batteryLog;
+static Motion s_motion;
 
 static void logPowerKeyIrq()
 {
@@ -242,11 +244,17 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
     bool oscillatorStopped = false;
     const bool timeRead = s_rtc.init( bus ) == ESP_OK && s_rtc.read( time, oscillatorStopped ) == ESP_OK;
     const uint64_t sleepUs = s_alwaysOn.update( time, timeRead );
+    // Without the device the readings fail, which the motion check counts as no motion.
+    s_motion.init( bus );
+#if CONFIG_WATCH_MOTION_LOG
+    s_motion.recordLog();
+#endif
+    const bool still = sleepUs != 0 && s_motion.stillTooLong();
     if ( pmuReady ) {
         s_batteryLog.recordIfDue( s_pmu );
     }
-    if ( sleepUs == 0 ) {
-        // The always-on time is over (or the panel failed).
+    if ( sleepUs == 0 || still ) {
+        // No motion for the set time (or the panel or the RTC failed).
         powerOff( pmuReady );
     }
     s_peripherals.holdSleepLines();
@@ -262,7 +270,8 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
     }
     s_display.stop();
     s_peripherals.sleepTouch( bus );
-    s_alwaysOn.begin( CONFIG_WATCH_AOD_MINUTES );
+    s_alwaysOn.begin();
+    s_motion.restart();
     Panel::holdPins();
     s_peripherals.holdSleepLines();
     s_deepSleep.enter( 500 * 1000 );
@@ -352,6 +361,9 @@ extern "C" void app_main( void )
     } else {
         ESP_LOGE( TAG, "RTC init failed" );
     }
+#if CONFIG_WATCH_MOTION_LOG
+    s_motion.printLog();
+#endif
     if ( pmuReady ) {
         s_pmu.setPowerOnPress();
         if ( s_pmu.setChargeCurrents() != ESP_OK ) {

@@ -159,6 +159,30 @@ Validated on this board [HW] (validator in `archive/wom-validator/`, tag `wom-va
 - Before deep sleep, require INT1 stably low and use STATUS1.WoM to tell real events from this case.
 - Deep-sleep wake via GPIO21 (EXT1) is **not validated yet**.
 
+Motion check (M6, `main/Motion.*`) [HW, 2026-11-12]:
+- One reading: CTRL1 = `0x40` (oscillator on, address auto-increment, little-endian, INT pins
+  high-Z), 15 ms for the system turn-on time t0, CTRL2 = `0x06` (±2 g, 112 Hz from the internal
+  oscillator), CTRL7 = `0x01`. Power-down keeps the output registers [DS Table 31], so a new
+  sample is recognised by the sample time stamp (`0x30`–`0x32`) advancing, not by the data. The
+  first new sample came 11 ms after CTRL7 (21 ms on the first reading after power-on), as
+  t2 ≈ 3 ms plus one sample period predicts. Three samples are dropped (t5 = 3/ODR) and eight
+  averaged; then CTRL7 = 0 and CTRL1 = `0x41` (power-down). The watch is awake 109 ms longer
+  per reading; one reading every 10 min adds under 0.01 mA on average (estimate).
+- Measurement (`sdkconfig.motionlog`, one reading per always-on minute, `tools/guided_test.py
+  motion` steps): **on a desk** 31 readings over 30 min stayed within 3 mg on every axis; the
+  eight samples of one reading spread by 5–12 mg. **On the wrist** for 65 min (sitting, typing,
+  walking, a while with the arm still) two readings one minute apart differed by as little as
+  2 mg, but **readings 10 min apart always differed by at least 21 mg** on their largest axis.
+- Product rule: every 10 min (`CONFIG_WATCH_MOTION_CHECK_MIN`) one reading is compared with the
+  previous one; a change of more than **10 mg** on any axis counts as motion. After 30 min
+  (`CONFIG_WATCH_MOTION_OFF_MIN`, three checks) without motion the watch powers off. A failed
+  reading counts as no motion, so a broken sensor cannot keep the watch out of off mode.
+- Validated with `sdkconfig.motionquick` (a check every minute, power-off after 3 min;
+  `tools/guided_test.py motioncheck` and `motionhand`): on the desk the changes were 1 mg and
+  the watch powered off after the third check; held in the hand the changes were 361 and 539 mg,
+  each resetting the count, and back on the desk it powered off three checks later. A PWR wake
+  takes a new reference.
+
 ### PCF85063A RTC (`0x51`)
 - INT is open-drain [DS Table 3]; on this board it goes to GPIO39 (no deep-sleep wake).
 - Control_1 `0x00` bit0 CAP_SEL: 0 = 7 pF, 1 = 12.5 pF. The Waveshare component writes `0x01`
@@ -611,8 +635,9 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
    affect the charger, with its current source off [HW]; whether RP2 is fitted is unchecked.
 2. QMI8658A CTRL9 handshake: does CTRL8.bit7 = 1 keep CmdDone off INT1 on this chip, as the A
    datasheet states?
-3. How much does one accelerometer sample change between motion checks on a desk and on the wrist
-   (sets the no-motion threshold), and how long must the accelerometer run for one valid sample?
+3. Answered 2026-11-12 (QMI8658A section, motion check): at most 3 mg on a desk and at least
+   21 mg on the wrist between readings 10 min apart; the first new sample comes 11 ms after the
+   accelerometer is enabled. Longer wrist runs (sleep included) may still show rarer still phases.
 4. Which other CO5300 settings lower the always-on panel current further (frame rate, partial
    mode)? With idle mode it was about 3.2 mA, of which about 1.5 mA was the deep-sleep floor
    (runs E and F, question 7, scaled with run R); with the idle pads held the floor is about

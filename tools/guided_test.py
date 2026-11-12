@@ -13,6 +13,7 @@ import argparse
 import datetime
 import os
 import re
+import subprocess
 import sys
 import threading
 import time
@@ -110,6 +111,46 @@ TESTS = {
         (WAIT, '', r'RTC \d{4}-', 10),
         (WAIT, 'Waiting for the power-off.', r'Powering off', 25),
     ],
+    # Motion measurement (M6, docs/hardware.md open question 3), build with sdkconfig.motionlog:
+    # one accelerometer reading per always-on minute, 30 min on the desk, then 60 min worn.
+    'motion': [
+        (WAIT, 'The board is being reset.', r'wake source: power-on/reset', 20),
+        (WAIT, 'Put the watch on the desk, screen up, with USB plugged in. Do not touch it or the '
+         'desk from now on.', r'Motion x=', 60),
+        (QUIET, 'Hands off for 30 min (watch and desk).', r'Motion sample failed|Guru Meditation|abort\(\)',
+         1800),
+        (ACT, 'Put the watch on your wrist, then press PWR briefly.', r'Motion log: \d+', 300),
+        (ACT, 'Unplug USB and wear the watch for about 60 min with normal use: sitting, typing, '
+         'walking, and a while with the arm still. Then plug USB in and press PWR briefly.',
+         r'wake source: wake: PWR key', 4800),
+        (WAIT, '', r'Motion log: \d+', 30),
+    ],
+    # Motion power-off (M6), build with sdkconfig.motionquick: a check every minute, power-off
+    # after 3 min without motion.
+    'motioncheck': [
+        (WAIT, 'The board is being reset.', r'wake source: power-on/reset', 20),
+        (WAIT, 'Leave the watch on the desk, screen up, with USB plugged in. Do not touch it.',
+         r'Motion reference', 60),
+        (WAIT, 'It should power off in about 4 min.', r'still for 3 checks', 300),
+        (WAIT, '', r'Powering off', 30),
+        (ACT, 'Pick the watch up (USB stays in) and press PWR for about 1 s. Then hold it in your '
+         'hand and turn it a little every 20 s until told otherwise.',
+         r'wake source: power-on/reset', 900),
+        (WAIT, '', r'Motion reference', 60),
+        (WAIT, '', r'change \d{2,} mg, still for 0 checks', 200),
+        (QUIET, 'Keep turning it a little every 20 s for 4 min: it must stay on.', r'Powering off', 240),
+        (ACT, 'Put the watch on the desk and leave it: it should power off within about 5 min.',
+         r'Powering off', 400),
+    ],
+    # Short second half of 'motioncheck' (same build): motion keeps the watch on, then it powers
+    # off on the desk. The tester is needed for about 2 min only.
+    'motionhand': [
+        (ACT, 'Press PWR briefly if you have not yet. Then hold the watch in your hand (USB stays in) '
+         'and turn it a little every 20 s until told to put it down.', r'Motion reference', 90),
+        (WAIT, '', r'change \d{2,} mg, still for 0 checks', 120),
+        (ACT, 'Put the watch on the desk and leave it; you can go. It should power off within about '
+         '4 min.', r'Powering off', 360),
+    ],
     # Reads the battery drain log; the board must not be reset, or RTC memory is cleared.
     'battery': [
         (WAIT, 'Reading the battery log.', r'Battery log: \d+ of \d+ samples', 30),
@@ -117,10 +158,22 @@ TESTS = {
     ],
 }
 
-NO_RESET_TESTS = {'battery'}
+NO_RESET_TESTS = {'battery', 'motionhand'}
+
+
+def notify(title, instruction):
+    """Desktop notification that stays until it is closed (critical urgency), so that it stands
+    out from the short USB plug notifications while the tester is away from the terminal."""
+    try:
+        subprocess.run(['notify-send', '-u', 'critical', '-a', 'Watch test', title, instruction],
+                       timeout=5, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        pass
 
 
 def printInstruction(kind, instruction):
+    if kind != WAIT:
+        notify({ACT: 'Action', QUIET: 'Check', ASK: 'Question'}.get(kind, 'Watch test'), instruction)
     if kind == ACT:
         print(f'\n\a{ACT_STYLE}ACTION: {instruction}{RESET}')
     elif kind == QUIET:

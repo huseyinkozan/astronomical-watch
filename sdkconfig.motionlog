@@ -1,0 +1,4 @@
+# Motion measurement run (docs/hardware.md, open question 3): one accelerometer reading per
+# always-on minute, printed on a PWR wake. The face stays on (no motion power-off).
+CONFIG_WATCH_MOTION_LOG=y
+CONFIG_WATCH_MOTION_OFF_MIN=0
