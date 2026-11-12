@@ -9,6 +9,16 @@ menu "Astronomical Watch"
             lost while USB re-enumerates. Costs up to about 2 s of awake time
             per such wake. Timer wakes never wait.
 
+    config WATCH_TEST_SETTINGS
+        bool "Use these settings, ignore the saved ones (test builds)"
+        default n
+        help
+            The display timeout, always-on, brightness and auto-off options
+            below are only the defaults of the settings page; a saved setting
+            replaces them. Test builds that need other values (outside the
+            page's lists, too) enable this: the saved settings are neither read
+            nor written, and changes on the page last until the next sleep.
+
     config WATCH_DISPLAY_TIMEOUT_S
         int "Display timeout (s)"
         range 5 36000
@@ -17,8 +27,8 @@ menu "Astronomical Watch"
             Active mode ends this long after it started or after the last
             touch, whichever is later; a PWR press ends it at once. The watch
             then shows the always-on face, or powers off without it. The
-            settings page (M8) will offer 5, 10, 20, 30 and 60 s; longer
-            values are for test builds (sdkconfig.drain).
+            settings page offers 5, 10, 20, 30 and 60 s; longer values are
+            for test builds (sdkconfig.drain).
 
     config WATCH_ALWAYS_ON
         bool "Always-on face after active mode"
@@ -31,8 +41,9 @@ menu "Astronomical Watch"
         range 1 100
         default 50
         help
-            Panel brightness in the awake window (DBV, command 0x51). AMOLED
+            Panel brightness in active mode (DBV, command 0x51). AMOLED
             current grows with brightness and with the number of lit pixels.
+            The settings page offers 20, 50 and 100 %.
 
     config WATCH_AOD_BRIGHTNESS
         int "Always-on brightness (%)"
@@ -57,8 +68,8 @@ menu "Astronomical Watch"
         help
             In always-on, the watch powers off when the readings of this many
             minutes (a multiple of the check interval) all stay within the
-            no-motion threshold. 0 keeps the face on, for measurement and
-            battery runs.
+            no-motion threshold. 0 keeps the face on. The settings page offers
+            20, 30 and 60 min and never.
 
     config WATCH_AOD_IDLE_MODE
         bool "Always-on face in idle mode (8 colours)"

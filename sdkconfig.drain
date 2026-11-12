@@ -2,3 +2,4 @@
 # the watch stays awake with the display at full brightness, showing the gauge.
 CONFIG_WATCH_DISPLAY_TIMEOUT_S=36000
 CONFIG_WATCH_DISPLAY_BRIGHTNESS=100
+CONFIG_WATCH_TEST_SETTINGS=y

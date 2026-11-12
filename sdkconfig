@@ -989,6 +989,8 @@ CONFIG_PARTITION_TABLE_MD5=y
 # default:
 CONFIG_WATCH_DEV_LOGGING=y
 # default:
+# CONFIG_WATCH_TEST_SETTINGS is not set
+# default:
 CONFIG_WATCH_DISPLAY_TIMEOUT_S=10
 # default:
 CONFIG_WATCH_ALWAYS_ON=y
@@ -2444,6 +2446,21 @@ CONFIG_MBEDTLS_PKCS1_V21=y
 # CONFIG_MBEDTLS_CHACHA20_C is not set
 # end of Stream Cipher
 # end of mbedTLS
+
+#
+# NVS
+#
+# default:
+# CONFIG_NVS_ENCRYPTION is not set
+# default:
+# CONFIG_NVS_ASSERT_ERROR_CHECK is not set
+# default:
+# CONFIG_NVS_LEGACY_DUP_KEYS_COMPATIBILITY is not set
+# default:
+# CONFIG_NVS_BDL_STACK is not set
+# default:
+# CONFIG_NVS_FLASH_VERIFY_ERASE is not set
+# end of NVS
 
 #
 # PThreads

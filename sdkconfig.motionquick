@@ -2,3 +2,4 @@
 # after 3 min without motion, so that the test takes minutes instead of half an hour.
 CONFIG_WATCH_MOTION_CHECK_MIN=1
 CONFIG_WATCH_MOTION_OFF_MIN=3
+CONFIG_WATCH_TEST_SETTINGS=y

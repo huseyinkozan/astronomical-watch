@@ -24,11 +24,12 @@ public:
     esp_err_t sample( Reading &reading );
 
     // A new always-on period (after a PWR wake): the next check takes a new reference.
-    void restart();
+    // `offMinutes` is the auto-off setting, kept in RTC memory for the minute wakes; 0 is never.
+    void restart( int offMinutes );
 
     // Always-on minute wake: every CONFIG_WATCH_MOTION_CHECK_MIN it takes a reading and compares
-    // it with the one before. True once CONFIG_WATCH_MOTION_OFF_MIN have passed without a change
-    // above the no-motion threshold; always false when that option is 0.
+    // it with the one before. True once `offMinutes` have passed without a change above the
+    // no-motion threshold; always false, without a reading, when it is 0.
     bool stillTooLong();
 
     // Measurement build (CONFIG_WATCH_MOTION_LOG): one reading per call kept in RTC memory,

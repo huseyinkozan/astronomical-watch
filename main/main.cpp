@@ -9,6 +9,7 @@
 #include "Panel.h"
 #include "Peripherals.h"
 #include "Rtc.h"
+#include "Settings.h"
 
 #include "bsp/esp32_s3_touch_amoled_2_06.h"
 #include "driver/gpio.h"
@@ -22,7 +23,6 @@
 
 static const char *TAG = "main";
 
-static const int s_displayTimeoutMs = CONFIG_WATCH_DISPLAY_TIMEOUT_S * 1000;
 static const gpio_num_t s_powerKeyGpio = GPIO_NUM_10;
 
 static Axp2101 s_pmu;
@@ -34,6 +34,7 @@ static bool s_displayOn = false;
 static AlwaysOn s_alwaysOn;
 static BatteryLog s_batteryLog;
 static Motion s_motion;
+static Settings s_settings;
 
 static void logPowerKeyIrq()
 {
@@ -124,7 +125,7 @@ static void updateDisplay()
 static void runActiveMode()
 {
     int lastLevel = gpio_get_level( s_powerKeyGpio );
-    ESP_LOGI( TAG, "Active mode, display timeout %d s", CONFIG_WATCH_DISPLAY_TIMEOUT_S );
+    ESP_LOGI( TAG, "Active mode, display timeout %d s", s_settings.value( Settings::DisplayTimeout ) );
     uint32_t activeMs = 0;
     int sinceUpdateMs = 1000;
     while ( true ) {
@@ -148,7 +149,9 @@ static void runActiveMode()
                 idleMs = touchIdleMs;
             }
         }
-        if ( idleMs >= static_cast<uint32_t>( s_displayTimeoutMs ) ) {
+        // Read every time: the settings page can change it.
+        const uint32_t timeoutMs = s_settings.value( Settings::DisplayTimeout ) * 1000;
+        if ( idleMs >= timeoutMs ) {
             ESP_LOGI( TAG, "Display timeout: active mode ends" );
             return;
         }
@@ -274,16 +277,12 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
 // half a second later, the same path as every minute.
 [[maybe_unused]] static void enterAlwaysOn( i2c_master_bus_handle_t bus, bool pmuReady )
 {
-#if !CONFIG_WATCH_ALWAYS_ON
-    powerOff( pmuReady );
-#endif
-    if ( !s_displayOn ) {
+    if ( !s_displayOn || s_settings.value( Settings::AlwaysOnFace ) == 0 ) {
         powerOff( pmuReady );
     }
-    s_display.stop();
     s_peripherals.sleepTouch( bus );
     s_alwaysOn.begin();
-    s_motion.restart();
+    s_motion.restart( s_settings.value( Settings::AutoOff ) );
     Panel::holdPins();
     s_peripherals.holdSleepLines();
     s_deepSleep.enter( 500 * 1000 );
@@ -367,6 +366,7 @@ extern "C" void app_main( void )
 #endif
 
     s_peripherals.quiesceOnce( bus, s_pmu );
+    s_settings.load();
     if ( s_rtc.init( bus ) == ESP_OK ) {
         s_rtc.applyCalibration();
         s_rtc.logAtTick();
@@ -388,7 +388,7 @@ extern "C" void app_main( void )
         // preparation, as in runs A to D: nothing switches the panel off before deep sleep.
 #else
         s_pmu.setPanelPower( true );
-        s_displayOn = s_display.start( CONFIG_WATCH_DISPLAY_BRIGHTNESS );
+        s_displayOn = s_display.start( s_settings );
 #endif
 #if CONFIG_WATCH_BATTERY_LOG
         s_batteryLog.record( s_pmu );
@@ -398,6 +398,9 @@ extern "C" void app_main( void )
 
     runActiveMode();
     logPowerKeyIrq();
+    // No setting can change once LVGL has stopped.
+    s_display.stop();
+    s_settings.save();
 
 #if CONFIG_WATCH_BATTERY_LOG && !CONFIG_WATCH_BATTERY_LOG_AOD
     // Battery-log runs without the face sleep with their logging timer instead.

@@ -61,8 +61,10 @@ astronomical-watch/
 ## Status
 
 Restarted on ESP-IDF with C++17. The watch puts the unused peripherals into their lowest-power
-state. A PWR press starts active mode: two pages, swiped sideways, show the UTC time, date and
-battery state, and the battery details. 10 s after the last touch, or at the next PWR press, a
+state. A PWR press starts active mode: pages swiped sideways show the UTC time, date and
+battery state, and the battery details; a third page holds the settings (display timeout,
+always-on, brightness, auto-off), one tap per value, kept in flash. 10 s after the last touch
+(the default), or at the next PWR press, a
 dim seven-segment HH:MM stays on the display while the processor deep-sleeps, redrawn once a
 minute. Every 10 min the accelerometer is read once; when the watch has not moved for 30 min it
 switches itself off through the power-management IC, and a PWR press of at least half a second
@@ -91,8 +93,8 @@ Each step is built, verified on the board and documented before the next one sta
    every 10 min, 10 mg threshold measured on a desk and on the wrist; power-off after 30 min
    without motion).
 8. **M7** (done): active mode (touch, two swipeable pages, display timeout, PWR press to always-on).
-9. **M8**: settings in NVS and the settings page on the watch (setup button, password and IP
-   address).
+9. **M8** (done): settings in NVS and the settings page on the watch (display timeout, always-on,
+   brightness, auto-off; the setup button, password and IP address follow with M9).
 10. **M9**: setup portal over Wi-Fi (time, UTC offset, location, all settings); wake time measured
     again with the larger image.
 11. **M10+**: astronomy, battery display.

@@ -39,7 +39,8 @@ ASK = 'ask'
 RTC_LINE = re.compile(r'RTC (\d{4})-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d) UTC')
 
 # A step is (kind, instruction, regular expression, timeout in seconds).
-# kind ACT rings the terminal bell; an empty instruction keeps waiting without a new prompt.
+# kind ACT rings the terminal bell and waits without a time limit, at the tester's pace; an empty
+# instruction keeps waiting without a new prompt.
 # kind QUIET (shown as CHECK) passes when the pattern does NOT appear within the timeout.
 # kind SEND_TIME sends the host's UTC time to the watch, then waits for the pattern.
 # kind ASK asks the tester a yes/no question (a visual check) and logs the answer.
@@ -177,6 +178,45 @@ TESTS = {
         (WAIT, '', r'PWR press: active mode ends', 30),
         (ASK, 'Did the dim always-on face appear at once after the second press?', '', 0),
     ],
+    # Settings page (M8), default build: every tap on a row steps its value, the values are
+    # saved in NVS when active mode ends and survive off mode and deep sleep. Starts from the
+    # defaults (10 s, On, Mid, 30 min) and ends with them restored.
+    'settings': [
+        (WAIT, 'The board is being reset. Do not touch the screen.', r'Settings: timeout', 20),
+        (WAIT, '', r'Display timeout: active mode ends', 30),
+        (ACT, 'Press PWR briefly. Swipe left twice to the settings page. If the screen goes dim '
+         'later, press PWR and swipe back.', r'Touch at', 0),
+        (ACT, 'Tap "Screen off" 10 times, slowly.', r'Setting Screen off', 0),
+    ] + [(ACT, '', r'Setting Screen off', 0)] * 9 + [
+        (ACT, 'Tap "Brightness" 3 times, slowly. Watch the brightness.', r'Setting Brightness', 0),
+        (ACT, '', r'Setting Brightness', 0),
+        (ACT, '', r'Setting Brightness', 0),
+        (ACT, 'Tap "Auto off" 4 times.', r'Setting Auto off', 0),
+        (ACT, '', r'Setting Auto off', 0),
+        (ACT, '', r'Setting Auto off', 0),
+        (ACT, '', r'Setting Auto off', 0),
+        (ACT, 'Tap "Always-on" 2 times.', r'Setting Always-on', 0),
+        (ACT, '', r'Setting Always-on', 0),
+        (ASK, 'Did each tap change the value, and the brightness?', '', 0),
+        (ACT, 'If the screen is dim: press PWR, swipe to the settings. '
+         'Tap "Screen off" until it shows 5 s.', r'Setting Screen off: 5 s', 0),
+        (ACT, 'Tap "Always-on" once (Off). Then do not touch.', r'Setting Always-on: Off', 0),
+        (WAIT, '', r'Display timeout: active mode ends', 20),
+        (WAIT, '', r'Settings saved \(\d changed\): ESP_OK', 10),
+        (WAIT, 'The watch powers off now.', r'Powering off', 15),
+        (ACT, 'Press PWR for about 1 s. Do not touch the screen.', r'wake source: power-on/reset', 0),
+        (WAIT, '', r'Settings: timeout 5 s, always-on 0', 10),
+        (WAIT, '', r'Active mode, display timeout 5 s', 20),
+        (WAIT, '', r'Display timeout: active mode ends', 15),
+        (WAIT, '', r'Powering off', 15),
+        (ACT, 'Press PWR for about 1 s. Swipe to the settings. Tap "Screen off" once (10 s).',
+         r'Setting Screen off: 10 s', 0),
+        (ACT, 'Tap "Always-on" once (On). Then do not touch.', r'Setting Always-on: On', 0),
+        (WAIT, '', r'Settings saved \(2 changed\): ESP_OK', 30),
+        (WAIT, '', r'Entering deep sleep', 15),
+        (ACT, 'Press PWR briefly.', r'Settings: timeout 10 s, always-on 1', 0),
+        (WAIT, 'Do not touch.', r'Display timeout: active mode ends', 20),
+    ],
     # Reads the battery drain log; the board must not be reset, or RTC memory is cleared.
     'battery': [
         (WAIT, 'Reading the battery log.', r'Battery log: \d+ of \d+ samples', 30),
@@ -302,7 +342,7 @@ def runSteps(reader, steps):
         regex = re.compile(re.escape(pattern) if pattern.startswith('<') else pattern)
         start = time.time()
         matched = False
-        while time.time() - start < timeout:
+        while kind == ACT or time.time() - start < timeout:
             with reader.lock:
                 lines = reader.lines[cursor:]
             for offset, line in enumerate(lines):
@@ -332,8 +372,7 @@ def waitForBoard(reader):
     if reader.serial is not None:
         return True
     printInstruction(ACT, 'The watch is asleep or off. Press PWR for about 1 s.')
-    start = time.time()
-    while reader.serial is None and time.time() - start < 60:
+    while reader.serial is None:
         time.sleep(0.05)
     return reader.serial is not None
 

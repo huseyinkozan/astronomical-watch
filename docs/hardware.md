@@ -337,6 +337,24 @@ Validated on this board [HW] (guided test `display`, 2026-10-31; `main/Display.*
 - The BSP aborts (`ESP_ERROR_CHECK`) if the QSPI bus cannot be initialised; the sleep
   preparation frees the bus after its deep-standby command, so the BSP finds it free.
 
+LVGL start without `bsp_display_start()` [REF][HW] (M8, 2026-11-12; `main/Display.cpp`):
+- `bsp_display_start()` adds this QSPI panel with `lvgl_port_add_disp_rgb()`. On that path
+  `esp_lvgl_port` 2.9 calls `lv_display_flush_ready()` right after `esp_lcd_panel_draw_bitmap()`,
+  which for QSPI only queues the DMA transfer; LVGL then draws the next band into the single
+  buffer while it is still being sent. On the board this showed as horizontal stripes: a few
+  lines on the watch face, the settings rows unreadable. It also passes the SH8601 panel handle
+  to `esp_lcd_rgb_panel_register_event_callbacks()`, which writes RGB-panel fields past the end
+  of the SH8601 object [REF: `esp_lcd_panel_rgb.c`]. Waveshare's LVGL example uses the same BSP code.
+- `Display` repeats the BSP's steps with public calls: `lvgl_port_init()`, `bsp_display_new()`
+  (it also sets the handles that `bsp_display_brightness_set()` uses), `lvgl_port_add_disp()`
+  (flush done on the QSPI transfer-done callback), the BSP's even/odd area rounder, and
+  `bsp_touch_new()` with `lvgl_port_add_touch()`. No stripes since then.
+- With `buff_dma = true` and `sw_rotate = false` (the BSP has `false` and `true`) the touch
+  controller raised no interrupt at all (TP_INT stayed high during swipes, no LVGL press); with
+  the BSP's flags it works. Which of the two flags matters, and why, is [?].
+- Large dark-grey areas (0x202020 row backgrounds) shimmer continuously on this panel at every
+  brightness; white on black does not. The settings rows are black with a grey outline.
+
 Always-on face [HW] (guided test `aod`, 2026-10-31; `main/Panel.*`, `main/AlwaysOn.*`):
 - **The CO5300 keeps its image while the ESP32 deep-sleeps**, with ALDO2 on and the panel pins
   held (CS high, SCLK and SIO0–3 low, LCD_RESET high; all are RTC pads, so `gpio_hold_en` holds
@@ -344,7 +362,7 @@ Always-on face [HW] (guided test `aod`, 2026-10-31; `main/Panel.*`, `main/Always
   a reset or init commands and redraws only the digits: the HH:MM changed at each minute with no
   blanking or flicker, over 4 minutes in two runs.
 - The BSP is not used on these wakes: `bsp_display_start()` would reset the panel. A PWR wake
-  releases the holds and the BSP starts the active face as usual; the sleeping touch controller
+  releases the holds and `Display` starts the active face as usual; the sleeping touch controller
   wakes from the BSP's reset pulse.
 - Face: seven-segment HH:MM drawn as filled rectangles (no LVGL, no fonts) at brightness 10 %
   in idle mode (39h), moved within ±8 pixels each minute against burn-in. It shows UTC until the
@@ -378,6 +396,15 @@ Validated on this board [HW] (guided test `active`, 2026-11-12; `main/Display.*`
   on for 23 s and the timeout came 10.0 s after the last tap.
 - From a PWR wake the active face appears about 1.1–1.4 s after the boot log (1.7–2.1 s after
   reset), part of it the development logging's wait for the USB host.
+
+Taps on the settings page (M8, `main/Display.cpp`) [REF][HW]:
+- LVGL cancels a click once the finger moved more than the indev scroll limit, 10 px by default
+  (0.8 mm here), and starts a scroll instead [lvgl issue #2600]. `lv_indev_set_scroll_limit()`
+  sets it to 30 px (2.4 mm); the page swipe still works.
+- LVGL objects are press-locked by default: a finger that slides onto another row still clicks
+  the first one on release (seen on the board). The rows clear the press lock, so sliding off
+  a row cancels the tap (checked on the board).
+- Rows are 108 px high (8.7 mm), about the Wear OS minimum touch target of 48 dp (~9 mm).
 
 ### ESP32-S3
 - EXT0/EXT1 wake only on RTC GPIOs 0–21; EXT1 supports ANY_HIGH [DS].
@@ -679,6 +706,8 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
    issue #6)? The early charge termination (125 mA at power-on, now 25 mA; AXP2101 section)
    explains only a few percent: the rest voltage rose from about 4.10–4.11 V to about 4.155 V
    (run U). Measure the capacity with a full discharge at a known load.
+9. Why does the touch controller raise no interrupt when LVGL is added with `buff_dma = true`
+   and `sw_rotate = false` (Display section, M8)? Not needed while the BSP's flags are used.
 
 ## 6. Sources
 
@@ -719,3 +748,6 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
   waveshare-watch-rs) publish no sleep current (checked 2026-11-10).
 - LilyGo T-Watch S3 (ESP32-S3R8 + AXP2101), deep sleep 0.46–0.53 mA, `LilyGoWatch2022::sleep()`:
   https://github.com/Xinyuan-LilyGO/LilyGoLib (`src/LilyGoWatchS3.cpp`)
+- LVGL click and scroll: https://github.com/lvgl/lvgl/issues/2600 (a scroll cancels CLICKED),
+  https://github.com/lvgl/lvgl/issues/9005 (PRESSED/RELEASED during a scroll).
+- Wear OS touch targets (48 × 48 dp): https://developer.android.com/training/wearables/accessibility

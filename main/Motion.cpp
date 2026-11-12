@@ -39,13 +39,12 @@ static const int s_maxWaitMs = 200;
 // 21 mg on the wrist.
 static const int s_thresholdMg = 10;
 
-#if CONFIG_WATCH_MOTION_OFF_MIN > 0
 // Kept in RTC memory: cleared on power-on and reset.
+RTC_DATA_ATTR static int s_offMinutes;
 RTC_DATA_ATTR static bool s_hasReference;
 RTC_DATA_ATTR static uint32_t s_lastCheckSeconds;
 RTC_DATA_ATTR static int16_t s_referenceMg[3];
 RTC_DATA_ATTR static int s_stillChecks;
-#endif
 
 esp_err_t Motion::init( i2c_master_bus_handle_t bus )
 {
@@ -92,17 +91,18 @@ esp_err_t Motion::sample( Reading &reading )
     return err;
 }
 
-void Motion::restart()
+void Motion::restart( int offMinutes )
 {
-#if CONFIG_WATCH_MOTION_OFF_MIN > 0
+    s_offMinutes = offMinutes;
     s_hasReference = false;
     s_stillChecks = 0;
-#endif
 }
 
 bool Motion::stillTooLong()
 {
-#if CONFIG_WATCH_MOTION_OFF_MIN > 0
+    if ( s_offMinutes <= 0 ) {
+        return false;
+    }
     // System time starts at power-on and keeps running in deep sleep.
     timeval now = {};
     gettimeofday( &now, nullptr );
@@ -140,10 +140,7 @@ bool Motion::stillTooLong()
             s_referenceMg[axis] = reading.mg[axis];
         }
     }
-    return s_stillChecks * CONFIG_WATCH_MOTION_CHECK_MIN >= CONFIG_WATCH_MOTION_OFF_MIN;
-#else
-    return false;
-#endif
+    return s_stillChecks * CONFIG_WATCH_MOTION_CHECK_MIN >= s_offMinutes;
 }
 
 esp_err_t Motion::readUntilSamples( int samples, Reading &reading )

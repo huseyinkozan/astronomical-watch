@@ -104,11 +104,18 @@ off through the AXP2101 (off mode).
 
 Always-on wakes never start the BSP display (it resets the panel and would blank the image);
 they open the panel directly, redraw only what changed and hold the panel pins again
-(`main/Panel.*`, `main/AlwaysOn.*`).
+(`main/Panel.*`, `main/AlwaysOn.*`). Active mode starts LVGL in `main/Display.cpp`, not with
+`bsp_display_start()`: the BSP adds the QSPI panel as an RGB panel, so LVGL draws into the
+buffer while it is still being sent (docs/hardware.md, Display).
 
 - Small, focused modules; no layers or abstractions without a clear benefit.
 - Astronomy code is independent of UI and ESP-IDF so it can be tested on the host.
-- Settings are separate from UI code and persist across reboots, deep sleep and off mode (NVS).
+- Settings are separate from UI code and persist across reboots, deep sleep and off mode (NVS,
+  `main/Settings.*`); the Kconfig values are their defaults. Test builds that need other values
+  set `CONFIG_WATCH_TEST_SETTINGS`, which ignores the saved settings.
+- Touch input: full-width rows of about 9 mm, one tap steps a value; no vertical scrolling
+  inside the swiped pages; sliding off a row cancels the tap. Large dark-grey areas shimmer on
+  this panel; use black with outlines.
 - Setup portal (M9): a button on the watch's settings page starts it (not every charge); the
   same button stops it, and it stops by itself after a timeout or when the settings are saved.
   The watch opens a WPA2 soft AP with a captive portal (DNS answers every name with the watch's
