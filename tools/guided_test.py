@@ -228,10 +228,10 @@ NO_RESET_TESTS = {'battery', 'motionhand'}
 
 
 def notify(title, instruction):
-    """Desktop notification that stays until it is closed (critical urgency), so that it stands
-    out from the short USB plug notifications while the tester is away from the terminal."""
+    """Desktop notification for the tester away from the terminal. It stays 2 min, longer than
+    the short USB plug notifications, and then closes by itself so that old ones do not pile up."""
     try:
-        subprocess.run(['notify-send', '-u', 'critical', '-a', 'Watch test', title, instruction],
+        subprocess.run(['notify-send', '-t', '120000', '-a', 'Watch test', title, instruction],
                        timeout=5, check=False)
     except (OSError, subprocess.TimeoutExpired):
         pass
