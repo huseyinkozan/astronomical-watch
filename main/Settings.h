@@ -17,10 +17,15 @@ public:
         Latitude,        // micro-degrees, north positive
         Longitude,       // micro-degrees, east positive
         HijriMethod,     // Hijri::Method: 0 local crescent visibility, 1 Diyanet
+        FaceStyle,       // active face layout: 0 classic, 1 day arc, 2 hours over minutes
+        AodStyle,        // always-on style, an index of aodStyles (AodGlyphs.h)
+        FaceItems,       // bits of Display::FaceItem shown on the active face
+        AodItems,        // bits of AlwaysOn::Item shown on the always-on face
         ItemCount
     };
-    // The items before this one are on the watch's settings page; the rest come from the setup
-    // portal only.
+    // The items before this one are on the watch's settings page; FaceStyle and AodStyle are
+    // chosen by a vertical swipe on the face and the always-on page; all come from the setup
+    // portal too.
     static const int PageItemCount = UtcOffset;
 
     // Reads the saved values. A missing value, or one that is not in the item's list, keeps the

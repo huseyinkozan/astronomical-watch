@@ -203,6 +203,16 @@ menu "Astronomical Watch"
             WATCH_MOTION_OFF_MIN to 0 to keep it on), and one of its minute
             wakes per logging interval records the battery.
 
+    config WATCH_AOD_BLANK
+        bool "Always-on face without the digits (battery test)"
+        default n
+        depends on WATCH_BATTERY_LOG_AOD
+        help
+            Battery run V: the always-on wakes set the brightness and idle mode
+            and clear the panel as usual, but draw nothing. Against a run with
+            the face, it splits the always-on drain into the panel's fixed part
+            and the part of the lit pixels.
+
     config WATCH_MOTION_LOG
         bool "Motion measurement log"
         default n

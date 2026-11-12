@@ -5,6 +5,8 @@
 
 #include "Rtc.h"
 #include "Settings.h"
+#include "AodPage.h"
+#include "WatchFace.h"
 #include "SkyPages.h"
 #include "lvgl.h"
 #include "sdkconfig.h"
@@ -68,6 +70,9 @@ public:
     void stop();
 
 #if CONFIG_WATCH_DEV_LOGGING
+    // Shows the watch face in `style` without changing the setting (tools/screenshot.py).
+    void showFaceStyle( int style );
+
     // Development screenshot (tools/screenshot.py): shows page `page`, redraws the whole screen
     // and writes each pixel row to the console as "SHOT <y> <x> <colour runs>". Counts as activity.
     void capture( int page );
@@ -75,6 +80,10 @@ public:
 
 private:
     static void onSettingClicked( lv_event_t *event );
+    static void onGesture( lv_event_t *event );
+    // Redraws the always-on page when the minute, the style, the items or the moon changed.
+    // `direction` as in AodPage::show (a swipe).
+    void refreshAlwaysOnPage( bool force, int direction = 0 );
     static void onSetupClicked( lv_event_t *event );
     lv_obj_t *createRow( lv_obj_t *parent, const char *name, lv_event_cb_t onClicked );
     void buildSetupPage( lv_obj_t *page );
@@ -85,13 +94,25 @@ private:
 #endif
     lv_obj_t *m_pages = nullptr;
     SkyPages m_sky;
+    AodPage m_aodPage;
+    lv_obj_t *m_aodTile = nullptr;
+    lv_obj_t *m_faceTile = nullptr;
+    Rtc::DateTime m_localTime = {};
+    int m_moonPercent = 0;
+    bool m_waxing = true;
+    int m_aodShown[4] = { -1, -1, -1, -1 };  // minute of the day, style, items, moon percent
     void showSetting( int item );
 
     Settings *m_settings = nullptr;
     // Watch face page.
-    lv_obj_t *m_timeLabel = nullptr;
-    lv_obj_t *m_dateLabel = nullptr;
-    lv_obj_t *m_batteryLabel = nullptr;
+    bool m_started = false;
+    WatchFace m_face;
+    // The last values shown, for a redraw after a face style change.
+    Sky::Day m_day = {};
+    Sky::Now m_now = {};
+    int m_offsetMinutes = 0;
+    bool m_haveSky = false;
+    Battery m_battery = {};
     // Battery page.
     lv_obj_t *m_percentLabel = nullptr;
     lv_obj_t *m_voltageLabel = nullptr;

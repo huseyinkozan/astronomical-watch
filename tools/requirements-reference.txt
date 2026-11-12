@@ -1,7 +1,9 @@
-# Reference values for the astronomy host tests (tools/make_astronomy_reference.py).
+# Generators of reference values and data (tools/make_astronomy_reference.py,
+# tools/make_aod_glyphs.py).
 # Installed into tools/.venv by tools/setup_reference.sh; not needed to build the firmware.
 skyfield==1.55
 jplephem==2.24
 numpy==2.5.4
 sgp4==2.27
 certifi==2026.10.23
+pillow==12.3.0

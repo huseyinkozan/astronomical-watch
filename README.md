@@ -28,17 +28,25 @@ and the PWR key turns it on again.
 
 ## Screenshots
 
-Active-mode pages, swiped sideways, and the always-on face (taken from the watch with
-`tools/screenshot.py`, in a fixed scene: Istanbul, 21 June 2026, 19:19; the always-on face is
-shown at full brightness, the watch dims it to 10 %):
+Active-mode pages, swiped sideways (taken from the watch with `tools/screenshot.py`, in a fixed
+scene: Istanbul, 21 June 2026, 19:19). Left of the watch face is the always-on page: a swipe up or
+down there, or on the watch face, steps through the styles, and the one left showing is kept:
 
-| Watch face | Sun | Twilight | Moon | Sun compass |
-|---|---|---|---|---|
-| ![Watch face](docs/screenshots/0-face.png) | ![Sun](docs/screenshots/1-sun.png) | ![Twilight](docs/screenshots/2-twilight.png) | ![Moon](docs/screenshots/3-moon.png) | ![Sun compass](docs/screenshots/4-compass.png) |
+| Always-on styles | Watch faces |
+|---|---|
+| ![Always-on styles](docs/screenshots/always-on.gif) | ![Watch faces](docs/screenshots/faces.gif) |
 
-| Battery | Settings | Setup | About | Always-on |
-|---|---|---|---|---|
-| ![Battery](docs/screenshots/5-battery.png) | ![Settings](docs/screenshots/6-settings.png) | ![Setup portal](docs/screenshots/7-setup.png) | ![About](docs/screenshots/8-about.png) | ![Always-on face](docs/screenshots/always-on.png) |
+The always-on face is shown at full brightness; the watch dims it to 10 %. Its fourteen styles
+are seven digit styles (JetBrains Mono Thin, Light and Regular, and seven segments drawn with
+dots in four ways), each as HH:MM or as hours over minutes.
+
+| Sun | Twilight | Moon | Sun compass |
+|---|---|---|---|
+| ![Sun](docs/screenshots/2-sun.png) | ![Twilight](docs/screenshots/3-twilight.png) | ![Moon](docs/screenshots/4-moon.png) | ![Sun compass](docs/screenshots/5-compass.png) |
+
+| Battery | Settings | Setup | About |
+|---|---|---|---|
+| ![Battery](docs/screenshots/6-battery.png) | ![Settings](docs/screenshots/7-settings.png) | ![Setup portal](docs/screenshots/8-setup.png) | ![About](docs/screenshots/9-about.png) |
 
 ## Hardware
 
@@ -92,6 +100,8 @@ astronomical-watch/
 ├── tools/make_cities.py  city list of the setup page, from GeoNames
 ├── tools/setup_reference.sh  Python environment for the astronomy reference values
 ├── tools/make_fonts.sh   watch fonts (main/fonts/) from tools/fonts/, needs Node.js
+├── tools/make_aod_glyphs.py  always-on bitmaps (main/AodGlyphs.c), needs Pillow (tools/.venv)
+├── tools/make_gifs.py    README animations from the screenshots, needs Pillow
 ├── tests/                host tests of the astronomy code and their reference data
 ├── main/                 application
 └── archive/              earlier QMI8658 validator (reference only)
@@ -100,16 +110,17 @@ astronomical-watch/
 ## Status
 
 Restarted on ESP-IDF with C++17. The watch puts the unused peripherals into their lowest-power
-state. A PWR press starts active mode: pages swiped sideways show the local time, date and
-battery state, the battery details, the settings (display timeout, always-on, brightness,
+state. A PWR press starts active mode: pages swiped sideways show the always-on face as it will look,
+the watch face (classic, day arc, or hours over minutes, with the date, Hijri date, next sunrise
+or sunset, Moon phase and battery; a vertical swipe changes the layout), the battery details, the settings (display timeout, always-on, brightness,
 auto-off; one tap per value, kept in flash), the setup portal and an About page. The portal
 opens the watch's own Wi-Fi for a phone or computer, whose browser sets the time, UTC offset,
 location and settings. Four pages show the Sun (rise, set, noon, day length, time left until
 sunset), the twilights with the golden and blue hours, the Moon (phase, rise and set, the dark
-part of the night, the new crescent, the Hijri date) and a sun compass; their designs follow. 10 s after the last touch
+part of the night, the new crescent, the Hijri date) and a sun compass. 10 s after the last touch
 (the default), or at the next PWR press, a
-dim seven-segment HH:MM stays on the display while the processor deep-sleeps, redrawn once a
-minute. Every 10 min the accelerometer is read once; when the watch has not moved for 30 min it
+dim face in the chosen style (the time, the Moon's phase, the date, and a mark when the battery is
+low) stays on the display while the processor deep-sleeps, redrawn once a minute. Every 10 min the accelerometer is read once; when the watch has not moved for 30 min it
 switches itself off through the power-management IC, and a PWR press of at least half a second
 turns it on again.
 The earlier Wake-on-Motion validation results are kept in `docs/hardware.md`, and the validator
@@ -144,8 +155,10 @@ Each step is built, verified on the board and documented before the next one sta
     An About page and screenshots from the watch came with it.
 11. **M10** (in progress): astronomy on the watch (sun and moon events and positions, twilights,
     golden and blue hour, sun compass, Hijri date by local crescent visibility or Diyanet's rule),
-    a monospaced font with the Turkish letters (JetBrains Mono), then the designs of the watch
-    face and the always-on face with selectable items.
+    a monospaced font with the Turkish letters (JetBrains Mono), three watch face layouts and
+    fourteen always-on styles chosen with a vertical swipe or in the setup portal, with
+    selectable items (done); next, the power cost of the always-on styles (lit pixels against the
+    panel's fixed cost, battery run V).
 12. **M11**: languages: Turkish and English on the watch and the setup page, chosen in the
     settings.
 13. Vibration motor.

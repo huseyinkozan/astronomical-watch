@@ -54,6 +54,11 @@ static lv_obj_t *createLine( lv_obj_t *page )
     return createCell( page, s_nameWidth + 2 * s_valueWidth, lv_color_white(), LV_TEXT_ALIGN_CENTER, "" );
 }
 
+const char *SkyPages::hijriMonthName( int month )
+{
+    return s_hijriMonths[( month >= 1 && month <= 12 ) ? month - 1 : 0];
+}
+
 // LVGL's own printf has no floating point (LV_SPRINTF_USE_FLOAT): format with the C library.
 static void setText( lv_obj_t *label, const char *format, ... )
 {

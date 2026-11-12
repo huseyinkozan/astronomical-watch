@@ -3,9 +3,9 @@
 
 The development build (CONFIG_WATCH_DEV_LOGGING) answers "S <page>" on the USB console: it
 shows that page, redraws it and prints each pixel row as "SHOT <y> <x> <runs>", where each run
-is "<RGB565 hex>*<count>" and runs are separated by commas. "A" gives the always-on face, drawn
-without LVGL, as "SHOT RECT <x> <y> <width> <height> <0|1>" (black or white) rectangles; it is
-shown here at full brightness, dimmer on the watch. Opening the port resets the board
+is "<RGB565 hex>*<count>" and runs are separated by commas. "A <style>" gives the always-on face in one of its styles,
+drawn without LVGL, as rectangles ("SHOT RECT <x> <y> <width> <height> <0|1>", black or white) and
+rows; it is shown here at full brightness, dimmer on the watch. Opening the port resets the board
 (Linux raises DTR and RTS), so the watch starts in active mode; the command is repeated until
 the watch answers.
 
@@ -15,6 +15,10 @@ Run inside the ESP-IDF environment, which provides pyserial:
 The pages show a fixed scene (the "D" command: Istanbul, 2026-06-21 19:19 local time), so that
 the published pictures stay the same and do not show the watch's location; --live keeps the
 watch's own time and settings.
+
+Without page numbers it takes every page, then the always-on face in every style
+(always-on-<style>.png) and the watch face in every layout (face-<style>.png);
+tools/make_gifs.py turns those into the animations of the README.
 
 Screenshots for the repository (before a push): the setup portal on, then off with a new
 password, so that the published one is not in use:
@@ -30,6 +34,13 @@ import zlib
 
 import serial
 
+
+
+# The always-on styles (main/AodGlyphs.h, AOD_STYLE_COUNT): "A <style>" draws one of them.
+ALWAYS_ON_STYLES = 14
+# The watch face page and its layouts (main/WatchFace.h): "F <style>" shows one of them.
+FACE_PAGE = 1
+FACE_STYLES = 3
 
 
 def writePng(path, width, height, rows):
@@ -91,7 +102,7 @@ def capture(port, reader, page, timeout=30, verbose=False):
     while time.time() - start < (timeout if rows is None else 60):
         # A command sent while the watch is still starting is lost: repeat it until it answers.
         if rows is None and time.time() - lastSent > 2:
-            port.write((f'S {page}' if page >= 0 else 'A').encode() + b'\n')
+            port.write((f'S {page}' if page >= 0 else f'A {-page - 1}').encode() + b'\n')
             lastSent = time.time()
         line = reader.readline()
         parts = line.split()
@@ -126,7 +137,7 @@ def capture(port, reader, page, timeout=30, verbose=False):
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('pages', nargs='*', type=int,
-                        help='page numbers from 0, -1 for the always-on face (default: all)')
+                        help='page numbers from 0, -1 - style for an always-on style (default: all)')
     parser.add_argument('--port', default='/dev/ttyACM0')
     parser.add_argument('--out', default='docs/screenshots')
     parser.add_argument('--verbose', action='store_true', help='show the watch log while waiting')
@@ -161,7 +172,8 @@ def main():
         time.sleep(4)
     failures = 0
     page = 0
-    allPages = not args.pages
+    everything = not args.pages
+    allPages = everything
     pages = list(args.pages)
     while True:
         if allPages:
@@ -170,13 +182,13 @@ def main():
             target = pages.pop(0)
         else:
             break
-        # Past the last page the watch answers nothing: then comes the always-on face (-1).
+        # Past the last page the watch answers nothing: then come the always-on styles (-1 - style).
         lastTry = allPages and target > 0
         result = capture(port, reader, target, timeout=8 if lastTry else 30, verbose=args.verbose)
         if result is None:
             if lastTry:
                 allPages = False
-                pages = [-1]
+                pages = [-1 - style for style in range(ALWAYS_ON_STYLES)]
                 continue
             print(f'page {target}: no answer (is the watch in active mode?)')
             failures += 1
@@ -189,6 +201,19 @@ def main():
         if missing:
             failures += 1
         page += 1
+    # Every layout of the watch face too, for the animation in the README (tools/make_gifs.py).
+    for style in range(FACE_STYLES if everything and failures == 0 else 0):
+        port.write(f'F {style}\n'.encode())
+        time.sleep(1)
+        result = capture(port, reader, FACE_PAGE, verbose=args.verbose)
+        if result is None:
+            print(f'face style {style}: no answer')
+            failures += 1
+            break
+        name, width, height, rows, missing = result
+        path = os.path.join(args.out, f'face-{style}.png')
+        writePng(path, width, height, rows)
+        print(f'face style {style}: {path}')
     for command in args.after:
         port.write(f'{command}\n'.encode())
     time.sleep(1)

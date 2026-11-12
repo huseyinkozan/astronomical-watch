@@ -11,6 +11,9 @@ class SkyPages
 public:
     void build( lv_obj_t *sunPage, lv_obj_t *twilightPage, lv_obj_t *moonPage, lv_obj_t *compassPage );
 
+    // English name of a Hijri month, 1 to 12.
+    static const char *hijriMonthName( int month );
+
     // `day` is computed once for the local day, `now` every second.
     void show( const Sky::Day &day, const Sky::Now &now, int utcOffsetMinutes );
 

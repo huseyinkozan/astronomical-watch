@@ -21,3 +21,7 @@ CONFIG_ESP_WIFI_IRAM_OPT=n
 CONFIG_ESP_WIFI_EXTRA_IRAM_OPT=n
 CONFIG_ESP_WIFI_RX_IRAM_OPT=n
 CONFIG_LWIP_IRAM_OPTIMIZATION=n
+
+# LVGL allocates from the ESP-IDF heap instead of its own fixed 64 KB pool, which ran out with the
+# large digits of the watch faces (drawing one glyph of the 170 px font takes about 13 KB).
+CONFIG_LV_USE_CLIB_MALLOC=y

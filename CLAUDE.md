@@ -36,7 +36,7 @@ idf.py -p /dev/ttyACM0 flash monitor
 | `tools/screenshot.py` | Screenshots of the watch pages from the development build |
 | `tools/make_fonts.sh`, `tools/fonts/` | The watch fonts in `main/fonts/` (JetBrains Mono, ASCII, ° and the Turkish letters; needs Node.js for `npx lv_font_conv`) |
 | `tests/` | Host tests of the astronomy code (`sh tests/run_host_tests.sh`, needs only g++) and their reference data |
-| `tools/setup_reference.sh`, `tools/make_*.py` | Reference environment (Skyfield in `tools/.venv`, ignored) and generators of reference and table data |
+| `tools/setup_reference.sh`, `tools/make_*.py` | Python environment (Skyfield, Pillow in `tools/.venv`, ignored) and generators of reference data, tables, the always-on bitmaps (`main/AodGlyphs.c`) and the README animations |
 | `archive/wom-validator/` | Earlier QMI8658 Wake-on-Motion validator and its docs (git tag `wom-validator`). Read-only reference; do not build or extend it |
 | `managed_components/`, `build/` | Generated; never edit |
 
@@ -114,7 +114,15 @@ Always-on wakes never start the BSP display (it resets the panel and would blank
 they open the panel directly, redraw only what changed and hold the panel pins again
 (`main/Panel.*`, `main/AlwaysOn.*`). Active mode starts LVGL in `main/Display.cpp`, not with
 `bsp_display_start()`: the BSP adds the QSPI panel as an RGB panel, so LVGL draws into the
-buffer while it is still being sent (docs/hardware.md, Display).
+buffer while it is still being sent (docs/hardware.md, Display). It opens the panel with
+`Panel::openForLvgl`, not `bsp_display_new()`, whose last init command sets full brightness and
+flashed the old always-on image; the panel stays dark until LVGL's first frame. LVGL renders
+only in its own task (the main task's stack overflows), and allocates from the ESP-IDF heap.
+
+The always-on styles are 1-bit bitmaps made on the host (`tools/make_aod_glyphs.py` →
+`main/AodGlyphs.c`); the same bits also form LVGL fonts, so the always-on page of active mode
+(`main/AodPage.*`) shows exactly what the minute wakes draw (`AlwaysOn::layout` serves both).
+After a change, regenerate the file and compare both with `tools/screenshot.py`.
 
 - Small, focused modules; no layers or abstractions without a clear benefit.
 - Astronomy code is independent of UI and ESP-IDF so it can be tested on the host
@@ -129,7 +137,9 @@ buffer while it is still being sent (docs/hardware.md, Display).
   `main/Settings.*`); the Kconfig values are their defaults. Test builds that need other values
   set `CONFIG_WATCH_TEST_SETTINGS`, which ignores the saved settings.
 - Touch input: full-width rows of about 9 mm, one tap steps a value; no vertical scrolling
-  inside the swiped pages; sliding off a row cancels the tap. Large dark-grey areas shimmer on
+  inside the swiped pages; sliding off a row cancels the tap. On the watch face and the
+  always-on page a vertical swipe steps the style (`LV_EVENT_GESTURE`; those pages keep the
+  gesture and do not scroll), and the new style slides in. Large dark-grey areas shimmer on
   this panel; use black with outlines.
 - Setup portal (M9, `main/Portal.*`, `main/portal/`): a row on the watch's Setup page starts it
   (not every charge); the same row stops it, and it stops by itself 5 min after the last browser
@@ -233,9 +243,10 @@ power-on state, unplug USB for the run, then plug it in and read the log with
 Update the matching document in the same change when a design decision changes.
 
 Before a push that changes what the watch shows, refresh `docs/screenshots/` from the board with
-the development build: `python tools/screenshot.py --send P --after P --after N` (all pages and
-the always-on face; the setup portal on for its page, then off with a new password, so that the
-published one is not in use). The pages show a fixed scene (Istanbul, 2026-06-21 19:19), so that
+the development build: `python tools/screenshot.py --send P --after P --after N` (all pages,
+every always-on style and every watch face layout; the setup portal on for its page, then off with
+a new password, so that the published one is not in use), then
+`tools/.venv/bin/python tools/make_gifs.py` for the animations of the README. The pages show a fixed scene (Istanbul, 2026-06-21 19:19), so that
 the published pictures stay comparable and never show the watch's real location.
 `tools/screenshot.py` can also be used during development to check a layout without the tester
 (`--live` for the watch's own time and settings).

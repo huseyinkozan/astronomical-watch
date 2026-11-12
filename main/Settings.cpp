@@ -38,6 +38,10 @@ static const ItemInfo s_items[Settings::ItemCount] = {
     { "latitude_ud", 0, 0, {}, -90000000, 90000000 },
     { "longitude_ud", 0, 0, {}, -180000000, 180000000 },
     { "hijri_method", 0, 2, { 0, 1 }, 0, 0 },
+    { "face_style", 0, 0, {}, 0, 2 },
+    { "aod_style", 0, 0, {}, 0, 13 },
+    { "face_items", 15, 0, {}, 0, 15 },
+    { "aod_items", 7, 0, {}, 0, 7 },
 };
 
 static int indexOf( const ItemInfo &info, int value )
@@ -91,10 +95,11 @@ void Settings::load()
     for ( int i = 0; i < ItemCount; ++i ) {
         m_savedValues[i] = m_values[i];
     }
-    ESP_LOGI( TAG, "Settings: timeout %d s, always-on %d, brightness %d %%, auto off %d min, UTC offset %d min, "
-              "location %d, %d (micro-degrees), Hijri method %d", m_values[DisplayTimeout], m_values[AlwaysOnFace],
-              m_values[Brightness], m_values[AutoOff], m_values[UtcOffset], m_values[Latitude], m_values[Longitude],
-              m_values[HijriMethod] );
+    ESP_LOGI( TAG, "Settings: timeout %d s, always-on %d, brightness %d %%, auto off %d min, face %d, always-on "
+              "style %d, UTC offset %d min, location %d, %d (micro-degrees), Hijri method %d, face items %d, "
+              "always-on items %d", m_values[DisplayTimeout], m_values[AlwaysOnFace], m_values[Brightness],
+              m_values[AutoOff], m_values[FaceStyle], m_values[AodStyle], m_values[UtcOffset], m_values[Latitude],
+              m_values[Longitude], m_values[HijriMethod], m_values[FaceItems], m_values[AodItems] );
 }
 
 void Settings::save()

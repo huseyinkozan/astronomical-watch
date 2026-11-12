@@ -360,7 +360,10 @@ Internal RAM in active mode [HW] (log line "Display started", 2026-11-12; PSRAM 
   With 100 lines (2 × 82 KB) 99.6 KB stayed free (largest block 55 KB); with 40 lines (2 × 33 KB)
   203.8 KB (155 KB). Drawing in 40-line bands showed no visible difference.
 - With the setup portal linked (M9): 166 KB free before Wi-Fi starts and **97 KB free, largest
-  block 57 KB, with the soft AP, DHCP, DNS and HTTP servers running**. The Wi-Fi, lwIP IRAM
+  block 57 KB, with the soft AP, DHCP, DNS and HTTP servers running**. M10 (three face layouts,
+  the always-on page, LVGL on the ESP-IDF heap instead of its 64 KB pool, 13 KB of panel strips
+  removed): **95 KB free, largest block 55 KB**, with the portal running. LVGL's own pool had
+  run out: the 170 px digits (about 13 KB per glyph while drawn) were not drawn at all. The Wi-Fi, lwIP IRAM
   optimisations are off (`sdkconfig.defaults`).
 - Image (`idf.py size`): with the portal 1.0 MB of flash code, 101 KB loaded into RAM at every
   start (IRAM code and .data) and 102 KB .bss; without it (`sdkconfig.noportal`) 0.47 MB, 84 KB
@@ -393,9 +396,22 @@ Always-on face [HW] (guided test `aod`, 2026-10-31; `main/Panel.*`, `main/Always
 - The BSP is not used on these wakes: `bsp_display_start()` would reset the panel. A PWR wake
   releases the holds and `Display` starts the active face as usual; the sleeping touch controller
   wakes from the BSP's reset pulse.
-- Face: seven-segment HH:MM drawn as filled rectangles (no LVGL, no fonts) at brightness 10 %
-  in idle mode (39h), moved within ±8 pixels each minute against burn-in. It shows UTC until the
-  UTC offset setting exists (M8).
+- `bsp_display_new()` ends its init commands with display on and then brightness 0xFF, so the
+  panel showed the always-on image in its memory at full brightness until LVGL's first frame (a
+  visible flash on every PWR wake). `Panel::openForLvgl` sends the same commands without the
+  last one, and `Display` sets the brightness when LVGL reports its first frame ready: no flash
+  [HW] (2026-11-12).
+- Face (M5–M9): seven-segment HH:MM drawn as filled rectangles (no LVGL, no fonts) at brightness
+  10 % in idle mode (39h), moved within ±8 pixels each minute against burn-in.
+- Face since M10 [HW] (2026-11-12): one of 14 styles of 1-bit bitmaps (`main/AodGlyphs.c`) with
+  the Moon's phase (yellow), the date and a low-battery mark (red, below 15 % and not charging),
+  rendered in 8-row bands into one 6.5 KB buffer and sent with `esp_lcd_panel_draw_bitmap`; a
+  NOP command after each band waits until the buffer is out (`esp_lcd` sends queued transfers
+  before a command). No trace of the old digits was seen when the face moved, and the screen
+  cleared fully from the active face. Lit share of the screen in the screenshots (19:19, Moon,
+  date and battery mark): JetBrains Mono 4.0–5.5 %, the dotted seven segments 1.2–2.4 %, against
+  4.5 % for the earlier face without the items. Whether the panel current follows the lit
+  pixels is open (question 4; battery run V, `sdkconfig.aodblank`, draws nothing).
 - Wake length per minute (RTC memory statistics): 382 ms from reset to `app_main` plus 112 ms in
   the app with the image check on; **230 + 137 ms** with
   `CONFIG_BOOTLOADER_SKIP_VALIDATE_IN_DEEP_SLEEP` (now the default; the check still runs after

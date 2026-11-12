@@ -19,6 +19,8 @@
            background: #3a6ea5; color: #fff; }
   #status { margin-top: 12px; min-height: 1.4em; }
   small { color: #888; }
+  .checks label { display: inline-block; margin: 4px 16px 4px 0; }
+  .checks input { width: auto; }
   a { color: #8ab4f8; }
 </style>
 </head>
@@ -66,6 +68,18 @@
   Sun and 5&deg; high at sunset).</small>
 </fieldset>
 
+<fieldset>
+  <legend>Faces</legend>
+  <label for="face">Watch face</label>
+  <select id="face"></select>
+  <div class="checks" id="faceItems"></div>
+  <label for="aod">Always-on face</label>
+  <select id="aod"></select>
+  <div class="checks" id="aodItems"></div>
+  <small>On the watch: swipe up or down on the watch face, or on the always-on page left of it.
+  The battery mark of the always-on face shows only when the battery is low.</small>
+</fieldset>
+
 <button id="save">Save to the watch</button>
 <div id="status"></div>
 <p><small>City data: <a href="https://www.geonames.org/">GeoNames</a> (CC BY 4.0).
@@ -100,6 +114,29 @@ fill($('alwaysOn'), [[1, 'On'], [0, 'Off']]);
 fill($('brightness'), [[20, 'Low'], [50, 'Mid'], [100, 'High']]);
 fill($('autoOff'), [[20, '20 min'], [30, '30 min'], [60, '60 min'], [0, 'Never']]);
 fill($('hijri'), [[0, 'Local crescent'], [1, 'Diyanet']]);
+fill($('face'), [[0, 'Classic'], [1, 'Day arc'], [2, 'Stacked (hours over minutes)']]);
+const aodNames = ['Thin', 'Light', 'Regular', 'Outlines (dotted segments)', 'Dense (dots in the segments)',
+  'Sparse (fewer dots in the segments)', 'Mixed (dotted outline, dots inside)'];
+fill($('aod'), aodNames.map((n, i) => [i, n]).concat(aodNames.map((n, i) => [i + 7, n + ', hours over minutes'])));
+
+// Item choices as bits, as in main/Display.h (FaceItem) and main/AlwaysOn.h (Item).
+function checks(box, items) {
+  for (const [bit, text] of items) {
+    const label = document.createElement('label');
+    label.innerHTML = '<input type="checkbox" data-bit="' + bit + '"> ' + text;
+    box.appendChild(label);
+  }
+}
+function bitsOf(box) {
+  let bits = 0;
+  for (const input of box.querySelectorAll('input')) if (input.checked) bits |= Number(input.dataset.bit);
+  return bits;
+}
+function setBits(box, bits) {
+  for (const input of box.querySelectorAll('input')) input.checked = (bits & Number(input.dataset.bit)) !== 0;
+}
+checks($('faceItems'), [[1, 'Date'], [2, 'Next sun event'], [4, 'Moon'], [8, 'Battery']]);
+checks($('aodItems'), [[1, 'Moon'], [2, 'Date'], [4, 'Low battery']]);
 const offsets = [];
 for (let m = -720; m <= 840; m += 15) offsets.push([m, offsetText(m)]);
 fill($('offset'), offsets, -new Date().getTimezoneOffset());
@@ -130,7 +167,9 @@ setInterval(() => { $('now').textContent = 'This device: ' + new Date().toLocale
 
 // Current values from the watch.
 fetch('/api/state').then((r) => r.json()).then((s) => {
-  for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'hijri']) $(id).value = String(s[id]);
+  for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'hijri', 'face', 'aod']) $(id).value = String(s[id]);
+  setBits($('faceItems'), s.faceItems);
+  setBits($('aodItems'), s.aodItems);
   if (s.lat !== 0 || s.lon !== 0) {
     $('lat').value = s.lat.toFixed(4);
     $('lon').value = s.lon.toFixed(4);
@@ -152,7 +191,9 @@ $('save').addEventListener('click', async () => {
   $('status').textContent = 'Saving…';
   try {
     const fields = new URLSearchParams();
-    for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'offset', 'hijri']) fields.set(id, $(id).value);
+    for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'offset', 'hijri', 'face', 'aod']) fields.set(id, $(id).value);
+    fields.set('faceItems', String(bitsOf($('faceItems'))));
+    fields.set('aodItems', String(bitsOf($('aodItems'))));
     if ($('lat').value !== '' && $('lon').value !== '') {
       fields.set('lat', $('lat').value);
       fields.set('lon', $('lon').value);

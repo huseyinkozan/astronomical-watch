@@ -51,6 +51,7 @@ static Portal s_portal;
 // The UTC offset for the always-on face, copied when active mode ends: the minute wakes do not
 // read NVS.
 RTC_DATA_ATTR static int s_alwaysOnOffsetMinutes;
+static const int s_lowBatteryPercent = 15;
 
 static void logPowerKeyIrq()
 {
@@ -77,10 +78,11 @@ static int s_hostLineLength = 0;
 
 // Development commands from the host: the guided test sends the UTC time as
 // "T YYYY-MM-DD HH:MM:SS", timed so that the RTC's next second matches the host's;
-// tools/screenshot.py sends "S <page>" for a screenshot of that page and "A" for one of the
-// always-on face (at 19:19); "P" switches the setup
+// tools/screenshot.py sends "S <page>" for a screenshot of that page and "A <style>" for one of
+// the always-on face in that style (at 19:19); "P" switches the setup
 // portal on or off and "N" makes a new portal password (so that a published screenshot does not
-// show the one in use). "D" shows a fixed scene until the next reset (s_sceneInputs).
+// show the one in use). "D" shows a fixed scene until the next reset (s_sceneInputs); "F <style>"
+// shows the watch face in that style without changing the setting.
 // Returns true when a command arrived: like a touch, it restarts the display timeout, so that
 // the watch stays in active mode while tools/screenshot.py works.
 static bool pollHostCommands()
@@ -106,8 +108,13 @@ static bool pollHostCommands()
             s_hostRequests |= Display::TogglePortal;
             continue;
         }
-        if ( s_hostLine[0] == 'A' && s_hostLine[1] == '\0' ) {
-            AlwaysOn::capture();
+        int style = 0;
+        if ( sscanf( s_hostLine, "A %d", &style ) == 1 ) {
+            AlwaysOn::capture( style );
+            continue;
+        }
+        if ( sscanf( s_hostLine, "F %d", &style ) == 1 ) {
+            s_display.showFaceStyle( style );
             continue;
         }
         if ( s_hostLine[0] == 'N' && s_hostLine[1] == '\0' ) {
@@ -437,7 +444,17 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
     Rtc::DateTime time = {};
     bool oscillatorStopped = false;
     const bool timeRead = s_rtc.init( bus ) == ESP_OK && s_rtc.read( time, oscillatorStopped ) == ESP_OK;
-    const uint64_t sleepUs = s_alwaysOn.update( Rtc::addMinutes( time, s_alwaysOnOffsetMinutes ), timeRead );
+    // The low-battery mark: below s_lowBatteryPercent and not charging.
+    bool batteryLow = false;
+    if ( pmuReady ) {
+        uint16_t millivolts = 0;
+        uint8_t percent = 0;
+        bool vbusGood = false;
+        batteryLow = s_pmu.readBattery( millivolts, percent, vbusGood ) == ESP_OK && !vbusGood &&
+                     percent < s_lowBatteryPercent;
+    }
+    const uint64_t sleepUs =
+        s_alwaysOn.update( Rtc::addMinutes( time, s_alwaysOnOffsetMinutes ), timeRead, batteryLow );
     // Without the device the readings fail, which the motion check counts as no motion.
     s_motion.init( bus );
 #if CONFIG_WATCH_MOTION_LOG
@@ -463,7 +480,14 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
         powerOff( pmuReady );
     }
     s_peripherals.sleepTouch( bus );
-    s_alwaysOn.begin();
+    AlwaysOn::Look look = {};
+    look.style = s_settings.value( Settings::AodStyle );
+    look.items = s_settings.value( Settings::AodItems );
+    if ( s_skyValid ) {
+        look.moonPercent = static_cast<int>( s_skyDay.phase.illumination * 100 + 0.5 );
+        look.waxing = s_skyDay.phase.elongation < 180;
+    }
+    s_alwaysOn.begin( look );
     s_motion.restart( s_settings.value( Settings::AutoOff ) );
     s_alwaysOnOffsetMinutes = s_settings.value( Settings::UtcOffset );
     Panel::holdPins();

@@ -1,5 +1,6 @@
 #include "Display.h"
 #include "Fonts.h"
+#include "Panel.h"
 
 #include "bsp/display.h"
 #include "bsp/esp32_s3_touch_amoled_2_06.h"
@@ -37,6 +38,7 @@ static const char *s_settingNames[Settings::PageItemCount] = { "Screen off", "Al
 // Page order, left to right; the names label the development screenshots.
 enum Page
 {
+    AlwaysOnPage,
     FacePage,
     SunPage,
     TwilightPage,
@@ -50,7 +52,7 @@ enum Page
     AboutPage,
     PageCount
 };
-static const char *s_pageNames[PageCount] = { "face", "sun", "twilight", "moon", "compass", "battery", "settings",
+static const char *s_pageNames[PageCount] = { "always-on", "face", "sun", "twilight", "moon", "compass", "battery", "settings",
 #if CONFIG_WATCH_SETUP_PORTAL
                                               "setup",
 #endif
@@ -108,19 +110,41 @@ static void roundArea( lv_event_t *event )
 // flushed as soon as its DMA transfer is queued, so LVGL draws the next band into the buffer that
 // is still being sent (horizontal stripes on the panel), and it stores RGB panel callbacks into
 // the SH8601 panel object. lvgl_port_add_disp() reports the band when the transfer is done.
+static esp_lcd_panel_io_handle_t s_panelIo = nullptr;
+
+static void setBrightness( int percent )
+{
+    if ( s_panelIo != nullptr ) {
+        Panel::setBrightness( s_panelIo, percent );
+    }
+}
+
+// The brightness to set once LVGL has drawn its first frame (0: done). The panel keeps the old
+// image (the always-on face) until then, so it stays dark.
+static int s_pendingBrightness = 0;
+
+static void onFirstFrame( lv_event_t * )
+{
+    if ( s_pendingBrightness > 0 ) {
+        setBrightness( s_pendingBrightness );
+        s_pendingBrightness = 0;
+    }
+}
+
 static lv_display_t *startLvgl( lv_indev_t *&touch )
 {
     const lvgl_port_cfg_t portConfig = ESP_LVGL_PORT_INIT_CONFIG();
     if ( lvgl_port_init( &portConfig ) != ESP_OK ) {
         return nullptr;
     }
-    bsp_display_config_t panelConfig = {};
-    panelConfig.max_transfer_sz = BSP_LCD_H_RES * BSP_LCD_V_RES * BSP_LCD_BITS_PER_PIXEL / 8;
+    // Not bsp_display_new(): it ends with full brightness, which flashed the old image (the
+    // always-on face) until LVGL's first frame. The panel stays dark until start() has drawn.
     esp_lcd_panel_handle_t panel = nullptr;
     esp_lcd_panel_io_handle_t io = nullptr;
-    if ( bsp_display_new( &panelConfig, &panel, &io ) != ESP_OK ) {
+    if ( !Panel::openForLvgl( BSP_LCD_H_RES * BSP_LCD_V_RES * BSP_LCD_BITS_PER_PIXEL / 8, io, panel ) ) {
         return nullptr;
     }
+    s_panelIo = io;
     lvgl_port_display_cfg_t displayConfig = {};
     displayConfig.io_handle = io;
     displayConfig.panel_handle = panel;
@@ -172,8 +196,6 @@ bool Display::start( Settings &settings )
         ESP_LOGE( TAG, "Display start failed" );
         return false;
     }
-    bsp_display_brightness_set( brightnessPercent );
-
     if ( !bsp_display_lock( s_lockTimeoutMs ) ) {
         ESP_LOGE( TAG, "Display lock timeout" );
         return false;
@@ -191,6 +213,19 @@ bool Display::start( Settings &settings )
         tiles[i] = lv_tileview_add_tile( pages, static_cast<uint8_t>( i ), 0, direction );
     }
     lv_obj_t *facePage = tiles[FacePage];
+    m_aodTile = tiles[AlwaysOnPage];
+    m_faceTile = facePage;
+    m_aodPage.build( m_aodTile );
+    // A vertical swipe on these two pages steps the style; the pages themselves only swipe sideways.
+    // LVGL sends a gesture to the first ancestor that does not pass it on, so these keep it.
+    lv_obj_set_gesture_bubble( m_aodTile, false );
+    lv_obj_set_gesture_bubble( m_faceTile, false );
+    // Content sliding past the edges must not make the pages scroll.
+    lv_obj_set_scrollable( m_aodTile, false );
+    lv_obj_set_scrollable( m_faceTile, false );
+    lv_obj_add_event_cb( m_aodTile, onGesture, LV_EVENT_GESTURE, this );
+    lv_obj_add_event_cb( m_faceTile, onGesture, LV_EVENT_GESTURE, this );
+    lv_tileview_set_tile_by_index( pages, FacePage, 0, LV_ANIM_OFF );
     lv_obj_t *batteryPage = tiles[BatteryPage];
     lv_obj_t *settingsPage = tiles[SettingsPage];
     m_sky.build( tiles[SunPage], tiles[TwilightPage], tiles[MoonPage], tiles[CompassPage] );
@@ -199,9 +234,8 @@ bool Display::start( Settings &settings )
 #endif
     buildAboutPage( tiles[AboutPage] );
 
-    m_timeLabel = createLabel( facePage, &jetbrains_mono_48, -60 );
-    m_dateLabel = createLabel( facePage, &jetbrains_mono_26, 10 );
-    m_batteryLabel = createLabel( facePage, &jetbrains_mono_26, 70 );
+    m_face.build( facePage );
+    m_face.setStyle( m_settings->value( Settings::FaceStyle ), m_settings->value( Settings::FaceItems ) );
 
     lv_obj_t *title = createLabel( batteryPage, &jetbrains_mono_26, -120 );
     lv_label_set_text( title, "Battery" );
@@ -229,6 +263,10 @@ bool Display::start( Settings &settings )
     lv_display_add_event_cb( display, onFlushStart, LV_EVENT_FLUSH_START, this );
     lv_display_add_event_cb( display, onRefreshReady, LV_EVENT_REFR_READY, this );
 #endif
+    m_started = true;
+    // The LVGL task draws the first frame (rendering needs its larger stack), then lights it.
+    s_pendingBrightness = brightnessPercent;
+    lv_display_add_event_cb( display, onFirstFrame, LV_EVENT_REFR_READY, nullptr );
     bsp_display_unlock();
 
     // Internal RAM left for the rest of active mode (the Wi-Fi setup portal needs about 100 KB).
@@ -346,57 +384,102 @@ void Display::showSetup( const Setup &setup )
 
 void Display::showSky( const Sky::Day &day, const Sky::Now &now, int utcOffsetMinutes )
 {
-    if ( m_timeLabel == nullptr || !bsp_display_lock( s_lockTimeoutMs ) ) {
+    if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
         return;
     }
     m_sky.show( day, now, utcOffsetMinutes );
+    m_face.showSky( day, now, utcOffsetMinutes );
+    m_day = day;
+    m_now = now;
+    m_offsetMinutes = utcOffsetMinutes;
+    m_haveSky = true;
+    m_moonPercent = static_cast<int>( day.phase.illumination * 100 + 0.5 );
+    m_waxing = day.phase.elongation < 180;
+    refreshAlwaysOnPage( false );
     bsp_display_unlock();
 }
 
 void Display::refreshSettings()
 {
-    if ( m_timeLabel == nullptr || !bsp_display_lock( s_lockTimeoutMs ) ) {
+    if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
         return;
     }
+    m_aodShown[1] = -1;
+    m_face.setStyle( m_settings->value( Settings::FaceStyle ), m_settings->value( Settings::FaceItems ) );
     for ( int i = 0; i < Settings::PageItemCount; ++i ) {
         showSetting( i );
     }
-    bsp_display_brightness_set( m_settings->value( Settings::Brightness ) );
+    setBrightness( m_settings->value( Settings::Brightness ) );
     bsp_display_unlock();
 }
 
 void Display::stop()
 {
-    if ( m_timeLabel != nullptr ) {
+    if ( m_started ) {
         bsp_display_lock( s_lockTimeoutMs );
     }
 }
 
 void Display::update( const Rtc::DateTime &time, int utcOffsetMinutes, const Battery &battery )
 {
-    if ( m_timeLabel == nullptr ) {
+    if ( !m_started ) {
         return;
     }
     if ( !bsp_display_lock( s_lockTimeoutMs ) ) {
         return;
     }
-    lv_label_set_text_fmt( m_timeLabel, "%02u:%02u:%02u", time.hour, time.minute, time.second );
-    // "UTC", "UTC+3" or "UTC+5:30" after the date.
-    char offset[16] = "";
-    const int offsetAbs = utcOffsetMinutes < 0 ? -utcOffsetMinutes : utcOffsetMinutes;
-    if ( offsetAbs % 60 != 0 ) {
-        snprintf( offset, sizeof( offset ), "%c%d:%02d", utcOffsetMinutes < 0 ? '-' : '+', offsetAbs / 60,
-                  offsetAbs % 60 );
-    } else if ( offsetAbs != 0 ) {
-        snprintf( offset, sizeof( offset ), "%c%d", utcOffsetMinutes < 0 ? '-' : '+', offsetAbs / 60 );
-    }
-    lv_label_set_text_fmt( m_dateLabel, "%04u-%02u-%02u UTC%s", time.year, time.month, time.day, offset );
-    lv_label_set_text_fmt( m_batteryLabel, "%u %%%s", battery.percent, battery.vbusGood ? "  USB" : "" );
+    m_face.showTime( time, battery.percent, battery.vbusGood );
+    m_battery = battery;
 
     lv_label_set_text_fmt( m_percentLabel, "%u %%", battery.percent );
     lv_label_set_text_fmt( m_voltageLabel, "%u mV", battery.millivolts );
     lv_label_set_text_fmt( m_chargeLabel, "%s", battery.vbusGood ? battery.chargeState : "on battery" );
+    m_localTime = time;
+    refreshAlwaysOnPage( false );
     bsp_display_unlock();
+}
+
+void Display::refreshAlwaysOnPage( bool force, int direction )
+{
+    const AlwaysOn::Look look = { m_settings->value( Settings::AodStyle ), m_settings->value( Settings::AodItems ),
+                                  m_moonPercent, m_waxing };
+    const int shown[4] = { m_localTime.hour * 60 + m_localTime.minute, look.style, look.items, look.moonPercent };
+    bool same = !force;
+    for ( int i = 0; i < 4; ++i ) {
+        same = same && m_aodShown[i] == shown[i];
+        m_aodShown[i] = shown[i];
+    }
+    if ( !same ) {
+        m_aodPage.show( look, m_localTime, direction );
+    }
+}
+
+void Display::onGesture( lv_event_t *event )
+{
+    Display *display = static_cast<Display *>( lv_event_get_user_data( event ) );
+    const lv_dir_t direction = lv_indev_get_gesture_dir( lv_indev_active() );
+    if ( direction != LV_DIR_TOP && direction != LV_DIR_BOTTOM ) {
+        return;
+    }
+    const bool alwaysOn = lv_event_get_current_target( event ) == display->m_aodTile;
+    const Settings::Item item = alwaysOn ? Settings::AodStyle : Settings::FaceStyle;
+    const int count = alwaysOn ? AOD_STYLE_COUNT : 3;
+    // Up: the next style; down: the one before. The choice is saved with the other settings when
+    // active mode ends.
+    const int step = direction == LV_DIR_TOP ? 1 : count - 1;
+    const int slide = direction == LV_DIR_TOP ? 1 : -1;
+    display->m_settings->setValue( item, ( display->m_settings->value( item ) + step ) % count );
+    ESP_LOGI( TAG, "%s style %d", alwaysOn ? "Always-on" : "Face", display->m_settings->value( item ) );
+    if ( alwaysOn ) {
+        display->refreshAlwaysOnPage( true, slide );
+        return;
+    }
+    display->m_face.setStyle( display->m_settings->value( Settings::FaceStyle ),
+                              display->m_settings->value( Settings::FaceItems ), slide );
+    display->m_face.showTime( display->m_localTime, display->m_battery.percent, display->m_battery.vbusGood );
+    if ( display->m_haveSky ) {
+        display->m_face.showSky( display->m_day, display->m_now, display->m_offsetMinutes );
+    }
 }
 
 #if CONFIG_WATCH_DEV_LOGGING
@@ -432,6 +515,19 @@ void Display::onFlushStart( lv_event_t *event )
     }
     // Sending a band takes a while; let the idle task run so that the task watchdog stays quiet.
     vTaskDelay( 1 );
+}
+
+void Display::showFaceStyle( int style )
+{
+    if ( !m_started || !bsp_display_lock( 1000 ) ) {
+        return;
+    }
+    m_face.setStyle( style, m_settings->value( Settings::FaceItems ) );
+    m_face.showTime( m_localTime, m_battery.percent, m_battery.vbusGood );
+    if ( m_haveSky ) {
+        m_face.showSky( m_day, m_now, m_offsetMinutes );
+    }
+    bsp_display_unlock();
 }
 
 void Display::capture( int page )
@@ -473,7 +569,7 @@ void Display::onSettingClicked( lv_event_t *event )
         display->m_settings->next( item );
         display->showSetting( i );
         if ( item == Settings::Brightness ) {
-            bsp_display_brightness_set( display->m_settings->value( item ) );
+            setBrightness( display->m_settings->value( item ) );
         }
         ESP_LOGI( TAG, "Setting %s: %s", s_settingNames[i], lv_label_get_text( display->m_settingValues[i] ) );
     }
@@ -489,6 +585,7 @@ void Display::showSetting( int item )
         lv_label_set_text( label, value != 0 ? "On" : "Off" );
     } else if ( item == Settings::Brightness ) {
         lv_label_set_text( label, value <= 20 ? "Low" : ( value <= 50 ? "Mid" : "High" ) );
+
     } else if ( value == 0 ) {
         lv_label_set_text( label, "Never" );
     } else {
@@ -498,7 +595,7 @@ void Display::showSetting( int item )
 
 uint32_t Display::inactiveMs()
 {
-    if ( m_timeLabel != nullptr && bsp_display_lock( s_lockTimeoutMs ) ) {
+    if ( m_started && bsp_display_lock( s_lockTimeoutMs ) ) {
         m_inactiveMs = lv_display_get_inactive_time( nullptr );
         bsp_display_unlock();
     }
