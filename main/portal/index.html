@@ -59,6 +59,11 @@
   <select id="brightness"></select>
   <label for="autoOff">Switch off without motion after</label>
   <select id="autoOff"></select>
+  <label for="hijri">Hijri months start with</label>
+  <select id="hijri"></select>
+  <small>Local: the new crescent visible to the naked eye at the watch's location (Odeh's
+  criterion). Diyanet: Turkey's official rule (Istanbul 1978: anywhere on land, 8&deg; from the
+  Sun and 5&deg; high at sunset).</small>
 </fieldset>
 
 <button id="save">Save to the watch</button>
@@ -94,6 +99,7 @@ fill($('timeout'), [[5, '5 s'], [10, '10 s'], [20, '20 s'], [30, '30 s'], [60, '
 fill($('alwaysOn'), [[1, 'On'], [0, 'Off']]);
 fill($('brightness'), [[20, 'Low'], [50, 'Mid'], [100, 'High']]);
 fill($('autoOff'), [[20, '20 min'], [30, '30 min'], [60, '60 min'], [0, 'Never']]);
+fill($('hijri'), [[0, 'Local crescent'], [1, 'Diyanet']]);
 const offsets = [];
 for (let m = -720; m <= 840; m += 15) offsets.push([m, offsetText(m)]);
 fill($('offset'), offsets, -new Date().getTimezoneOffset());
@@ -124,7 +130,7 @@ setInterval(() => { $('now').textContent = 'This device: ' + new Date().toLocale
 
 // Current values from the watch.
 fetch('/api/state').then((r) => r.json()).then((s) => {
-  for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff']) $(id).value = String(s[id]);
+  for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'hijri']) $(id).value = String(s[id]);
   if (s.lat !== 0 || s.lon !== 0) {
     $('lat').value = s.lat.toFixed(4);
     $('lon').value = s.lon.toFixed(4);
@@ -146,7 +152,7 @@ $('save').addEventListener('click', async () => {
   $('status').textContent = 'Saving…';
   try {
     const fields = new URLSearchParams();
-    for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'offset']) fields.set(id, $(id).value);
+    for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'offset', 'hijri']) fields.set(id, $(id).value);
     if ($('lat').value !== '' && $('lon').value !== '') {
       fields.set('lat', $('lat').value);
       fields.set('lon', $('lon').value);

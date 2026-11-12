@@ -28,7 +28,7 @@ extern const char s_citiesEnd[] asm( "_binary_cities_js_end" );
 
 // Field names of the save request, one per Settings::Item.
 static const char *s_fieldNames[Settings::ItemCount] = { "timeout", "alwaysOn", "brightness", "autoOff",
-                                                         "offset",  "lat",      "lon" };
+                                                         "offset",  "lat",      "lon",        "hijri" };
 
 static bool s_networkReady = false;
 // The 404 handler has no user context: it reaches the running portal through this.
@@ -280,11 +280,11 @@ esp_err_t Portal::onState( httpd_req_t *request )
     char json[256];
     snprintf( json, sizeof( json ),
               "{\"timeout\":%d,\"alwaysOn\":%d,\"brightness\":%d,\"autoOff\":%d,\"offset\":%d,"
-              "\"lat\":%.6f,\"lon\":%.6f}",
+              "\"lat\":%.6f,\"lon\":%.6f,\"hijri\":%d}",
               settings.value( Settings::DisplayTimeout ), settings.value( Settings::AlwaysOnFace ),
               settings.value( Settings::Brightness ), settings.value( Settings::AutoOff ),
               settings.value( Settings::UtcOffset ), settings.value( Settings::Latitude ) / 1e6,
-              settings.value( Settings::Longitude ) / 1e6 );
+              settings.value( Settings::Longitude ) / 1e6, settings.value( Settings::HijriMethod ) );
     httpd_resp_set_type( request, "application/json" );
     noCache( request );
     return httpd_resp_sendstr( request, json );

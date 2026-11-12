@@ -37,6 +37,7 @@ static const ItemInfo s_items[Settings::ItemCount] = {
     { "utc_offset_min", 0, 0, {}, -720, 840 },
     { "latitude_ud", 0, 0, {}, -90000000, 90000000 },
     { "longitude_ud", 0, 0, {}, -180000000, 180000000 },
+    { "hijri_method", 0, 2, { 0, 1 }, 0, 0 },
 };
 
 static int indexOf( const ItemInfo &info, int value )
@@ -91,8 +92,9 @@ void Settings::load()
         m_savedValues[i] = m_values[i];
     }
     ESP_LOGI( TAG, "Settings: timeout %d s, always-on %d, brightness %d %%, auto off %d min, UTC offset %d min, "
-              "location %d, %d (micro-degrees)", m_values[DisplayTimeout], m_values[AlwaysOnFace], m_values[Brightness],
-              m_values[AutoOff], m_values[UtcOffset], m_values[Latitude], m_values[Longitude] );
+              "location %d, %d (micro-degrees), Hijri method %d", m_values[DisplayTimeout], m_values[AlwaysOnFace],
+              m_values[Brightness], m_values[AutoOff], m_values[UtcOffset], m_values[Latitude], m_values[Longitude],
+              m_values[HijriMethod] );
 }
 
 void Settings::save()

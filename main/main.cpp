@@ -1,6 +1,10 @@
 #include <cstdio>
+#include <ctime>
 
 #include "AlwaysOn.h"
+#include "Astronomy.h"
+#include "Hijri.h"
+#include "Sky.h"
 #include "Axp2101.h"
 #include "BatteryLog.h"
 #include "DeepSleep.h"
@@ -20,6 +24,7 @@
 #include "driver/usb_serial_jtag.h"
 #include "driver/usb_serial_jtag_vfs.h"
 #include "esp_attr.h"
+#include "esp_timer.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -62,15 +67,25 @@ static void logPowerKeyIrq()
 // Set by the host commands "P" and "N": the same as a tap on the setup page's rows.
 static int s_hostRequests = 0;
 static char s_hostLine[32];
+// The scene of the published screenshots, so that they stay the same and do not show the
+// watch's location: Istanbul on 2026-06-21 at 19:19 local time (UTC+3), the local Hijri method.
+// The settings are not changed, so that nothing of it reaches NVS.
+static bool s_scene = false;
+static const int s_sceneInputs[4] = { 41008200, 28978400, 180, 0 };
+static const Rtc::DateTime s_sceneTime = { 2026, 6, 21, 16, 19, 0 };
 static int s_hostLineLength = 0;
 
 // Development commands from the host: the guided test sends the UTC time as
 // "T YYYY-MM-DD HH:MM:SS", timed so that the RTC's next second matches the host's;
-// tools/screenshot.py sends "S <page>" for a screenshot of that page; "P" switches the setup
+// tools/screenshot.py sends "S <page>" for a screenshot of that page and "A" for one of the
+// always-on face (at 19:19); "P" switches the setup
 // portal on or off and "N" makes a new portal password (so that a published screenshot does not
-// show the one in use).
-static void pollHostCommands()
+// show the one in use). "D" shows a fixed scene until the next reset (s_sceneInputs).
+// Returns true when a command arrived: like a touch, it restarts the display timeout, so that
+// the watch stays in active mode while tools/screenshot.py works.
+static bool pollHostCommands()
 {
+    bool received = false;
     char c = 0;
     while ( usb_serial_jtag_read_bytes( &c, 1, 0 ) == 1 ) {
         if ( c != '\n' ) {
@@ -81,6 +96,7 @@ static void pollHostCommands()
         }
         s_hostLine[s_hostLineLength] = '\0';
         s_hostLineLength = 0;
+        received = true;
         int page = 0;
         if ( sscanf( s_hostLine, "S %d", &page ) == 1 ) {
             s_display.capture( page );
@@ -90,8 +106,16 @@ static void pollHostCommands()
             s_hostRequests |= Display::TogglePortal;
             continue;
         }
+        if ( s_hostLine[0] == 'A' && s_hostLine[1] == '\0' ) {
+            AlwaysOn::capture();
+            continue;
+        }
         if ( s_hostLine[0] == 'N' && s_hostLine[1] == '\0' ) {
             s_hostRequests |= Display::NewPassword;
+            continue;
+        }
+        if ( s_hostLine[0] == 'D' && s_hostLine[1] == '\0' ) {
+            s_scene = true;
             continue;
         }
         int year = 0;
@@ -114,6 +138,7 @@ static void pollHostCommands()
         ESP_LOGI( TAG, "RTC set to %04d-%02d-%02d %02d:%02d:%02d UTC: %s", year, month, day, hour, minute, second,
                   esp_err_to_name( err ) );
     }
+    return received;
 }
 #endif
 
@@ -137,6 +162,48 @@ static void logPadLevels()
     ESP_LOGI( TAG, "Pad levels after wake:%s", text );
 }
 
+// The astronomy pages' values for the local day, kept in RTC memory across deep sleep: they take
+// about 0.5 s on the ESP32-S3, so they are computed once a day, or when a setting they depend on
+// changes (s_skyInputs: location, UTC offset, Hijri method).
+RTC_DATA_ATTR static Sky::Day s_skyDay;
+RTC_DATA_ATTR static int s_skyInputs[4];
+RTC_DATA_ATTR static bool s_skyValid;
+
+static int64_t unixTime( const Rtc::DateTime &time )
+{
+    // The firmware never sets TZ, so mktime() works in UTC.
+    tm fields = {};
+    fields.tm_year = time.year - 1900;
+    fields.tm_mon = time.month - 1;
+    fields.tm_mday = time.day;
+    fields.tm_hour = time.hour;
+    fields.tm_min = time.minute;
+    fields.tm_sec = time.second;
+    return mktime( &fields );
+}
+
+// `inputs`: latitude and longitude (micro-degrees), UTC offset (minutes), Hijri method.
+static void updateSky( int64_t now, const int inputs[4] )
+{
+    const int offsetMinutes = inputs[2];
+    const Astronomy::Observer observer = { inputs[0] / 1e6, inputs[1] / 1e6 };
+    const int day = static_cast<int>( ( now + offsetMinutes * 60 ) / 86400 );
+    bool same = true;
+    for ( int i = 0; i < 4; ++i ) {
+        same = same && s_skyInputs[i] == inputs[i];
+    }
+    if ( !s_skyValid || s_skyDay.day != day || !same ) {
+        for ( int i = 0; i < 4; ++i ) {
+            s_skyInputs[i] = inputs[i];
+        }
+        const int64_t start = esp_timer_get_time();
+        s_skyDay = Sky::computeDay( day, offsetMinutes, observer, static_cast<Hijri::Method>( inputs[3] ) );
+        s_skyValid = true;
+        ESP_LOGI( TAG, "Sky day computed in %d ms", static_cast<int>( ( esp_timer_get_time() - start ) / 1000 ) );
+    }
+    s_display.showSky( s_skyDay, Sky::computeNow( now, s_skyDay, observer ), offsetMinutes );
+}
+
 static void updateDisplay()
 {
     Rtc::DateTime time = {};
@@ -145,8 +212,18 @@ static void updateDisplay()
     s_rtc.read( time, oscillatorStopped );
     s_pmu.readBattery( battery.millivolts, battery.percent, battery.vbusGood );
     battery.chargeState = s_pmu.chargeState();
-    const int offsetMinutes = s_settings.value( Settings::UtcOffset );
-    s_display.update( Rtc::addMinutes( time, offsetMinutes ), offsetMinutes, battery );
+    int inputs[4] = { s_settings.value( Settings::Latitude ), s_settings.value( Settings::Longitude ),
+                      s_settings.value( Settings::UtcOffset ), s_settings.value( Settings::HijriMethod ) };
+#if CONFIG_WATCH_DEV_LOGGING
+    if ( s_scene ) {
+        time = s_sceneTime;
+        for ( int i = 0; i < 4; ++i ) {
+            inputs[i] = s_sceneInputs[i];
+        }
+    }
+#endif
+    s_display.update( Rtc::addMinutes( time, inputs[2] ), inputs[2], battery );
+    updateSky( unixTime( time ), inputs );
 }
 
 #if CONFIG_WATCH_SETUP_PORTAL
@@ -259,7 +336,9 @@ static void runActiveMode()
             return;
         }
 #if CONFIG_WATCH_DEV_LOGGING
-        pollHostCommands();
+        if ( pollHostCommands() ) {
+            activeMs = 0;
+        }
 #endif
         vTaskDelay( pdMS_TO_TICKS( 20 ) );
         activeMs += 20;

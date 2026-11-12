@@ -1,5 +1,7 @@
 #include "AlwaysOn.h"
 
+#include <cstdio>
+
 #include "Panel.h"
 #include "esp_attr.h"
 #include "sdkconfig.h"
@@ -54,6 +56,32 @@ static void drawDigit( Panel &panel, int x, int y, int digit )
         }
     }
 }
+
+// HH:MM at (x, y): the digits and the colon, in white on what is already there.
+static void drawFace( Panel &panel, int x, int y, int hour, int minute )
+{
+    drawDigit( panel, x, y, hour / 10 );
+    drawDigit( panel, x + DIGIT_STEP, y, hour % 10 );
+    const int colonX = x + 2 * DIGIT_STEP - ( DIGIT_STEP - DIGIT_WIDTH ) + ( COLON_GAP - STROKE ) / 2;
+    panel.fill( colonX & ~1, y + 30, STROKE, STROKE, true );
+    panel.fill( colonX & ~1, y + DIGIT_HEIGHT - 30 - STROKE, STROKE, STROKE, true );
+    const int minutesX = x + 2 * DIGIT_STEP + COLON_GAP;
+    drawDigit( panel, minutesX, y, minute / 10 );
+    drawDigit( panel, minutesX + DIGIT_STEP, y, minute % 10 );
+}
+
+#if CONFIG_WATCH_DEV_LOGGING
+void AlwaysOn::capture()
+{
+    Panel panel;
+    panel.record();
+    printf( "SHOT BEGIN -1 %d %d always-on\n", Panel::WIDTH, Panel::HEIGHT );
+    panel.fill( 0, 0, Panel::WIDTH, Panel::HEIGHT, false );
+    drawFace( panel, FACE_X, FACE_Y, 19, 19 );
+    printf( "SHOT END\n" );
+    fflush( stdout );
+}
+#endif
 
 void AlwaysOn::begin()
 {
@@ -114,16 +142,7 @@ uint64_t AlwaysOn::update( const Rtc::DateTime &time, bool timeRead )
     // Burn-in: the face moves within +-8 pixels, one step per minute.
     s_faceX = FACE_X + ( minuteOfDay % 5 - 2 ) * 4;
     s_faceY = FACE_Y + ( ( minuteOfDay / 5 ) % 5 - 2 ) * 4;
-    const int hour = minuteOfDay / 60;
-    const int minute = minuteOfDay % 60;
-    drawDigit( panel, s_faceX, s_faceY, hour / 10 );
-    drawDigit( panel, s_faceX + DIGIT_STEP, s_faceY, hour % 10 );
-    const int colonX = s_faceX + 2 * DIGIT_STEP - ( DIGIT_STEP - DIGIT_WIDTH ) + ( COLON_GAP - STROKE ) / 2;
-    panel.fill( colonX & ~1, s_faceY + 30, STROKE, STROKE, true );
-    panel.fill( colonX & ~1, s_faceY + DIGIT_HEIGHT - 30 - STROKE, STROKE, STROKE, true );
-    const int minutesX = s_faceX + 2 * DIGIT_STEP + COLON_GAP;
-    drawDigit( panel, minutesX, s_faceY, minute / 10 );
-    drawDigit( panel, minutesX + DIGIT_STEP, s_faceY, minute % 10 );
+    drawFace( panel, s_faceX, s_faceY, minuteOfDay / 60, minuteOfDay % 60 );
     // The brightness command is sent after the drawing has finished.
     panel.setBrightness( CONFIG_WATCH_AOD_BRIGHTNESS );
     Panel::holdPins();

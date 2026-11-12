@@ -435,6 +435,19 @@ Taps on the settings page (M8, `main/Display.cpp`) [REF][HW]:
   a row cancels the tap (checked on the board).
 - Rows are 108 px high (8.7 mm), about the Wear OS minimum touch target of 48 dp (~9 mm).
 
+### Astronomy computation time [HW] (M10, 2026-11-12; `main/Astronomy.*`, `main/Hijri.*`)
+The ESP32-S3 has a single-precision FPU only; the astronomy code uses `double`, done in software.
+Measured on the board (`esp_timer`, active mode, default build):
+- Sun events of a day (10-minute altitude samples, bisection to 1 s): 108 ms; Moon rise and set:
+  165 ms; Moon phase: 6 ms.
+- Hijri date by Diyanet's rule (land cells searched until one qualifies): 8 ms; by local crescent
+  visibility: 508 ms with a full-day moonset search, much less with the forward search from
+  sunset (`Astronomy::moonsetWithin`).
+- All values of the astronomy pages for a day (`Sky::computeDay`, including yesterday's day
+  length and the dark window): 518 ms. They are kept in RTC memory (804 bytes of RTC slow memory
+  in all) and computed again only when the day or the location, UTC offset or Hijri method
+  changes.
+
 ### ESP32-S3
 - EXT0/EXT1 wake only on RTC GPIOs 0–21; EXT1 supports ANY_HIGH [DS].
 - Deep sleep ≈ 7–8 µA [DS Table 5-10]. Each wake from deep sleep is a full boot.

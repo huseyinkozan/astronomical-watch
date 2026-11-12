@@ -1,5 +1,7 @@
 #include "Panel.h"
 
+#include <cstdio>
+
 #include "bsp/esp32_s3_touch_amoled_2_06.h"
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
@@ -75,8 +77,21 @@ bool Panel::open()
     return true;
 }
 
+#if CONFIG_WATCH_DEV_LOGGING
+void Panel::record()
+{
+    m_recording = true;
+}
+#endif
+
 void Panel::fill( int x, int y, int width, int height, bool white )
 {
+#if CONFIG_WATCH_DEV_LOGGING
+    if ( m_recording ) {
+        printf( "SHOT RECT %d %d %d %d %d\n", x, y, width, height, white ? 1 : 0 );
+        return;
+    }
+#endif
     if ( m_panel == nullptr ) {
         return;
     }

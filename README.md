@@ -28,11 +28,17 @@ and the PWR key turns it on again.
 
 ## Screenshots
 
-Active-mode pages, swiped sideways (taken from the watch with `tools/screenshot.py`):
+Active-mode pages, swiped sideways, and the always-on face (taken from the watch with
+`tools/screenshot.py`, in a fixed scene: Istanbul, 21 June 2026, 19:19; the always-on face is
+shown at full brightness, the watch dims it to 10 %):
 
-| Watch face | Battery | Settings | Setup | About |
+| Watch face | Sun | Twilight | Moon | Sun compass |
 |---|---|---|---|---|
-| ![Watch face](docs/screenshots/0-face.png) | ![Battery](docs/screenshots/1-battery.png) | ![Settings](docs/screenshots/2-settings.png) | ![Setup portal](docs/screenshots/3-setup.png) | ![About](docs/screenshots/4-about.png) |
+| ![Watch face](docs/screenshots/0-face.png) | ![Sun](docs/screenshots/1-sun.png) | ![Twilight](docs/screenshots/2-twilight.png) | ![Moon](docs/screenshots/3-moon.png) | ![Sun compass](docs/screenshots/4-compass.png) |
+
+| Battery | Settings | Setup | About | Always-on |
+|---|---|---|---|---|
+| ![Battery](docs/screenshots/5-battery.png) | ![Settings](docs/screenshots/6-settings.png) | ![Setup portal](docs/screenshots/7-setup.png) | ![About](docs/screenshots/8-about.png) | ![Always-on face](docs/screenshots/always-on.png) |
 
 ## Hardware
 
@@ -52,6 +58,23 @@ idf.py build
 idf.py -p /dev/ttyACM0 flash monitor
 ```
 
+## Host Tests
+
+The astronomy code (`main/Astronomy.*`, `main/Hijri.*`) does not depend on ESP-IDF and is tested
+on the computer against reference values from [Skyfield](https://rhodesmill.org/skyfield/) with
+NASA JPL's DE421 ephemeris, and against the Hijri month starts published by Turkey's Diyanet:
+
+```bash
+sh tests/run_host_tests.sh          # needs only g++
+```
+
+The reference values are in the repository. To make them again (Python, about 20 MB):
+
+```bash
+sh tools/setup_reference.sh         # Skyfield and the ephemeris in tools/.venv
+tools/.venv/bin/python tools/make_astronomy_reference.py > tests/astronomy_reference.csv
+```
+
 ## Project Structure
 
 ```text
@@ -67,6 +90,8 @@ astronomical-watch/
 ├── tools/guided_test.py  guided hardware tests
 ├── tools/screenshot.py   screenshots from the watch (development build)
 ├── tools/make_cities.py  city list of the setup page, from GeoNames
+├── tools/setup_reference.sh  Python environment for the astronomy reference values
+├── tests/                host tests of the astronomy code and their reference data
 ├── main/                 application
 └── archive/              earlier QMI8658 validator (reference only)
 ```
@@ -78,7 +103,9 @@ state. A PWR press starts active mode: pages swiped sideways show the local time
 battery state, the battery details, the settings (display timeout, always-on, brightness,
 auto-off; one tap per value, kept in flash), the setup portal and an About page. The portal
 opens the watch's own Wi-Fi for a phone or computer, whose browser sets the time, UTC offset,
-location and settings. 10 s after the last touch
+location and settings. Four pages show the Sun (rise, set, noon, day length, time left until
+sunset), the twilights with the golden and blue hours, the Moon (phase, rise and set, the dark
+part of the night, the new crescent, the Hijri date) and a sun compass; their designs follow. 10 s after the last touch
 (the default), or at the next PWR press, a
 dim seven-segment HH:MM stays on the display while the processor deep-sleeps, redrawn once a
 minute. Every 10 min the accelerometer is read once; when the watch has not moved for 30 min it
@@ -114,12 +141,17 @@ Each step is built, verified on the board and documented before the next one sta
     opens by itself on a phone, the time is set to within a few milliseconds of the browser's
     clock) and the local time on the faces; the minute wake did not grow with the Wi-Fi stack.
     An About page and screenshots from the watch came with it.
-11. **M10+**: astronomy, battery display.
-12. Vibration motor.
-13. Alarms (clock time and sun/moon events) and countdown timer, also set through the portal.
+11. **M10** (in progress): astronomy on the watch (sun and moon events and positions, twilights,
+    golden and blue hour, sun compass, Hijri date by local crescent visibility or Diyanet's rule),
+    then the designs of the watch face and the always-on face with selectable items.
+12. **M11**: languages: Turkish and English on the watch and the setup page, chosen in the
+    settings (fonts with the Turkish letters).
+13. Vibration motor.
+14. Alarms (clock time and sun/moon events) and countdown timer, also set through the portal.
 
 ## License
 
 MIT, see [LICENSE](LICENSE). Dependencies (ESP-IDF, the Waveshare BSP, LVGL) keep their own
 licenses. The setup page's city list comes from [GeoNames](https://www.geonames.org/) (CC BY 4.0);
-`main/dns_server.*` is ESP-IDF example code (CC0).
+`main/dns_server.*` is ESP-IDF example code (CC0); `main/LandMask.h` is made from
+[Natural Earth](https://www.naturalearthdata.com/) land (public domain).

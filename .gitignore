@@ -71,3 +71,6 @@ test-logs/
 
 # Battery-run builds (separate build directory and sdkconfig)
 build-*/
+
+# Python environment for the astronomy reference values (tools/setup_reference.sh)
+tools/.venv/

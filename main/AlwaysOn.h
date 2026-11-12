@@ -3,6 +3,7 @@
 #include <cstdint>
 
 #include "Rtc.h"
+#include "sdkconfig.h"
 
 // Always-on face (CLAUDE.md, always-on mode): a dim HH:MM in seven segments. A timer wake once a
 // minute redraws only the digits; between wakes the ESP32 deep-sleeps and the panel shows the
@@ -24,4 +25,10 @@ public:
     // s_maxFailedMinutes). Without a valid time it draws nothing and asks for another wake in a
     // minute.
     uint64_t update( const Rtc::DateTime &time, bool timeRead );
+
+#if CONFIG_WATCH_DEV_LOGGING
+    // Development screenshot (tools/screenshot.py): the face at 19:19, centred, written to the
+    // console as rectangles instead of drawn. A fixed time keeps the published picture unchanged.
+    static void capture();
+#endif
 };

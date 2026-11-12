@@ -3,12 +3,18 @@
 
 The development build (CONFIG_WATCH_DEV_LOGGING) answers "S <page>" on the USB console: it
 shows that page, redraws it and prints each pixel row as "SHOT <y> <x> <runs>", where each run
-is "<RGB565 hex>*<count>" and runs are separated by commas. Opening the port resets the board
+is "<RGB565 hex>*<count>" and runs are separated by commas. "A" gives the always-on face, drawn
+without LVGL, as "SHOT RECT <x> <y> <width> <height> <0|1>" (black or white) rectangles; it is
+shown here at full brightness, dimmer on the watch. Opening the port resets the board
 (Linux raises DTR and RTS), so the watch starts in active mode; the command is repeated until
 the watch answers.
 
 Run inside the ESP-IDF environment, which provides pyserial:
     python tools/screenshot.py [--port /dev/ttyACM0] [--out docs/screenshots] [pages...]
+
+The pages show a fixed scene (the "D" command: Istanbul, 2026-06-21 19:19 local time), so that
+the published pictures stay the same and do not show the watch's location; --live keeps the
+watch's own time and settings.
 
 Screenshots for the repository (before a push): the setup portal on, then off with a new
 password, so that the published one is not in use:
@@ -24,9 +30,6 @@ import zlib
 
 import serial
 
-# Pages are numbered from the left; the watch reports each page's name and answers
-# nothing for a number past its last page.
-MAX_PAGES = 8
 
 
 def writePng(path, width, height, rows):
@@ -75,17 +78,20 @@ class LineReader:
 
 
 def capture(port, reader, page, timeout=30, verbose=False):
-    """Asks for one page; returns (name, width, height, rows, missing row count) or None."""
+    """Asks for one page (-1: the always-on face); returns (name, width, height, rows, missing
+    row count) or None."""
     width = height = 0
     name = ''
     rows = None
     received = set()
     start = time.time()
     lastSent = 0
-    while time.time() - start < timeout:
+    # `timeout` is for the first answer (short when probing past the last page); the transfer
+    # itself takes several seconds.
+    while time.time() - start < (timeout if rows is None else 60):
         # A command sent while the watch is still starting is lost: repeat it until it answers.
         if rows is None and time.time() - lastSent > 2:
-            port.write(f'S {page}\n'.encode())
+            port.write((f'S {page}' if page >= 0 else 'A').encode() + b'\n')
             lastSent = time.time()
         line = reader.readline()
         parts = line.split()
@@ -96,6 +102,11 @@ def capture(port, reader, page, timeout=30, verbose=False):
         if parts[1] == 'BEGIN' and len(parts) == 6:
             width, height, name = int(parts[3]), int(parts[4]), parts[5]
             rows = [bytearray(width * 3) for _ in range(height)]
+        elif parts[1] == 'RECT' and rows is not None and len(parts) == 7:
+            x, y, w, h, white = (int(value) for value in parts[2:])
+            for row in range(y, min(y + h, height)):
+                rows[row][x * 3:(x + w) * 3] = (b'\xff\xff\xff' if white else b'\x00\x00\x00') * w
+                received.add(row)
         elif parts[1] == 'END':
             if rows is None:
                 return None
@@ -114,7 +125,8 @@ def capture(port, reader, page, timeout=30, verbose=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('pages', nargs='*', type=int, help='page numbers from 0 (default: all)')
+    parser.add_argument('pages', nargs='*', type=int,
+                        help='page numbers from 0, -1 for the always-on face (default: all)')
     parser.add_argument('--port', default='/dev/ttyACM0')
     parser.add_argument('--out', default='docs/screenshots')
     parser.add_argument('--verbose', action='store_true', help='show the watch log while waiting')
@@ -123,7 +135,10 @@ def main():
     parser.add_argument('--after', action='append', default=[],
                         help='development command to send at the end, e.g. N (a new portal password, '
                              'so that published screenshots do not show the one in use); repeatable')
+    parser.add_argument('--live', action='store_true',
+                        help="the watch's own time and settings instead of the fixed scene")
     args = parser.parse_args()
+    commands = args.send if args.live else ['D'] + args.send
 
     os.makedirs(args.out, exist_ok=True)
 
@@ -136,30 +151,44 @@ def main():
     port.rts = False
     port.open()
     reader = LineReader(port)
-    if args.send:
+    if commands:
         # Opening the port restarted the watch: wait for active mode, then send the commands.
         start = time.time()
         while time.time() - start < 30 and 'Active mode' not in reader.readline():
             pass
-        for command in args.send:
+        for command in commands:
             port.write(f'{command}\n'.encode())
         time.sleep(4)
     failures = 0
-    for page in args.pages or range(MAX_PAGES):
-        # The last page answers quickly; a missing page answers nothing.
-        result = capture(port, reader, page, timeout=30 if args.pages or page == 0 else 8, verbose=args.verbose)
+    page = 0
+    allPages = not args.pages
+    pages = list(args.pages)
+    while True:
+        if allPages:
+            target = page
+        elif pages:
+            target = pages.pop(0)
+        else:
+            break
+        # Past the last page the watch answers nothing: then comes the always-on face (-1).
+        lastTry = allPages and target > 0
+        result = capture(port, reader, target, timeout=8 if lastTry else 30, verbose=args.verbose)
         if result is None:
-            if args.pages or page == 0:
-                print(f'page {page}: no answer (is the watch in active mode?)')
-                failures += 1
+            if lastTry:
+                allPages = False
+                pages = [-1]
+                continue
+            print(f'page {target}: no answer (is the watch in active mode?)')
+            failures += 1
             break
         name, width, height, rows, missing = result
-        path = os.path.join(args.out, f'{page}-{name}.png')
+        path = os.path.join(args.out, f'{target}-{name}.png' if target >= 0 else f'{name}.png')
         writePng(path, width, height, rows)
         note = f', {missing} rows missing' if missing else ''
         print(f'{name}: {path}{note}')
         if missing:
             failures += 1
+        page += 1
     for command in args.after:
         port.write(f'{command}\n'.encode())
     time.sleep(1)

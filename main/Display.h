@@ -5,13 +5,15 @@
 
 #include "Rtc.h"
 #include "Settings.h"
+#include "SkyPages.h"
 #include "lvgl.h"
 #include "sdkconfig.h"
 
 // AMOLED panel and touch through the BSP and LVGL, in active mode. The panel's power enable
 // DSI_PWR_EN is pulled up from AXP2101 ALDO2, so the caller switches ALDO2 on first
 // (docs/hardware.md). The pages are side by side; a horizontal swipe moves between them: watch
-// face, battery, settings, setup portal (CONFIG_WATCH_SETUP_PORTAL), about.
+// face, sun, twilight, moon, sun compass, battery, settings, setup portal
+// (CONFIG_WATCH_SETUP_PORTAL), about.
 class Display
 {
 public:
@@ -52,6 +54,9 @@ public:
 
     void showSetup( const Setup &setup );
 
+    // The astronomy pages: values of the local day and of this moment.
+    void showSky( const Sky::Day &day, const Sky::Now &now, int utcOffsetMinutes );
+
     // The Request bits tapped since the last call.
     int takeRequests();
 
@@ -79,6 +84,7 @@ private:
     bool m_capturing = false;
 #endif
     lv_obj_t *m_pages = nullptr;
+    SkyPages m_sky;
     void showSetting( int item );
 
     Settings *m_settings = nullptr;

@@ -33,6 +33,9 @@ idf.py -p /dev/ttyACM0 flash monitor
 | `main/` | Application component (`main.cpp` and project modules) |
 | `docs/hardware.md` | Hardware fact base: pins, power tree, register semantics, sources, unknowns |
 | `tools/guided_test.py` | Guided hardware tests: prompts the tester and checks the serial log; logs go to `test-logs/` (ignored) |
+| `tools/screenshot.py` | Screenshots of the watch pages from the development build |
+| `tests/` | Host tests of the astronomy code (`sh tests/run_host_tests.sh`, needs only g++) and their reference data |
+| `tools/setup_reference.sh`, `tools/make_*.py` | Reference environment (Skyfield in `tools/.venv`, ignored) and generators of reference and table data |
 | `archive/wom-validator/` | Earlier QMI8658 Wake-on-Motion validator and its docs (git tag `wom-validator`). Read-only reference; do not build or extend it |
 | `managed_components/`, `build/` | Generated; never edit |
 
@@ -49,6 +52,8 @@ idf.py -p /dev/ttyACM0 flash monitor
 - Return `esp_err_t` for hardware operations. Product code must not abort on a peripheral error and
   must use bounded I2C timeouts, so a failure can still end in deep sleep.
 - Comment only what the code cannot say: the why, a hardware constraint, a workaround.
+- LVGL's own printf has no floating point (`lv_label_set_text_fmt` with `%f` crashes): format
+  with `snprintf` and set the text.
 - All code, comments, identifiers, commit messages and documentation are in English.
 
 ## Power Management Rules
@@ -109,7 +114,14 @@ they open the panel directly, redraw only what changed and hold the panel pins a
 buffer while it is still being sent (docs/hardware.md, Display).
 
 - Small, focused modules; no layers or abstractions without a clear benefit.
-- Astronomy code is independent of UI and ESP-IDF so it can be tested on the host.
+- Astronomy code is independent of UI and ESP-IDF so it can be tested on the host
+  (`main/Astronomy.*`, `main/Hijri.*`, `main/Sky.*`; `sh tests/run_host_tests.sh`). Its
+  reference values come from Skyfield with the JPL DE421 ephemeris
+  (`tools/make_astronomy_reference.py`); the Diyanet Hijri method is checked against Diyanet's
+  published month starts (`tests/diyanet_month_starts.csv`). Change the code only with the tests
+  passing; a new tolerance or known difference needs a reason in the test.
+- Hijri months start by local crescent visibility (Odeh's criterion at the watch's location) or
+  by Diyanet's 1978 Istanbul rule (anywhere on land), chosen in the portal.
 - Settings are separate from UI code and persist across reboots, deep sleep and off mode (NVS,
   `main/Settings.*`); the Kconfig values are their defaults. Test builds that need other values
   set `CONFIG_WATCH_TEST_SETTINGS`, which ignores the saved settings.
@@ -218,6 +230,9 @@ power-on state, unplug USB for the run, then plug it in and read the log with
 Update the matching document in the same change when a design decision changes.
 
 Before a push that changes what the watch shows, refresh `docs/screenshots/` from the board with
-the development build: `python tools/screenshot.py --send P --after P --after N` (the setup
-portal on for its page, then off with a new password, so that the published one is not in use).
-`tools/screenshot.py` can also be used during development to check a layout without the tester.
+the development build: `python tools/screenshot.py --send P --after P --after N` (all pages and
+the always-on face; the setup portal on for its page, then off with a new password, so that the
+published one is not in use). The pages show a fixed scene (Istanbul, 2026-06-21 19:19), so that
+the published pictures stay comparable and never show the watch's real location.
+`tools/screenshot.py` can also be used during development to check a layout without the tester
+(`--live` for the watch's own time and settings).

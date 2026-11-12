@@ -16,6 +16,7 @@ public:
         UtcOffset,       // minutes added to the RTC's UTC for the displayed time
         Latitude,        // micro-degrees, north positive
         Longitude,       // micro-degrees, east positive
+        HijriMethod,     // Hijri::Method: 0 local crescent visibility, 1 Diyanet
         ItemCount
     };
     // The items before this one are on the watch's settings page; the rest come from the setup

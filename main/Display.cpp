@@ -37,6 +37,10 @@ static const char *s_settingNames[Settings::PageItemCount] = { "Screen off", "Al
 enum Page
 {
     FacePage,
+    SunPage,
+    TwilightPage,
+    MoonPage,
+    CompassPage,
     BatteryPage,
     SettingsPage,
 #if CONFIG_WATCH_SETUP_PORTAL
@@ -45,7 +49,7 @@ enum Page
     AboutPage,
     PageCount
 };
-static const char *s_pageNames[PageCount] = { "face", "battery", "settings",
+static const char *s_pageNames[PageCount] = { "face", "sun", "twilight", "moon", "compass", "battery", "settings",
 #if CONFIG_WATCH_SETUP_PORTAL
                                               "setup",
 #endif
@@ -180,13 +184,19 @@ bool Display::start( Settings &settings )
     m_pages = pages;
     lv_obj_set_style_bg_color( pages, lv_color_black(), 0 );
     lv_obj_set_scrollbar_mode( pages, LV_SCROLLBAR_MODE_OFF );
-    lv_obj_t *facePage = lv_tileview_add_tile( pages, FacePage, 0, LV_DIR_RIGHT );
-    lv_obj_t *batteryPage = lv_tileview_add_tile( pages, BatteryPage, 0, LV_DIR_HOR );
-    lv_obj_t *settingsPage = lv_tileview_add_tile( pages, SettingsPage, 0, LV_DIR_HOR );
+    lv_obj_t *tiles[PageCount] = {};
+    for ( int i = 0; i < PageCount; ++i ) {
+        const lv_dir_t direction = i == 0 ? LV_DIR_RIGHT : ( i == PageCount - 1 ? LV_DIR_LEFT : LV_DIR_HOR );
+        tiles[i] = lv_tileview_add_tile( pages, static_cast<uint8_t>( i ), 0, direction );
+    }
+    lv_obj_t *facePage = tiles[FacePage];
+    lv_obj_t *batteryPage = tiles[BatteryPage];
+    lv_obj_t *settingsPage = tiles[SettingsPage];
+    m_sky.build( tiles[SunPage], tiles[TwilightPage], tiles[MoonPage], tiles[CompassPage] );
 #if CONFIG_WATCH_SETUP_PORTAL
-    buildSetupPage( lv_tileview_add_tile( pages, SetupPage, 0, LV_DIR_HOR ) );
+    buildSetupPage( tiles[SetupPage] );
 #endif
-    buildAboutPage( lv_tileview_add_tile( pages, AboutPage, 0, LV_DIR_LEFT ) );
+    buildAboutPage( tiles[AboutPage] );
 
     m_timeLabel = createLabel( facePage, &lv_font_montserrat_48, -60 );
     m_dateLabel = createLabel( facePage, &lv_font_montserrat_28, 10 );
@@ -330,6 +340,15 @@ void Display::showSetup( const Setup &setup )
     } else {
         lv_label_set_text( m_setupInfo, "Not started" );
     }
+    bsp_display_unlock();
+}
+
+void Display::showSky( const Sky::Day &day, const Sky::Now &now, int utcOffsetMinutes )
+{
+    if ( m_timeLabel == nullptr || !bsp_display_lock( s_lockTimeoutMs ) ) {
+        return;
+    }
+    m_sky.show( day, now, utcOffsetMinutes );
     bsp_display_unlock();
 }
 

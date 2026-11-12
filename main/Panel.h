@@ -4,6 +4,7 @@
 
 #include "esp_lcd_panel_io.h"
 #include "esp_lcd_panel_ops.h"
+#include "sdkconfig.h"
 
 // Direct access to the CO5300 panel for the always-on face, without the BSP: the BSP resets the
 // panel on every start, which would blank the image that the panel keeps in its own memory
@@ -21,6 +22,12 @@ public:
     // White at full drive; the brightness setting dims it.
     void fill( int x, int y, int width, int height, bool white );
 
+#if CONFIG_WATCH_DEV_LOGGING
+    // Development screenshot of the always-on face (tools/screenshot.py): instead of drawing,
+    // fill() writes "SHOT RECT <x> <y> <width> <height> <0|1>" to the console. No open() needed.
+    void record();
+#endif
+
     // Brightness (DBV, command 0x51). It also waits until all queued drawing is sent.
     void setBrightness( int percent );
 
@@ -35,6 +42,9 @@ public:
     static void releasePins();
 
 private:
+#if CONFIG_WATCH_DEV_LOGGING
+    bool m_recording = false;
+#endif
     esp_lcd_panel_io_handle_t m_io = nullptr;
     esp_lcd_panel_handle_t m_panel = nullptr;
 };
