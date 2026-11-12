@@ -34,6 +34,7 @@ idf.py -p /dev/ttyACM0 flash monitor
 | `docs/hardware.md` | Hardware fact base: pins, power tree, register semantics, sources, unknowns |
 | `tools/guided_test.py` | Guided hardware tests: prompts the tester and checks the serial log; logs go to `test-logs/` (ignored) |
 | `tools/screenshot.py` | Screenshots of the watch pages from the development build |
+| `tools/make_fonts.sh`, `tools/fonts/` | The watch fonts in `main/fonts/` (JetBrains Mono, ASCII, ° and the Turkish letters; needs Node.js for `npx lv_font_conv`) |
 | `tests/` | Host tests of the astronomy code (`sh tests/run_host_tests.sh`, needs only g++) and their reference data |
 | `tools/setup_reference.sh`, `tools/make_*.py` | Reference environment (Skyfield in `tools/.venv`, ignored) and generators of reference and table data |
 | `archive/wom-validator/` | Earlier QMI8658 Wake-on-Motion validator and its docs (git tag `wom-validator`). Read-only reference; do not build or extend it |
@@ -52,6 +53,8 @@ idf.py -p /dev/ttyACM0 flash monitor
 - Return `esp_err_t` for hardware operations. Product code must not abort on a peripheral error and
   must use bounded I2C timeouts, so a failure can still end in deep sleep.
 - Comment only what the code cannot say: the why, a hardware constraint, a workaround.
+- Text uses the monospaced fonts of `main/Fonts.h` (26 and 48 px), so that numbers line up in
+  columns; a new character or size goes into `tools/make_fonts.sh`, and the C files are made again.
 - LVGL's own printf has no floating point (`lv_label_set_text_fmt` with `%f` crashes): format
   with `snprintf` and set the text.
 - All code, comments, identifiers, commit messages and documentation are in English.

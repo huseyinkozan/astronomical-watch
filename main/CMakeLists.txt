@@ -1,5 +1,6 @@
 set(srcs "BatteryLog.cpp" "Peripherals.cpp" "DeepSleep.cpp" "Axp2101.cpp" "Rtc.cpp" "Display.cpp" "Panel.cpp"
-         "AlwaysOn.cpp" "Motion.cpp" "Settings.cpp" "Astronomy.cpp" "Hijri.cpp" "Sky.cpp" "SkyPages.cpp" "main.cpp")
+         "AlwaysOn.cpp" "Motion.cpp" "Settings.cpp" "Astronomy.cpp" "Hijri.cpp" "Sky.cpp" "SkyPages.cpp" "main.cpp"
+         "fonts/jetbrains_mono_26.c" "fonts/jetbrains_mono_48.c")
 # The setup portal's components are always listed: ESP-IDF collects the requirements before it
 # reads the configuration. Without WATCH_SETUP_PORTAL no source uses them.
 set(requires esp_driver_gpio esp_driver_i2c esp_driver_spi esp_driver_usb_serial_jtag

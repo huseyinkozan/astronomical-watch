@@ -10,10 +10,6 @@ CONFIG_ESPTOOLPY_FLASHSIZE_32MB=y
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 
-# Fonts for the watch face (each adds flash only, no RAM).
-CONFIG_LV_FONT_MONTSERRAT_28=y
-CONFIG_LV_FONT_MONTSERRAT_48=y
-
 # Always-on wakes once a minute: skipping the app image check on deep-sleep wakes saves about
 # 150 ms of the 0.5 s wake (docs/hardware.md, ESP32-S3). It still runs after power-on and reset.
 CONFIG_BOOTLOADER_SKIP_VALIDATE_IN_DEEP_SLEEP=y

@@ -1,4 +1,5 @@
 #include "Display.h"
+#include "Fonts.h"
 
 #include "bsp/display.h"
 #include "bsp/esp32_s3_touch_amoled_2_06.h"
@@ -65,7 +66,7 @@ static void buildAboutPage( lv_obj_t *page )
                              "gitlab.com/huseyinkozan/\nastronomical-watch", "MIT License" };
     for ( int i = 0; i < 4; ++i ) {
         lv_obj_t *label = lv_label_create( page );
-        lv_obj_set_style_text_font( label, &lv_font_montserrat_28, 0 );
+        lv_obj_set_style_text_font( label, &jetbrains_mono_26, 0 );
         // Grey for the details, white for the name.
         lv_obj_set_style_text_color( label, i == 0 ? lv_color_white() : lv_color_hex( 0xA0A0A0 ), 0 );
         lv_obj_set_style_text_align( label, LV_TEXT_ALIGN_CENTER, 0 );
@@ -198,15 +199,15 @@ bool Display::start( Settings &settings )
 #endif
     buildAboutPage( tiles[AboutPage] );
 
-    m_timeLabel = createLabel( facePage, &lv_font_montserrat_48, -60 );
-    m_dateLabel = createLabel( facePage, &lv_font_montserrat_28, 10 );
-    m_batteryLabel = createLabel( facePage, &lv_font_montserrat_28, 70 );
+    m_timeLabel = createLabel( facePage, &jetbrains_mono_48, -60 );
+    m_dateLabel = createLabel( facePage, &jetbrains_mono_26, 10 );
+    m_batteryLabel = createLabel( facePage, &jetbrains_mono_26, 70 );
 
-    lv_obj_t *title = createLabel( batteryPage, &lv_font_montserrat_28, -120 );
+    lv_obj_t *title = createLabel( batteryPage, &jetbrains_mono_26, -120 );
     lv_label_set_text( title, "Battery" );
-    m_percentLabel = createLabel( batteryPage, &lv_font_montserrat_48, -50 );
-    m_voltageLabel = createLabel( batteryPage, &lv_font_montserrat_28, 20 );
-    m_chargeLabel = createLabel( batteryPage, &lv_font_montserrat_28, 70 );
+    m_percentLabel = createLabel( batteryPage, &jetbrains_mono_48, -50 );
+    m_voltageLabel = createLabel( batteryPage, &jetbrains_mono_26, 20 );
+    m_chargeLabel = createLabel( batteryPage, &jetbrains_mono_26, 70 );
 
     lv_obj_set_flex_flow( settingsPage, LV_FLEX_FLOW_COLUMN );
     lv_obj_set_flex_align( settingsPage, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER );
@@ -255,9 +256,9 @@ lv_obj_t *Display::createRow( lv_obj_t *parent, const char *name, lv_event_cb_t 
     // The row lights up while pressed, so the finger sees that the tap arrived.
     lv_obj_set_style_bg_color( row, lv_color_hex( 0x606060 ), LV_STATE_PRESSED );
     lv_obj_add_event_cb( row, onClicked, LV_EVENT_CLICKED, this );
-    lv_obj_t *nameLabel = createLabel( row, &lv_font_montserrat_28, LV_ALIGN_LEFT_MID, 0 );
+    lv_obj_t *nameLabel = createLabel( row, &jetbrains_mono_26, LV_ALIGN_LEFT_MID, 0 );
     lv_label_set_text( nameLabel, name );
-    return createLabel( row, &lv_font_montserrat_28, LV_ALIGN_RIGHT_MID, 0 );
+    return createLabel( row, &jetbrains_mono_26, LV_ALIGN_RIGHT_MID, 0 );
 }
 
 static lv_obj_t *createInfoLabel( lv_obj_t *parent, const lv_font_t *font, lv_color_t colour, const char *text )
@@ -293,17 +294,17 @@ void Display::buildSetupPage( lv_obj_t *page )
     lv_obj_set_flex_flow( info, LV_FLEX_FLOW_COLUMN );
     lv_obj_set_flex_align( info, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER );
     const lv_color_t grey = lv_color_hex( 0xA0A0A0 );
-    createInfoLabel( info, &lv_font_montserrat_28, grey, "Network" );
-    m_networkLabel = createInfoLabel( info, &lv_font_montserrat_28, lv_color_white(), "" );
+    createInfoLabel( info, &jetbrains_mono_26, grey, "Network" );
+    m_networkLabel = createInfoLabel( info, &jetbrains_mono_26, lv_color_white(), "" );
     // A gap separates the network from the password.
-    lv_obj_set_style_margin_top( createInfoLabel( info, &lv_font_montserrat_28, grey, "Password" ), 12, 0 );
-    m_passwordLabel = createInfoLabel( info, &lv_font_montserrat_48, lv_color_white(), "" );
-    m_setupInfo = createInfoLabel( info, &lv_font_montserrat_28, grey, "" );
+    lv_obj_set_style_margin_top( createInfoLabel( info, &jetbrains_mono_26, grey, "Password" ), 12, 0 );
+    m_passwordLabel = createInfoLabel( info, &jetbrains_mono_48, lv_color_white(), "" );
+    m_setupInfo = createInfoLabel( info, &jetbrains_mono_26, grey, "" );
 
     lv_obj_t *buttonLabel = createRow( page, "", onSetupClicked );
     m_passwordRow = lv_obj_get_parent( buttonLabel );
     lv_obj_align( buttonLabel, LV_ALIGN_CENTER, 0, 0 );
-    lv_label_set_text( buttonLabel, LV_SYMBOL_REFRESH "  New password" );
+    lv_label_set_text( buttonLabel, "New password" );
 }
 
 void Display::onSetupClicked( lv_event_t *event )

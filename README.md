@@ -91,6 +91,7 @@ astronomical-watch/
 ├── tools/screenshot.py   screenshots from the watch (development build)
 ├── tools/make_cities.py  city list of the setup page, from GeoNames
 ├── tools/setup_reference.sh  Python environment for the astronomy reference values
+├── tools/make_fonts.sh   watch fonts (main/fonts/) from tools/fonts/, needs Node.js
 ├── tests/                host tests of the astronomy code and their reference data
 ├── main/                 application
 └── archive/              earlier QMI8658 validator (reference only)
@@ -143,9 +144,10 @@ Each step is built, verified on the board and documented before the next one sta
     An About page and screenshots from the watch came with it.
 11. **M10** (in progress): astronomy on the watch (sun and moon events and positions, twilights,
     golden and blue hour, sun compass, Hijri date by local crescent visibility or Diyanet's rule),
-    then the designs of the watch face and the always-on face with selectable items.
+    a monospaced font with the Turkish letters (JetBrains Mono), then the designs of the watch
+    face and the always-on face with selectable items.
 12. **M11**: languages: Turkish and English on the watch and the setup page, chosen in the
-    settings (fonts with the Turkish letters).
+    settings.
 13. Vibration motor.
 14. Alarms (clock time and sun/moon events) and countdown timer, also set through the portal.
 
@@ -154,4 +156,6 @@ Each step is built, verified on the board and documented before the next one sta
 MIT, see [LICENSE](LICENSE). Dependencies (ESP-IDF, the Waveshare BSP, LVGL) keep their own
 licenses. The setup page's city list comes from [GeoNames](https://www.geonames.org/) (CC BY 4.0);
 `main/dns_server.*` is ESP-IDF example code (CC0); `main/LandMask.h` is made from
-[Natural Earth](https://www.naturalearthdata.com/) land (public domain).
+[Natural Earth](https://www.naturalearthdata.com/) land (public domain). The watch font is
+[JetBrains Mono](https://github.com/JetBrains/JetBrainsMono) (SIL Open Font License 1.1,
+`tools/fonts/OFL.txt`).

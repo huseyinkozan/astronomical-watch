@@ -1,4 +1,5 @@
 #include "SkyPages.h"
+#include "Fonts.h"
 
 #include <cmath>
 #include <cstdarg>
@@ -30,7 +31,7 @@ static void preparePage( lv_obj_t *page, const char *title )
     lv_obj_set_style_pad_row( page, 6, 0 );
     lv_obj_set_scrollbar_mode( page, LV_SCROLLBAR_MODE_OFF );
     lv_obj_t *heading = lv_label_create( page );
-    lv_obj_set_style_text_font( heading, &lv_font_montserrat_28, 0 );
+    lv_obj_set_style_text_font( heading, &jetbrains_mono_26, 0 );
     lv_obj_set_style_text_color( heading, s_grey, 0 );
     lv_label_set_text( heading, title );
 }
@@ -39,7 +40,7 @@ static lv_obj_t *createCell( lv_obj_t *parent, int width, lv_color_t color, lv_t
 {
     lv_obj_t *label = lv_label_create( parent );
     lv_obj_set_width( label, width );
-    lv_obj_set_style_text_font( label, &lv_font_montserrat_28, 0 );
+    lv_obj_set_style_text_font( label, &jetbrains_mono_26, 0 );
     lv_obj_set_style_text_color( label, color, 0 );
     lv_obj_set_style_text_align( label, align, 0 );
     lv_label_set_long_mode( label, LV_LABEL_LONG_MODE_CLIP );
@@ -136,7 +137,7 @@ void SkyPages::build( lv_obj_t *sunPage, lv_obj_t *twilightPage, lv_obj_t *moonP
 
     lv_obj_set_scrollbar_mode( compassPage, LV_SCROLLBAR_MODE_OFF );
     lv_obj_t *heading = lv_label_create( compassPage );
-    lv_obj_set_style_text_font( heading, &lv_font_montserrat_28, 0 );
+    lv_obj_set_style_text_font( heading, &jetbrains_mono_26, 0 );
     lv_obj_set_style_text_color( heading, lv_color_hex( 0xA0A0A0 ), 0 );
     lv_label_set_text( heading, "Sun compass" );
     lv_obj_align( heading, LV_ALIGN_TOP_MID, 0, 40 );
@@ -145,11 +146,11 @@ void SkyPages::build( lv_obj_t *sunPage, lv_obj_t *twilightPage, lv_obj_t *moonP
     lv_obj_set_style_line_color( m_compassArrow, lv_color_white(), 0 );
     lv_obj_set_style_line_rounded( m_compassArrow, true, 0 );
     m_compassNorth = lv_label_create( compassPage );
-    lv_obj_set_style_text_font( m_compassNorth, &lv_font_montserrat_28, 0 );
+    lv_obj_set_style_text_font( m_compassNorth, &jetbrains_mono_26, 0 );
     lv_obj_set_style_text_color( m_compassNorth, lv_color_white(), 0 );
     lv_label_set_text( m_compassNorth, "N" );
     m_compassText = lv_label_create( compassPage );
-    lv_obj_set_style_text_font( m_compassText, &lv_font_montserrat_28, 0 );
+    lv_obj_set_style_text_font( m_compassText, &jetbrains_mono_26, 0 );
     lv_obj_set_style_text_color( m_compassText, lv_color_hex( 0xA0A0A0 ), 0 );
     lv_obj_set_style_text_align( m_compassText, LV_TEXT_ALIGN_CENTER, 0 );
     lv_obj_align( m_compassText, LV_ALIGN_BOTTOM_MID, 0, -40 );
