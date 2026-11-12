@@ -61,11 +61,12 @@ astronomical-watch/
 ## Status
 
 Restarted on ESP-IDF with C++17. The watch puts the unused peripherals into their lowest-power
-state, shows the UTC time, date and battery state on the display during a short awake window
-and then switches itself off through the power-management IC; a PWR press of at least half a
-second turns it on again. After the awake window a dim seven-segment HH:MM stays on the
-display while the processor deep-sleeps, redrawn once a minute. Every 10 min the accelerometer
-is read once; when the watch has not moved for 30 min it switches off.
+state. A PWR press starts active mode: two pages, swiped sideways, show the UTC time, date and
+battery state, and the battery details. 10 s after the last touch, or at the next PWR press, a
+dim seven-segment HH:MM stays on the display while the processor deep-sleeps, redrawn once a
+minute. Every 10 min the accelerometer is read once; when the watch has not moved for 30 min it
+switches itself off through the power-management IC, and a PWR press of at least half a second
+turns it on again.
 The earlier Wake-on-Motion validation results are kept in `docs/hardware.md`, and the validator
 itself in `archive/wom-validator/` (git tag `wom-validator`).
 
@@ -89,7 +90,7 @@ Each step is built, verified on the board and documented before the next one sta
 7. **M6** (done): motion check at wide intervals in always-on (one 0.1 s accelerometer reading
    every 10 min, 10 mg threshold measured on a desk and on the wrist; power-off after 30 min
    without motion).
-8. **M7**: active mode (touch, pages, display timeout).
+8. **M7** (done): active mode (touch, two swipeable pages, display timeout, PWR press to always-on).
 9. **M8**: settings in NVS and the settings page on the watch (setup button, password and IP
    address).
 10. **M9**: setup portal over Wi-Fi (time, UTC offset, location, all settings); wake time measured

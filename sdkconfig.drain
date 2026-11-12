@@ -1,4 +1,4 @@
 # Battery discharge before an off-state charge test (docs/hardware.md, off mode):
 # the watch stays awake with the display at full brightness, showing the gauge.
-CONFIG_WATCH_AWAKE_WINDOW_MS=36000000
+CONFIG_WATCH_DISPLAY_TIMEOUT_S=36000
 CONFIG_WATCH_DISPLAY_BRIGHTNESS=100

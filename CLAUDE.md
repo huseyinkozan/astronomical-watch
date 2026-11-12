@@ -61,6 +61,7 @@ idf.py -p /dev/ttyACM0 flash monitor
   - **Active**: display on, touch and pages. The PWR key enters it from the other two modes. After
     the display timeout without interaction (default 10 s; user-selectable 5, 10, 20, 30, 60 s)
     the watch goes to always-on, or straight to off when always-on is disabled in the settings.
+    A PWR press in active mode does the same at once. Touch cannot wake the watch (GPIO38).
   - **Always-on**: the panel keeps showing a dim, minimal face from its own memory while the ESP32
     is in deep sleep; a timer wake once per minute updates it. At wide intervals (default every
     10 min) the accelerometer is sampled once; when the watch has not moved for a while (default

@@ -22,8 +22,7 @@
 
 static const char *TAG = "main";
 
-// Development aid: keeps USB connected long enough to read logs and to flash again.
-static const int s_awakeWindowMs = CONFIG_WATCH_AWAKE_WINDOW_MS;
+static const int s_displayTimeoutMs = CONFIG_WATCH_DISPLAY_TIMEOUT_S * 1000;
 static const gpio_num_t s_powerKeyGpio = GPIO_NUM_10;
 
 static Axp2101 s_pmu;
@@ -112,42 +111,52 @@ static void updateDisplay()
 {
     Rtc::DateTime time = {};
     bool oscillatorStopped = false;
-    uint16_t millivolts = 0;
-    uint8_t percent = 0;
-    bool vbusGood = false;
+    Display::Battery battery = {};
     s_rtc.read( time, oscillatorStopped );
-    s_pmu.readBattery( millivolts, percent, vbusGood );
-    s_display.showStatus( time, millivolts, percent, vbusGood );
+    s_pmu.readBattery( battery.millivolts, battery.percent, battery.vbusGood );
+    battery.chargeState = s_pmu.chargeState();
+    s_display.update( time, battery );
 }
 
-// Logs every level change of the PWR key line to confirm its polarity.
-// Each press restarts the window, as the display timeout will later do.
-static void watchPowerKey( int windowMs )
+// Active mode: the display shows the pages until the display timeout has passed since the
+// start or the last touch, or until a new PWR press. The press that woke the watch may still
+// be held; only a later press counts.
+static void runActiveMode()
 {
     int lastLevel = gpio_get_level( s_powerKeyGpio );
-    ESP_LOGI( TAG, "GPIO10 level %d; awake for %d ms after the last press", lastLevel, windowMs );
-    int idleMs = 0;
+    ESP_LOGI( TAG, "Active mode, display timeout %d s", CONFIG_WATCH_DISPLAY_TIMEOUT_S );
+    uint32_t activeMs = 0;
     int sinceUpdateMs = 1000;
-    while ( idleMs < windowMs ) {
+    while ( true ) {
         if ( s_displayOn && sinceUpdateMs >= 1000 ) {
             updateDisplay();
             sinceUpdateMs = 0;
         }
         const int level = gpio_get_level( s_powerKeyGpio );
         if ( level != lastLevel ) {
-            ESP_LOGI( TAG, "GPIO10 -> %d", level );
+            lastLevel = level;
             if ( level == 1 ) {
                 s_deepSleep.addEvent( DeepSleep::Event::PowerKeyPressed );
-                ESP_LOGI( TAG, "Awake window restarted" );
+                ESP_LOGI( TAG, "PWR press: active mode ends" );
+                return;
             }
-            lastLevel = level;
-            idleMs = 0;
+        }
+        uint32_t idleMs = activeMs;
+        if ( s_displayOn ) {
+            const uint32_t touchIdleMs = s_display.inactiveMs();
+            if ( touchIdleMs < idleMs ) {
+                idleMs = touchIdleMs;
+            }
+        }
+        if ( idleMs >= static_cast<uint32_t>( s_displayTimeoutMs ) ) {
+            ESP_LOGI( TAG, "Display timeout: active mode ends" );
+            return;
         }
 #if CONFIG_WATCH_DEV_LOGGING
         pollHostTime();
 #endif
         vTaskDelay( pdMS_TO_TICKS( 20 ) );
-        idleMs += 20;
+        activeMs += 20;
         sinceUpdateMs += 20;
     }
 }
@@ -261,10 +270,13 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
     s_deepSleep.enter( sleepUs );
 }
 
-// End of the awake window: the always-on face follows. Its first drawing is done by a timer
-// wake half a second later, the same path as every minute.
+// End of active mode: the always-on face follows. Its first drawing is done by a timer wake
+// half a second later, the same path as every minute.
 [[maybe_unused]] static void enterAlwaysOn( i2c_master_bus_handle_t bus, bool pmuReady )
 {
+#if !CONFIG_WATCH_ALWAYS_ON
+    powerOff( pmuReady );
+#endif
     if ( !s_displayOn ) {
         powerOff( pmuReady );
     }
@@ -384,7 +396,7 @@ extern "C" void app_main( void )
 #endif
     }
 
-    watchPowerKey( s_awakeWindowMs );
+    runActiveMode();
     logPowerKeyIrq();
 
 #if CONFIG_WATCH_BATTERY_LOG && !CONFIG_WATCH_BATTERY_LOG_AOD

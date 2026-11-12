@@ -364,6 +364,20 @@ Always-on face [HW] (guided test `aod`, 2026-10-31; `main/Panel.*`, `main/Always
   [DS §2.3]; send its commands right after a reset, before other bus traffic.
 - After a reset it answers with power mode 0x00 (active); after `0xA5=0x03` it no longer answers
   I2C, which confirms sleep [HW].
+- The BSP drives it with the `esp_lcd_touch_ft5x06` driver: the FT3x68 point registers (count
+  0x02, first point 0x03–0x06, second 0x09–0x0C) match the FT5x06 layout. Neither the BSP nor
+  Waveshare's Arduino example (`06_LVGL_Arduino_v9`, raw coordinates to LVGL) applies an offset,
+  swap or mirror; the 22-pixel column offset belongs to the panel's GRAM only [REF].
+
+Validated on this board [HW] (guided test `active`, 2026-11-12; `main/Display.*`, M7):
+- Touch coordinates need no correction: touches about 1 cm from the corners read (97, 101),
+  (328, 102), (347, 415) and (75, 430), top left clockwise, so x grows to the right and y
+  downwards within the panel's 410 × 502 (1 cm is about 120 pixels).
+- LVGL's tileview moves between the pages with a horizontal swipe. LVGL's inactivity time
+  (`lv_display_get_inactive_time`) follows the touches: with a tap every 3 s the display stayed
+  on for 23 s and the timeout came 10.0 s after the last tap.
+- From a PWR wake the active face appears about 1.1–1.4 s after the boot log (1.7–2.1 s after
+  reset), part of it the development logging's wait for the USB host.
 
 ### ESP32-S3
 - EXT0/EXT1 wake only on RTC GPIOs 0–21; EXT1 supports ANY_HIGH [DS].
@@ -425,7 +439,7 @@ guided tests `m2` (until commit `dd54aec`) and `off` after a full power cycle [H
   and held (`gpio_hold_en`) through deep sleep, because a low level would leave deep standby/sleep.
 - The panel QSPI bus is opened with the BSP pin definitions for this one command: the BSP has no
   API that opens the panel IO without switching the display on.
-- If the PWR key is still high when the awake window ends, the watch sleeps with a 60 s timer
+- If the PWR key is still high when active mode ends, the watch sleeps with a 60 s timer
   instead of the key wake. With the window restarting on every press, this needs a key held for
   more than 10 s, but the AXP powers the board off at 6 s, so it only guards against a stuck line.
 - Estimated sleep current after preparation, from datasheet values: ESP32-S3 ~8 µA, AXP2101

@@ -9,12 +9,22 @@ menu "Astronomical Watch"
             lost while USB re-enumerates. Costs up to about 2 s of awake time
             per such wake. Timer wakes never wait.
 
-    config WATCH_AWAKE_WINDOW_MS
-        int "Awake window after the last PWR key press (ms)"
-        default 10000
+    config WATCH_DISPLAY_TIMEOUT_S
+        int "Display timeout (s)"
+        range 5 36000
+        default 10
         help
-            Development aid until the display timeout exists: the watch stays
-            awake this long after boot or after the last PWR key press.
+            Active mode ends this long after it started or after the last
+            touch, whichever is later; a PWR press ends it at once. The watch
+            then shows the always-on face, or powers off without it. The
+            settings page (M8) will offer 5, 10, 20, 30 and 60 s; longer
+            values are for test builds (sdkconfig.drain).
+
+    config WATCH_ALWAYS_ON
+        bool "Always-on face after active mode"
+        default y
+        help
+            Without it the watch powers off when active mode ends.
 
     config WATCH_DISPLAY_BRIGHTNESS
         int "Display brightness (%)"

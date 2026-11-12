@@ -10,7 +10,7 @@
 class AlwaysOn
 {
 public:
-    // Called when the awake window ends; the following timer wakes draw the face until the
+    // Called when active mode ends; the following timer wakes draw the face until the
     // motion check powers the watch off (main.cpp) or a PWR wake ends it.
     void begin();
 

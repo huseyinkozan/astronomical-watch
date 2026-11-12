@@ -45,15 +45,15 @@ RTC_LINE = re.compile(r'RTC (\d{4})-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d) UTC')
 # kind ASK asks the tester a yes/no question (a visual check) and logs the answer.
 # Every 'RTC ... UTC' line, logged at the RTC's second tick, gets the RTC - host difference.
 TESTS = {
-    # Off mode (docs/hardware.md, PWR key). Software power-off returns every chip
+    # Off mode (docs/hardware.md, PWR key), build with sdkconfig.noaod: without the always-on
+    # face the watch powers off when active mode ends. Software power-off returns every chip
     # and AXP rail to its power-on default, so each power-on runs the full sleep preparation.
     'off': [
         (WAIT, 'The board is being reset.', r'wake source: power-on/reset', 20),
         (WAIT, '', r'Quiesce done: 6/6 steps OK', 10),
         (WAIT, '', r'Power-on press \(REG27\)', 10),
-        (ACT, 'Press PWR briefly, once, within 10 s.', r'Awake window restarted', 30),
-        (WAIT, 'The watch powers off 10 s after the last press. Keep USB plugged in.',
-         r'Powering off', 25),
+        (ACT, 'Press PWR briefly, once, within 10 s.', r'PWR press: active mode ends', 30),
+        (WAIT, 'The watch powers off now. Keep USB plugged in.', r'Powering off', 10),
         (WAIT, '', USB_DISCONNECTED, 10),
         (QUIET, 'Do not touch for 5 min: the watch must stay off with USB plugged in (and charge).',
          USB_CONNECTED, 300),
@@ -67,7 +67,7 @@ TESTS = {
         (WAIT, '', USB_DISCONNECTED, 10),
     ],
     # Sets the RTC from the host clock and checks that it keeps time through off mode
-    # (docs/hardware.md, PCF85063A section).
+    # (docs/hardware.md, PCF85063A section). Build with sdkconfig.noaod.
     'rtc': [
         (WAIT, 'The board is being reset.', r'wake source: power-on/reset', 20),
         (WAIT, '', r'RTC \d{4}-', 10),
@@ -78,7 +78,8 @@ TESTS = {
         (WAIT, '', r'RTC \d{4}-.* OS 0', 10),
         (WAIT, 'Waiting for the power-off.', r'Powering off', 25),
     ],
-    # Display basics (M4). Only the screen needs watching until the question comes.
+    # Display basics (M4), build with sdkconfig.noaod. Only the screen needs watching until the
+    # question comes.
     'display': [
         (WAIT, 'The board is being reset.', r'wake source: power-on/reset', 20),
         (WAIT, 'Watch the SCREEN now (about 15 s): time with running seconds, date with UTC and '
@@ -105,7 +106,8 @@ TESTS = {
         (WAIT, 'Watch the screen: the active face should come back.', r'Display started', 20),
         (ASK, 'Did the active face (time with seconds, date, battery) come back?', '', 0),
     ],
-    # Reads the RTC once against the host clock (drift over hours or days).
+    # Reads the RTC once against the host clock (drift over hours or days). Build with
+    # sdkconfig.noaod.
     'clock': [
         (WAIT, 'The board is being reset.', r'wake source: power-on/reset', 20),
         (WAIT, '', r'RTC \d{4}-', 10),
@@ -150,6 +152,30 @@ TESTS = {
         (WAIT, '', r'change \d{2,} mg, still for 0 checks', 120),
         (ACT, 'Put the watch on the desk and leave it; you can go. It should power off within about '
          '4 min.', r'Powering off', 360),
+    ],
+    # Active mode (M7): display timeout, touch coordinates, pages and the PWR press.
+    'active': [
+        (WAIT, 'The board is being reset. Do not touch the screen.', r'wake source: power-on/reset', 20),
+        (WAIT, '', r'Display timeout: active mode ends', 30),
+        (ACT, 'Press PWR briefly. Then touch the screen about 1 cm from each corner, one after the '
+         'other: top left, top right, bottom right, bottom left.', r'Touch at', 300),
+        (WAIT, '', r'Touch at', 30),
+        (WAIT, '', r'Touch at', 30),
+        (WAIT, '', r'Touch at', 30),
+        (WAIT, 'Do not touch: always-on should follow in about 10 s.', r'Display timeout', 30),
+        (ACT, 'Press PWR briefly. Swipe left: the battery page should appear. Then swipe right: '
+         'the watch face should come back.', r'Touch at', 300),
+        (WAIT, '', r'Touch at', 60),
+        (ASK, 'Did the battery page (Battery, percent, mV, charger state) appear, and did the watch '
+         'face come back?', '', 0),
+        (ACT, 'Press PWR briefly. When the face appears, tap the screen every 3-4 s.',
+         r'Active mode, display timeout', 300),
+        (QUIET, 'Keep tapping every 3-4 s for 20 s: the display must stay on.', r'Display timeout', 20),
+        (WAIT, 'Stop tapping: always-on should follow within 10 s.', r'Display timeout', 15),
+        (ACT, 'Press PWR briefly. When the face appears, press PWR briefly again.',
+         r'Active mode, display timeout', 300),
+        (WAIT, '', r'PWR press: active mode ends', 30),
+        (ASK, 'Did the dim always-on face appear at once after the second press?', '', 0),
     ],
     # Reads the battery drain log; the board must not be reset, or RTC memory is cleared.
     'battery': [

@@ -220,6 +220,15 @@ esp_err_t Axp2101::readBattery( uint16_t &millivolts, uint8_t &percent, bool &vb
     return err;
 }
 
+const char *Axp2101::chargeState()
+{
+    uint8_t status2 = 0;
+    if ( readRegister( REG_STATUS2, status2 ) != ESP_OK ) {
+        return "unknown";
+    }
+    return chargeStateName( status2 );
+}
+
 // Read-modify-write: only the named enable bits change.
 static const uint8_t DCDC_OFF_MASK = 0x0E;    // DCDC2-4 (DCDC1 stays on)
 static const uint8_t LDO0_KEEP_MASK = 0x01;   // ALDO1 (all other REG90 rails go off)

@@ -1,0 +1,3 @@
+# Off-mode test (tools/guided_test.py off): no always-on face, so the watch powers off when
+# active mode ends (display timeout or a PWR press).
+CONFIG_WATCH_ALWAYS_ON=n

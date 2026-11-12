@@ -23,6 +23,10 @@ public:
     // VBAT (REG34/35, mV), fuel gauge (REGA4, %) and VBUS good (REG00 bit5).
     esp_err_t readBattery( uint16_t &millivolts, uint8_t &percent, bool &vbusGood );
 
+    // Charger state from STATUS2 (REG01 bits 2:0) as text, such as "constant current" or
+    // "done"; "unknown" when the read fails.
+    const char *chargeState();
+
     // Reads and clears the PWRON short/long press IRQ flags (REG49, write 1 to clear).
     esp_err_t clearPowerKeyIrq( bool &shortPress, bool &longPress );
 
