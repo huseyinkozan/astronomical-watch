@@ -17,6 +17,10 @@ public:
         Astronomy::SunDay sun;
         int dayLengthChangeSeconds;  // against yesterday
         Astronomy::Crossings moon;
+        // For the corner gauges (Corners): the Sun's and the Moon's events next to the day.
+        Astronomy::Event sunsetBefore;     // yesterday's sunset
+        Astronomy::Crossings moonBefore;   // yesterday's moonrise and moonset
+        Astronomy::Crossings moonAfter;    // tomorrow's
         Astronomy::MoonPhase phase;  // at local noon
         Hijri::Date hijri;
         Hijri::Crescent crescent;    // this evening

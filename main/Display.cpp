@@ -226,6 +226,8 @@ bool Display::start( Settings &settings )
     lv_obj_add_event_cb( m_aodTile, onGesture, LV_EVENT_GESTURE, this );
     lv_obj_add_event_cb( m_faceTile, onGesture, LV_EVENT_GESTURE, this );
     lv_tileview_set_tile_by_index( pages, FacePage, 0, LV_ANIM_OFF );
+    lv_obj_add_event_cb( pages, onPageChanged, LV_EVENT_VALUE_CHANGED, this );
+    m_corners.build();
     lv_obj_t *batteryPage = tiles[BatteryPage];
     lv_obj_t *settingsPage = tiles[SettingsPage];
     m_sky.build( tiles[SunPage], tiles[TwilightPage], tiles[MoonPage], tiles[CompassPage] );
@@ -399,6 +401,30 @@ void Display::showSky( const Sky::Day &day, const Sky::Now &now, int utcOffsetMi
     bsp_display_unlock();
 }
 
+void Display::showCorners( const Corners::Gauge gauges[Corners::CornerCount] )
+{
+    if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
+        return;
+    }
+    m_corners.show( gauges );
+    bsp_display_unlock();
+}
+
+void Display::onPageChanged( lv_event_t *event )
+{
+    Display *display = static_cast<Display *>( lv_event_get_user_data( event ) );
+    lv_obj_t *tile = lv_tileview_get_tile_active( display->m_pages );
+    display->m_corners.setAlwaysOnLook( tile == display->m_aodTile );
+    // The tiles are the tileview's children in page order.
+    const int page = static_cast<int>( lv_obj_get_index( tile ) );
+#if CONFIG_WATCH_SETUP_PORTAL
+    const bool rows = page == SettingsPage || page == SetupPage;
+#else
+    const bool rows = page == SettingsPage;
+#endif
+    display->m_corners.setHidden( rows );
+}
+
 void Display::refreshSettings()
 {
     if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
@@ -428,7 +454,7 @@ void Display::update( const Rtc::DateTime &time, int utcOffsetMinutes, const Bat
     if ( !bsp_display_lock( s_lockTimeoutMs ) ) {
         return;
     }
-    m_face.showTime( time, battery.percent, battery.vbusGood );
+    m_face.showTime( time );
     m_battery = battery;
 
     lv_label_set_text_fmt( m_percentLabel, "%u %%", battery.percent );
@@ -442,7 +468,7 @@ void Display::update( const Rtc::DateTime &time, int utcOffsetMinutes, const Bat
 void Display::refreshAlwaysOnPage( bool force, int direction )
 {
     const AlwaysOn::Look look = { m_settings->value( Settings::AodStyle ), m_settings->value( Settings::AodItems ),
-                                  m_moonPercent, m_waxing };
+                                  m_moonPercent, m_waxing, {} };
     const int shown[4] = { m_localTime.hour * 60 + m_localTime.minute, look.style, look.items, look.moonPercent };
     bool same = !force;
     for ( int i = 0; i < 4; ++i ) {
@@ -476,7 +502,7 @@ void Display::onGesture( lv_event_t *event )
     }
     display->m_face.setStyle( display->m_settings->value( Settings::FaceStyle ),
                               display->m_settings->value( Settings::FaceItems ), slide );
-    display->m_face.showTime( display->m_localTime, display->m_battery.percent, display->m_battery.vbusGood );
+    display->m_face.showTime( display->m_localTime );
     if ( display->m_haveSky ) {
         display->m_face.showSky( display->m_day, display->m_now, display->m_offsetMinutes );
     }
@@ -523,7 +549,7 @@ void Display::showFaceStyle( int style )
         return;
     }
     m_face.setStyle( style, m_settings->value( Settings::FaceItems ) );
-    m_face.showTime( m_localTime, m_battery.percent, m_battery.vbusGood );
+    m_face.showTime( m_localTime );
     if ( m_haveSky ) {
         m_face.showSky( m_day, m_now, m_offsetMinutes );
     }

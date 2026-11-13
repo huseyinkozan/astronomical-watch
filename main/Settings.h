@@ -19,7 +19,7 @@ public:
         HijriMethod,     // Hijri::Method: 0 local crescent visibility, 1 Diyanet
         FaceStyle,       // active face layout: 0 classic, 1 day arc, 2 hours over minutes
         AodStyle,        // always-on style, an index of aodStyles (AodGlyphs.h)
-        FaceItems,       // bits of Display::FaceItem shown on the active face
+        FaceItems,       // bits of WatchFace::Item shown on the active face
         AodItems,        // bits of AlwaysOn::Item shown on the always-on face
         ItemCount
     };

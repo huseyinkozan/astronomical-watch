@@ -77,7 +77,8 @@
   <select id="aod"></select>
   <div class="checks" id="aodItems"></div>
   <small>On the watch: swipe up or down on the watch face, or on the always-on page left of it.
-  The battery mark of the always-on face shows only when the battery is low.</small>
+  The screen corners show the day or night, the battery, the Moon's time above or below the
+  horizon and its phase.</small>
 </fieldset>
 
 <button id="save">Save to the watch</button>
@@ -135,8 +136,8 @@ function bitsOf(box) {
 function setBits(box, bits) {
   for (const input of box.querySelectorAll('input')) input.checked = (bits & Number(input.dataset.bit)) !== 0;
 }
-checks($('faceItems'), [[1, 'Date'], [2, 'Next sun event'], [4, 'Moon'], [8, 'Battery']]);
-checks($('aodItems'), [[1, 'Moon'], [2, 'Date'], [4, 'Low battery']]);
+checks($('faceItems'), [[1, 'Date'], [2, 'Next sun event'], [4, 'Moon']]);
+checks($('aodItems'), [[1, 'Moon'], [2, 'Date']]);
 const offsets = [];
 for (let m = -720; m <= 840; m += 15) offsets.push([m, offsetText(m)]);
 fill($('offset'), offsets, -new Date().getTimezoneOffset());

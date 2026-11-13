@@ -40,8 +40,8 @@ static const ItemInfo s_items[Settings::ItemCount] = {
     { "hijri_method", 0, 2, { 0, 1 }, 0, 0 },
     { "face_style", 0, 0, {}, 0, 2 },
     { "aod_style", 0, 0, {}, 0, 13 },
-    { "face_items", 15, 0, {}, 0, 15 },
-    { "aod_items", 7, 0, {}, 0, 7 },
+    { "face_items", 7, 0, {}, 0, 7 },
+    { "aod_items", 3, 0, {}, 0, 3 },
 };
 
 static int indexOf( const ItemInfo &info, int value )

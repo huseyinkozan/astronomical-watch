@@ -6,6 +6,7 @@
 #include "Rtc.h"
 #include "Settings.h"
 #include "AodPage.h"
+#include "CornerView.h"
 #include "WatchFace.h"
 #include "SkyPages.h"
 #include "lvgl.h"
@@ -59,6 +60,9 @@ public:
     // The astronomy pages: values of the local day and of this moment.
     void showSky( const Sky::Day &day, const Sky::Now &now, int utcOffsetMinutes );
 
+    // The corner gauges, on every page.
+    void showCorners( const Corners::Gauge gauges[Corners::CornerCount] );
+
     // The Request bits tapped since the last call.
     int takeRequests();
 
@@ -81,6 +85,8 @@ public:
 private:
     static void onSettingClicked( lv_event_t *event );
     static void onGesture( lv_event_t *event );
+    // The always-on page shows the corners as the always-on face draws them.
+    static void onPageChanged( lv_event_t *event );
     // Redraws the always-on page when the minute, the style, the items or the moon changed.
     // `direction` as in AodPage::show (a swipe).
     void refreshAlwaysOnPage( bool force, int direction = 0 );
@@ -95,6 +101,7 @@ private:
     lv_obj_t *m_pages = nullptr;
     SkyPages m_sky;
     AodPage m_aodPage;
+    CornerView m_corners;
     lv_obj_t *m_aodTile = nullptr;
     lv_obj_t *m_faceTile = nullptr;
     Rtc::DateTime m_localTime = {};

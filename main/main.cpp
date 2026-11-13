@@ -7,6 +7,7 @@
 #include "Sky.h"
 #include "Axp2101.h"
 #include "BatteryLog.h"
+#include "Corners.h"
 #include "DeepSleep.h"
 #include "Display.h"
 #include "Motion.h"
@@ -51,7 +52,6 @@ static Portal s_portal;
 // The UTC offset for the always-on face, copied when active mode ends: the minute wakes do not
 // read NVS.
 RTC_DATA_ATTR static int s_alwaysOnOffsetMinutes;
-static const int s_lowBatteryPercent = 15;
 // At or below this charge (and not on USB) the watch powers off instead of keeping the always-on
 // face, so that the cell still runs the RTC for days in the off state (CLAUDE.md, power
 // management). The gauge reads too low for a while after a power cycle (docs/hardware.md, run D),
@@ -223,7 +223,7 @@ static void updateDisplay()
     bool oscillatorStopped = false;
     Display::Battery battery = {};
     s_rtc.read( time, oscillatorStopped );
-    s_pmu.readBattery( battery.millivolts, battery.percent, battery.vbusGood );
+    const bool batteryRead = s_pmu.readBattery( battery.millivolts, battery.percent, battery.vbusGood ) == ESP_OK;
     battery.chargeState = s_pmu.chargeState();
     int inputs[4] = { s_settings.value( Settings::Latitude ), s_settings.value( Settings::Longitude ),
                       s_settings.value( Settings::UtcOffset ), s_settings.value( Settings::HijriMethod ) };
@@ -237,6 +237,10 @@ static void updateDisplay()
 #endif
     s_display.update( Rtc::addMinutes( time, inputs[2] ), inputs[2], battery );
     updateSky( unixTime( time ), inputs );
+    Corners::Gauge gauges[Corners::CornerCount] = {};
+    const Corners::Input corners = s_skyValid ? Corners::fromSky( s_skyDay ) : Corners::Input {};
+    Corners::compute( corners, unixTime( time ), batteryRead ? battery.percent : -1, gauges );
+    s_display.showCorners( gauges );
 }
 
 #if CONFIG_WATCH_SETUP_PORTAL
@@ -465,21 +469,21 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
     Rtc::DateTime time = {};
     bool oscillatorStopped = false;
     const bool timeRead = s_rtc.init( bus ) == ESP_OK && s_rtc.read( time, oscillatorStopped ) == ESP_OK;
-    // The low-battery mark: below s_lowBatteryPercent and not charging.
-    bool batteryLow = false;
+    // For the battery gauge; at the power-off limit (and not charging) the watch switches off.
+    int batteryPercent = -1;
     if ( pmuReady ) {
         uint16_t millivolts = 0;
         uint8_t percent = 0;
         bool vbusGood = false;
-        if ( s_pmu.readBattery( millivolts, percent, vbusGood ) == ESP_OK && !vbusGood ) {
-            batteryLow = percent < s_lowBatteryPercent;
-            if ( batteryEmpty( millivolts, percent ) ) {
+        if ( s_pmu.readBattery( millivolts, percent, vbusGood ) == ESP_OK ) {
+            batteryPercent = percent;
+            if ( !vbusGood && batteryEmpty( millivolts, percent ) ) {
                 powerOff( pmuReady );
             }
         }
     }
-    const uint64_t sleepUs =
-        s_alwaysOn.update( Rtc::addMinutes( time, s_alwaysOnOffsetMinutes ), timeRead, batteryLow );
+    const uint64_t sleepUs = s_alwaysOn.update( Rtc::addMinutes( time, s_alwaysOnOffsetMinutes ), unixTime( time ),
+                                                timeRead, batteryPercent );
     // Without the device the readings fail, which the motion check counts as no motion.
     s_motion.init( bus );
 #if CONFIG_WATCH_MOTION_LOG
@@ -520,6 +524,7 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
     if ( s_skyValid ) {
         look.moonPercent = static_cast<int>( s_skyDay.phase.illumination * 100 + 0.5 );
         look.waxing = s_skyDay.phase.elongation < 180;
+        look.corners = Corners::fromSky( s_skyDay );
     }
     s_alwaysOn.begin( look );
     s_motion.restart( s_settings.value( Settings::AutoOff ) );

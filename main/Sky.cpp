@@ -14,6 +14,10 @@ Sky::Day Sky::computeDay( int day, int utcOffsetMinutes, const Astronomy::Observ
     const Astronomy::SunDay yesterday = Astronomy::sunDay( result.localMidnight - s_dayS, observer );
     result.dayLengthChangeSeconds = result.sun.dayLengthSeconds - yesterday.dayLengthSeconds;
     result.moon = Astronomy::moonDay( result.localMidnight, observer );
+    result.sunsetBefore = yesterday.riseSet.setting;
+    // The Moon's events move by about 50 min a day, so the neighbouring days are computed.
+    result.moonBefore = Astronomy::moonDay( result.localMidnight - s_dayS, observer );
+    result.moonAfter = Astronomy::moonDay( result.localMidnight + s_dayS, observer );
     result.phase = Astronomy::moonPhase( result.localMidnight + s_dayS / 2 );
     result.hijri = Hijri::date( day, utcOffsetMinutes, observer, method );
     result.crescent = Hijri::crescent( day, utcOffsetMinutes, observer );

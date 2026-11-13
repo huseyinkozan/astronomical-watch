@@ -15,8 +15,7 @@ public:
     {
         DateItem = 1,     // day name, date and Hijri date
         SunItem = 2,      // the next sunrise or sunset
-        MoonItem = 4,     // the Moon's phase
-        BatteryItem = 8   // battery percentage
+        MoonItem = 4      // the Moon's phase
     };
 
     static const int StyleCount = 3;
@@ -27,7 +26,7 @@ public:
     // 0 at once.
     void setStyle( int style, int items, int direction = 0 );
 
-    void showTime( const Rtc::DateTime &localTime, int batteryPercent, bool usb );
+    void showTime( const Rtc::DateTime &localTime );
 
     void showSky( const Sky::Day &day, const Sky::Now &now, int utcOffsetMinutes );
 
@@ -41,7 +40,6 @@ private:
         lv_obj_t *seconds;
         lv_obj_t *date;
         lv_obj_t *hijri;
-        lv_obj_t *battery;
         lv_obj_t *moonText;
         lv_obj_t *sunName;
         lv_obj_t *sunTime;

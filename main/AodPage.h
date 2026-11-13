@@ -13,7 +13,7 @@ class AodPage
 public:
     void build( lv_obj_t *page );
 
-    // Draws `look` for the local time; the battery mark is shown as when the battery is low.
+    // Draws `look` for the local time (the corner gauges are drawn by CornerView).
     // `direction`: 1 after a swipe up (the face slides in from below), -1 after a swipe down.
     void show( const AlwaysOn::Look &look, const Rtc::DateTime &localTime, int direction = 0 );
 

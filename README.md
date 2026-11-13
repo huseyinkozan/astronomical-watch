@@ -15,7 +15,8 @@ and the PWR key turns it on again.
 - Time and date
 - Sunrise, sunset, solar noon, civil/nautical/astronomical twilight, day length
 - Moon phase, illumination, age, moonrise and moonset
-- Battery level
+- Battery level, the day or night, the Moon's time above or below the horizon and its phase as
+  gauges in the four screen corners
 - Alarms at a clock time or relative to a sun or moon event (sunrise, twilights, solar noon,
   sunset, moonrise, moonset), with an offset; a countdown timer; signalled by vibration
 - PWR key opens the interactive mode (touch, pages); after a configurable timeout the watch
@@ -114,15 +115,17 @@ astronomical-watch/
 Restarted on ESP-IDF with C++17. The watch puts the unused peripherals into their lowest-power
 state. A PWR press starts active mode: pages swiped sideways show the always-on face as it will look,
 the watch face (classic, day arc, or hours over minutes, with the date, Hijri date, next sunrise
-or sunset, Moon phase and battery; a vertical swipe changes the layout), the battery details, the settings (display timeout, always-on, brightness,
+or sunset and Moon phase; a vertical swipe changes the layout), the battery details, the settings (display timeout, always-on, brightness,
 auto-off; one tap per value, kept in flash), the setup portal and an About page. The portal
 opens the watch's own Wi-Fi for a phone or computer, whose browser sets the time, UTC offset,
 location and settings. Four pages show the Sun (rise, set, noon, day length, time left until
 sunset), the twilights with the golden and blue hours, the Moon (phase, rise and set, the dark
 part of the night, the new crescent, the Hijri date) and a sun compass. 10 s after the last touch
 (the default), or at the next PWR press, a
-dim face in the chosen style (the time, the Moon's phase, the date, and a mark when the battery is
-low) stays on the display while the processor deep-sleeps, redrawn once a minute. Every 10 min the accelerometer is read once; when the watch has not moved for 30 min it
+dim face in the chosen style (the time, the Moon's phase and the date) stays on the display
+while the processor deep-sleeps, redrawn once a minute. On every page and on the always-on face
+the four screen corners are gauges: the day or night, the battery, the Moon's time above or
+below the horizon and its phase. Every 10 min the accelerometer is read once; when the watch has not moved for 30 min it
 switches itself off through the power-management IC, and a PWR press of at least half a second
 turns it on again.
 The earlier Wake-on-Motion validation results are kept in `docs/hardware.md`, and the validator

@@ -3,11 +3,13 @@
 #include <cstdint>
 
 #include "AodGlyphs.h"
+#include "Corners.h"
 #include "Rtc.h"
 #include "sdkconfig.h"
 
 // Always-on face (CLAUDE.md, always-on mode): a dim HH:MM in one of the aodStyles, with the
-// Moon's phase, the date and a low-battery mark. A timer wake once a minute redraws the face;
+// Moon's phase and the date, and the corner gauges (Corners). A timer wake once a minute redraws
+// the face;
 // between wakes the ESP32 deep-sleeps and the panel shows the image from its own memory. The
 // state is kept in RTC memory. The always-on page of active mode (AodPage) shows the same layout.
 class AlwaysOn
@@ -17,26 +19,28 @@ public:
     enum Item
     {
         MoonItem = 1,
-        DateItem = 2,
-        BatteryItem = 4
+        DateItem = 2
     };
 
     // What the face shows, taken when active mode ends (the minute wakes read no settings and
-    // compute no astronomy): the style (an aodStyles index), the Item bits, and the Moon's
-    // illuminated fraction in percent and whether it is waxing.
+    // compute no astronomy): the style (an aodStyles index), the Item bits, the Moon's
+    // illuminated fraction in percent and whether it is waxing, and what the corner gauges need.
     struct Look
     {
         int style;
         int items;
         int moonPercent;
         bool waxing;
+        Corners::Input corners;
     };
 
     enum Colour
     {
         White,
         Yellow,
-        Red
+        Red,
+        Green,
+        Blue
     };
 
     // One bitmap of the face, `x` and `y` from the face's top-left corner: a glyph of `font` with
@@ -61,10 +65,12 @@ public:
         int height;
     };
 
-    // Places the face's bitmaps for the local time: the time, the moon and the date under it, and
-    // the battery mark over it (under the date for HH over MM). The moon's glyph is kept in a
-    // static buffer until the next call.
-    static Face layout( const Look &look, const Rtc::DateTime &time, bool batteryLow );
+    // Places the face's bitmaps for the local time: the time, and the moon and the date under it.
+    // The moon's glyph is kept in a static buffer until the next call.
+    static Face layout( const Look &look, const Rtc::DateTime &time );
+
+    // The idle-mode colour of a corner gauge, or -1 when it draws nothing.
+    static int gaugeColour( Corners::Kind kind );
 
     // Called when active mode ends; the following timer wakes draw the face until the
     // motion check powers the watch off (main.cpp) or a PWR wake ends it.
@@ -75,11 +81,11 @@ public:
 
     bool isActive() const;
 
-    // Timer wake: draws the face for `time` (local) and returns the microseconds until just
-    // after the next minute, or 0 when the face cannot go on (the panel failed, or no valid time
-    // for s_maxFailedMinutes). Without a valid time it draws nothing and asks for another wake in
-    // a minute. `batteryLow` shows the low-battery mark (when that item is on).
-    uint64_t update( const Rtc::DateTime &time, bool timeRead, bool batteryLow );
+    // Timer wake: draws the face for `time` (local; `utcNow` the same moment as Unix time) and
+    // returns the microseconds until just after the next minute, or 0 when the face cannot go on
+    // (the panel failed, or no valid time for s_maxFailedMinutes). Without a valid time it draws
+    // nothing and asks for another wake in a minute. `batteryPercent` < 0: unknown.
+    uint64_t update( const Rtc::DateTime &time, int64_t utcNow, bool timeRead, int batteryPercent );
 
 #if CONFIG_WATCH_AOD_CYCLE_MIN > 0
     // Battery run V: the style shown `seconds` after power-on, or -1 for the blank face.
@@ -88,8 +94,9 @@ public:
 
 #if CONFIG_WATCH_DEV_LOGGING
     // Development screenshot (tools/screenshot.py): the face at 19:19 on Sunday 21 June, the
-    // Moon 45 % and waxing, the battery low, centred, written to the console instead of drawn. A
-    // fixed scene keeps the published picture unchanged.
+    // Moon 45 % and waxing, with the corner gauges of that moment in Istanbul and the battery at
+    // 92 %, written to the console instead of drawn. A fixed scene keeps the published picture
+    // unchanged.
     static void capture( int style );
 #endif
 };

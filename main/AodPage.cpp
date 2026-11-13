@@ -38,7 +38,7 @@ void AodPage::build( lv_obj_t *page )
         lv_obj_set_hidden( m_labels[i], true );
     }
     // The moon changes with the phase, so it is a small canvas rather than a glyph.
-    const AlwaysOn::Face face = AlwaysOn::layout( { 0, AlwaysOn::MoonItem, 50, true }, { 2026, 1, 1, 0, 0, 0 }, false );
+    const AlwaysOn::Face face = AlwaysOn::layout( { 0, AlwaysOn::MoonItem, 50, true, {} }, { 2026, 1, 1, 0, 0, 0 } );
     const int size = face.sprites[face.count - 1].glyph->width;
     m_moon = lv_canvas_create( m_content );
     lv_canvas_set_draw_buf( m_moon, lv_draw_buf_create( size, size, LV_COLOR_FORMAT_RGB565, 0 ) );
@@ -55,7 +55,7 @@ void AodPage::show( const AlwaysOn::Look &look, const Rtc::DateTime &localTime, 
     if ( m_page == nullptr ) {
         return;
     }
-    const AlwaysOn::Face face = AlwaysOn::layout( look, localTime, true );
+    const AlwaysOn::Face face = AlwaysOn::layout( look, localTime );
     // Centred as on the first always-on minute (it then moves a few pixels against burn-in).
     const int faceX = ( ( Panel::WIDTH - face.width ) / 2 ) & ~1;
     const int faceY = ( ( Panel::HEIGHT - face.height ) / 2 ) & ~1;

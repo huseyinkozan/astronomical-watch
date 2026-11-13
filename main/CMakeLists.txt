@@ -1,4 +1,4 @@
-set(srcs "BatteryLog.cpp" "Peripherals.cpp" "DeepSleep.cpp" "Axp2101.cpp" "Rtc.cpp" "Display.cpp" "Panel.cpp"
+set(srcs "BatteryLog.cpp" "Peripherals.cpp" "DeepSleep.cpp" "Axp2101.cpp" "Rtc.cpp" "Display.cpp" "CornerView.cpp" "Corners.cpp" "Panel.cpp"
          "AlwaysOn.cpp" "AodGlyphs.c" "AodPage.cpp" "Motion.cpp" "Settings.cpp" "Astronomy.cpp" "Hijri.cpp" "Sky.cpp" "SkyPages.cpp" "WatchFace.cpp" "main.cpp"
          "fonts/jetbrains_mono_26.c" "fonts/jetbrains_mono_48.c"
          "fonts/jetbrains_mono_light_110.c" "fonts/jetbrains_mono_light_90.c" "fonts/jetbrains_mono_thin_170.c")

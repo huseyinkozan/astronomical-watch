@@ -130,9 +130,20 @@ The always-on styles are 1-bit bitmaps made on the host (`tools/make_aod_glyphs.
 (`main/AodPage.*`) shows exactly what the minute wakes draw (`AlwaysOn::layout` serves both).
 After a change, regenerate the file and compare both with `tools/screenshot.py`.
 
+The four screen corners are gauges on every page and on the always-on face (`main/Corners.*`
+computes them, `main/CornerView.*` draws them on LVGL's top layer, `AlwaysOn` with its own
+bitmaps): top left the day (yellow, sunrise to sunset) or the night (blue), top right the
+battery (green, orange above 10 %, red at the power-off limit), bottom left the Moon above the
+horizon (bluish white, rise to set) or below it (dark grey, set to rise), bottom right the
+Moon's phase (the lit part grows from the lower end and shrinks towards the upper end). Each is
+a quarter circle 3 px inside the visible edge, starting at its lower end. The always-on face
+draws them 2 px wide in idle-mode colours, outside the burn-in shift, and redraws a corner only
+when its gauge moved by a pixel; the always-on page shows that look with LVGL arcs, close to but
+not pixel for pixel the same.
+
 - Small, focused modules; no layers or abstractions without a clear benefit.
 - Astronomy code is independent of UI and ESP-IDF so it can be tested on the host
-  (`main/Astronomy.*`, `main/Hijri.*`, `main/Sky.*`; `sh tests/run_host_tests.sh`). Its
+  (`main/Astronomy.*`, `main/Hijri.*`, `main/Sky.*`, `main/Corners.*`; `sh tests/run_host_tests.sh`). Its
   reference values come from Skyfield with the JPL DE421 ephemeris
   (`tools/make_astronomy_reference.py`); the Diyanet Hijri method is checked against Diyanet's
   published month starts (`tests/diyanet_month_starts.csv`). Change the code only with the tests

@@ -89,7 +89,6 @@ void WatchFace::buildClassic( lv_obj_t *page )
 {
     Layout &layout = m_layouts[0];
     layout.root = createRoot( page );
-    layout.battery = label( layout.root, &jetbrains_mono_26, s_grey, Centre, 205, 40 );
     layout.time = label( layout.root, &jetbrains_mono_light_110, lv_color_white(), Centre, 205, 150 );
     layout.seconds = label( layout.root, &jetbrains_mono_26, s_grey, Centre, 205, 224 );
     layout.date = label( layout.root, &jetbrains_mono_26, lv_color_white(), Centre, 205, 280 );
@@ -136,7 +135,6 @@ void WatchFace::buildArc( lv_obj_t *page )
     layout.moonX = 40;
     layout.moonY = 396 - s_moonSize / 2;
     layout.moonText = label( layout.root, &jetbrains_mono_26, s_grey, Left, 40 + s_moonSize + 12, 396 );
-    layout.battery = label( layout.root, &jetbrains_mono_26, s_grey, Right, s_width - 40, 396 );
     layout.sunName = label( layout.root, &jetbrains_mono_26, s_amber, Centre, 205, 458 );
 }
 
@@ -152,7 +150,6 @@ void WatchFace::buildStacked( lv_obj_t *page )
     layout.moonX = 205 - s_moonSize / 2;
     layout.moonY = 427 - s_moonSize / 2;
     layout.sunTime = label( layout.root, &jetbrains_mono_26, s_amber, Right, s_width - 36, 410 );
-    layout.battery = label( layout.root, &jetbrains_mono_26, s_grey, Right, s_width - 36, 444 );
 }
 
 void WatchFace::build( lv_obj_t *page )
@@ -163,7 +160,7 @@ void WatchFace::build( lv_obj_t *page )
     m_moon = lv_canvas_create( page );
     lv_canvas_set_draw_buf( m_moon, lv_draw_buf_create( s_moonSize, s_moonSize, LV_COLOR_FORMAT_RGB565, 0 ) );
     lv_canvas_fill_bg( m_moon, lv_color_black(), LV_OPA_COVER );
-    setStyle( 0, DateItem | SunItem | MoonItem | BatteryItem );
+    setStyle( 0, DateItem | SunItem | MoonItem );
 }
 
 static void setTranslateY( void *object, int32_t y )
@@ -223,18 +220,17 @@ void WatchFace::applyItems()
     const bool date = m_items & DateItem;
     const bool sun = m_items & SunItem;
     const bool moon = m_items & MoonItem;
-    const bool battery = m_items & BatteryItem;
-    lv_obj_t *const objects[9] = { layout.date, layout.hijri,    layout.sunName, layout.sunTime, layout.sunLeft,
-                                   m_moon,      layout.moonText, layout.battery, nullptr };
-    const bool shown[9] = { date, date, sun, sun, sun, moon, moon, battery, false };
-    for ( int i = 0; i < 8; ++i ) {
+    lv_obj_t *const objects[7] = { layout.date, layout.hijri, layout.sunName, layout.sunTime, layout.sunLeft,
+                                   m_moon,      layout.moonText };
+    const bool shown[7] = { date, date, sun, sun, sun, moon, moon };
+    for ( int i = 0; i < 7; ++i ) {
         if ( objects[i] != nullptr ) {
             lv_obj_set_hidden( objects[i], !shown[i] );
         }
     }
 }
 
-void WatchFace::showTime( const Rtc::DateTime &time, int batteryPercent, bool usb )
+void WatchFace::showTime( const Rtc::DateTime &time )
 {
     const Layout &layout = m_layouts[m_style];
     if ( layout.minutes != nullptr ) {
@@ -260,7 +256,6 @@ void WatchFace::showTime( const Rtc::DateTime &time, int batteryPercent, bool us
         lv_label_set_text( layout.hijri, s_shortDays[day] );
     }
     lv_label_set_text( layout.date, date );
-    lv_label_set_text_fmt( layout.battery, "%d %%%s", batteryPercent, usb ? "+" : "" );
 }
 
 void WatchFace::drawMoon( int percent, bool waxing )

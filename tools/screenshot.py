@@ -163,10 +163,16 @@ def main():
     port.open()
     reader = LineReader(port)
     if commands:
-        # Opening the port restarted the watch: wait for active mode, then send the commands.
+        # Wait for active mode (a PWR press), then send the commands. Without them the pictures
+        # would show the watch's real time, location and portal password: stop instead.
+        print('Waiting for active mode: press PWR.')
         start = time.time()
-        while time.time() - start < 30 and 'Active mode' not in reader.readline():
-            pass
+        active = False
+        while not active and time.time() - start < 120:
+            active = 'Active mode' in reader.readline()
+        if not active:
+            print('No active mode within 2 min; nothing captured.')
+            return 1
         for command in commands:
             port.write(f'{command}\n'.encode())
         time.sleep(4)

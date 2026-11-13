@@ -17,13 +17,12 @@ static const bool s_idleMode = false;
 
 // AlwaysOn::Colour in RGB565 with the bytes swapped, as the panel takes them (Panel::buffer()).
 // Idle mode shows each channel on or off, so only full colours are used.
-static const uint16_t s_colours[3] = { 0xFFFF, 0xE0FF, 0x00F8 };
+static const uint16_t s_colours[5] = { 0xFFFF, 0xE0FF, 0x00F8, 0xE007, 0x1F00 };
 
 static const int s_moonRadius = 18;
 static const int s_moonSize = 2 * s_moonRadius + 1;
 static const int s_itemsGap = 24;     // between the time and the moon and date
 static const int s_moonTextGap = 16;
-static const int s_batteryGap = 20;
 
 static const char *s_dayNames[7] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
 
@@ -37,6 +36,14 @@ RTC_DATA_ATTR static int s_drawnX;
 RTC_DATA_ATTR static int s_drawnY;
 RTC_DATA_ATTR static int s_drawnWidth;
 RTC_DATA_ATTR static int s_drawnHeight;
+// The corner gauges drawn last, in pixels along the gauge; kind -1 before the first drawing.
+RTC_DATA_ATTR static int s_drawnGauges[Corners::CornerCount][3];
+
+// Corner gauges: 2 px wide; a corner is redrawn as an even-sized box when its gauge changed by a
+// pixel (the quarter circle is about 184 px long).
+static const int s_gaugeWidth = 2;
+static const int s_gaugePixels = 184;
+static const int s_cornerBox = 122;
 
 static const uint64_t s_retryUs = 60ULL * 1000 * 1000;
 // A lasting RTC fault ends the face, so that it cannot keep the watch out of off mode.
@@ -105,13 +112,12 @@ static const AodGlyph *smallGlyph( uint32_t code, bool dotted )
     return nullptr;
 }
 
-AlwaysOn::Face AlwaysOn::layout( const Look &look, const Rtc::DateTime &time, bool batteryLow )
+AlwaysOn::Face AlwaysOn::layout( const Look &look, const Rtc::DateTime &time )
 {
     Face face = {};
     const AodStyle &style = aodStyles[look.style];
     const bool stacked = style.colon.width == 0;
     const bool dotted = style.dottedItems;
-    const bool showBattery = batteryLow && ( look.items & BatteryItem );
     const bool showMoon = look.items & MoonItem;
     const bool showDate = look.items & DateItem;
     const lv_font_t *smallFont = dotted ? &aodSmallDottedFont : &aodSmallFont;
@@ -125,14 +131,9 @@ AlwaysOn::Face AlwaysOn::layout( const Look &look, const Rtc::DateTime &time, bo
     const int dateHeight = aodSmall[1].height;  // [0] is the space
     const int rowWidth = ( showMoon ? s_moonSize : 0 ) + ( showMoon && showDate ? s_moonTextGap : 0 ) + dateWidth;
     const int rowHeight = ( showMoon || showDate ) ? ( dateHeight > s_moonSize ? dateHeight : s_moonSize ) : 0;
-    const AodGlyph *battery = smallGlyph( AOD_BATTERY_CODE, dotted );
 
     face.width = style.width > rowWidth ? style.width : rowWidth;
     int y = 0;
-    if ( showBattery && !stacked ) {
-        addSprite( face, ( face.width - battery->width ) / 2, y, battery, smallFont, AOD_BATTERY_CODE, Red );
-        y += battery->height + s_batteryGap;
-    }
     const int timeX = ( face.width - style.width ) / 2;
     const int digits[4] = { time.hour / 10, time.hour % 10, time.minute / 10, time.minute % 10 };
     const int slots[4] = { 0, 1, 3, 4 };
@@ -162,19 +163,61 @@ AlwaysOn::Face AlwaysOn::layout( const Look &look, const Rtc::DateTime &time, bo
         }
         y += rowHeight;
     }
-    if ( showBattery && stacked ) {
-        y += s_batteryGap;
-        addSprite( face, ( face.width - battery->width ) / 2, y, battery, smallFont, AOD_BATTERY_CODE, Red );
-        y += battery->height;
-    }
     face.height = y;
     return face;
 }
 
+int AlwaysOn::gaugeColour( Corners::Kind kind )
+{
+    // By Corners::Kind; orange and the Moon's dark grey have no idle-mode colour.
+    static const int colours[] = { -1, Yellow, Blue, Green, Yellow, Red, White, White, White };
+    return colours[kind];
+}
+
+// The colour of pixel (x, y) on a corner gauge, or 0 when no gauge lights it. The Moon below the
+// horizon is dotted.
+static uint16_t gaugePixel( const Corners::Gauge *gauges, int x, int y )
+{
+    const int outer = Corners::OuterRadius * Corners::OuterRadius;
+    const int inner = ( Corners::OuterRadius - s_gaugeWidth ) * ( Corners::OuterRadius - s_gaugeWidth );
+    for ( int i = 0; i < Corners::CornerCount; ++i ) {
+        int centreX = 0;
+        int centreY = 0;
+        int lower = 0;
+        int upper = 0;
+        Corners::geometry( static_cast<Corners::Corner>( i ), Panel::WIDTH, Panel::HEIGHT, centreX, centreY, lower,
+                           upper );
+        const int dx = x - centreX;
+        const int dy = y - centreY;
+        const bool left = i == Corners::TopLeft || i == Corners::BottomLeft;
+        const bool top = i == Corners::TopLeft || i == Corners::TopRight;
+        if ( ( left ? dx > 0 : dx < 0 ) || ( top ? dy > 0 : dy < 0 ) ) {
+            continue;
+        }
+        const int distance = dx * dx + dy * dy;
+        if ( distance > outer || distance <= inner ) {
+            continue;
+        }
+        const Corners::Gauge &gauge = gauges[i];
+        const int colour = AlwaysOn::gaugeColour( gauge.kind );
+        if ( colour < 0 || ( gauge.kind == Corners::MoonDown && ( ( x + y ) & 3 ) != 0 ) ) {
+            return 0;
+        }
+        float angle = atan2f( static_cast<float>( dy ), static_cast<float>( dx ) ) * 180.0f / static_cast<float>( M_PI );
+        const int lowest = lower < upper ? lower : upper;
+        if ( angle < lowest - 1 ) {
+            angle += 360.0f;
+        }
+        const int along = static_cast<int>( ( angle - lower ) * 1000.0f / ( upper - lower ) );
+        return ( along >= gauge.start && along <= gauge.end ) ? s_colours[colour] : 0;
+    }
+    return 0;
+}
+
 // Draws the rectangle (even position and size) band by band: black, with the face's bitmaps
-// where they fall into it.
+// and the corner gauges (when given) where they fall into it.
 static void render( Panel &panel, const AlwaysOn::Face &face, int faceX, int faceY, int left, int top, int width,
-                    int height )
+                    int height, const Corners::Gauge *gauges )
 {
     uint16_t *pixels = Panel::buffer();
     const int bandRows = ( Panel::BufferPixels / width ) & ~1;
@@ -198,6 +241,21 @@ static void render( Panel &panel, const AlwaysOn::Face &face, int faceX, int fac
                     if ( ( glyph.bits[bit / 8] & ( 0x80 >> ( bit % 8 ) ) ) && screenX >= left && screenX < left + width ) {
                         line[screenX - left] = colour;
                     }
+                }
+            }
+        }
+        for ( int row = bandTop; gauges != nullptr && row < bandTop + rows; ++row ) {
+            if ( row >= s_cornerBox && row < Panel::HEIGHT - s_cornerBox ) {
+                continue;
+            }
+            uint16_t *line = pixels + ( row - bandTop ) * width;
+            for ( int x = left; x < left + width; ++x ) {
+                if ( x >= s_cornerBox && x < Panel::WIDTH - s_cornerBox ) {
+                    continue;
+                }
+                const uint16_t colour = gaugePixel( gauges, x, row );
+                if ( colour != 0 ) {
+                    line[x - left] = colour;
                 }
             }
         }
@@ -226,16 +284,26 @@ static int validStyle( int style )
 #if CONFIG_WATCH_DEV_LOGGING
 void AlwaysOn::capture( int style )
 {
-    const Look look = { validStyle( style ), MoonItem | DateItem | BatteryItem, 45, true };
+    const Look look = { validStyle( style ), MoonItem | DateItem, 45, true, {} };
     const Rtc::DateTime time = { 2026, 6, 21, 19, 19, 0 };
-    const Face face = layout( look, time, true );
+    const Face face = layout( look, time );
+    // The scene's gauges: 91 % of the day, the battery at 92 %, the Moon 55 % through its pass
+    // and 45 % lit, waxing.
+    const Corners::Gauge gauges[Corners::CornerCount] = {
+        { 0, 910, Corners::Day }, { 0, 920, Corners::BatteryHigh }, { 0, 546, Corners::MoonUp },
+        { 0, 450, Corners::MoonLit } };
     const int faceX = ( ( Panel::WIDTH - face.width ) / 2 ) & ~1;
     const int faceY = ( ( Panel::HEIGHT - face.height ) / 2 ) & ~1;
     Panel panel;
     panel.record();
     printf( "SHOT BEGIN -1 %d %d always-on-%d\n", Panel::WIDTH, Panel::HEIGHT, look.style );
     panel.clear();
-    render( panel, face, faceX, faceY, faceX, faceY, ( face.width + 1 ) & ~1, ( face.height + 1 ) & ~1 );
+    render( panel, face, faceX, faceY, faceX, faceY, ( face.width + 1 ) & ~1, ( face.height + 1 ) & ~1, gauges );
+    for ( int i = 0; i < Corners::CornerCount; ++i ) {
+        const int boxX = ( i == Corners::TopLeft || i == Corners::BottomLeft ) ? 0 : Panel::WIDTH - s_cornerBox;
+        const int boxY = ( i == Corners::TopLeft || i == Corners::TopRight ) ? 0 : Panel::HEIGHT - s_cornerBox;
+        render( panel, face, faceX, faceY, boxX, boxY, s_cornerBox, s_cornerBox, gauges );
+    }
     printf( "SHOT END\n" );
     fflush( stdout );
 }
@@ -250,6 +318,9 @@ void AlwaysOn::begin( const Look &look )
     s_look.style = validStyle( look.style );
     s_drawnWidth = 0;
     s_drawnHeight = 0;
+    for ( int i = 0; i < Corners::CornerCount; ++i ) {
+        s_drawnGauges[i][2] = -1;
+    }
 }
 
 void AlwaysOn::end()
@@ -262,7 +333,7 @@ bool AlwaysOn::isActive() const
     return s_active;
 }
 
-uint64_t AlwaysOn::update( const Rtc::DateTime &time, bool timeRead, bool batteryLow )
+uint64_t AlwaysOn::update( const Rtc::DateTime &time, int64_t utcNow, bool timeRead, int batteryPercent )
 {
     // A failed or corrupt read must not turn into a long sleep: try again in a minute.
     if ( !timeRead || time.hour > 23 || time.minute > 59 || time.second > 59 ) {
@@ -314,7 +385,7 @@ uint64_t AlwaysOn::update( const Rtc::DateTime &time, bool timeRead, bool batter
     Rtc::DateTime shown = time;
     shown.hour = static_cast<uint8_t>( minuteOfDay / 60 );
     shown.minute = static_cast<uint8_t>( minuteOfDay % 60 );
-    Face face = layout( look, shown, batteryLow );
+    Face face = layout( look, shown );
     if ( blank ) {
         // Cleared like any other face, with nothing drawn.
         face.count = 0;
@@ -335,11 +406,28 @@ uint64_t AlwaysOn::update( const Rtc::DateTime &time, bool timeRead, bool batter
         right = s_drawnX + s_drawnWidth > right ? s_drawnX + s_drawnWidth : right;
         bottom = s_drawnY + s_drawnHeight > bottom ? s_drawnY + s_drawnHeight : bottom;
     }
-    render( panel, face, faceX, faceY, left, top, right - left, bottom - top );
+    Corners::Gauge gauges[Corners::CornerCount] = {};
+    Corners::compute( look.corners, utcNow, batteryPercent, gauges );
+    render( panel, face, faceX, faceY, left, top, right - left, bottom - top, gauges );
     s_drawnX = faceX;
     s_drawnY = faceY;
     s_drawnWidth = width;
     s_drawnHeight = height;
+    // The corners stay in place (no burn-in shift: they lie against the edge); one is drawn again
+    // when its gauge changed by a pixel.
+    for ( int i = 0; i < Corners::CornerCount; ++i ) {
+        const int drawn[3] = { gauges[i].start * s_gaugePixels / 1000, gauges[i].end * s_gaugePixels / 1000,
+                               gauges[i].kind };
+        if ( drawn[0] == s_drawnGauges[i][0] && drawn[1] == s_drawnGauges[i][1] && drawn[2] == s_drawnGauges[i][2] ) {
+            continue;
+        }
+        const int boxX = ( i == Corners::TopLeft || i == Corners::BottomLeft ) ? 0 : Panel::WIDTH - s_cornerBox;
+        const int boxY = ( i == Corners::TopLeft || i == Corners::TopRight ) ? 0 : Panel::HEIGHT - s_cornerBox;
+        render( panel, face, faceX, faceY, boxX, boxY, s_cornerBox, s_cornerBox, gauges );
+        for ( int k = 0; k < 3; ++k ) {
+            s_drawnGauges[i][k] = drawn[k];
+        }
+    }
     // The brightness command is sent after the drawing has finished.
     panel.setBrightness( CONFIG_WATCH_AOD_BRIGHTNESS );
     Panel::holdPins();
