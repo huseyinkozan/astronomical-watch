@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <sys/time.h>
 
 #include "Panel.h"
 #include "esp_attr.h"
@@ -204,6 +205,19 @@ static void render( Panel &panel, const AlwaysOn::Face &face, int faceX, int fac
     }
 }
 
+#if CONFIG_WATCH_AOD_CYCLE_MIN > 0
+int AlwaysOn::cycleStyle( uint32_t seconds )
+{
+    // Blank, Sparse, Light (aodStyles), after an hour of blank.
+    static const int styles[3] = { -1, 5, 1 };
+    const uint32_t settleS = 3600;
+    if ( seconds < settleS ) {
+        return -1;
+    }
+    return styles[( ( seconds - settleS ) / ( CONFIG_WATCH_AOD_CYCLE_MIN * 60 ) ) % 3];
+}
+#endif
+
 static int validStyle( int style )
 {
     return ( style >= 0 && style < AOD_STYLE_COUNT ) ? style : 0;
@@ -283,11 +297,28 @@ uint64_t AlwaysOn::update( const Rtc::DateTime &time, bool timeRead, bool batter
         s_screenCleared = true;
     }
 
-#if !CONFIG_WATCH_AOD_BLANK
+    Look look = s_look;
+#if CONFIG_WATCH_AOD_CYCLE_MIN > 0
+    // System time runs from power-on through deep sleep, as in the battery samples.
+    timeval now = {};
+    gettimeofday( &now, nullptr );
+    look.style = cycleStyle( static_cast<uint32_t>( now.tv_sec ) );
+    if ( look.style < 0 ) {
+        look.items = 0;
+        look.style = 0;
+    }
+    const bool blank = cycleStyle( static_cast<uint32_t>( now.tv_sec ) ) < 0;
+#else
+    const bool blank = false;
+#endif
     Rtc::DateTime shown = time;
     shown.hour = static_cast<uint8_t>( minuteOfDay / 60 );
     shown.minute = static_cast<uint8_t>( minuteOfDay % 60 );
-    const Face face = layout( s_look, shown, batteryLow );
+    Face face = layout( look, shown, batteryLow );
+    if ( blank ) {
+        // Cleared like any other face, with nothing drawn.
+        face.count = 0;
+    }
     // Burn-in: the face moves within +-8 pixels, one step per minute.
     const int faceX = ( ( ( Panel::WIDTH - face.width ) / 2 ) & ~1 ) + ( minuteOfDay % 5 - 2 ) * 4;
     const int faceY = ( ( ( Panel::HEIGHT - face.height ) / 2 ) & ~1 ) + ( ( minuteOfDay / 5 ) % 5 - 2 ) * 4;
@@ -309,7 +340,6 @@ uint64_t AlwaysOn::update( const Rtc::DateTime &time, bool timeRead, bool batter
     s_drawnY = faceY;
     s_drawnWidth = width;
     s_drawnHeight = height;
-#endif
     // The brightness command is sent after the drawing has finished.
     panel.setBrightness( CONFIG_WATCH_AOD_BRIGHTNESS );
     Panel::holdPins();

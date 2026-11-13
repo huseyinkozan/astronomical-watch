@@ -81,6 +81,11 @@ public:
     // a minute. `batteryLow` shows the low-battery mark (when that item is on).
     uint64_t update( const Rtc::DateTime &time, bool timeRead, bool batteryLow );
 
+#if CONFIG_WATCH_AOD_CYCLE_MIN > 0
+    // Battery run V: the style shown `seconds` after power-on, or -1 for the blank face.
+    static int cycleStyle( uint32_t seconds );
+#endif
+
 #if CONFIG_WATCH_DEV_LOGGING
     // Development screenshot (tools/screenshot.py): the face at 19:19 on Sunday 21 June, the
     // Moon 45 % and waxing, the battery low, centred, written to the console instead of drawn. A

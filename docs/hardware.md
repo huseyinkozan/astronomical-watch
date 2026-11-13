@@ -411,7 +411,9 @@ Always-on face [HW] (guided test `aod`, 2026-10-31; `main/Panel.*`, `main/Always
   cleared fully from the active face. Lit share of the screen in the screenshots (19:19, Moon,
   date and battery mark): JetBrains Mono 4.0–5.5 %, the dotted seven segments 1.2–2.4 %, against
   4.5 % for the earlier face without the items. Whether the panel current follows the lit
-  pixels is open (question 4; battery run V, `sdkconfig.aodblank`, draws nothing).
+  pixels was tested in battery run V (blank, Sparse and Light in turn): the blocks differ by
+  less than the block-to-block noise (about ±4 mV/h, under 1 mA) and not in the order of the lit
+  share, so the style can be chosen for readability. The always-on cost is a fixed panel cost.
 - Wake length per minute (RTC memory statistics): 382 ms from reset to `app_main` plus 112 ms in
   the app with the image check on; **230 + 137 ms** with
   `CONFIG_BOOTLOADER_SKIP_VALIDATE_IN_DEEP_SLEEP` (now the default; the check still runs after
@@ -569,6 +571,7 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
 | S (2026-11-10) | H + USB pads GPIO19/20 isolated in deep sleep, given back to USB at each wake (`sdkconfig.usbiso`), 5 min samples | 2.8 h fitted (3.8 h total), 4.10 → 4.08 V | −6.9 ± 0.1 mV/h without dips (N, P over the same hours: −7.0, −7.1) | 96 → 93 % in 2.8 h | **same as H: floating USB pads are not the floor** |
 | T (2026-11-10) | H + AXP2101 sleep mode (REG26 bit0) set before deep sleep, cleared at each wake (`sdkconfig.axpsleep`), 5 min samples | 2.8 h fitted (3.9 h total), 4.10 → 4.08 V | −6.9 ± 0.1 mV/h without dips (S, P over the same hours: −6.9, −7.1) | 96 → 94 % in 2.8 h | **same as H: the AXP2101 sleep mode does not lower the floor** |
 | U (2026-11-11) | H after a full charge with the new charger setting (100 mA, termination 25 mA), 5 min samples | 2.8 h fitted (4.0 h total), 4.155 → 4.135 V | −7.6 ± 0.1 mV/h without dips | 100 → 99 % in 2.8 h | **new baseline, higher on the cell's curve: not comparable with runs A–T** |
+| V (2026-11-12/13) | always-on face (`sdkconfig.aodlog`) changing every 90 min after a blank first hour: blank, Sparse, Light, twice (`sdkconfig.aodcycle`), 15 min samples | 9.0 h fitted (10.2 h total), 4.15 → 3.99 V | −18.4 ± 0.4 mV/h without four dips; per 90 min block: blank −19 and −20, Sparse −11 (the first block unusable), Light −19 and −17 | 100 → 84 % in 9 h (−1.9 %/h) | **≈ 3.2 mA, rough, as run F; the face content (lit share 0–5.5 %) makes no visible difference** |
 
 - mA figures in the notes below that were written before run R assume a 400 mAh cell;
   multiply them by about 0.38 (run R).
@@ -740,7 +743,8 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
 4. Which other CO5300 settings lower the always-on panel current further (frame rate, partial
    mode)? With idle mode it was about 3.2 mA, of which about 1.5 mA was the deep-sleep floor
    (runs E and F, question 7, scaled with run R); with the idle pads held the floor is about
-   1.2 mA (run H).
+   1.2 mA (run H). Run V (≈ 3.2 mA, rough) showed no difference between a blank face and the
+   faces with 1–5.5 % lit pixels, so the remaining cost does not come from the lit pixels.
 5. Does Offset `0x76` (−10, MODE 0) bring the RTC drift near 0 ppm? Check with the guided test
    `clock` over several hours and days, and on the wrist (temperature).
 6. Why does ES8311 0x0D = `0xF8` (PDN_VREF cleared) raise the sleep drain by about 30 mA

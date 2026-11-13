@@ -1,0 +1,3 @@
+# Battery run V, on top of sdkconfig.battery and sdkconfig.aodlog: the always-on face changes every
+# 90 min (blank, Sparse, Light) after a blank first hour.
+CONFIG_WATCH_AOD_CYCLE_MIN=90

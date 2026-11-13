@@ -1,3 +1,0 @@
-# Battery run V, on top of sdkconfig.battery and sdkconfig.aodlog: the always-on panel stays on
-# (brightness, idle mode) but shows no digits.
-CONFIG_WATCH_AOD_BLANK=y

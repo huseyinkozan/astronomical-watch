@@ -3,6 +3,7 @@
 #include <cinttypes>
 #include <sys/time.h>
 
+#include "AlwaysOn.h"
 #include "esp_attr.h"
 #include "esp_log.h"
 #include "sdkconfig.h"
@@ -64,7 +65,13 @@ void BatteryLog::print()
     ESP_LOGI( TAG, "Battery log: %" PRIu32 " of %d samples", s_count, s_capacity );
     for ( uint32_t i = 0; i < s_count; ++i ) {
         const BatterySample &sample = s_samples[i];
+#if CONFIG_WATCH_AOD_CYCLE_MIN > 0
+        ESP_LOGI( TAG, "Battery sample %" PRIu32 ": t=%" PRIu32 " s, vbat=%u mV, gauge=%u %%, vbus=%u, face=%d", i,
+                  sample.seconds, sample.millivolts, sample.percent, sample.vbus,
+                  AlwaysOn::cycleStyle( sample.seconds ) );
+#else
         ESP_LOGI( TAG, "Battery sample %" PRIu32 ": t=%" PRIu32 " s, vbat=%u mV, gauge=%u %%, vbus=%u", i,
                   sample.seconds, sample.millivolts, sample.percent, sample.vbus );
+#endif
     }
 }
