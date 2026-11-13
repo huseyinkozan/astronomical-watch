@@ -326,6 +326,21 @@ Off mode [HW] (guided test `off`, 2026-10-31; `main/Axp2101.*`):
 - Reference: the infinition Rust firmware estimates its always-on mode (HH:MM at ~10 % brightness
   on black, CPU awake between minute updates) at ~8 mA; this is an estimate, not a measurement [REF].
 
+Visible area [HW] (2026-11-13, a temporary drag-and-mark test overlay):
+- Not published: Waveshare's drawings give only the case (50.8 × 42 mm) and the back pocket
+  (R4.5); panel vendors give the active area, 33.09 × 40.51 mm at 80.7 µm pitch, but no corner
+  radius. A related 1.96" 410 × 502 CO5300 panel (Osptek AM196Q410502LK) draws rounded active-area
+  corners without a value (about 80 px measured from the drawing), which proved too small here.
+- Measured: each corner hides the pixels outside a quarter circle of **about 120 px radius**
+  (≈ 9.7 mm) tangent to both edges. Quarter circles of 100, 110 and 115 px were not visible at
+  all, 120 px only partly (its ends on the edges), 130 and 140 px fully. 45-degree lines touched
+  the visible edge at 34–36 px from both edges (a 120 px circle: 35 px); the edges were seen to
+  curve from about 77 px (the circle leaves the edge slowly). Row and column 0 are visible
+  along the straight edges.
+- Hidden length at each end of row y (and of column x likewise): 120 − √(120² − (120 − y)²),
+  e.g. 98 px at y = 2, 89 at y = 4, 77 at y = 8, 68 at y = 12. A text box near a corner needs
+  its corner point (x, y) inside the circle: (120 − x)² + (120 − y)² ≤ 120².
+
 Validated on this board [HW] (guided test `display`, 2026-10-31; `main/Display.*`):
 - `bsp_display_start()` (LVGL 9.6, `esp_lvgl_port` 2.9) shows the image after the sleep
   preparation's deep standby: its reset pulse leaves deep standby. Panel start, touch included,

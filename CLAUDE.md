@@ -141,6 +141,8 @@ After a change, regenerate the file and compare both with `tools/screenshot.py`.
   always-on page a vertical swipe steps the style (`LV_EVENT_GESTURE`; those pages keep the
   gesture and do not scroll), and the new style slides in. Large dark-grey areas shimmer on
   this panel; use black with outlines.
+  The panel hides each corner outside a quarter circle of about 120 px radius (docs/hardware.md,
+  Visible area); keep content inside it.
 - Setup portal (M9, `main/Portal.*`, `main/portal/`): a row on the watch's Setup page starts it
   (not every charge); the same row stops it, and it stops by itself 5 min after the last browser
   request or when the page saves. The watch opens a WPA2 soft AP with a captive portal (DNS
