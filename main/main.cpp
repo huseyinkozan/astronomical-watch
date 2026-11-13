@@ -52,6 +52,12 @@ static Portal s_portal;
 // read NVS.
 RTC_DATA_ATTR static int s_alwaysOnOffsetMinutes;
 static const int s_lowBatteryPercent = 15;
+// At or below this charge (and not on USB) the watch powers off instead of keeping the always-on
+// face, so that the cell still runs the RTC for days in the off state (CLAUDE.md, power
+// management). The gauge reads too low for a while after a power cycle (docs/hardware.md, run D),
+// so VBAT must agree before the watch switches itself off; 3.65 V is about 10 % on a Li-ion cell.
+static const int s_powerOffPercent = 10;
+static const uint16_t s_powerOffMillivolts = 3650;
 
 static void logPowerKeyIrq()
 {
@@ -437,6 +443,21 @@ static void powerOff( [[maybe_unused]] bool pmuReady )
     sleepNow();
 }
 
+// The power-off limit of the battery, for a reading taken without USB power. Battery-log runs
+// may discharge the cell fully and never stop at the limit.
+static bool batteryEmpty( uint16_t millivolts, uint8_t percent )
+{
+#if CONFIG_WATCH_BATTERY_LOG
+    return false;
+#else
+    const bool empty = percent <= s_powerOffPercent && millivolts <= s_powerOffMillivolts;
+    if ( empty ) {
+        ESP_LOGI( TAG, "Battery at the power-off limit: %u mV, %u %%", millivolts, percent );
+    }
+    return empty;
+#endif
+}
+
 // Always-on timer wake: redraw the face and sleep until the next minute; nothing else starts.
 // A battery-log build with the face also records the battery here when a sample is due.
 static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
@@ -450,8 +471,12 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
         uint16_t millivolts = 0;
         uint8_t percent = 0;
         bool vbusGood = false;
-        batteryLow = s_pmu.readBattery( millivolts, percent, vbusGood ) == ESP_OK && !vbusGood &&
-                     percent < s_lowBatteryPercent;
+        if ( s_pmu.readBattery( millivolts, percent, vbusGood ) == ESP_OK && !vbusGood ) {
+            batteryLow = percent < s_lowBatteryPercent;
+            if ( batteryEmpty( millivolts, percent ) ) {
+                powerOff( pmuReady );
+            }
+        }
     }
     const uint64_t sleepUs =
         s_alwaysOn.update( Rtc::addMinutes( time, s_alwaysOnOffsetMinutes ), timeRead, batteryLow );
@@ -478,6 +503,15 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
 {
     if ( !s_displayOn || s_settings.value( Settings::AlwaysOnFace ) == 0 ) {
         powerOff( pmuReady );
+    }
+    if ( pmuReady ) {
+        uint16_t millivolts = 0;
+        uint8_t percent = 0;
+        bool vbusGood = false;
+        if ( s_pmu.readBattery( millivolts, percent, vbusGood ) == ESP_OK && !vbusGood &&
+             batteryEmpty( millivolts, percent ) ) {
+            powerOff( pmuReady );
+        }
     }
     s_peripherals.sleepTouch( bus );
     AlwaysOn::Look look = {};

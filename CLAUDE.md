@@ -85,6 +85,12 @@ idf.py -p /dev/ttyACM0 flash monitor
     which cannot wake from deep sleep either). Instead the ESP32 deep-sleeps with one timer wake
     for the next alarm, waking a little early to re-read the PCF85063 because the internal RC
     timer drifts. In always-on the minute wake checks the alarms.
+  - **Battery limit**: at 10 % or less on battery the watch powers off instead of entering or
+    keeping always-on, so that the cell keeps the RTC running for days (off state about 40 µA,
+    about 1 mAh a day; an estimate). VBAT must also be at most 3.65 V, because the gauge reads
+    too low for a while after a power cycle. The PWR key still starts active mode, and the watch
+    powers off again when it ends. The battery gauge shows red at the limit. Battery-log builds
+    ignore the limit. What a pending alarm does at the limit is decided with the alarms.
 - Always-on must use the lowest-power approach the panel allows (low brightness, few lit pixels,
   idle or partial mode where they help), never a CPU that stays awake. Do not call any mode
   low-power without evidence from the board (see "Power evaluation without external equipment").

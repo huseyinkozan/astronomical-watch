@@ -303,6 +303,10 @@ Off mode [HW] (guided test `off`, 2026-10-31; `main/Axp2101.*`):
   present does not power it on (only a VBUS insert does, REG20 `0x04`).
 - Logging starts about 0.8 s after the ESP32 boots, as after a deep-sleep wake; the press itself
   must last at least 512 ms first.
+- Battery limit (2026-11-13, a test build with the limit at 100 % and 4.5 V, on battery): the end
+  of active mode powered the watch off instead of starting always-on, and an always-on minute
+  wake after USB was unplugged powered it off within a minute. A press of about 1 s powered it on
+  again; the face appears 2–3 s after the press.
 - The battery charges in the off state: after the cell was discharged to 80 % with the display on
   (`sdkconfig.drain`), 5.3 min off with USB plugged in raised the gauge from 80 to 85 % (about
   20 mAh, roughly 0.2 A on average; an estimate), and the charger read constant current at the

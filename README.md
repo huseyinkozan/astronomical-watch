@@ -21,6 +21,8 @@ and the PWR key turns it on again.
 - PWR key opens the interactive mode (touch, pages); after a configurable timeout the watch
   returns to a dim always-on face, updated once a minute, or switches off (setting)
 - Switches off after a long time without motion (checked at wide intervals); the PWR key turns it on
+- Switches off at 10 % battery, so that the clock keeps time for days; the PWR key still shows the
+  watch until the display timeout
 - Setup page over the watch's own Wi-Fi, started with a button on the watch's Setup page and
   stopped by the button, a save or a timeout (captive portal, password shown on the watch): time
   and UTC offset from the browser, location from a country/city list or coordinates, and every
