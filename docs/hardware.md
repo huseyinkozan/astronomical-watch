@@ -463,6 +463,34 @@ Validated on this board [HW] (guided test `active`, 2026-11-12; `main/Display.*`
 - From a PWR wake the active face appears about 1.1–1.4 s after the boot log (1.7–2.1 s after
   reset), part of it the development logging's wait for the USB host.
 
+Touch that does not wake (2026-11-14, event log and a diagnostic build) [HW]:
+- Symptom: after some PWR wakes from always-on no touch worked for the whole session. The event
+  log showed 0 touch presses and the controller silent on I2C (`0xA5` no answer) right after the
+  display start, while in working sessions it answered `0x00` (active).
+- The BSP's FT5x06 driver pulses TP_RESET low for 10 ms and writes its thresholds 10 ms later;
+  the datasheet asks for at least 5 ms low and gives 70 ms until it reports points (Trsi,
+  Table 3-5). After a flash (reset boot) the controller answered from the start; after wakes from
+  always-on (where it was sent to sleep, `0xA5=0x03`) it often stayed silent for the whole first
+  second despite that reset. Why the BSP's pulse fails there is [?].
+- A reset of our own (10 ms low, then 100 ms) woke it every time (3 of 3, then every wake of the
+  following tests), and touches worked. The firmware now checks the controller after the display
+  start and resets it only when it is silent (`Peripherals::wakeTouch`, event flag
+  `TouchRecovered`).
+- At the end of a session the controller often does not answer either: idle, it moves to monitor
+  mode (the driver sets 2 s) and, per DS §2.3, may ignore I2C after other bus traffic. Touches
+  still wake it; this is no fault.
+
+Scrolling speed (2026-11-14, `sdkconfig.perf`: LVGL's system monitor) [HW]:
+- With the page swipe the whole screen is redrawn each frame in 40-line bands. Render time per
+  frame while swiping, averaged over the busy samples: 134 ms (DIO flash, 160 MHz), 120 ms
+  (240 MHz), 80 ms (quad flash reads `QIO` and 64-byte data cache lines, as in the Waveshare
+  examples), flush 20–30 ms. LVGL waits on flash reads of code and fonts, so the CPU clock barely
+  matters; QIO and the cache line are now the default, the CPU stays at 160 MHz.
+- The corner gauges take about a quarter of the render time (101 ms without them, DIO).
+- LVGL rendering on both cores (`LV_OS_FREERTOS`, 2 draw units, as in the Waveshare LVGL example)
+  crashed five times in three minutes (LoadProhibited on core 0) and rendered slower (143 ms):
+  rejected.
+
 Taps on the settings page (M8, `main/Display.cpp`) [REF][HW]:
 - LVGL cancels a click once the finger moved more than the indev scroll limit, 10 px by default
   (0.8 mm here), and starts a scroll instead [lvgl issue #2600]. `lv_indev_set_scroll_limit()`

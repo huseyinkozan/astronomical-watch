@@ -45,6 +45,7 @@ static Display s_display;
 static bool s_displayOn = false;
 // For the event log of the active session.
 static uint8_t s_touchModeStart = 0xFF;
+static bool s_touchRecovered = false;
 static bool s_portalUsed = false;
 static AlwaysOn s_alwaysOn;
 static BatteryLog s_batteryLog;
@@ -719,6 +720,12 @@ extern "C" void app_main( void )
         s_displayOn = s_display.start( s_settings );
 #endif
         s_touchModeStart = s_peripherals.touchPowerMode( bus );
+        // After a wake from always-on the BSP's reset does not always wake the touch controller
+        // (silent on I2C, no touch interrupts; 2026-11-14, docs/hardware.md); a reset of our own
+        // with the datasheet's start-up time does.
+        if ( s_touchModeStart == 0xFF && s_peripherals.wakeTouch( bus ) ) {
+            s_touchRecovered = true;
+        }
 #if CONFIG_WATCH_BATTERY_LOG
         s_batteryLog.record( s_pmu );
         s_batteryLog.print();
@@ -736,7 +743,7 @@ extern "C" void app_main( void )
     active.touchModeStart = s_touchModeStart;
     active.touchModeEnd = s_peripherals.touchPowerMode( bus );
     active.flags = ( s_displayOn ? EventLog::DisplayStarted : 0 ) | ( s_display.touchStarted() ? EventLog::TouchStarted : 0 ) |
-                   ( s_portalUsed ? EventLog::PortalUsed : 0 );
+                   ( s_portalUsed ? EventLog::PortalUsed : 0 ) | ( s_touchRecovered ? EventLog::TouchRecovered : 0 );
 #if CONFIG_WATCH_SETUP_PORTAL
     s_portal.stop();
 #endif

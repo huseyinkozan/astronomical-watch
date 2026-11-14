@@ -426,6 +426,17 @@ void Peripherals::sleepTouch( i2c_master_bus_handle_t bus )
     sleepTouchController( bus );
 }
 
+bool Peripherals::wakeTouch( i2c_master_bus_handle_t bus )
+{
+    gpio_set_level( BSP_LCD_TOUCH_RST, 0 );
+    vTaskDelay( pdMS_TO_TICKS( 10 ) );
+    gpio_set_level( BSP_LCD_TOUCH_RST, 1 );
+    vTaskDelay( pdMS_TO_TICKS( 100 ) );
+    const uint8_t mode = touchPowerMode( bus );
+    ESP_LOGW( TAG, "Touch controller silent after the BSP reset; own reset: power mode 0x%02X", mode );
+    return mode != 0xFF;
+}
+
 uint8_t Peripherals::touchPowerMode( i2c_master_bus_handle_t bus )
 {
     uint8_t mode = 0;

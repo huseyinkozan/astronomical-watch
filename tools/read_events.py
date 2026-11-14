@@ -22,7 +22,8 @@ RESETS = ['unknown', 'power-on', 'external pin', 'software', 'PANIC', 'INTERRUPT
           'WATCHDOG', 'deep sleep', 'BROWNOUT', 'SDIO', 'USB', 'JTAG', 'EFUSE', 'POWER GLITCH', 'CPU LOCKUP']
 ACTIVE_ENDS = {1: 'display timeout', 2: 'PWR press'}
 POWER_OFFS = {1: 'always-on off or no display', 2: 'no motion', 3: 'battery limit', 4: 'face failed'}
-FLAGS = [(1, 'display'), (2, 'touch'), (4, 'portal'), (8, 'USB'), (16, 'CORE DUMP'), (32, 'no time')]
+FLAGS = [(1, 'display'), (2, 'touch'), (4, 'portal'), (8, 'USB'), (16, 'CORE DUMP'), (32, 'no time'),
+         (64, 'TOUCH RESET AGAIN')]
 TOUCH_MODES = {0x00: 'active', 0x01: 'monitor', 0x03: 'sleep', 0xFF: 'no answer'}
 
 

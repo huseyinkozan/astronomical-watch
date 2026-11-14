@@ -35,8 +35,9 @@ public:
         TouchStarted = 2,
         PortalUsed = 4,
         Usb = 8,          // VBUS present
-        CoreDump = 16,    // Boot: a core dump is stored in flash
-        TimeInvalid = 32  // the RTC time was not read
+        CoreDump = 16,       // Boot: a core dump is stored in flash
+        TimeInvalid = 32,    // the RTC time was not read
+        TouchRecovered = 64  // the touch controller was silent after the BSP's reset and reset again
     };
 
     struct Entry

@@ -30,4 +30,8 @@ public:
     // The touch controller's power mode register (0 active, 3 sleep), or 0xFF when it does not
     // answer: for the event log.
     uint8_t touchPowerMode( i2c_master_bus_handle_t bus );
+
+    // Resets the touch controller and waits for it to start (FT3168 datasheet 3.4: reports after
+    // 70 ms); true when it answers afterwards.
+    bool wakeTouch( i2c_master_bus_handle_t bus );
 };

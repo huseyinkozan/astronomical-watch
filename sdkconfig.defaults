@@ -36,3 +36,9 @@ CONFIG_ESP_MAIN_TASK_STACK_SIZE=6144
 CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH=y
 CONFIG_ESP_COREDUMP_DATA_FORMAT_ELF=y
 CONFIG_ESP_COREDUMP_CHECK_BOOT=n
+
+# Quad flash reads, as in the Waveshare examples for this board, and 64-byte data cache lines:
+# LVGL waits on flash reads (code and fonts), so this made scrolling about 1.5 times faster
+# (render per frame 120 -> 80 ms; 240 MHz alone gave little, 2026-11-14).
+CONFIG_ESPTOOLPY_FLASHMODE_QIO=y
+CONFIG_ESP32S3_DATA_CACHE_LINE_64B=y
