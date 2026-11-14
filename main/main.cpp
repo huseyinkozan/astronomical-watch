@@ -530,6 +530,8 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
     AlwaysOn::Look look = {};
     look.style = s_settings.value( Settings::AodStyle );
     look.items = s_settings.value( Settings::AodItems );
+    look.dayBrightness = s_settings.value( Settings::AodDayBrightness );
+    look.nightBrightness = s_settings.value( Settings::AodNightBrightness );
     if ( s_skyValid ) {
         look.moonPercent = static_cast<int>( s_skyDay.phase.illumination * 100 + 0.5 );
         look.waxing = s_skyDay.phase.elongation < 180;

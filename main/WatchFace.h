@@ -4,8 +4,8 @@
 #include "Sky.h"
 #include "lvgl.h"
 
-// The watch face of active mode in one of three layouts, chosen by a vertical swipe (Display) or
-// in the setup portal: 0 classic, 1 day arc, 2 hours over minutes. Each layout shows the items
+// The watch face of active mode in one of two layouts, chosen by a vertical swipe (Display) or
+// in the setup portal: 0 classic, 1 day arc. Each layout shows the items
 // that Settings::FaceItems selects. Called with the display lock held.
 class WatchFace
 {
@@ -18,7 +18,7 @@ public:
         MoonItem = 4      // the Moon's phase
     };
 
-    static const int StyleCount = 3;
+    static const int StyleCount = 2;
 
     void build( lv_obj_t *page );
 
@@ -35,12 +35,10 @@ private:
     struct Layout
     {
         lv_obj_t *root;
-        lv_obj_t *time;     // HH:MM, or HH over MM: the hours
-        lv_obj_t *minutes;  // HH over MM: the minutes
+        lv_obj_t *time;     // HH:MM
         lv_obj_t *seconds;
         lv_obj_t *date;
         lv_obj_t *hijri;
-        lv_obj_t *moonText;
         lv_obj_t *sunName;
         lv_obj_t *sunTime;
         lv_obj_t *sunLeft;
@@ -49,13 +47,10 @@ private:
         lv_obj_t *sunDot;
         lv_obj_t *riseText;
         lv_obj_t *setText;
-        int moonX;
-        int moonY;
     };
 
     void buildClassic( lv_obj_t *page );
     void buildArc( lv_obj_t *page );
-    void buildStacked( lv_obj_t *page );
     void drawMoon( int percent, bool waxing );
     void applyItems();
 

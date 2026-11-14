@@ -27,29 +27,26 @@ typedef struct
     // active mode; each glyph hangs from the top of the line.
     const lv_font_t *font;
     AodGlyph digits[10];
-    AodGlyph colon;  // width 0: no colon (HH over MM)
+    AodGlyph colon;
     // Top-left corners of the two hour digits, the colon and the two minute digits in the time
-    // block (-1: not drawn).
+    // block.
     int16_t x[5];
     int16_t y[5];
     int16_t width;
     int16_t height;
-    // Seven-segment styles: the moon, date and battery are dotted too.
+    // Seven-segment style: the moon and the date are dotted too.
     bool dottedItems;
 } AodStyle;
 
 enum
 {
-    AOD_STYLE_COUNT = 14,
-    AOD_SMALL_COUNT = 33
+    AOD_STYLE_COUNT = 3,
+    AOD_SMALL_COUNT = 32
 };
-
-// The low-battery mark, the last of the small glyphs.
-#define AOD_BATTERY_CODE 0xE000
 
 extern const AodStyle aodStyles[AOD_STYLE_COUNT];
 
-// The date's characters (a space, digits and the letters of the day names) and the battery mark,
+// The date's characters (a space, digits and the letters of the day names),
 // solid and dotted (every second pixel of every second row). The characters advance by
 // aodSmallAdvance; aodSmallCodes holds their code points.
 extern const uint16_t aodSmallCodes[AOD_SMALL_COUNT];

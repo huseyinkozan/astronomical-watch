@@ -9,4 +9,3 @@ LV_FONT_DECLARE( jetbrains_mono_48 )
 // The large digits of the watch faces: 0-9 and the colon only.
 LV_FONT_DECLARE( jetbrains_mono_light_110 )
 LV_FONT_DECLARE( jetbrains_mono_light_90 )
-LV_FONT_DECLARE( jetbrains_mono_thin_170 )

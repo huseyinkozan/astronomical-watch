@@ -1,10 +1,15 @@
 #include "CornerView.h"
 
+#include <cmath>
+
 #include "Panel.h"
 
 static const int s_activeWidth = 5;
 static const int s_alwaysOnWidth = 2;
 static const uint32_t s_trackColour = 0x222222;
+static const uint32_t s_notchColour = 0xD0D0D0;
+// The channel: the gauge's colour at this share of its brightness.
+static const int s_channelPercent = 30;
 
 // Colours by Corners::Kind: active mode, and the always-on face's idle-mode colours (each channel
 // on or off), where orange becomes yellow and the Moon's dark grey white.
@@ -33,6 +38,41 @@ void CornerView::build()
         m_arcs[i] = arc;
         apply( i );
     }
+    // Over the arcs.
+    for ( int i = 0; i < Corners::CornerCount; ++i ) {
+        for ( int k = 0; k < 3; ++k ) {
+            lv_obj_t *notch = lv_line_create( layer );
+            lv_obj_set_clickable( notch, false );
+            m_notches[i][k] = notch;
+        }
+        placeNotches( i );
+    }
+}
+
+void CornerView::placeNotches( int corner )
+{
+    int centreX = 0;
+    int centreY = 0;
+    int lower = 0;
+    int upper = 0;
+    Corners::geometry( static_cast<Corners::Corner>( corner ), Panel::WIDTH, Panel::HEIGHT, centreX, centreY, lower,
+                       upper );
+    const int width = m_alwaysOn ? s_alwaysOnWidth : s_activeWidth;
+    for ( int k = 0; k < 3; ++k ) {
+        const double angle = ( lower + ( upper - lower ) * k / 2.0 ) * M_PI / 180.0;
+        // Across the gauge, from its outer edge inwards; a line's width is centred on its points.
+        const double outer = Corners::OuterRadius - 0.5;
+        const double inner = Corners::OuterRadius - width + 0.5;
+        lv_point_precise_t *points = m_notchPoints[corner][k];
+        points[0] = { static_cast<lv_value_precise_t>( std::lround( centreX + outer * std::cos( angle ) ) ),
+                      static_cast<lv_value_precise_t>( std::lround( centreY + outer * std::sin( angle ) ) ) };
+        points[1] = { static_cast<lv_value_precise_t>( std::lround( centreX + inner * std::cos( angle ) ) ),
+                      static_cast<lv_value_precise_t>( std::lround( centreY + inner * std::sin( angle ) ) ) };
+        lv_obj_t *notch = m_notches[corner][k];
+        lv_line_set_points( notch, points, 2 );
+        lv_obj_set_style_line_width( notch, 2, 0 );
+        lv_obj_set_style_line_color( notch, lv_color_hex( m_alwaysOn ? 0xFFFFFF : s_notchColour ), 0 );
+    }
 }
 
 void CornerView::show( const Corners::Gauge gauges[Corners::CornerCount] )
@@ -55,6 +95,7 @@ void CornerView::setAlwaysOnLook( bool alwaysOn )
     m_alwaysOn = alwaysOn;
     for ( int i = 0; i < Corners::CornerCount; ++i ) {
         apply( i );
+        placeNotches( i );
     }
 }
 
@@ -63,6 +104,11 @@ void CornerView::setHidden( bool hidden )
     for ( int i = 0; i < Corners::CornerCount; ++i ) {
         if ( m_arcs[i] != nullptr ) {
             lv_obj_set_hidden( m_arcs[i], hidden );
+        }
+        for ( int k = 0; k < 3; ++k ) {
+            if ( m_notches[i][k] != nullptr ) {
+                lv_obj_set_hidden( m_notches[i][k], hidden );
+            }
         }
     }
 }
@@ -83,10 +129,18 @@ void CornerView::apply( int corner )
     const int width = m_alwaysOn ? s_alwaysOnWidth : s_activeWidth;
     lv_obj_set_style_arc_width( arc, width, LV_PART_MAIN );
     lv_obj_set_style_arc_width( arc, width, LV_PART_INDICATOR );
-    lv_obj_set_style_arc_color( arc, lv_color_hex( s_trackColour ), LV_PART_MAIN );
+    const uint32_t colour = m_alwaysOn ? s_alwaysOnColours[gauge.kind] : s_activeColours[gauge.kind];
+    // The channel takes the colour of what the gauge shows; below the horizon the Moon's gauge
+    // keeps the channel of the Moon above it, so that the dark grey value stands out.
+    const Corners::Kind channelKind = gauge.kind == Corners::MoonDown ? Corners::MoonUp : gauge.kind;
+    lv_color_t channel = lv_color_hex( s_trackColour );
+    if ( channelKind != Corners::Empty ) {
+        channel = lv_color_mix( lv_color_hex( s_activeColours[channelKind] ), lv_color_black(),
+                                static_cast<uint8_t>( 255 * s_channelPercent / 100 ) );
+    }
+    lv_obj_set_style_arc_color( arc, channel, LV_PART_MAIN );
     lv_obj_set_style_arc_opa( arc, m_alwaysOn ? LV_OPA_TRANSP : LV_OPA_COVER, LV_PART_MAIN );
 
-    const uint32_t colour = m_alwaysOn ? s_alwaysOnColours[gauge.kind] : s_activeColours[gauge.kind];
     lv_obj_set_style_arc_color( arc, lv_color_hex( colour ), LV_PART_INDICATOR );
     // The always-on face dots the Moon's time below the horizon; half opacity stands for it here.
     const bool dotted = m_alwaysOn && gauge.kind == Corners::MoonDown;

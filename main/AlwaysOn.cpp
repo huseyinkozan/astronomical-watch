@@ -21,8 +21,7 @@ static const uint16_t s_colours[5] = { 0xFFFF, 0xE0FF, 0x00F8, 0xE007, 0x1F00 };
 
 static const int s_moonRadius = 18;
 static const int s_moonSize = 2 * s_moonRadius + 1;
-static const int s_itemsGap = 24;     // between the time and the moon and date
-static const int s_moonTextGap = 16;
+static const int s_itemsGap = 24;  // between the time and the date
 
 static const char *s_dayNames[7] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
 
@@ -112,13 +111,19 @@ static const AodGlyph *smallGlyph( uint32_t code, bool dotted )
     return nullptr;
 }
 
+const AodGlyph *AlwaysOn::moon( const Look &look )
+{
+    if ( !( look.items & MoonItem ) ) {
+        return nullptr;
+    }
+    return moonGlyph( look.moonPercent, look.waxing, aodStyles[look.style].dottedItems );
+}
+
 AlwaysOn::Face AlwaysOn::layout( const Look &look, const Rtc::DateTime &time )
 {
     Face face = {};
     const AodStyle &style = aodStyles[look.style];
-    const bool stacked = style.colon.width == 0;
     const bool dotted = style.dottedItems;
-    const bool showMoon = look.items & MoonItem;
     const bool showDate = look.items & DateItem;
     const lv_font_t *smallFont = dotted ? &aodSmallDottedFont : &aodSmallFont;
 
@@ -129,10 +134,8 @@ AlwaysOn::Face AlwaysOn::layout( const Look &look, const Rtc::DateTime &time )
     }
     const int dateWidth = static_cast<int>( strlen( date ) ) * aodSmallAdvance;
     const int dateHeight = aodSmall[1].height;  // [0] is the space
-    const int rowWidth = ( showMoon ? s_moonSize : 0 ) + ( showMoon && showDate ? s_moonTextGap : 0 ) + dateWidth;
-    const int rowHeight = ( showMoon || showDate ) ? ( dateHeight > s_moonSize ? dateHeight : s_moonSize ) : 0;
 
-    face.width = style.width > rowWidth ? style.width : rowWidth;
+    face.width = style.width > dateWidth ? style.width : dateWidth;
     int y = 0;
     const int timeX = ( face.width - style.width ) / 2;
     const int digits[4] = { time.hour / 10, time.hour % 10, time.minute / 10, time.minute % 10 };
@@ -141,27 +144,19 @@ AlwaysOn::Face AlwaysOn::layout( const Look &look, const Rtc::DateTime &time )
         addSprite( face, timeX + style.x[slots[i]], y + style.y[slots[i]], &style.digits[digits[i]], style.font,
                    static_cast<uint32_t>( '0' + digits[i] ), White );
     }
-    if ( !stacked ) {
-        addSprite( face, timeX + style.x[2], y + style.y[2], &style.colon, style.font, ':', White );
-    }
+    addSprite( face, timeX + style.x[2], y + style.y[2], &style.colon, style.font, ':', White );
     y += style.height;
-    if ( rowHeight > 0 ) {
+    if ( showDate ) {
         y += s_itemsGap;
-        int x = ( face.width - rowWidth ) / 2;
-        if ( showMoon ) {
-            addSprite( face, x, y + ( rowHeight - s_moonSize ) / 2,
-                       moonGlyph( look.moonPercent, look.waxing, dotted ), nullptr, 0, Yellow );
-            x += s_moonSize + s_moonTextGap;
-        }
+        int x = ( face.width - dateWidth ) / 2;
         for ( int i = 0; date[i] != '\0'; ++i ) {
             const AodGlyph *glyph = smallGlyph( static_cast<uint8_t>( date[i] ), dotted );
             if ( glyph != nullptr ) {
-                addSprite( face, x, y + ( rowHeight - dateHeight ) / 2, glyph, smallFont,
-                           static_cast<uint8_t>( date[i] ), White );
+                addSprite( face, x, y, glyph, smallFont, static_cast<uint8_t>( date[i] ), White );
             }
             x += aodSmallAdvance;
         }
-        y += rowHeight;
+        y += dateHeight;
     }
     face.height = y;
     return face;
@@ -172,6 +167,30 @@ int AlwaysOn::gaugeColour( Corners::Kind kind )
     // By Corners::Kind; orange and the Moon's dark grey have no idle-mode colour.
     static const int colours[] = { -1, Yellow, Blue, Green, Yellow, Red, White, White, White };
     return colours[kind];
+}
+
+// Whether pixel (x, y) belongs to a notch: 2 x 2 pixels across each gauge at both ends and in the
+// middle, white.
+static bool notchPixel( int x, int y )
+{
+    const float radius = Corners::OuterRadius - s_gaugeWidth / 2.0f;
+    for ( int i = 0; i < Corners::CornerCount; ++i ) {
+        int centreX = 0;
+        int centreY = 0;
+        int lower = 0;
+        int upper = 0;
+        Corners::geometry( static_cast<Corners::Corner>( i ), Panel::WIDTH, Panel::HEIGHT, centreX, centreY, lower,
+                           upper );
+        for ( int k = 0; k < 3; ++k ) {
+            const float angle = ( lower + ( upper - lower ) * k / 2.0f ) * static_cast<float>( M_PI ) / 180.0f;
+            const float notchX = centreX + radius * cosf( angle );
+            const float notchY = centreY + radius * sinf( angle );
+            if ( fabsf( x + 0.5f - notchX ) < 1.0f && fabsf( y + 0.5f - notchY ) < 1.0f ) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 // The colour of pixel (x, y) on a corner gauge, or 0 when no gauge lights it. The Moon below the
@@ -214,10 +233,29 @@ static uint16_t gaugePixel( const Corners::Gauge *gauges, int x, int y )
     return 0;
 }
 
-// Draws the rectangle (even position and size) band by band: black, with the face's bitmaps
-// and the corner gauges (when given) where they fall into it.
+// Draws the part of `glyph` (top-left corner at x, y on the screen) that falls into the band.
+static void drawGlyph( uint16_t *pixels, int bandTop, int rows, int left, int width, const AodGlyph &glyph, int x,
+                       int y, uint16_t colour )
+{
+    const int firstRow = y > bandTop ? y : bandTop;
+    const int endRow = ( y + glyph.height < bandTop + rows ) ? y + glyph.height : bandTop + rows;
+    for ( int row = firstRow; row < endRow; ++row ) {
+        const int firstBit = ( row - y ) * glyph.width;
+        uint16_t *line = pixels + ( row - bandTop ) * width;
+        for ( int column = 0; column < glyph.width; ++column ) {
+            const int bit = firstBit + column;
+            const int screenX = x + column;
+            if ( ( glyph.bits[bit / 8] & ( 0x80 >> ( bit % 8 ) ) ) && screenX >= left && screenX < left + width ) {
+                line[screenX - left] = colour;
+            }
+        }
+    }
+}
+
+// Draws the rectangle (even position and size) band by band: black, with the face's bitmaps, the
+// moon (null: none) at its fixed place and the corner gauges (when given) where they fall into it.
 static void render( Panel &panel, const AlwaysOn::Face &face, int faceX, int faceY, int left, int top, int width,
-                    int height, const Corners::Gauge *gauges )
+                    int height, const AodGlyph *moon, const Corners::Gauge *gauges )
 {
     uint16_t *pixels = Panel::buffer();
     const int bandRows = ( Panel::BufferPixels / width ) & ~1;
@@ -226,23 +264,12 @@ static void render( Panel &panel, const AlwaysOn::Face &face, int faceX, int fac
         memset( pixels, 0, sizeof( uint16_t ) * rows * width );
         for ( int i = 0; i < face.count; ++i ) {
             const AlwaysOn::Sprite &sprite = face.sprites[i];
-            const AodGlyph &glyph = *sprite.glyph;
-            const uint16_t colour = s_colours[sprite.colour];
-            const int spriteX = faceX + sprite.x;
-            const int spriteY = faceY + sprite.y;
-            const int firstRow = spriteY > bandTop ? spriteY : bandTop;
-            const int endRow = ( spriteY + glyph.height < bandTop + rows ) ? spriteY + glyph.height : bandTop + rows;
-            for ( int row = firstRow; row < endRow; ++row ) {
-                const int firstBit = ( row - spriteY ) * glyph.width;
-                uint16_t *line = pixels + ( row - bandTop ) * width;
-                for ( int x = 0; x < glyph.width; ++x ) {
-                    const int bit = firstBit + x;
-                    const int screenX = spriteX + x;
-                    if ( ( glyph.bits[bit / 8] & ( 0x80 >> ( bit % 8 ) ) ) && screenX >= left && screenX < left + width ) {
-                        line[screenX - left] = colour;
-                    }
-                }
-            }
+            drawGlyph( pixels, bandTop, rows, left, width, *sprite.glyph, faceX + sprite.x, faceY + sprite.y,
+                       s_colours[sprite.colour] );
+        }
+        if ( moon != nullptr ) {
+            drawGlyph( pixels, bandTop, rows, left, width, *moon, AlwaysOn::MoonX, AlwaysOn::MoonY,
+                       s_colours[AlwaysOn::Yellow] );
         }
         for ( int row = bandTop; gauges != nullptr && row < bandTop + rows; ++row ) {
             if ( row >= s_cornerBox && row < Panel::HEIGHT - s_cornerBox ) {
@@ -253,7 +280,7 @@ static void render( Panel &panel, const AlwaysOn::Face &face, int faceX, int fac
                 if ( x >= s_cornerBox && x < Panel::WIDTH - s_cornerBox ) {
                     continue;
                 }
-                const uint16_t colour = gaugePixel( gauges, x, row );
+                const uint16_t colour = notchPixel( x, row ) ? s_colours[AlwaysOn::White] : gaugePixel( gauges, x, row );
                 if ( colour != 0 ) {
                     line[x - left] = colour;
                 }
@@ -266,8 +293,9 @@ static void render( Panel &panel, const AlwaysOn::Face &face, int faceX, int fac
 #if CONFIG_WATCH_AOD_CYCLE_MIN > 0
 int AlwaysOn::cycleStyle( uint32_t seconds )
 {
-    // Blank, Sparse, Light (aodStyles), after an hour of blank.
-    static const int styles[3] = { -1, 5, 1 };
+    // Blank, Dense, Thin (aodStyles), after an hour of blank. Run V used Sparse and Light, which
+    // are gone; the result (no visible cost of lit pixels) does not depend on the style.
+    static const int styles[3] = { -1, 2, 0 };
     const uint32_t settleS = 3600;
     if ( seconds < settleS ) {
         return -1;
@@ -284,7 +312,7 @@ static int validStyle( int style )
 #if CONFIG_WATCH_DEV_LOGGING
 void AlwaysOn::capture( int style )
 {
-    const Look look = { validStyle( style ), MoonItem | DateItem, 45, true, {} };
+    const Look look = { validStyle( style ), MoonItem | DateItem, 45, true, {}, 25, 2 };
     const Rtc::DateTime time = { 2026, 6, 21, 19, 19, 0 };
     const Face face = layout( look, time );
     // The scene's gauges: 91 % of the day, the battery at 92 %, the Moon 55 % through its pass
@@ -298,11 +326,13 @@ void AlwaysOn::capture( int style )
     panel.record();
     printf( "SHOT BEGIN -1 %d %d always-on-%d\n", Panel::WIDTH, Panel::HEIGHT, look.style );
     panel.clear();
-    render( panel, face, faceX, faceY, faceX, faceY, ( face.width + 1 ) & ~1, ( face.height + 1 ) & ~1, gauges );
+    const AodGlyph *moonBits = moon( look );
+    render( panel, face, faceX, faceY, faceX, faceY, ( face.width + 1 ) & ~1, ( face.height + 1 ) & ~1, moonBits,
+            gauges );
     for ( int i = 0; i < Corners::CornerCount; ++i ) {
         const int boxX = ( i == Corners::TopLeft || i == Corners::BottomLeft ) ? 0 : Panel::WIDTH - s_cornerBox;
         const int boxY = ( i == Corners::TopLeft || i == Corners::TopRight ) ? 0 : Panel::HEIGHT - s_cornerBox;
-        render( panel, face, faceX, faceY, boxX, boxY, s_cornerBox, s_cornerBox, gauges );
+        render( panel, face, faceX, faceY, boxX, boxY, s_cornerBox, s_cornerBox, moonBits, gauges );
     }
     printf( "SHOT END\n" );
     fflush( stdout );
@@ -358,9 +388,14 @@ uint64_t AlwaysOn::update( const Rtc::DateTime &time, int64_t utcNow, bool timeR
         s_active = false;
         return 0;
     }
+    Look look = s_look;
+    Corners::Gauge gauges[Corners::CornerCount] = {};
+    Corners::compute( look.corners, utcNow, batteryPercent, gauges );
+    // The day level from sunrise to sunset (the day gauge), else the night level.
+    const int brightness = gauges[Corners::TopLeft].kind == Corners::Night ? look.nightBrightness : look.dayBrightness;
     if ( !s_screenCleared ) {
         // Dim first: the panel still runs at the active-mode brightness.
-        panel.setBrightness( CONFIG_WATCH_AOD_BRIGHTNESS );
+        panel.setBrightness( brightness );
         if ( s_idleMode ) {
             panel.setIdleMode();
         }
@@ -368,7 +403,6 @@ uint64_t AlwaysOn::update( const Rtc::DateTime &time, int64_t utcNow, bool timeR
         s_screenCleared = true;
     }
 
-    Look look = s_look;
 #if CONFIG_WATCH_AOD_CYCLE_MIN > 0
     // System time runs from power-on through deep sleep, as in the battery samples.
     timeval now = {};
@@ -406,9 +440,8 @@ uint64_t AlwaysOn::update( const Rtc::DateTime &time, int64_t utcNow, bool timeR
         right = s_drawnX + s_drawnWidth > right ? s_drawnX + s_drawnWidth : right;
         bottom = s_drawnY + s_drawnHeight > bottom ? s_drawnY + s_drawnHeight : bottom;
     }
-    Corners::Gauge gauges[Corners::CornerCount] = {};
-    Corners::compute( look.corners, utcNow, batteryPercent, gauges );
-    render( panel, face, faceX, faceY, left, top, right - left, bottom - top, gauges );
+    const AodGlyph *moonBits = blank ? nullptr : moon( look );
+    render( panel, face, faceX, faceY, left, top, right - left, bottom - top, moonBits, gauges );
     s_drawnX = faceX;
     s_drawnY = faceY;
     s_drawnWidth = width;
@@ -423,13 +456,13 @@ uint64_t AlwaysOn::update( const Rtc::DateTime &time, int64_t utcNow, bool timeR
         }
         const int boxX = ( i == Corners::TopLeft || i == Corners::BottomLeft ) ? 0 : Panel::WIDTH - s_cornerBox;
         const int boxY = ( i == Corners::TopLeft || i == Corners::TopRight ) ? 0 : Panel::HEIGHT - s_cornerBox;
-        render( panel, face, faceX, faceY, boxX, boxY, s_cornerBox, s_cornerBox, gauges );
+        render( panel, face, faceX, faceY, boxX, boxY, s_cornerBox, s_cornerBox, moonBits, gauges );
         for ( int k = 0; k < 3; ++k ) {
             s_drawnGauges[i][k] = drawn[k];
         }
     }
     // The brightness command is sent after the drawing has finished.
-    panel.setBrightness( CONFIG_WATCH_AOD_BRIGHTNESS );
+    panel.setBrightness( brightness );
     Panel::holdPins();
 
     // Land just after the minute changes; the RTC read on the next wake corrects any drift.

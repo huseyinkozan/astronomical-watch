@@ -136,10 +136,19 @@ bitmaps): top left the day (yellow, sunrise to sunset) or the night (blue), top 
 battery (green, orange above 10 %, red at the power-off limit), bottom left the Moon above the
 horizon (bluish white, rise to set) or below it (dark grey, set to rise), bottom right the
 Moon's phase (the lit part grows from the lower end and shrinks towards the upper end). Each is
-a quarter circle 3 px inside the visible edge, starting at its lower end. The always-on face
-draws them 2 px wide in idle-mode colours, outside the burn-in shift, and redraws a corner only
-when its gauge moved by a pixel; the always-on page shows that look with LVGL arcs, close to but
-not pixel for pixel the same.
+a quarter circle 3 px inside the visible edge, starting at its lower end, with notches at both
+ends and in the middle as long as the gauge is wide. Active mode draws them 5 px wide in a
+channel of a dim tone of their own colour. The always-on face draws them 2 px wide without the
+channel in idle-mode colours, outside the burn-in shift, and redraws a corner only when its
+gauge moved by a pixel; the always-on page shows that look with LVGL arcs, close to but not pixel
+for pixel the same. The Moon's phase icon sits in the top-left corner inside the day gauge, on
+the watch faces and the always-on face alike.
+
+Brightness: active mode has one level, the always-on face one by day and one by night, switched
+at sunrise and sunset (the day gauge; no light sensor on the board). A long press and a vertical
+drag sets them: on the watch face the active level, on the always-on page the level of the
+moment, shown at that brightness while dragging. The settings page row steps through 20, 50 and
+100 %.
 
 - Small, focused modules; no layers or abstractions without a clear benefit.
 - Astronomy code is independent of UI and ESP-IDF so it can be tested on the host

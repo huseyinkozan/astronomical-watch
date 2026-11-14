@@ -21,6 +21,8 @@ public:
         AodStyle,        // always-on style, an index of aodStyles (AodGlyphs.h)
         FaceItems,       // bits of WatchFace::Item shown on the active face
         AodItems,        // bits of AlwaysOn::Item shown on the always-on face
+        AodDayBrightness,    // always-on panel brightness from sunrise to sunset, percent
+        AodNightBrightness,  // and from sunset to sunrise
         ItemCount
     };
     // The items before this one are on the watch's settings page; FaceStyle and AodStyle are
@@ -35,7 +37,9 @@ public:
     // Writes the values that changed since load(); test builds write nothing.
     void save();
 
-    // Steps the item to the next value of its list; after the last comes the first.
+    // Steps the item to the next value of its list; after the last comes the first. An item with
+    // a list and a range (the brightness, also set by dragging) steps to the next listed value
+    // above the current one.
     void next( Item item );
 
     // Sets a value from the setup portal; false (and no change) when it is not valid.

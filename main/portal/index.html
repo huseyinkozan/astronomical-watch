@@ -57,8 +57,14 @@
   <select id="timeout"></select>
   <label for="alwaysOn">Always-on face</label>
   <select id="alwaysOn"></select>
-  <label for="brightness">Brightness</label>
-  <select id="brightness"></select>
+  <label for="brightness">Brightness (%)</label>
+  <input id="brightness" type="number" min="5" max="100" step="1">
+  <label for="aodDay">Always-on brightness from sunrise to sunset (%)</label>
+  <input id="aodDay" type="number" min="1" max="100" step="1">
+  <label for="aodNight">Always-on brightness from sunset to sunrise (%)</label>
+  <input id="aodNight" type="number" min="1" max="100" step="1">
+  <small>On the watch: hold a finger on the watch face (or on the always-on page for the
+  always-on brightness of the moment) and drag up or down.</small>
   <label for="autoOff">Switch off without motion after</label>
   <select id="autoOff"></select>
   <label for="hijri">Hijri months start with</label>
@@ -112,13 +118,10 @@ function offsetText(minutes) {
 // The same value lists as the watch (main/Settings.cpp).
 fill($('timeout'), [[5, '5 s'], [10, '10 s'], [20, '20 s'], [30, '30 s'], [60, '60 s']]);
 fill($('alwaysOn'), [[1, 'On'], [0, 'Off']]);
-fill($('brightness'), [[20, 'Low'], [50, 'Mid'], [100, 'High']]);
 fill($('autoOff'), [[20, '20 min'], [30, '30 min'], [60, '60 min'], [0, 'Never']]);
 fill($('hijri'), [[0, 'Local crescent'], [1, 'Diyanet']]);
-fill($('face'), [[0, 'Classic'], [1, 'Day arc'], [2, 'Stacked (hours over minutes)']]);
-const aodNames = ['Thin', 'Light', 'Regular', 'Outlines (dotted segments)', 'Dense (dots in the segments)',
-  'Sparse (fewer dots in the segments)', 'Mixed (dotted outline, dots inside)'];
-fill($('aod'), aodNames.map((n, i) => [i, n]).concat(aodNames.map((n, i) => [i + 7, n + ', hours over minutes'])));
+fill($('face'), [[0, 'Classic'], [1, 'Day arc']]);
+fill($('aod'), [[0, 'Thin'], [1, 'Regular'], [2, 'Dense (dotted seven segments)']]);
 
 // Item choices as bits, as in main/Display.h (FaceItem) and main/AlwaysOn.h (Item).
 function checks(box, items) {
@@ -168,7 +171,7 @@ setInterval(() => { $('now').textContent = 'This device: ' + new Date().toLocale
 
 // Current values from the watch.
 fetch('/api/state').then((r) => r.json()).then((s) => {
-  for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'hijri', 'face', 'aod']) $(id).value = String(s[id]);
+  for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'hijri', 'face', 'aod', 'aodDay', 'aodNight']) $(id).value = String(s[id]);
   setBits($('faceItems'), s.faceItems);
   setBits($('aodItems'), s.aodItems);
   if (s.lat !== 0 || s.lon !== 0) {
@@ -192,7 +195,7 @@ $('save').addEventListener('click', async () => {
   $('status').textContent = 'Saving…';
   try {
     const fields = new URLSearchParams();
-    for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'offset', 'hijri', 'face', 'aod']) fields.set(id, $(id).value);
+    for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'offset', 'hijri', 'face', 'aod', 'aodDay', 'aodNight']) fields.set(id, $(id).value);
     fields.set('faceItems', String(bitsOf($('faceItems'))));
     fields.set('aodItems', String(bitsOf($('aodItems'))));
     if ($('lat').value !== '' && $('lon').value !== '') {

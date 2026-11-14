@@ -228,6 +228,14 @@ bool Display::start( Settings &settings )
     lv_tileview_set_tile_by_index( pages, FacePage, 0, LV_ANIM_OFF );
     lv_obj_add_event_cb( pages, onPageChanged, LV_EVENT_VALUE_CHANGED, this );
     m_corners.build();
+    buildBrightnessControl();
+    for ( int i = 0; i < 2; ++i ) {
+        lv_obj_t *tile = i == 0 ? m_aodTile : m_faceTile;
+        lv_obj_add_event_cb( tile, onBrightnessDrag, LV_EVENT_LONG_PRESSED, this );
+        lv_obj_add_event_cb( tile, onBrightnessDrag, LV_EVENT_PRESSING, this );
+        lv_obj_add_event_cb( tile, onBrightnessDrag, LV_EVENT_RELEASED, this );
+        lv_obj_add_event_cb( tile, onBrightnessDrag, LV_EVENT_PRESS_LOST, this );
+    }
     lv_obj_t *batteryPage = tiles[BatteryPage];
     lv_obj_t *settingsPage = tiles[SettingsPage];
     m_sky.build( tiles[SunPage], tiles[TwilightPage], tiles[MoonPage], tiles[CompassPage] );
@@ -407,7 +415,130 @@ void Display::showCorners( const Corners::Gauge gauges[Corners::CornerCount] )
         return;
     }
     m_corners.show( gauges );
+    m_night = gauges[Corners::TopLeft].kind == Corners::Night;
     bsp_display_unlock();
+}
+
+// The bar of the brightness control runs over this many pixels: dragging its length covers 0 to
+// 100 %.
+static const int s_barTop = 140;
+static const int s_barHeight = 222;
+
+void Display::buildBrightnessControl()
+{
+    lv_obj_t *layer = lv_layer_top();
+    // Over the corner gauges: the page under the control is dimmed.
+    m_brightnessShade = lv_obj_create( layer );
+    lv_obj_remove_style_all( m_brightnessShade );
+    lv_obj_set_size( m_brightnessShade, Panel::WIDTH, Panel::HEIGHT );
+    lv_obj_set_style_bg_color( m_brightnessShade, lv_color_black(), 0 );
+    lv_obj_set_clickable( m_brightnessShade, false );
+    lv_obj_set_hidden( m_brightnessShade, true );
+
+    m_brightnessBox = lv_obj_create( layer );
+    lv_obj_remove_style_all( m_brightnessBox );
+    lv_obj_set_size( m_brightnessBox, 250, 150 );
+    lv_obj_set_style_bg_color( m_brightnessBox, lv_color_black(), 0 );
+    lv_obj_set_style_bg_opa( m_brightnessBox, LV_OPA_COVER, 0 );
+    lv_obj_set_style_border_color( m_brightnessBox, lv_color_hex( 0x505050 ), 0 );
+    lv_obj_set_style_border_width( m_brightnessBox, 2, 0 );
+    lv_obj_set_style_radius( m_brightnessBox, 16, 0 );
+    lv_obj_set_clickable( m_brightnessBox, false );
+    lv_obj_set_scrollable( m_brightnessBox, false );
+    lv_obj_set_hidden( m_brightnessBox, true );
+    m_brightnessValue = lv_label_create( m_brightnessBox );
+    lv_obj_set_style_text_font( m_brightnessValue, &jetbrains_mono_48, 0 );
+    lv_obj_set_style_text_color( m_brightnessValue, lv_color_white(), 0 );
+    lv_obj_align( m_brightnessValue, LV_ALIGN_TOP_MID, 0, 16 );
+    m_brightnessTitle = lv_label_create( m_brightnessBox );
+    lv_obj_set_style_text_font( m_brightnessTitle, &jetbrains_mono_26, 0 );
+    lv_obj_set_style_text_color( m_brightnessTitle, lv_color_hex( 0xA0A0A0 ), 0 );
+    lv_obj_set_style_text_align( m_brightnessTitle, LV_TEXT_ALIGN_CENTER, 0 );
+    lv_obj_align( m_brightnessTitle, LV_ALIGN_TOP_MID, 0, 76 );
+
+    m_brightnessBar = lv_bar_create( layer );
+    lv_obj_remove_style_all( m_brightnessBar );
+    lv_obj_set_size( m_brightnessBar, 18, s_barHeight );
+    lv_obj_set_pos( m_brightnessBar, 352, s_barTop );
+    lv_bar_set_range( m_brightnessBar, 0, 100 );
+    lv_obj_set_style_border_color( m_brightnessBar, lv_color_hex( 0x808080 ), LV_PART_MAIN );
+    lv_obj_set_style_border_width( m_brightnessBar, 2, LV_PART_MAIN );
+    lv_obj_set_style_radius( m_brightnessBar, 9, LV_PART_MAIN );
+    lv_obj_set_style_pad_all( m_brightnessBar, 4, LV_PART_MAIN );
+    lv_obj_set_style_bg_color( m_brightnessBar, lv_color_white(), LV_PART_INDICATOR );
+    lv_obj_set_style_bg_opa( m_brightnessBar, LV_OPA_COVER, LV_PART_INDICATOR );
+    lv_obj_set_style_radius( m_brightnessBar, 5, LV_PART_INDICATOR );
+    lv_obj_set_clickable( m_brightnessBar, false );
+    lv_obj_set_hidden( m_brightnessBar, true );
+}
+
+void Display::showBrightness( int percent )
+{
+    lv_label_set_text_fmt( m_brightnessValue, "%d %%", percent );
+    lv_bar_set_value( m_brightnessBar, percent, LV_ANIM_OFF );
+    setBrightness( percent );
+}
+
+void Display::onBrightnessDrag( lv_event_t *event )
+{
+    Display *self = static_cast<Display *>( lv_event_get_user_data( event ) );
+    const lv_event_code_t code = lv_event_get_code( event );
+    lv_point_t point = {};
+    lv_indev_t *indev = lv_indev_active();
+    if ( indev != nullptr ) {
+        lv_indev_get_point( indev, &point );
+    }
+    const bool alwaysOn = lv_event_get_current_target( event ) == self->m_aodTile;
+    if ( code == LV_EVENT_LONG_PRESSED ) {
+        self->m_adjusting = true;
+        self->m_adjustItem = !alwaysOn ? Settings::Brightness
+                                       : ( self->m_night ? Settings::AodNightBrightness : Settings::AodDayBrightness );
+        self->m_adjustStart = self->m_settings->value( self->m_adjustItem );
+        self->m_adjustPercent = self->m_adjustStart;
+        self->m_adjustY = point.y;
+        // The finger may drift sideways: the pages must not swipe while the value is set.
+        lv_obj_set_scrollable( self->m_pages, false );
+        // The always-on page stays undimmed, so that its brightness can be judged; the box goes
+        // to the bottom there.
+        lv_obj_set_style_bg_opa( self->m_brightnessShade, alwaysOn ? LV_OPA_TRANSP : LV_OPA_80, 0 );
+        lv_obj_align( self->m_brightnessBox, LV_ALIGN_TOP_MID, -10, alwaysOn ? 330 : 176 );
+        // The active level is one for day and night; the period is shown for information.
+        const char *title = nullptr;
+        if ( alwaysOn ) {
+            title = self->m_night ? "Always-on\nat night" : "Always-on\nby day";
+        } else {
+            title = self->m_night ? "Brightness\n(night)" : "Brightness\n(day)";
+        }
+        lv_label_set_text( self->m_brightnessTitle, title );
+        lv_obj_set_hidden( self->m_brightnessShade, false );
+        lv_obj_set_hidden( self->m_brightnessBox, false );
+        lv_obj_set_hidden( self->m_brightnessBar, false );
+        self->showBrightness( self->m_adjustPercent );
+        return;
+    }
+    if ( !self->m_adjusting ) {
+        return;
+    }
+    if ( code == LV_EVENT_PRESSING ) {
+        const int minimum = alwaysOn ? 1 : 5;
+        int percent = self->m_adjustStart + ( self->m_adjustY - point.y ) * 100 / s_barHeight;
+        percent = percent < minimum ? minimum : ( percent > 100 ? 100 : percent );
+        if ( percent != self->m_adjustPercent ) {
+            self->m_adjustPercent = percent;
+            self->showBrightness( percent );
+        }
+        return;
+    }
+    // Released, or the press was lost.
+    self->m_adjusting = false;
+    self->m_settings->setValue( self->m_adjustItem, self->m_adjustPercent );
+    lv_obj_set_scrollable( self->m_pages, true );
+    lv_obj_set_hidden( self->m_brightnessShade, true );
+    lv_obj_set_hidden( self->m_brightnessBox, true );
+    lv_obj_set_hidden( self->m_brightnessBar, true );
+    setBrightness( self->m_settings->value( Settings::Brightness ) );
+    self->showSetting( Settings::Brightness );
+    ESP_LOGI( TAG, "Brightness setting %d: %d %%", self->m_adjustItem, self->m_adjustPercent );
 }
 
 void Display::onPageChanged( lv_event_t *event )
@@ -468,7 +599,7 @@ void Display::update( const Rtc::DateTime &time, int utcOffsetMinutes, const Bat
 void Display::refreshAlwaysOnPage( bool force, int direction )
 {
     const AlwaysOn::Look look = { m_settings->value( Settings::AodStyle ), m_settings->value( Settings::AodItems ),
-                                  m_moonPercent, m_waxing, {} };
+                                  m_moonPercent, m_waxing, {}, 0, 0 };
     const int shown[4] = { m_localTime.hour * 60 + m_localTime.minute, look.style, look.items, look.moonPercent };
     bool same = !force;
     for ( int i = 0; i < 4; ++i ) {
@@ -484,12 +615,13 @@ void Display::onGesture( lv_event_t *event )
 {
     Display *display = static_cast<Display *>( lv_event_get_user_data( event ) );
     const lv_dir_t direction = lv_indev_get_gesture_dir( lv_indev_active() );
-    if ( direction != LV_DIR_TOP && direction != LV_DIR_BOTTOM ) {
+    // A drag that sets the brightness is no style swipe.
+    if ( display->m_adjusting || ( direction != LV_DIR_TOP && direction != LV_DIR_BOTTOM ) ) {
         return;
     }
     const bool alwaysOn = lv_event_get_current_target( event ) == display->m_aodTile;
     const Settings::Item item = alwaysOn ? Settings::AodStyle : Settings::FaceStyle;
-    const int count = alwaysOn ? AOD_STYLE_COUNT : 3;
+    const int count = alwaysOn ? AOD_STYLE_COUNT : WatchFace::StyleCount;
     // Up: the next style; down: the one before. The choice is saved with the other settings when
     // active mode ends.
     const int step = direction == LV_DIR_TOP ? 1 : count - 1;
@@ -610,8 +742,7 @@ void Display::showSetting( int item )
     } else if ( item == Settings::AlwaysOnFace ) {
         lv_label_set_text( label, value != 0 ? "On" : "Off" );
     } else if ( item == Settings::Brightness ) {
-        lv_label_set_text( label, value <= 20 ? "Low" : ( value <= 50 ? "Mid" : "High" ) );
-
+        lv_label_set_text_fmt( label, "%d %%", value );
     } else if ( value == 0 ) {
         lv_label_set_text( label, "Never" );
     } else {

@@ -87,6 +87,12 @@ private:
     static void onGesture( lv_event_t *event );
     // The always-on page shows the corners as the always-on face draws them.
     static void onPageChanged( lv_event_t *event );
+    // A long press and a vertical drag on the watch face sets the brightness; on the always-on
+    // page, the always-on brightness of the moment (day or night), shown at that level while
+    // dragging. Release saves the value (with the other settings when active mode ends).
+    static void onBrightnessDrag( lv_event_t *event );
+    void buildBrightnessControl();
+    void showBrightness( int percent );
     // Redraws the always-on page when the minute, the style, the items or the moon changed.
     // `direction` as in AodPage::show (a swipe).
     void refreshAlwaysOnPage( bool force, int direction = 0 );
@@ -102,6 +108,18 @@ private:
     SkyPages m_sky;
     AodPage m_aodPage;
     CornerView m_corners;
+    bool m_night = false;  // the day gauge shows the night: the always-on night level applies
+    // Brightness control.
+    lv_obj_t *m_brightnessShade = nullptr;
+    lv_obj_t *m_brightnessBox = nullptr;
+    lv_obj_t *m_brightnessValue = nullptr;
+    lv_obj_t *m_brightnessTitle = nullptr;
+    lv_obj_t *m_brightnessBar = nullptr;
+    bool m_adjusting = false;
+    Settings::Item m_adjustItem = Settings::Brightness;
+    int m_adjustStart = 0;
+    int m_adjustPercent = 0;
+    int m_adjustY = 0;
     lv_obj_t *m_aodTile = nullptr;
     lv_obj_t *m_faceTile = nullptr;
     Rtc::DateTime m_localTime = {};

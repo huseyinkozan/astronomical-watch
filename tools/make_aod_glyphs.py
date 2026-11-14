@@ -2,16 +2,14 @@
 """Generates main/AodGlyphs.c: the 1-bit bitmaps of the always-on face.
 
 The always-on wakes draw without LVGL or fonts (main/AlwaysOn.cpp), and the panel's idle mode
-shows each colour channel on or off, so every glyph is stored with one bit per pixel. Styles:
+shows each colour channel on or off, so every glyph is stored with one bit per pixel. Styles,
+each as HH:MM:
 
-    Thin, Light, Regular   JetBrains Mono
-    Outlines               seven segments, each a hexagon drawn as three nested dotted outlines
-                           (outer: 1-pixel gaps; 2 pixels inside: 2-pixel gaps; 2 more: 3-pixel gaps)
-    Dense, Sparse          seven segments tiled with dots 1 or 2 pixels apart
-    Mixed                  seven segments: a dotted outline, inside tiled 2 pixels apart
+    Thin, Regular   JetBrains Mono
+    Dense           seven segments, each a hexagon tiled with dots 1 pixel apart
 
-each as HH:MM on one line and as HH over MM, plus the small characters of the date and the
-low-battery mark (solid, and dotted for the seven-segment styles). The same bitmaps also form
+plus the small characters of the date (solid, and dotted for the seven-segment style). The same
+bitmaps also form
 LVGL fonts (1 bpp), with which the always-on page of active mode shows the styles. The moon is
 drawn on the watch, since it changes with the phase.
 
@@ -19,7 +17,6 @@ drawn on the watch, since it changes with the phase.
 """
 
 import argparse
-import math
 import os
 
 from PIL import Image, ImageDraw, ImageFont
@@ -63,7 +60,7 @@ def renderText(fnt, characters):
     return [image.crop(box) for image in images], box
 
 
-def fontStyle(weight, size, stacked):
+def fontStyle(weight, size):
     fnt = font(weight, size)
     digits, box = renderText(fnt, '0123456789')
     colonImage = Image.new('L', (size * 2, size * 2), 0)
@@ -73,11 +70,6 @@ def fontStyle(weight, size, stacked):
     colon = colonImage.crop((left, box[1], right, box[3]))
     step = round(fnt.getlength('0'))
     width, height = digits[0].size
-    if stacked:
-        rowGap = round(size * 0.12)
-        x = [0, step, -1, 0, step]
-        y = [0, 0, -1, height + rowGap, height + rowGap]
-        return digits, None, x, y, step + width, 2 * height + rowGap
     # A narrow colon: the monospaced one would take a whole digit cell.
     space = round(size * 0.08)
     colonX = step + width + space
@@ -92,31 +84,15 @@ def fontStyle(weight, size, stacked):
 DIGIT_W, DIGIT_H, STROKE, JOINT_GAP = 76, 170, 20, 4
 
 
-def hexagon(x0, y0, x1, y1, inset):
-    """A segment with pointed ends along its long axis, `inset` pixels inside its box."""
+def hexagon(x0, y0, x1, y1):
+    """A segment with pointed ends along its long axis."""
     if x1 - x0 >= y1 - y0:
         half = (y1 - y0) / 2
         middle = (y0 + y1) / 2
-        return [(x0 + inset * 1.4, middle), (x0 + half, y0 + inset), (x1 - half, y0 + inset),
-                (x1 - inset * 1.4, middle), (x1 - half, y1 - inset), (x0 + half, y1 - inset)]
+        return [(x0, middle), (x0 + half, y0), (x1 - half, y0), (x1, middle), (x1 - half, y1), (x0 + half, y1)]
     half = (x1 - x0) / 2
     middle = (x0 + x1) / 2
-    return [(middle, y0 + inset * 1.4), (x1 - inset, y0 + half), (x1 - inset, y1 - half),
-            (middle, y1 - inset * 1.4), (x0 + inset, y1 - half), (x0 + inset, y0 + half)]
-
-
-def dottedOutline(pixels, polygon, gap):
-    """Walks the outline in 1-pixel steps and lights every (gap + 1)th pixel."""
-    step = gap + 1
-    carry = 0.0
-    for i in range(len(polygon)):
-        (ax, ay), (bx, by) = polygon[i], polygon[(i + 1) % len(polygon)]
-        length = math.hypot(bx - ax, by - ay)
-        t = carry
-        while t < length:
-            pixels.add((round(ax + (bx - ax) * t / length), round(ay + (by - ay) * t / length)))
-            t += step
-        carry = t - length
+    return [(middle, y0), (x1, y0 + half), (x1, y1 - half), (middle, y1), (x0, y1 - half), (x0, y0 + half)]
 
 
 def tiledFill(pixels, polygon, gap, size):
@@ -130,20 +106,6 @@ def tiledFill(pixels, polygon, gap, size):
                 pixels.add((x, y))
 
 
-def drawShape(pixels, polygon, inner, kind, size):
-    if kind == 'outlines':
-        dottedOutline(pixels, polygon, 1)
-        dottedOutline(pixels, inner(2), 2)
-        dottedOutline(pixels, inner(4), 3)
-    elif kind == 'tiled1':
-        tiledFill(pixels, polygon, 1, size)
-    elif kind == 'tiled2':
-        tiledFill(pixels, polygon, 2, size)
-    else:
-        dottedOutline(pixels, polygon, 1)
-        tiledFill(pixels, inner(2), 2, size)
-
-
 def toImage(pixels, size):
     image = Image.new('1', size, 0)
     for x, y in pixels:
@@ -152,7 +114,7 @@ def toImage(pixels, size):
     return image
 
 
-def segmentDigit(digit, kind):
+def segmentDigit(digit):
     w, h, t, g = DIGIT_W, DIGIT_H, STROKE, JOINT_GAP
     m = h // 2
     boxes = [(t // 2 + g, 0, w - t // 2 - g, t), (w - t, t // 2 + g, w, m - g), (w - t, m + g, w, h - t // 2 - g),
@@ -162,28 +124,25 @@ def segmentDigit(digit, kind):
     pixels = set()
     for i in range(7):
         if SEGMENTS[digit] & (1 << i):
-            box = boxes[i]
-            drawShape(pixels, hexagon(*box, 0), lambda inset, box=box: hexagon(*box, inset), kind, size)
+            tiledFill(pixels, hexagon(*boxes[i]), 1, size)
     return toImage(pixels, size)
 
 
-def segmentColon(kind):
+def segmentColon():
     # Two squares of 14 pixels, placed like the colon of the font styles.
     w, h = 15, DIGIT_H + 1
     pixels = set()
     for top in (DIGIT_H * 3 // 10 - 7, DIGIT_H - DIGIT_H * 3 // 10 - 7):
-        def square(inset, top=top):
-            return [(inset, top + inset), (14 - inset, top + inset), (14 - inset, top + 14 - inset),
-                    (inset, top + 14 - inset)]
-        drawShape(pixels, square(0), square, kind, (w, h))
+        square = [(0, top), (14, top), (14, top + 14), (0, top + 14)]
+        tiledFill(pixels, square, 1, (w, h))
     return toImage(pixels, (w, h))
 
 
-def segmentStyle(kind):
-    digits = [segmentDigit(d, kind) for d in range(10)]
-    colon = segmentColon(kind)
-    # Positions on multiples of 6, so that the 2- and 3-pixel dot grids of all glyphs line up;
-    # the colon in the middle between the hours and the minutes.
+def segmentStyle():
+    digits = [segmentDigit(d) for d in range(10)]
+    colon = segmentColon()
+    # Positions on even pixels, so that the dot grids of all glyphs line up; the colon in the
+    # middle between the hours and the minutes.
     step = 90
     hoursEnd = step + DIGIT_W + 1
     minutesX = hoursEnd + 30
@@ -271,15 +230,6 @@ def lvglFont(writer, name, codes, images, advances, offsetsX, lineHeight):
             f'    .user_data = NULL\n}};\n')
 
 
-def battery():
-    image = Image.new('L', (46, 22), 0)
-    draw = ImageDraw.Draw(image)
-    draw.rectangle([0, 0, 40, 20], outline=255, width=3)
-    draw.rectangle([41, 6, 45, 14], fill=255)
-    draw.rectangle([5, 5, 11, 15], fill=255)
-    return threshold(image)
-
-
 def preview(styles, path):
     """19:19 of every style side by side, for a check by eye."""
     sheet = Image.new('1', (len(styles) * 420, 420), 0)
@@ -293,35 +243,16 @@ def preview(styles, path):
     sheet.save(path)
 
 
-def stackedLayout(digits, rowGap):
-    width, height = digits[0].size
-    step = width + rowGap // 2
-    return digits, None, [0, step, -1, 0, step], [0, 0, -1, height + rowGap, height + rowGap], step + width, \
-        2 * height + rowGap
-
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--preview', help='also write a PNG with 19:19 in every style')
     args = parser.parse_args()
 
-    # Digit sets, each in two layouts: HH:MM on one line, and HH over MM.
-    sets = [
-        ('Thin', fontStyle('Thin', 140, False), False),
-        ('Light', fontStyle('Light', 140, False), False),
-        ('Regular', fontStyle('Regular', 120, False), False),
-        ('Outlines', segmentStyle('outlines'), True),
-        ('Dense', segmentStyle('tiled1'), True),
-        ('Sparse', segmentStyle('tiled2'), True),
-        ('Mixed', segmentStyle('outlineTiled'), True),
+    styles = [
+        ('Thin', fontStyle('Thin', 140), False),
+        ('Regular', fontStyle('Regular', 120), False),
+        ('Dense', segmentStyle(), True),
     ]
-    styles = []
-    for name, layout, dotted in sets:
-        styles.append((name, layout, dotted))
-    for name, layout, dotted in sets:
-        digits = layout[0]
-        rowGap = 20 if dotted else round(digits[0].size[1] * 0.2)
-        styles.append((name + ', stacked', stackedLayout(digits, rowGap), dotted))
     if args.preview:
         preview(styles, args.preview)
 
@@ -329,13 +260,12 @@ def main():
     fonts = []
     styleLines = []
     for index, (name, (digits, colon, x, y, width, height), dotted) in enumerate(styles):
-        fontName = f'aodDigits{index % len(sets)}'
-        if index < len(sets):
-            # The preview page draws the digits as one-character labels at the layout's places.
-            images = digits + [colon]
-            advances = [image.size[0] for image in images]
-            fonts.append(lvglFont(writer, fontName, list(range(0x30, 0x3B)), images, advances,
-                                  [0] * 11, digits[0].size[1]))
+        fontName = f'aodDigits{index}'
+        # The preview page draws the digits as one-character labels at the layout's places.
+        images = digits + [colon]
+        advances = [image.size[0] for image in images]
+        fonts.append(lvglFont(writer, fontName, list(range(0x30, 0x3B)), images, advances,
+                              [0] * 11, digits[0].size[1]))
         glyphs = ',\n        '.join(writer.glyph(image) for image in digits)
         styleLines.append(
             f'    // {name}\n'
@@ -349,10 +279,10 @@ def main():
     characters = sorted({c for name in DAY_NAMES for c in name} | set('0123456789 '))
     small, _ = renderText(font('Regular', SMALL_SIZE), characters)
     advance = round(font('Regular', SMALL_SIZE).getlength('0'))
-    codes = [ord(c) for c in characters] + [0xE000]
-    small = [Image.new('1', (0, 0)) if c == ' ' else image for c, image in zip(characters, small)] + [battery()]
+    codes = [ord(c) for c in characters]
+    small = [Image.new('1', (0, 0)) if c == ' ' else image for c, image in zip(characters, small)]
     dotted = [dottedImage(image) if image.size[0] else image for image in small]
-    advances = [advance] * len(characters) + [small[-1].size[0]]
+    advances = [advance] * len(characters)
     lineHeight = max(image.size[1] for image in small)
     fonts.append(lvglFont(writer, 'aodSmallFont', codes, small, advances, [0] * len(codes), lineHeight))
     fonts.append(lvglFont(writer, 'aodSmallDottedFont', codes, dotted, advances, [0] * len(codes), lineHeight))

@@ -7,9 +7,9 @@
 #include "Rtc.h"
 #include "sdkconfig.h"
 
-// Always-on face (CLAUDE.md, always-on mode): a dim HH:MM in one of the aodStyles, with the
-// Moon's phase and the date, and the corner gauges (Corners). A timer wake once a minute redraws
-// the face;
+// Always-on face (CLAUDE.md, always-on mode): a dim HH:MM in one of the aodStyles with the date
+// under it, the Moon's phase in the top-left corner and the corner gauges (Corners), at the day or
+// night brightness. A timer wake once a minute redraws the face;
 // between wakes the ESP32 deep-sleeps and the panel shows the image from its own memory. The
 // state is kept in RTC memory. The always-on page of active mode (AodPage) shows the same layout.
 class AlwaysOn
@@ -24,7 +24,8 @@ public:
 
     // What the face shows, taken when active mode ends (the minute wakes read no settings and
     // compute no astronomy): the style (an aodStyles index), the Item bits, the Moon's
-    // illuminated fraction in percent and whether it is waxing, and what the corner gauges need.
+    // illuminated fraction in percent and whether it is waxing, what the corner gauges need, and
+    // the panel brightness by day and by night in percent.
     struct Look
     {
         int style;
@@ -32,7 +33,14 @@ public:
         int moonPercent;
         bool waxing;
         Corners::Input corners;
+        int dayBrightness;
+        int nightBrightness;
     };
+
+    // Top-left corner of the moon on the screen: in the top-left corner, inside the day gauge, as
+    // on the watch faces.
+    static const int MoonX = 48;
+    static const int MoonY = 48;
 
     enum Colour
     {
@@ -65,9 +73,12 @@ public:
         int height;
     };
 
-    // Places the face's bitmaps for the local time: the time, and the moon and the date under it.
-    // The moon's glyph is kept in a static buffer until the next call.
+    // Places the face's bitmaps for the local time: the time and the date under it.
     static Face layout( const Look &look, const Rtc::DateTime &time );
+
+    // The moon's bitmap for MoonX, MoonY, or null when the Moon item is off. Kept in a static
+    // buffer until the next call.
+    static const AodGlyph *moon( const Look &look );
 
     // The idle-mode colour of a corner gauge, or -1 when it draws nothing.
     static int gaugeColour( Corners::Kind kind );

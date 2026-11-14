@@ -8,7 +8,10 @@
 
 static const int s_width = 410;
 static const int s_height = 502;
-static const int s_moonSize = 52;
+// The Moon in the top-left corner, inside the day gauge, as on the always-on face.
+static const int s_moonSize = 37;
+static const int s_moonX = 48;
+static const int s_moonY = 48;
 static const lv_color_t s_grey = LV_COLOR_MAKE( 0xA0, 0xA0, 0xA0 );
 static const lv_color_t s_amber = LV_COLOR_MAKE( 0xFF, 0xB0, 0x40 );
 
@@ -93,12 +96,9 @@ void WatchFace::buildClassic( lv_obj_t *page )
     layout.seconds = label( layout.root, &jetbrains_mono_26, s_grey, Centre, 205, 224 );
     layout.date = label( layout.root, &jetbrains_mono_26, lv_color_white(), Centre, 205, 280 );
     layout.hijri = label( layout.root, &jetbrains_mono_26, s_grey, Centre, 205, 316 );
-    layout.moonX = 110 - s_moonSize / 2;
-    layout.moonY = 410 - s_moonSize / 2;
-    layout.moonText = label( layout.root, &jetbrains_mono_26, s_grey, Centre, 110, 460 );
-    layout.sunName = label( layout.root, &jetbrains_mono_26, s_amber, Centre, 290, 396 );
-    layout.sunTime = label( layout.root, &jetbrains_mono_26, lv_color_white(), Centre, 290, 430 );
-    layout.sunLeft = label( layout.root, &jetbrains_mono_26, s_grey, Centre, 290, 464 );
+    layout.sunName = label( layout.root, &jetbrains_mono_26, s_amber, Centre, 205, 396 );
+    layout.sunTime = label( layout.root, &jetbrains_mono_26, lv_color_white(), Centre, 205, 430 );
+    layout.sunLeft = label( layout.root, &jetbrains_mono_26, s_grey, Centre, 205, 462 );
 }
 
 void WatchFace::buildArc( lv_obj_t *page )
@@ -132,31 +132,13 @@ void WatchFace::buildArc( lv_obj_t *page )
     layout.time = label( layout.root, &jetbrains_mono_light_90, lv_color_white(), Centre, 205, 150 );
     layout.date = label( layout.root, &jetbrains_mono_26, lv_color_white(), Centre, 205, 290 );
     layout.hijri = label( layout.root, &jetbrains_mono_26, s_grey, Centre, 205, 326 );
-    layout.moonX = 40;
-    layout.moonY = 396 - s_moonSize / 2;
-    layout.moonText = label( layout.root, &jetbrains_mono_26, s_grey, Left, 40 + s_moonSize + 12, 396 );
-    layout.sunName = label( layout.root, &jetbrains_mono_26, s_amber, Centre, 205, 458 );
-}
-
-void WatchFace::buildStacked( lv_obj_t *page )
-{
-    Layout &layout = m_layouts[2];
-    layout.root = createRoot( page );
-    // `hijri` holds the day name here, over the date.
-    layout.time = label( layout.root, &jetbrains_mono_thin_170, lv_color_white(), Centre, 205, 125 );
-    layout.minutes = label( layout.root, &jetbrains_mono_thin_170, lv_color_white(), Centre, 205, 280 );
-    layout.hijri = label( layout.root, &jetbrains_mono_26, s_grey, Left, 36, 410 );
-    layout.date = label( layout.root, &jetbrains_mono_26, lv_color_white(), Left, 36, 444 );
-    layout.moonX = 205 - s_moonSize / 2;
-    layout.moonY = 427 - s_moonSize / 2;
-    layout.sunTime = label( layout.root, &jetbrains_mono_26, s_amber, Right, s_width - 36, 410 );
+    layout.sunName = label( layout.root, &jetbrains_mono_26, s_amber, Centre, 205, 400 );
 }
 
 void WatchFace::build( lv_obj_t *page )
 {
     buildClassic( page );
     buildArc( page );
-    buildStacked( page );
     m_moon = lv_canvas_create( page );
     lv_canvas_set_draw_buf( m_moon, lv_draw_buf_create( s_moonSize, s_moonSize, LV_COLOR_FORMAT_RGB565, 0 ) );
     lv_canvas_fill_bg( m_moon, lv_color_black(), LV_OPA_COVER );
@@ -210,7 +192,7 @@ void WatchFace::setStyle( int style, int items, int direction )
     }
     const Layout &layout = m_layouts[m_style];
     lv_obj_set_parent( m_moon, layout.root );
-    lv_obj_set_pos( m_moon, layout.moonX, layout.moonY );
+    lv_obj_set_pos( m_moon, s_moonX, s_moonY );
     applyItems();
 }
 
@@ -220,10 +202,9 @@ void WatchFace::applyItems()
     const bool date = m_items & DateItem;
     const bool sun = m_items & SunItem;
     const bool moon = m_items & MoonItem;
-    lv_obj_t *const objects[7] = { layout.date, layout.hijri, layout.sunName, layout.sunTime, layout.sunLeft,
-                                   m_moon,      layout.moonText };
-    const bool shown[7] = { date, date, sun, sun, sun, moon, moon };
-    for ( int i = 0; i < 7; ++i ) {
+    lv_obj_t *const objects[6] = { layout.date, layout.hijri, layout.sunName, layout.sunTime, layout.sunLeft, m_moon };
+    const bool shown[6] = { date, date, sun, sun, sun, moon };
+    for ( int i = 0; i < 6; ++i ) {
         if ( objects[i] != nullptr ) {
             lv_obj_set_hidden( objects[i], !shown[i] );
         }
@@ -233,12 +214,7 @@ void WatchFace::applyItems()
 void WatchFace::showTime( const Rtc::DateTime &time )
 {
     const Layout &layout = m_layouts[m_style];
-    if ( layout.minutes != nullptr ) {
-        lv_label_set_text_fmt( layout.time, "%02u", time.hour );
-        lv_label_set_text_fmt( layout.minutes, "%02u", time.minute );
-    } else {
-        lv_label_set_text_fmt( layout.time, "%02u:%02u", time.hour, time.minute );
-    }
+    lv_label_set_text_fmt( layout.time, "%02u:%02u", time.hour, time.minute );
     if ( layout.seconds != nullptr ) {
         lv_label_set_text_fmt( layout.seconds, ":%02u", time.second );
     }
@@ -248,12 +224,8 @@ void WatchFace::showTime( const Rtc::DateTime &time )
     char date[40];
     if ( m_style == 0 ) {
         snprintf( date, sizeof( date ), "%s %u %s", s_dayNames[day], time.day, s_monthNames[time.month - 1] );
-    } else if ( m_style == 1 ) {
-        snprintf( date, sizeof( date ), "%s %u %s %u", s_shortDays[day], time.day, month, time.year );
     } else {
-        snprintf( date, sizeof( date ), "%u %s", time.day, month );
-        // Over the date: the day name (this layout has no Hijri line).
-        lv_label_set_text( layout.hijri, s_shortDays[day] );
+        snprintf( date, sizeof( date ), "%s %u %s %u", s_shortDays[day], time.day, month, time.year );
     }
     lv_label_set_text( layout.date, date );
 }
@@ -318,17 +290,12 @@ void WatchFace::showSky( const Sky::Day &day, const Sky::Now &now, int utcOffset
     }
 
     const Layout &layout = m_layouts[m_style];
-    if ( m_style != 2 ) {
-        lv_label_set_text( layout.hijri, hijri );
-    }
-    if ( layout.moonText != nullptr ) {
-        lv_label_set_text_fmt( layout.moonText, "%d %%", percent );
-    }
+    lv_label_set_text( layout.hijri, hijri );
     if ( m_style == 0 ) {
         lv_label_set_text( layout.sunName, eventName );
         lv_label_set_text( layout.sunTime, eventTime );
         lv_label_set_text( layout.sunLeft, left );
-    } else if ( m_style == 1 ) {
+    } else {
         lv_label_set_text_fmt( layout.sunName, "%s %s", eventName, left );
         lv_label_set_text( layout.riseText, rise );
         lv_label_set_text( layout.setText, set );
@@ -343,7 +310,5 @@ void WatchFace::showSky( const Sky::Day &day, const Sky::Now &now, int utcOffset
                             static_cast<int>( s_arcY - s_arcRadius * std::sin( angle ) ) - 12 );
         }
         lv_obj_set_hidden( layout.sunDot, !onArc );
-    } else {
-        lv_label_set_text_fmt( layout.sunTime, "%s %s", now.sunUp ? "Set" : "Rise", eventTime );
     }
 }

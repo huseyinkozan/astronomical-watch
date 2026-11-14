@@ -38,9 +38,10 @@ void AodPage::build( lv_obj_t *page )
         lv_obj_set_hidden( m_labels[i], true );
     }
     // The moon changes with the phase, so it is a small canvas rather than a glyph.
-    const AlwaysOn::Face face = AlwaysOn::layout( { 0, AlwaysOn::MoonItem, 50, true, {} }, { 2026, 1, 1, 0, 0, 0 } );
-    const int size = face.sprites[face.count - 1].glyph->width;
+    const AlwaysOn::Look look = { 0, AlwaysOn::MoonItem, 50, true, {}, 0, 0 };
+    const int size = AlwaysOn::moon( look )->width;
     m_moon = lv_canvas_create( m_content );
+    lv_obj_set_pos( m_moon, AlwaysOn::MoonX, AlwaysOn::MoonY );
     lv_canvas_set_draw_buf( m_moon, lv_draw_buf_create( size, size, LV_COLOR_FORMAT_RGB565, 0 ) );
     lv_obj_set_hidden( m_moon, true );
 }
@@ -59,26 +60,23 @@ void AodPage::show( const AlwaysOn::Look &look, const Rtc::DateTime &localTime, 
     // Centred as on the first always-on minute (it then moves a few pixels against burn-in).
     const int faceX = ( ( Panel::WIDTH - face.width ) / 2 ) & ~1;
     const int faceY = ( ( Panel::HEIGHT - face.height ) / 2 ) & ~1;
-    int used = 0;
-    lv_obj_set_hidden( m_moon, true );
-    for ( int i = 0; i < face.count; ++i ) {
-        const AlwaysOn::Sprite &sprite = face.sprites[i];
-        if ( sprite.font == nullptr ) {
-            // The moon: its bitmap, pixel by pixel, in yellow on black.
-            const AodGlyph &glyph = *sprite.glyph;
-            lv_canvas_fill_bg( m_moon, lv_color_black(), LV_OPA_COVER );
-            for ( int y = 0; y < glyph.height; ++y ) {
-                for ( int x = 0; x < glyph.width; ++x ) {
-                    const int bit = y * glyph.width + x;
-                    if ( glyph.bits[bit / 8] & ( 0x80 >> ( bit % 8 ) ) ) {
-                        lv_canvas_set_px( m_moon, x, y, s_colours[sprite.colour], LV_OPA_COVER );
-                    }
+    // The moon: its bitmap, pixel by pixel, in yellow on black, at its fixed place.
+    const AodGlyph *moon = AlwaysOn::moon( look );
+    lv_obj_set_hidden( m_moon, moon == nullptr );
+    if ( moon != nullptr ) {
+        lv_canvas_fill_bg( m_moon, lv_color_black(), LV_OPA_COVER );
+        for ( int y = 0; y < moon->height; ++y ) {
+            for ( int x = 0; x < moon->width; ++x ) {
+                const int bit = y * moon->width + x;
+                if ( moon->bits[bit / 8] & ( 0x80 >> ( bit % 8 ) ) ) {
+                    lv_canvas_set_px( m_moon, x, y, s_colours[AlwaysOn::Yellow], LV_OPA_COVER );
                 }
             }
-            lv_obj_set_pos( m_moon, faceX + sprite.x, faceY + sprite.y );
-            lv_obj_set_hidden( m_moon, false );
-            continue;
         }
+    }
+    int used = 0;
+    for ( int i = 0; i < face.count; ++i ) {
+        const AlwaysOn::Sprite &sprite = face.sprites[i];
         lv_obj_t *label = m_labels[used++];
         char text[4];
         utf8( sprite.code, text );

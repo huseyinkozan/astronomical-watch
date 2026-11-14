@@ -39,9 +39,8 @@ down there, or on the watch face, steps through the styles, and the one left sho
 |---|---|
 | ![Always-on styles](docs/screenshots/always-on.gif) | ![Watch faces](docs/screenshots/faces.gif) |
 
-The always-on face is shown at full brightness; the watch dims it to 10 %. Its fourteen styles
-are seven digit styles (JetBrains Mono Thin, Light and Regular, and seven segments drawn with
-dots in four ways), each as HH:MM or as hours over minutes.
+The always-on face is shown at full brightness; the watch dims it to its day or night level.
+Its three styles are JetBrains Mono Thin and Regular, and seven segments filled with dots.
 
 | Sun | Twilight | Moon | Sun compass |
 |---|---|---|---|
@@ -114,15 +113,18 @@ astronomical-watch/
 
 Restarted on ESP-IDF with C++17. The watch puts the unused peripherals into their lowest-power
 state. A PWR press starts active mode: pages swiped sideways show the always-on face as it will look,
-the watch face (classic, day arc, or hours over minutes, with the date, Hijri date, next sunrise
-or sunset and Moon phase; a vertical swipe changes the layout), the battery details, the settings (display timeout, always-on, brightness,
-auto-off; one tap per value, kept in flash), the setup portal and an About page. The portal
+the watch face (classic or day arc, with the date, Hijri date, next sunrise or sunset and the
+Moon's phase in the top-left corner; a vertical swipe changes the layout), the battery details,
+the settings (display timeout, always-on, brightness, auto-off; one tap per value, kept in
+flash; a long press and a vertical drag on the watch face sets the brightness, on the always-on
+page the always-on brightness by day or by night), the setup portal and an About page. The portal
 opens the watch's own Wi-Fi for a phone or computer, whose browser sets the time, UTC offset,
 location and settings. Four pages show the Sun (rise, set, noon, day length, time left until
 sunset), the twilights with the golden and blue hours, the Moon (phase, rise and set, the dark
 part of the night, the new crescent, the Hijri date) and a sun compass. 10 s after the last touch
 (the default), or at the next PWR press, a
-dim face in the chosen style (the time, the Moon's phase and the date) stays on the display
+dim face in the chosen style (the time, the Moon's phase and the date), at a brightness of its
+own by day and by night (switched at sunrise and sunset), stays on the display
 while the processor deep-sleeps, redrawn once a minute. On every page and on the always-on face
 the four screen corners are gauges: the day or night, the battery, the Moon's time above or
 below the horizon and its phase. Every 10 min the accelerometer is read once; when the watch has not moved for 30 min it
@@ -160,10 +162,11 @@ Each step is built, verified on the board and documented before the next one sta
     An About page and screenshots from the watch came with it.
 11. **M10** (in progress): astronomy on the watch (sun and moon events and positions, twilights,
     golden and blue hour, sun compass, Hijri date by local crescent visibility or Diyanet's rule),
-    a monospaced font with the Turkish letters (JetBrains Mono), three watch face layouts and
-    fourteen always-on styles chosen with a vertical swipe or in the setup portal, with
-    selectable items (done); next, the power cost of the always-on styles (lit pixels against the
-    panel's fixed cost, battery run V).
+    a monospaced font with the Turkish letters (JetBrains Mono), watch face layouts and
+    always-on styles chosen with a vertical swipe or in the setup portal, with selectable items,
+    the power cost of the always-on styles (battery run V: no visible cost of lit pixels), the
+    corner gauges, and the always-on brightness by day and by night (done); next, two faces with
+    the Sun's and the Moon's paths.
 12. **M11**: languages: Turkish and English on the watch and the setup page, chosen in the
     settings.
 13. Vibration motor.
