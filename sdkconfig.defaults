@@ -25,3 +25,7 @@ CONFIG_LWIP_IRAM_OPTIMIZATION=n
 # LVGL allocates from the ESP-IDF heap instead of its own fixed 64 KB pool, which ran out with the
 # large digits of the watch faces (drawing one glyph of the 170 px font takes about 13 KB).
 CONFIG_LV_USE_CLIB_MALLOC=y
+
+# The main task computes the astronomy of the day (Sky::computeDay, with the neighbouring days'
+# moonrises for the corner gauges); 3584 bytes overflowed at power-on (2026-11-14).
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=6144

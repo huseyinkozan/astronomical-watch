@@ -173,8 +173,19 @@ def main():
         if not active:
             print('No active mode within 2 min; nothing captured.')
             return 1
+        # A line break first ends any partial line left in the watch's input; the first command
+        # was lost to one before.
+        port.write(b'\n')
         for command in commands:
             port.write(f'{command}\n'.encode())
+        if not args.live:
+            start = time.time()
+            scene = False
+            while not scene and time.time() - start < 5:
+                scene = 'Fixed scene on' in reader.readline()
+            if not scene:
+                print('The watch did not confirm the fixed scene; nothing captured.')
+                return 1
         time.sleep(4)
     failures = 0
     page = 0

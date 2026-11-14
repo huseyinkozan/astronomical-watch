@@ -96,6 +96,9 @@ static bool pollHostCommands()
     bool received = false;
     char c = 0;
     while ( usb_serial_jtag_read_bytes( &c, 1, 0 ) == 1 ) {
+        if ( c == '\r' ) {
+            continue;
+        }
         if ( c != '\n' ) {
             if ( s_hostLineLength < static_cast<int>( sizeof( s_hostLine ) ) - 1 ) {
                 s_hostLine[s_hostLineLength++] = c;
@@ -129,6 +132,9 @@ static bool pollHostCommands()
         }
         if ( s_hostLine[0] == 'D' && s_hostLine[1] == '\0' ) {
             s_scene = true;
+            // tools/screenshot.py waits for this line: without the scene the pictures would show
+            // the real time and location.
+            ESP_LOGI( TAG, "Fixed scene on" );
             continue;
         }
         int year = 0;
@@ -212,7 +218,10 @@ static void updateSky( int64_t now, const int inputs[4] )
         const int64_t start = esp_timer_get_time();
         s_skyDay = Sky::computeDay( day, offsetMinutes, observer, static_cast<Hijri::Method>( inputs[3] ) );
         s_skyValid = true;
-        ESP_LOGI( TAG, "Sky day computed in %d ms", static_cast<int>( ( esp_timer_get_time() - start ) / 1000 ) );
+        // The stack margin left: the computation is the deepest call of the main task.
+        ESP_LOGI( TAG, "Sky day computed in %d ms, main stack %u bytes never used",
+                  static_cast<int>( ( esp_timer_get_time() - start ) / 1000 ),
+                  static_cast<unsigned>( uxTaskGetStackHighWaterMark( nullptr ) ) );
     }
     s_display.showSky( s_skyDay, Sky::computeNow( now, s_skyDay, observer ), offsetMinutes );
 }
