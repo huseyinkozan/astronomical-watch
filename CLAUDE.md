@@ -179,17 +179,32 @@ in its flash partition. Read both over USB: `python tools/read_events.py`, then
   `main/Settings.*`); the Kconfig values are their defaults. Test builds that need other values
   set `CONFIG_WATCH_TEST_SETTINGS`, which ignores the saved settings.
 - Touch input: rows of 7.8 x 26 mm inside the corner gauges, one tap steps a value; no vertical scrolling
-  inside the swiped pages; sliding off a row cancels the tap. Four pages side by side:
-  always-on preview, watch face, information, settings. A vertical swipe steps the style on the
-  face and always-on pages and the part on the information page (sun, twilight, moon, compass,
-  battery, about) and the settings page (settings, setup portal; `main/StackPage.*`); the pages
-  keep `LV_EVENT_GESTURE` and do not scroll, and the new style or part slides in. Marks along
+  inside the swiped pages; sliding off a row cancels the tap. Five pages side by side:
+  always-on preview, watch face, clock (world clock, stopwatch, countdown, Gregorian and Hijri
+  calendars, day counters; `main/ClockPages.*`), information (sun, twilight, prayer times, moon,
+  compass, time, battery, about) and settings (settings, more settings, what the portal set,
+  setup portal). A vertical swipe steps the style on the face and always-on pages and the part on
+  the stacked pages (`main/StackPage.*`); the pages keep `LV_EVENT_GESTURE` and do not scroll, and
+  the new style or part slides in. On a calendar a sideways swipe steps the month, so the page
+  swipe stops there ("<" ">" at the bottom say so). Only the watch face and its neighbours are
+  built at a PWR wake; a page is built when its neighbour is shown (`Display::ensureBuilt`): a
+  glance at the time built 1.6 s of pages before (now 0.5 s), and the built pages left too little
+  heap for the portal's Wi-Fi. Marks along
   the right edge, in line with the corner gauges, show the position (`main/PageMarks.*`; on the
   face only for a moment after a step); marks along the bottom edge show the page while the
   pages are swiped sideways. Large dark-grey areas shimmer on
   this panel; use black with outlines.
   The panel hides each corner outside a quarter circle of about 120 px radius (docs/hardware.md,
   Visible area); keep content inside it.
+- Time zones (`main/Zones.*`, `main/WorldClock.*`): the portal's browser computes each zone's
+  offset now and its next two changes from the IANA name (city list from GeoNames), so the watch
+  follows daylight saving time for a year without a zone database; the own zone's numbers are
+  settings (the always-on wakes keep a copy in RTC memory). Each portal save that sets the clock
+  also corrects the PCF85063's rate (Offset register, `Settings::RtcOffset`) from its error since
+  the last set, when at least two days have passed.
+- Prayer times (`Sky::prayerTimes`): Diyanet's method, the Sun's values taken once a day like
+  Diyanet; checked against its published 2026 tables (`tests/PrayerTest.cpp`, all within a
+  minute). Research notes on this and other topics live in `research/` (excluded from git).
 - Setup portal (M9, `main/Portal.*`, `main/portal/`): a row on the watch's Setup page starts it
   (not every charge); the same row stops it, and it stops by itself 5 min after the last browser
   request or when the page saves. The watch opens a WPA2 soft AP with a captive portal (DNS

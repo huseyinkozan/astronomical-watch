@@ -36,6 +36,7 @@ static void slide( lv_obj_t *part, int from, int to, bool hide )
 void StackPage::build( lv_obj_t *tile, int count )
 {
     m_count = count > MaxParts ? MaxParts : count;
+    m_tile = tile;
     lv_obj_set_scrollable( tile, false );
     // LVGL sends a gesture to the first ancestor that does not pass it on, so the tile keeps it.
     lv_obj_set_gesture_bubble( tile, false );
@@ -84,6 +85,7 @@ void StackPage::show( int index, int direction )
         slide( m_parts[previous], 0, -direction * Panel::HEIGHT, true );
         slide( m_parts[index], direction * Panel::HEIGHT, 0, false );
     }
+    lv_obj_send_event( m_tile, LV_EVENT_VALUE_CHANGED, nullptr );
 }
 
 void StackPage::onGesture( lv_event_t *event )

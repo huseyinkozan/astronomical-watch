@@ -27,6 +27,7 @@
 <body>
 <main>
 <h1>Astronomical Watch</h1>
+<p><a href="/help">How to use the watch</a></p>
 
 <fieldset>
   <legend>Time</legend>
@@ -35,7 +36,7 @@
   <small>The watch takes this device's clock, so it is as accurate as this device.</small>
   <label for="offset">UTC offset</label>
   <select id="offset"></select>
-  <small>Taken from this device; change it when daylight saving time starts or ends.</small>
+  <small id="zoneText"></small>
 </fieldset>
 
 <fieldset>
@@ -65,6 +66,8 @@
   <input id="aodNight" type="number" min="1" max="100" step="1">
   <small>On the watch: hold a finger on the watch face (or on the always-on page for the
   always-on brightness of the moment) and drag up or down.</small>
+  <label for="usbStayOn">Screen stays on while USB is plugged in</label>
+  <select id="usbStayOn"></select>
   <label for="autoOff">Switch off without motion after</label>
   <select id="autoOff"></select>
   <label for="devMode">Development mode (more entries in the watch's event log)</label>
@@ -74,6 +77,26 @@
   <small>Local: the new crescent visible to the naked eye at the watch's location (Odeh's
   criterion). Diyanet: Turkey's official rule (Istanbul 1978: anywhere on land, 8&deg; from the
   Sun and 5&deg; high at sunset).</small>
+</fieldset>
+
+<fieldset>
+  <legend>World clock</legend>
+  <label for="w0">Cities on the watch's clock page (up to four)</label>
+  <select id="w0"></select>
+  <select id="w1"></select>
+  <select id="w2"></select>
+  <select id="w3"></select>
+  <small>The watch follows their clock changes (daylight saving time) for a year from now; open
+  this page again within a year.</small>
+</fieldset>
+
+<fieldset>
+  <legend>Day counters</legend>
+  <label>Dates shown as days until or since them (up to four)</label>
+  <div class="row"><div><input id="dn0" maxlength="20" placeholder="Name"></div><div><input id="dd0" type="date"></div></div>
+  <div class="row"><div><input id="dn1" maxlength="20" placeholder="Name"></div><div><input id="dd1" type="date"></div></div>
+  <div class="row"><div><input id="dn2" maxlength="20" placeholder="Name"></div><div><input id="dd2" type="date"></div></div>
+  <div class="row"><div><input id="dn3" maxlength="20" placeholder="Name"></div><div><input id="dd3" type="date"></div></div>
 </fieldset>
 
 <fieldset>
@@ -123,6 +146,7 @@ fill($('alwaysOn'), [[1, 'On'], [0, 'Off']]);
 fill($('autoOff'), [[20, '20 min'], [30, '30 min'], [60, '60 min'], [0, 'Never']]);
 fill($('hijri'), [[0, 'Local crescent'], [1, 'Diyanet']]);
 fill($('devMode'), [[0, 'Off'], [1, 'On']]);
+fill($('usbStayOn'), [[1, 'On'], [0, 'Off']]);
 fill($('face'), [[0, 'Classic'], [1, 'Day arc'], [2, 'Sky arcs'], [3, 'Dial']]);
 fill($('aod'), [[0, 'Thin'], [1, 'Regular'], [2, 'Dense (dotted seven segments)'], [3, 'Sky arcs'], [4, 'Dial']]);
 
@@ -148,7 +172,62 @@ const offsets = [];
 for (let m = -720; m <= 840; m += 15) offsets.push([m, offsetText(m)]);
 fill($('offset'), offsets, -new Date().getTimezoneOffset());
 
-// Cities: "country|name|latitude|longitude" lines from /cities.js.
+// Time zones: the browser knows the rules (IANA); the watch gets the offset now and the next two
+// changes (main/Zones.h), in minutes since 1970.
+function zoneOffset(zone, t) {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: zone, hourCycle: 'h23', year: 'numeric',
+    month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' }).formatToParts(new Date(t));
+  const v = {};
+  for (const p of parts) v[p.type] = Number(p.value);
+  return Math.round((Date.UTC(v.year, v.month - 1, v.day, v.hour % 24, v.minute, v.second) - t) / 60000);
+}
+function zoneInfo(zone) {
+  const minute = 60000, day = 86400000;
+  let t = Math.floor(Date.now() / minute) * minute;
+  let offset = zoneOffset(zone, t);
+  const info = [offset, 0, 0, 0, 0];
+  for (let i = 0, found = 0; i < 400 && found < 2; i++, t += day) {
+    const next = zoneOffset(zone, t + day);
+    if (next === offset) continue;
+    // The first minute with the new offset.
+    let lo = t, hi = t + day;
+    while (hi - lo > minute) {
+      const mid = Math.floor((lo + hi) / 2 / minute) * minute;
+      if (zoneOffset(zone, mid) === offset) lo = mid; else hi = mid;
+    }
+    info[1 + found * 2] = hi / minute;
+    info[2 + found * 2] = next;
+    found++;
+    offset = next;
+  }
+  return info;
+}
+function zoneValid(zone) {
+  try { zoneOffset(zone, Date.now()); return true; } catch (e) { return false; }
+}
+let homeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+let place = '';
+function showZone() {
+  if (!zoneValid(homeZone)) { $('zoneText').textContent = 'Set it when daylight saving time starts or ends.'; return; }
+  const info = zoneInfo(homeZone);
+  $('offset').value = String(info[0]);
+  let text = homeZone + ': ' + offsetText(info[0]);
+  if (info[1]) text += ', ' + offsetText(info[2]) + ' from ' + new Date(info[1] * 60000).toLocaleString();
+  else text += ', no clock change within a year';
+  $('zoneText').textContent = text + '. The watch changes by itself.';
+}
+
+// Names on the watch: its font has ASCII and the Turkish letters; other letters lose their marks.
+function watchName(name) {
+  let out = '';
+  for (const ch of name) out += 'çğıöşüÇĞİÖŞÜ'.includes(ch) ? ch : ch.normalize('NFD').replace(/[^\x20-\x7e]/g, '');
+  out = out.replace(/[|"\\]/g, ' ').trim();
+  const bytes = new TextEncoder();
+  while (bytes.encode(out).length > 23) out = out.slice(0, -1);
+  return out;
+}
+
+// Cities: "country|name|latitude|longitude|zone" lines from /cities.js.
 const cities = CITIES.trim().split('\n').map((line) => line.split('|'));
 let countryNames = null;
 try { countryNames = new Intl.DisplayNames(['en'], { type: 'region' }); } catch (e) { }
@@ -161,22 +240,55 @@ fill($('country'), [['', 'Choose…']].concat(countries));
 $('country').addEventListener('change', () => {
   const list = cities.filter((c) => c[0] === $('country').value)
     .sort((a, b) => a[1].localeCompare(b[1]));
-  fill($('city'), [['', 'Choose…']].concat(list.map((c) => [c[2] + ',' + c[3], c[1]])));
+  fill($('city'), [['', 'Choose…']].concat(list.map((c) => [c[2] + ',' + c[3] + ',' + c[4], c[1]])));
 });
 $('city').addEventListener('change', () => {
   if (!$('city').value) return;
-  const [lat, lon] = $('city').value.split(',');
+  const [lat, lon, zone] = $('city').value.split(',');
   $('lat').value = lat;
   $('lon').value = lon;
+  homeZone = zone;
+  place = watchName($('city').options[$('city').selectedIndex].textContent);
+  showZone();
 });
+// Typed coordinates have no place name.
+for (const id of ['lat', 'lon']) $(id).addEventListener('input', () => { place = ''; });
+showZone();
+
+// The world clock: one list of all cities, grouped by country.
+for (let w = 0; w < 4; w++) {
+  const select = $('w' + w);
+  select.innerHTML = '<option value="">—</option>';
+  for (const [code, name] of countries) {
+    const group = document.createElement('optgroup');
+    group.label = name;
+    cities.forEach((c, index) => {
+      if (c[0] !== code) return;
+      const option = document.createElement('option');
+      option.value = String(index);
+      option.textContent = c[1];
+      group.appendChild(option);
+    });
+    select.appendChild(group);
+  }
+}
 
 setInterval(() => { $('now').textContent = 'This device: ' + new Date().toLocaleString(); }, 500);
 
 // Current values from the watch.
 fetch('/api/state').then((r) => r.json()).then((s) => {
-  for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'hijri', 'face', 'aod', 'aodDay', 'aodNight', 'devMode']) $(id).value = String(s[id]);
+  for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'hijri', 'face', 'aod', 'aodDay', 'aodNight', 'devMode', 'usbStayOn']) $(id).value = String(s[id]);
   setBits($('faceItems'), s.faceItems);
   setBits($('aodItems'), s.aodItems);
+  if (s.zone && zoneValid(s.zone)) { homeZone = s.zone; showZone(); }
+  place = s.place || '';
+  (s.cities || []).forEach(([name, zone], w) => {
+    const index = cities.findIndex((c) => c[4] === zone && watchName(c[1]) === name);
+    if (index >= 0 && w < 4) $('w' + w).value = String(index);
+  });
+  (s.days || []).forEach(([name, date], i) => {
+    if (i < 4) { $('dn' + i).value = name; $('dd' + i).value = date; }
+  });
   if (s.lat !== 0 || s.lon !== 0) {
     $('lat').value = s.lat.toFixed(4);
     $('lon').value = s.lon.toFixed(4);
@@ -198,7 +310,22 @@ $('save').addEventListener('click', async () => {
   $('status').textContent = 'Saving…';
   try {
     const fields = new URLSearchParams();
-    for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'offset', 'hijri', 'face', 'aod', 'aodDay', 'aodNight', 'devMode']) fields.set(id, $(id).value);
+    for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'offset', 'hijri', 'face', 'aod', 'aodDay', 'aodNight', 'devMode', 'usbStayOn']) fields.set(id, $(id).value);
+    // The own zone's clock changes, unless the offset was set by hand.
+    const home = zoneValid(homeZone) ? zoneInfo(homeZone) : null;
+    const byZone = home !== null && String(home[0]) === $('offset').value;
+    fields.set('zone', byZone ? homeZone : '');
+    fields.set('place', place);
+    ['chg1', 'aft1', 'chg2', 'aft2'].forEach((id, i) => fields.set(id, byZone ? String(home[1 + i]) : '0'));
+    const chosen = [0, 1, 2, 3].map((w) => $('w' + w).value).filter((v) => v !== '');
+    fields.set('cities', String(chosen.length));
+    chosen.forEach((v, i) => {
+      const c = cities[Number(v)];
+      fields.set('c' + i, [watchName(c[1]), c[4]].concat(zoneInfo(c[4])).join('|'));
+    });
+    const days = [0, 1, 2, 3].filter((i) => $('dd' + i).value !== '');
+    fields.set('days', String(days.length));
+    days.forEach((d, i) => fields.set('d' + i, watchName($('dn' + d).value || 'Day') + '|' + $('dd' + d).value));
     fields.set('faceItems', String(bitsOf($('faceItems'))));
     fields.set('aodItems', String(bitsOf($('aodItems'))));
     if ($('lat').value !== '' && $('lon').value !== '') {

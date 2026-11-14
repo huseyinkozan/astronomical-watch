@@ -13,6 +13,7 @@ public:
         AlwaysOnFace,    // 1: always-on face after active mode, 0: power off
         DevMode,         // 1: development mode, more entries in the event log (EventLog)
         AutoOff,         // minutes without motion in always-on until power-off, 0: never
+        UsbStayOn,       // 1: no display timeout while USB power is present
         UtcOffset,       // minutes added to the RTC's UTC for the displayed time
         Latitude,        // micro-degrees, north positive
         Longitude,       // micro-degrees, east positive
@@ -24,6 +25,12 @@ public:
         Brightness,      // active-mode panel brightness, percent (a long press and a drag)
         AodDayBrightness,    // always-on panel brightness from sunrise to sunset, percent
         AodNightBrightness,  // and from sunset to sunrise
+        HomeChange1,     // the own time zone's next clock change: minutes since 1970 UTC, 0: none
+        HomeAfter1,      // the UTC offset from then on (minutes)
+        HomeChange2,     // and the change after it (WorldClock, Zones)
+        HomeAfter2,
+        RtcOffset,       // the PCF85063 Offset register's correction steps (Rtc::applyCalibration)
+        RtcSetMinute,    // when the setup portal last set the clock: minutes since 1970 UTC, 0: never
         ItemCount
     };
     // The items before this one are on the watch's settings page; FaceStyle and AodStyle are

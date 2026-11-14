@@ -80,6 +80,30 @@ int main( int argc, char **argv )
         printf( "Ankara, day %d: local crescent date %d/%d/%d (crescent the evening before: zone %d, V %.2f)\n", number,
                 local.year, local.month, local.day, crescent.zone, crescent.v );
     }
+    // Hijri::month: twelve months in a row from 1 Muharram 1448 (16 June 2026 by Diyanet's list)
+    // follow each other without gaps, last 29 or 30 days and step the month number.
+    int monthFailures = 0;
+    Hijri::Month current = Hijri::month( dayNumber( 2026, 6, 21 ), turkey, ankara, Hijri::Diyanet );
+    if ( current.year != 1448 || current.month != 1 || current.firstDay != dayNumber( 2026, 6, 16 ) ) {
+        printf( "FAIL month of 21 June 2026: %d/%d from day %d\n", current.year, current.month, current.firstDay );
+        ++monthFailures;
+    }
+    for ( int i = 0; i < 12; ++i ) {
+        const Hijri::Month next = Hijri::month( current.firstDay + current.length, turkey, ankara, Hijri::Diyanet );
+        const Hijri::Month back = Hijri::month( next.firstDay - 1, turkey, ankara, Hijri::Diyanet );
+        const bool lengthOk = current.length == 29 || current.length == 30;
+        const bool stepOk = next.month == current.month % 12 + 1 && next.firstDay == current.firstDay + current.length;
+        const bool backOk = back.firstDay == current.firstDay && back.length == current.length;
+        if ( !lengthOk || !stepOk || !backOk ) {
+            printf( "FAIL month %d/%d: day %d, %d days; next %d/%d day %d; back day %d\n", current.year, current.month,
+                    current.firstDay, current.length, next.year, next.month, next.firstDay, back.firstDay );
+            ++monthFailures;
+        }
+        current = next;
+    }
+    printf( "Hijri months: 12 steps, %d failures\n", monthFailures );
+    failed += monthFailures;
+
     printf( "\nDiyanet: %d of %d month starts match, %d unexpected differences\n", matched, checked, failed );
     return failed == 0 ? 0 : 1;
 }

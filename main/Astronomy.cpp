@@ -425,3 +425,18 @@ int64_t Astronomy::nextSeason( int64_t time, int &season )
     }
     return when;
 }
+
+double Astronomy::greenwichSiderealTime( int64_t time )
+{
+    return siderealTime( time );
+}
+
+void Astronomy::sunDeclinationAndEquation( int64_t time, double &declination, double &equationMinutes )
+{
+    const double t = centuriesTt( time );
+    const Equatorial sun = toEquatorial( sunEcliptic( t ), t );
+    declination = sun.declination;
+    // Meeus 28.3 without the nutation term (about a second).
+    const double meanLongitude = normalised( 280.46646 + 36000.76983 * t + 0.0003032 * t * t );
+    equationMinutes = signedAngle( meanLongitude - 0.0057183 - sun.rightAscension ) * 4.0;
+}

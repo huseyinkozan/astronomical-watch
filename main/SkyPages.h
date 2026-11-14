@@ -9,10 +9,14 @@
 class SkyPages
 {
 public:
-    void build( lv_obj_t *sunPage, lv_obj_t *twilightPage, lv_obj_t *moonPage, lv_obj_t *compassPage );
+    void build( lv_obj_t *sunPage, lv_obj_t *twilightPage, lv_obj_t *prayerPage, lv_obj_t *moonPage,
+                lv_obj_t *compassPage, lv_obj_t *timePage );
 
     // English name of a Hijri month, 1 to 12.
     static const char *hijriMonthName( int month );
+
+    // The name or coordinates of the location, on the pages that depend on it.
+    void setPlace( const char *place );
 
     // `day` is computed once for the local day, `now` every second.
     void show( const Sky::Day &day, const Sky::Now &now, int utcOffsetMinutes );
@@ -29,6 +33,7 @@ private:
     static const int SunRows = 6;
     static const int TwilightRows = 8;
     static const int MoonRows = 7;
+    static const int TimeRows = 8;
 
     static Row createRow( lv_obj_t *page, const char *name, bool twoValues );
 
@@ -36,6 +41,12 @@ private:
     Row m_twilight[TwilightRows] = {};
     lv_obj_t *m_moonPhase = nullptr;
     Row m_moon[MoonRows] = {};
+    Row m_time[TimeRows] = {};
+    Row m_prayer[Sky::PrayerCount] = {};
+    lv_obj_t *m_nextPrayer = nullptr;
+    lv_obj_t *m_prayerMethod = nullptr;
+    lv_obj_t *m_sunPlace = nullptr;
+    char m_place[32] = {};
     lv_obj_t *m_hijri = nullptr;
     lv_obj_t *m_compassArrow = nullptr;
     lv_obj_t *m_compassNorth = nullptr;

@@ -6,6 +6,7 @@
 #include "Rtc.h"
 #include "Settings.h"
 #include "AodPage.h"
+#include "ClockPages.h"
 #include "CornerView.h"
 #include "PageMarks.h"
 #include "StackPage.h"
@@ -28,8 +29,10 @@ public:
     {
         InfoSun,
         InfoTwilight,
+        InfoPrayer,
         InfoMoon,
         InfoCompass,
+        InfoTime,
         InfoBattery,
         InfoAbout,
         InfoCount
@@ -78,6 +81,21 @@ public:
     // The corner gauges, on every page.
     void showCorners( const Corners::Gauge gauges[Corners::CornerCount] );
 
+    // The clock page's Hijri calendar: a month it asked for (ClockPages::takeHijriRequest), and
+    // the month computed by the main task.
+    bool takeHijriRequest( ClockPages::HijriRequest &request );
+
+    // What the setup portal set and the pages do not show (main: place, coordinates, time zone,
+    // UTC offset, next clock change, Hijri method, when the clock was set); the place also goes
+    // to the location-dependent pages.
+    static const int SetupInfoRows = 7;
+    void showSetupInfo( const char *const values[SetupInfoRows] );
+
+    // The world clock's cities (a copy), at the start and after the setup portal.
+    void setCities( const WorldClock &worldClock );
+    void setCounters( const DayCounters &counters );
+    void showHijriMonth( const Hijri::Month &month, int today, int method );
+
     // The Request bits tapped since the last call.
     int takeRequests();
 
@@ -96,6 +114,12 @@ public:
     // Shows the watch face in `style` without changing the setting (tools/screenshot.py).
     void showFaceStyle( int style );
 
+    // The fixed scene of the screenshots: sample states on the clock page.
+    void setScene( bool scene );
+
+    // Presses a clock page button by name (ClockPages::press).
+    bool pressClockButton( const char *name );
+
     // Development screenshot (tools/screenshot.py): shows page `page`, redraws the whole screen
     // and writes each pixel row to the console as "SHOT <y> <x> <colour runs>". Counts as activity.
     void capture( int page );
@@ -107,6 +131,20 @@ private:
     // The always-on page shows the corners as the always-on face draws them.
     static void onPageChanged( lv_event_t *event );
     static void onPagesScrolled( lv_event_t *event );
+    // A clock page part that takes sideways swipes itself (ClockPages::swipesSideways) stops the
+    // page swipe while it is shown.
+    static void onClockPartChanged( lv_event_t *event );
+    void updatePageSwipe();
+    // Pages built on demand (the watch face and its neighbours at the start).
+    void ensureBuilt( int page );
+    void buildInfoPage();
+    void buildSettingsPage();
+    void showBattery();
+    void applySetup();
+    lv_obj_t *m_tiles[5] = {};
+    bool m_built[5] = {};
+    Setup m_setup = {};
+    char m_setupTexts[SetupInfoRows][40] = {};
     // A long press and a vertical drag on the watch face sets the brightness; on the always-on
     // page, the always-on brightness of the moment (day or night), shown at that level while
     // dragging. Release saves the value (with the other settings when active mode ends).
@@ -127,6 +165,7 @@ private:
 #endif
     lv_obj_t *m_pages = nullptr;
     SkyPages m_sky;
+    ClockPages m_clock;
     AodPage m_aodPage;
     CornerView m_corners;
     bool m_night = false;  // the day gauge shows the night: the always-on night level applies
@@ -143,6 +182,7 @@ private:
     int m_adjustY = 0;
     lv_obj_t *m_aodTile = nullptr;
     lv_obj_t *m_faceTile = nullptr;
+    lv_obj_t *m_clockTile = nullptr;
     StackPage m_info;
     StackPage m_settingsPage;
     PageMarks m_aodMarks;
@@ -178,6 +218,7 @@ private:
     lv_obj_t *m_networkLabel = nullptr;
     lv_obj_t *m_passwordLabel = nullptr;
     lv_obj_t *m_setupInfo = nullptr;
+    lv_obj_t *m_setupValues[SetupInfoRows] = {};
     std::atomic<int> m_requests { 0 };
     std::atomic<int> m_touches { 0 };
     bool m_touchStarted = false;

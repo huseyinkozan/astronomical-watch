@@ -176,29 +176,38 @@ def main():
             time.sleep(0.5)
     reader = LineReader(port)
     if commands:
-        # Wait for active mode (a PWR press), then send the commands. Without them the pictures
-        # would show the watch's real time, location and portal password: stop instead.
-        print('Waiting for active mode: press PWR.')
-        start = time.time()
+        # A watch kept on by USB power is already in active mode: try the scene first. Otherwise
+        # wait for active mode (a PWR press), then send the commands. Without the scene the
+        # pictures would show the watch's real time, location and portal password: stop instead.
         active = False
-        while not active and time.time() - start < 120:
-            active = 'Active mode' in reader.readline()
-        if not active:
-            print('No active mode within 2 min; nothing captured.')
-            return 1
-        # A line break first ends any partial line left in the watch's input; the first command
-        # was lost to one before.
-        port.write(b'\n')
-        for command in commands:
-            port.write(f'{command}\n'.encode())
         if not args.live:
+            # A line break first ends any partial line left in the watch's input.
+            port.write(b'\nD\n')
             start = time.time()
-            scene = False
-            while not scene and time.time() - start < 5:
-                scene = 'Fixed scene on' in reader.readline()
-            if not scene:
-                print('The watch did not confirm the fixed scene; nothing captured.')
+            while not active and time.time() - start < 3:
+                active = 'Fixed scene on' in reader.readline()
+        if active:
+            for command in args.send:
+                port.write(f'{command}\n'.encode())
+        else:
+            print('Waiting for active mode: press PWR.')
+            start = time.time()
+            while not active and time.time() - start < 120:
+                active = 'Active mode' in reader.readline()
+            if not active:
+                print('No active mode within 2 min; nothing captured.')
                 return 1
+            port.write(b'\n')
+            for command in commands:
+                port.write(f'{command}\n'.encode())
+            if not args.live:
+                start = time.time()
+                scene = False
+                while not scene and time.time() - start < 5:
+                    scene = 'Fixed scene on' in reader.readline()
+                if not scene:
+                    print('The watch did not confirm the fixed scene; nothing captured.')
+                    return 1
         time.sleep(4)
     failures = 0
     page = 0

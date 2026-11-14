@@ -53,6 +53,18 @@ public:
 
     static Date date( int day, int utcOffsetMinutes, const Astronomy::Observer &observer, Method method );
 
+    // The month that holds local day `day`: its first civil day and its length (29 or 30), for the
+    // month calendar. The next month starts at firstDay + length, the previous one holds
+    // firstDay - 1. Two date() calls.
+    struct Month
+    {
+        int year;
+        int month;
+        int firstDay;
+        int length;
+    };
+    static Month month( int day, int utcOffsetMinutes, const Astronomy::Observer &observer, Method method );
+
     // Diyanet's condition for the evening of date `day` (days since 1970-01-01), anywhere on land.
     static bool diyanetEvening( int day, int64_t conjunction );
 

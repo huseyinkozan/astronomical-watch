@@ -34,6 +34,7 @@ static const ItemInfo s_items[Settings::ItemCount] = {
     { "always_on", s_alwaysOnDefault, 2, { 1, 0 }, 0, 0 },
     { "dev_mode", 0, 2, { 0, 1 }, 0, 0 },
     { "auto_off_min", CONFIG_WATCH_MOTION_OFF_MIN, 4, { 20, 30, 60, 0 }, 0, 0 },
+    { "usb_stay_on", 1, 2, { 1, 0 }, 0, 0 },
     { "utc_offset_min", 0, 0, {}, -720, 840 },
     { "latitude_ud", 0, 0, {}, -90000000, 90000000 },
     { "longitude_ud", 0, 0, {}, -180000000, 180000000 },
@@ -45,6 +46,13 @@ static const ItemInfo s_items[Settings::ItemCount] = {
     { "brightness", CONFIG_WATCH_DISPLAY_BRIGHTNESS, 0, {}, 5, 100 },
     { "aod_day_pct", CONFIG_WATCH_AOD_DAY_BRIGHTNESS, 0, {}, 1, 100 },
     { "aod_night_pct", CONFIG_WATCH_AOD_NIGHT_BRIGHTNESS, 0, {}, 1, 100 },
+    { "home_chg1", 0, 0, {}, 0, 70000000 },
+    { "home_aft1", 0, 0, {}, -720, 840 },
+    { "home_chg2", 0, 0, {}, 0, 70000000 },
+    { "home_aft2", 0, 0, {}, -720, 840 },
+    // -10: measured on the first board (docs/hardware.md, PCF85063A); the portal corrects it.
+    { "rtc_offset", -10, 0, {}, -64, 63 },
+    { "rtc_set_min", 0, 0, {}, 0, 70000000 },
 };
 
 static int indexOf( const ItemInfo &info, int value )

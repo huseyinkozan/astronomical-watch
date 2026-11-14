@@ -159,3 +159,13 @@ Hijri::Date Hijri::tabular( int day )
     result.day = static_cast<int>( julianDay - tabularToJulianDay( result.year, result.month, 1 ) + 1 );
     return result;
 }
+
+Hijri::Month Hijri::month( int day, int utcOffsetMinutes, const Astronomy::Observer &observer, Method method )
+{
+    const Date today = date( day, utcOffsetMinutes, observer, method );
+    Month result = { today.year, today.month, day - ( today.day - 1 ), 30 };
+    if ( date( result.firstDay + 29, utcOffsetMinutes, observer, method ).day == 1 ) {
+        result.length = 29;
+    }
+    return result;
+}

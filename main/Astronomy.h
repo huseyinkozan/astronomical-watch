@@ -80,6 +80,13 @@ public:
 
     static MoonPhase moonPhase( int64_t time );
 
+    // The Sun's declination (degrees) and the equation of time (apparent minus mean solar time,
+    // minutes) at `time`.
+    static void sunDeclinationAndEquation( int64_t time, double &declination, double &equationMinutes );
+
+    // Greenwich mean sidereal time, degrees.
+    static double greenwichSiderealTime( int64_t time );
+
     // New Moon (conjunction in ecliptic longitude) at or before `time`.
     static int64_t previousNewMoon( int64_t time );
 

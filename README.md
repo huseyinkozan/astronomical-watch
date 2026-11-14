@@ -114,17 +114,23 @@ astronomical-watch/
 ## Status
 
 Restarted on ESP-IDF with C++17. The watch puts the unused peripherals into their lowest-power
-state. A PWR press starts active mode: four pages swiped sideways show the always-on face as it will
+state. A PWR press starts active mode: five pages swiped sideways show the always-on face as it will
 look, the watch face (classic or day arc, with the date, Hijri date, next sunrise or sunset and
 the Moon's phase in the bottom-left corner; or the Sun's and the Moon's paths as arcs over the
-horizon or as orbits around a dial with hands), the information and the settings; a vertical swipe
-steps the always-on style, the face layout, and the parts of the last two pages. The information
-page holds the Sun (rise, set, noon, day length, time left until sunset), the twilights with the
-golden and blue hours, the Moon (phase, rise and set, the dark part of the night, the new
-crescent, the Hijri date), a sun compass, the battery details and an About page. The settings
-page holds the settings (display timeout, always-on, development mode, auto-off; one tap per
-value, kept in flash) and the setup portal, which opens the watch's own Wi-Fi for a phone or
-computer, whose browser sets the time, UTC offset, location and settings. A long press and a
+horizon or as orbits around a dial with hands), the clock, the information and the settings; a
+vertical swipe steps the always-on style, the face layout, and the parts of the last three pages.
+The clock page holds a world clock (four cities that follow their daylight saving time), a
+stopwatch with laps and a countdown (both keep running while the watch sleeps), Gregorian and
+Hijri month calendars (a sideways swipe steps the month) and day counters. The information page
+holds the Sun (rise, set, noon, day length, time left until sunset), the twilights with the
+golden and blue hours, the prayer times by Diyanet's method, the Moon (phase, rise and set, the
+dark part of the night, the new crescent, the Hijri date), a sun compass, the time (solar,
+equation of time, ezani, qibla time, sidereal, week and day), the battery details and an About
+page. The settings page holds the settings (display timeout, always-on, development mode,
+auto-off, screen on while on USB; one tap per value, kept in flash), what the portal set, and the
+setup portal, which opens the watch's own Wi-Fi for a phone or computer, whose browser sets the
+time, time zone, location, world clock cities, day counters and settings, and shows a short
+help page; each save also corrects the clock's rate. A long press and a
 vertical drag on the watch face sets the brightness, on the always-on page the always-on
 brightness by day or by night. 10 s after the last touch
 (the default), or at the next PWR press, a

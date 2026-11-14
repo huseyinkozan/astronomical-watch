@@ -5,8 +5,8 @@
 
 // A page of the tileview whose parts lie one over the other: a vertical swipe steps between them
 // (up: the next one slides in from below; after the last comes the first), and marks along the
-// right edge show which one is shown. The information page and the settings page use it. Called
-// with the display lock held.
+// right edge show which one is shown. The information page and the settings page use it. A part
+// change sends LV_EVENT_VALUE_CHANGED to the tile. Called with the display lock held.
 class StackPage
 {
 public:
@@ -25,6 +25,7 @@ public:
 private:
     static void onGesture( lv_event_t *event );
 
+    lv_obj_t *m_tile = nullptr;
     lv_obj_t *m_parts[MaxParts] = {};
     int m_count = 0;
     int m_current = 0;

@@ -3,6 +3,8 @@
 #include <cstdint>
 
 #include "Settings.h"
+#include "DayCounters.h"
+#include "WorldClock.h"
 #include "esp_err.h"
 #include "esp_http_server.h"
 #include "esp_netif.h"
@@ -23,6 +25,17 @@ public:
         int64_t atTimerUs;  // esp_timer time of that moment
         bool valueValid[Settings::ItemCount];
         int values[Settings::ItemCount];
+        // The world clock and the own zone's IANA name; citiesValid: the page sent them.
+        bool citiesValid;
+        int cityCount;
+        WorldClock::City cities[WorldClock::MaxCities];
+        char homeZoneName[WorldClock::ZoneNameLength];
+        bool placeValid;
+        char place[WorldClock::NameLength];
+        // The day counters; countersValid: the page sent them.
+        bool countersValid;
+        int counterCount;
+        DayCounters::Counter counters[DayCounters::MaxCounters];
     };
 
     // Reads the stored password, or creates one. NVS must be initialised (Settings::load()).
@@ -30,7 +43,7 @@ public:
 
     // Starts the soft AP, DHCP, DNS and HTTP servers. The page reads the current values from
     // `settings` while the portal runs.
-    esp_err_t start( const Settings &settings );
+    esp_err_t start( const Settings &settings, const WorldClock &worldClock, const DayCounters &counters );
 
     // Stops everything start() started; safe to call when not running.
     void stop();
@@ -53,6 +66,7 @@ public:
 private:
     static esp_err_t onPage( httpd_req_t *request );
     static esp_err_t onCities( httpd_req_t *request );
+    static esp_err_t onHelp( httpd_req_t *request );
     static esp_err_t onState( httpd_req_t *request );
     static esp_err_t onPing( httpd_req_t *request );
     static esp_err_t onSave( httpd_req_t *request );
@@ -60,6 +74,8 @@ private:
     void touch();
 
     const Settings *m_settings = nullptr;
+    const WorldClock *m_worldClock = nullptr;
+    const DayCounters *m_counters = nullptr;
     esp_netif_t *m_netif = nullptr;
     httpd_handle_t m_server = nullptr;
     void *m_dns = nullptr;

@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <cmath>
 #include <ctime>
 
 #include "AlwaysOn.h"
@@ -20,6 +21,9 @@
 #endif
 #include "Rtc.h"
 #include "Settings.h"
+#include "DayCounters.h"
+#include "WorldClock.h"
+#include "Zones.h"
 
 #include "bsp/esp32_s3_touch_amoled_2_06.h"
 #include "driver/gpio.h"
@@ -51,13 +55,15 @@ static AlwaysOn s_alwaysOn;
 static BatteryLog s_batteryLog;
 static Motion s_motion;
 static Settings s_settings;
+static WorldClock s_worldClock;
+static DayCounters s_dayCounters;
 #if CONFIG_WATCH_SETUP_PORTAL
 static Portal s_portal;
 #endif
 
-// The UTC offset for the always-on face, copied when active mode ends: the minute wakes do not
-// read NVS.
-RTC_DATA_ATTR static int s_alwaysOnOffsetMinutes;
+// The own time zone for the always-on face (the UTC offset and its next clock changes), copied
+// when active mode ends: the minute wakes do not read NVS.
+RTC_DATA_ATTR static Zone s_alwaysOnZone;
 // The development mode setting, copied when active mode ends (minute wakes read no NVS).
 RTC_DATA_ATTR static bool s_alwaysOnDevMode;
 // Development mode writes an always-on summary to the event log this often.
@@ -123,6 +129,11 @@ static bool pollHostCommands()
             continue;
         }
 #if CONFIG_WATCH_DEV_LOGGING
+        if ( s_hostLine[0] == 'B' && s_hostLine[1] == ' ' ) {
+            ESP_LOGI( TAG, "Button %s: %s", s_hostLine + 2,
+                      s_display.pressClockButton( s_hostLine + 2 ) ? "pressed" : "unknown" );
+            continue;
+        }
         int page = 0;
         if ( sscanf( s_hostLine, "S %d", &page ) == 1 ) {
             s_display.capture( page );
@@ -147,6 +158,11 @@ static bool pollHostCommands()
         }
         if ( s_hostLine[0] == 'D' && s_hostLine[1] == '\0' ) {
             s_scene = true;
+            s_display.setScene( true );
+            // Never the real place in a published picture.
+            static const char *const s_sceneSetup[Display::SetupInfoRows] = {
+                "Istanbul", "41.01N 28.98E", "Istanbul", "UTC+3", "none", "Crescent", "21 Jun 2026" };
+            s_display.showSetupInfo( s_sceneSetup );
             // tools/screenshot.py waits for this line: without the scene the pictures would show
             // the real time and location.
             ESP_LOGI( TAG, "Fixed scene on" );
@@ -260,14 +276,45 @@ static void updateSky( int64_t now, const int inputs[4] )
     s_display.showSky( s_skyDay, Sky::computeNow( now, s_skyDay, observer ), offsetMinutes );
 }
 
+// USB power at the last display update (the "On USB: stay on" setting).
+static bool s_usbPower = false;
+
+// The own time zone from the settings (Settings::UtcOffset and the Home* items).
+static Zone homeZone()
+{
+    return { s_settings.value( Settings::UtcOffset ),
+             { s_settings.value( Settings::HomeChange1 ), s_settings.value( Settings::HomeChange2 ) },
+             { s_settings.value( Settings::HomeAfter1 ), s_settings.value( Settings::HomeAfter2 ) } };
+}
+
+// A clock change that has passed becomes the UTC offset, saved at once (rare: twice a year).
+static void advanceZones( int64_t utcSeconds )
+{
+    Zone zone = homeZone();
+    if ( Zones::advance( zone, utcSeconds ) ) {
+        s_settings.setValue( Settings::UtcOffset, zone.offset );
+        s_settings.setValue( Settings::HomeChange1, zone.changeAt[0] );
+        s_settings.setValue( Settings::HomeAfter1, zone.offsetAfter[0] );
+        s_settings.setValue( Settings::HomeChange2, zone.changeAt[1] );
+        s_settings.setValue( Settings::HomeAfter2, zone.offsetAfter[1] );
+        s_settings.save();
+        ESP_LOGI( TAG, "Clock change: UTC offset now %d min", zone.offset );
+    }
+    s_worldClock.advance( utcSeconds );
+}
+
 static void updateDisplay()
 {
     Rtc::DateTime time = {};
     bool oscillatorStopped = false;
     Display::Battery battery = {};
     s_rtc.read( time, oscillatorStopped );
+    if ( !oscillatorStopped && time.month != 0 ) {
+        advanceZones( unixTime( time ) );
+    }
     const bool batteryRead = s_pmu.readBattery( battery.millivolts, battery.percent, battery.vbusGood ) == ESP_OK;
     battery.chargeState = s_pmu.chargeState();
+    s_usbPower = batteryRead && battery.vbusGood;
     int inputs[4] = { s_settings.value( Settings::Latitude ), s_settings.value( Settings::Longitude ),
                       s_settings.value( Settings::UtcOffset ), s_settings.value( Settings::HijriMethod ) };
 #if CONFIG_WATCH_DEV_LOGGING
@@ -278,7 +325,18 @@ static void updateDisplay()
         }
     }
 #endif
-    s_display.update( Rtc::addMinutes( time, inputs[2] ), inputs[2], battery );
+    const Rtc::DateTime local = Rtc::addMinutes( time, inputs[2] );
+    s_display.update( local, inputs[2], battery );
+    // The clock page's Hijri calendar asks for a month now and then (up to 1 s of computation).
+    ClockPages::HijriRequest request = {};
+    if ( local.month != 0 && s_display.takeHijriRequest( request ) ) {
+        const Astronomy::Observer observer = { inputs[0] / 1e6, inputs[1] / 1e6 };
+        const Hijri::Method method = static_cast<Hijri::Method>( inputs[3] );
+        const int day = request.step > 0 ? request.fromDay + request.length
+                                         : ( request.step < 0 ? request.fromDay - 1 : request.fromDay );
+        const Hijri::Month month = Hijri::month( day, inputs[2], observer, method );
+        s_display.showHijriMonth( month, static_cast<int>( unixTime( local ) / 86400 ), method );
+    }
     updateSky( unixTime( time ), inputs );
     Corners::Gauge gauges[Corners::CornerCount] = {};
     const Corners::Input corners = s_skyValid ? Corners::fromSky( s_skyDay ) : Corners::Input {};
@@ -299,6 +357,88 @@ static void showSetup()
 }
 
 // What the setup page sent: the settings at once (and into NVS), the time at its next second.
+// What the setup portal set and the pages do not show: the settings page's Setup part, and the
+// place on the location-dependent pages.
+static void showSetupInfo()
+{
+    static const char *s_monthNames[12] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+    char texts[Display::SetupInfoRows][40] = {};
+    const double latitude = s_settings.value( Settings::Latitude ) / 1e6;
+    const double longitude = s_settings.value( Settings::Longitude ) / 1e6;
+    snprintf( texts[1], sizeof( texts[1] ), "%.2f%c %.2f%c", fabs( latitude ), latitude < 0 ? 'S' : 'N',
+              fabs( longitude ), longitude < 0 ? 'W' : 'E' );
+    snprintf( texts[0], sizeof( texts[0] ), "%s", s_worldClock.homePlace()[0] != '\0' ? s_worldClock.homePlace() : texts[1] );
+    // The zone's last part ("Europe/Istanbul": "Istanbul"), which fits the row.
+    const char *zoneName = s_worldClock.homeZoneName();
+    const char *slash = strrchr( zoneName, '/' );
+    snprintf( texts[2], sizeof( texts[2] ), "%s", zoneName[0] == '\0' ? "fixed" : ( slash != nullptr ? slash + 1 : zoneName ) );
+    for ( char *c = texts[2]; *c != '\0'; ++c ) {
+        *c = *c == '_' ? ' ' : *c;
+    }
+    const Zone zone = homeZone();
+    const int offset = zone.offset < 0 ? -zone.offset : zone.offset;
+    int length = snprintf( texts[3], sizeof( texts[3] ), "UTC%c%d", zone.offset < 0 ? '-' : '+', offset / 60 );
+    if ( offset % 60 != 0 ) {
+        length += snprintf( texts[3] + length, sizeof( texts[3] ) - length, ":%02d", offset % 60 );
+    }
+    if ( zone.changeAt[0] != 0 ) {
+        // The date of the change in the time before it.
+        const time_t when = static_cast<time_t>( zone.changeAt[0] ) * 60 + zone.offset * 60;
+        tm fields = {};
+        gmtime_r( &when, &fields );
+        snprintf( texts[4], sizeof( texts[4] ), "%d %s %02d:%02d", fields.tm_mday, s_monthNames[fields.tm_mon],
+                  fields.tm_hour, fields.tm_min );
+    } else {
+        snprintf( texts[4], sizeof( texts[4] ), "none" );
+    }
+    snprintf( texts[5], sizeof( texts[5] ), "%s",
+              s_settings.value( Settings::HijriMethod ) == Hijri::Diyanet ? "Diyanet" : "Crescent" );
+    const int setMinute = s_settings.value( Settings::RtcSetMinute );
+    if ( setMinute != 0 ) {
+        const time_t when = static_cast<time_t>( setMinute ) * 60 + zone.offset * 60;
+        tm fields = {};
+        gmtime_r( &when, &fields );
+        snprintf( texts[6], sizeof( texts[6] ), "%d %s %d", fields.tm_mday, s_monthNames[fields.tm_mon],
+                  fields.tm_year + 1900 );
+    } else {
+        snprintf( texts[6], sizeof( texts[6] ), "never" );
+    }
+    const char *values[Display::SetupInfoRows] = {};
+    for ( int i = 0; i < Display::SetupInfoRows; ++i ) {
+        values[i] = texts[i];
+    }
+    s_display.showSetupInfo( values );
+}
+
+// The clock's rate from its error since the portal last set it: the Offset register is corrected
+// by whole steps of 4.34 ppm (docs/hardware.md, PCF85063A).
+static void correctRtcRate( const Portal::Received &received )
+{
+    const int lastSetMinute = s_settings.value( Settings::RtcSetMinute );
+    int64_t errorMs = 0;
+    if ( lastSetMinute == 0 || s_rtc.measureErrorMs( received.unixMs, received.atTimerUs, errorMs ) != ESP_OK ) {
+        return;
+    }
+    const int64_t elapsedS = received.unixMs / 1000 - static_cast<int64_t>( lastSetMinute ) * 60;
+    // Two days at least: the browser's time is good to about 0.1 s, under 1 ppm over two days.
+    if ( elapsedS < 2 * 86400 ) {
+        return;
+    }
+    const double ppm = errorMs * 1000.0 / elapsedS;
+    const int steps = static_cast<int>( lround( ppm / 4.34 ) );
+    // Far more than a crystal drifts: the time was changed some other way; keep the rate.
+    if ( fabs( ppm ) > 100.0 || steps == 0 ) {
+        ESP_LOGI( TAG, "RTC error %lld ms over %lld s (%.1f ppm): rate kept", errorMs, elapsedS, ppm );
+        return;
+    }
+    const int offset = s_settings.value( Settings::RtcOffset ) + steps;
+    s_settings.setValue( Settings::RtcOffset, offset < -64 ? -64 : ( offset > 63 ? 63 : offset ) );
+    s_rtc.applyCalibration( s_settings.value( Settings::RtcOffset ) );
+    ESP_LOGI( TAG, "RTC error %lld ms over %lld s (%.1f ppm): offset %d steps", errorMs, elapsedS, ppm,
+              s_settings.value( Settings::RtcOffset ) );
+}
+
 static void applyPortalData( const Portal::Received &received )
 {
     for ( int i = 0; i < Settings::ItemCount; ++i ) {
@@ -309,7 +449,22 @@ static void applyPortalData( const Portal::Received &received )
     }
     s_settings.save();
     s_display.refreshSettings();
+    if ( received.countersValid ) {
+        s_dayCounters.set( received.counters, received.counterCount );
+        s_display.setCounters( s_dayCounters );
+    }
+    if ( received.citiesValid ) {
+        s_worldClock.set( received.cities, received.cityCount, received.homeZoneName );
+        s_display.setCities( s_worldClock );
+    }
+    if ( received.placeValid ) {
+        s_worldClock.setHomePlace( received.place );
+    }
+    showSetupInfo();
     if ( received.timeValid ) {
+        correctRtcRate( received );
+        s_settings.setValue( Settings::RtcSetMinute, static_cast<int>( received.unixMs / 60000 ) );
+        s_settings.save();
         const esp_err_t err = s_rtc.setFromUnixMs( received.unixMs, received.atTimerUs );
         ESP_LOGI( TAG, "RTC set from the setup page: %s", esp_err_to_name( err ) );
     }
@@ -328,7 +483,7 @@ static bool servicePortal( bool everySecond )
         if ( s_portal.isRunning() ) {
             s_portal.stop();
         } else {
-            s_portal.start( s_settings );
+            s_portal.start( s_settings, s_worldClock, s_dayCounters );
             s_portalUsed = true;
         }
     }
@@ -397,7 +552,7 @@ static int runActiveMode()
             ESP_LOGI( TAG, "Display timeout: active mode ends" );
             return 1;
         }
-        if ( pollHostCommands() ) {
+        if ( pollHostCommands() || ( s_usbPower && s_settings.value( Settings::UsbStayOn ) != 0 ) ) {
             activeMs = 0;
         }
         vTaskDelay( pdMS_TO_TICKS( 20 ) );
@@ -533,7 +688,8 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
             }
         }
     }
-    const uint64_t sleepUs = s_alwaysOn.update( Rtc::addMinutes( time, s_alwaysOnOffsetMinutes ), unixTime( time ),
+    const int offsetMinutes = Zones::offsetAt( s_alwaysOnZone, unixTime( time ) );
+    const uint64_t sleepUs = s_alwaysOn.update( Rtc::addMinutes( time, offsetMinutes ), unixTime( time ),
                                                 timeRead, batteryPercent );
     // Without the device the readings fail, which the motion check counts as no motion.
     s_motion.init( bus );
@@ -590,7 +746,7 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
     s_deepSleep.clearLongestTimerWake();
     s_alwaysOnDevMode = s_settings.value( Settings::DevMode ) != 0;
     s_motion.restart( s_settings.value( Settings::AutoOff ) );
-    s_alwaysOnOffsetMinutes = s_settings.value( Settings::UtcOffset );
+    s_alwaysOnZone = homeZone();
     Panel::holdPins();
     s_peripherals.holdSleepLines();
     s_deepSleep.enter( 500 * 1000 );
@@ -679,7 +835,7 @@ extern "C" void app_main( void )
     s_portal.init();
 #endif
     if ( s_rtc.init( bus ) == ESP_OK ) {
-        s_rtc.applyCalibration();
+        s_rtc.applyCalibration( s_settings.value( Settings::RtcOffset ) );
         s_rtc.logAtTick();
     } else {
         ESP_LOGE( TAG, "RTC init failed" );
@@ -723,6 +879,11 @@ extern "C" void app_main( void )
 #else
         s_pmu.setPanelPower( true );
         s_displayOn = s_display.start( s_settings );
+        s_worldClock.load();
+        s_display.setCities( s_worldClock );
+        s_dayCounters.load();
+        s_display.setCounters( s_dayCounters );
+        showSetupInfo();
 #endif
         s_touchModeStart = s_peripherals.touchPowerMode( bus );
         // After a wake from always-on the BSP's reset does not always wake the touch controller

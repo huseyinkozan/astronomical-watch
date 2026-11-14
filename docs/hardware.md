@@ -310,6 +310,10 @@ Off mode [HW] (guided test `off`, 2026-10-31; `main/Axp2101.*`):
   likely shorter than 512 ms. Each boot now logs REG20 and REG21 in the event log
   (`tools/read_events.py`: "PMU on by PWR key / VBUS insert, last off by ..."), so that a case
   like this can be told apart afterwards.
+- Clock rate: each setup portal save that sets the time first measures the clock's error against
+  the browser's time at a clock tick (`Rtc::measureErrorMs`); after at least two days since the
+  last set it adds the error's ppm / 4.34 to the Offset register (MODE 0, kept as a setting) and
+  ignores errors above 100 ppm (a time set some other way). Not yet observed over days.
 - Battery limit (2026-11-13, a test build with the limit at 100 % and 4.5 V, on battery): the end
   of active mode powered the watch off instead of starting always-on, and an always-on minute
   wake after USB was unplugged powered it off within a minute. A press of about 1 s powered it on
@@ -506,6 +510,18 @@ Taps on the settings page (M8, `main/Display.cpp`) [REF][HW]:
   the first one on release (seen on the board). The rows clear the press lock, so sliding off
   a row cancels the tap (checked on the board).
 - Rows are 108 px high (8.7 mm), about the Wear OS minimum touch target of 48 dp (~9 mm).
+
+### Internal RAM in active mode [HW] (2026-11-15, development build; `main/Display.cpp`)
+PSRAM is not enabled; LVGL and Wi-Fi share the internal heap.
+- With every page built at a PWR wake (about 600 LVGL objects after the clock page was added),
+  1.64 s went to building the pages and the first frame, 76 KB of heap remained, and with the
+  setup portal's Wi-Fi on only 6.9 KB: LVGL crashed drawing a corner arc (core dump:
+  `lv_draw_sw_mask` without its buffer).
+- The calendars drawn by one object each (instead of 84 labels), and fewer Wi-Fi buffers
+  (static RX 10 → 4, dynamic RX and TX 32 → 16, no AMPDU; `sdkconfig.defaults`): 103 KB with the
+  pages, 43.8 KB with the portal on, no crash.
+- Pages built when a neighbour is shown (`Display::ensureBuilt`): the watch face and its
+  neighbours take 0.54 s at a PWR wake, with 155 KB of heap left.
 
 ### Astronomy computation time [HW] (M10, 2026-11-12; `main/Astronomy.*`, `main/Hijri.*`)
 The ESP32-S3 has a single-precision FPU only; the astronomy code uses `double`, done in software.

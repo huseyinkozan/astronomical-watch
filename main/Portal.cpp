@@ -1,9 +1,11 @@
 #include "Portal.h"
 
+#include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 
 #include "dns_server.h"
 #include "esp_heap_caps.h"
@@ -25,12 +27,19 @@ extern const char s_pageStart[] asm( "_binary_index_html_start" );
 extern const char s_pageEnd[] asm( "_binary_index_html_end" );
 extern const char s_citiesStart[] asm( "_binary_cities_js_start" );
 extern const char s_citiesEnd[] asm( "_binary_cities_js_end" );
+extern const char s_helpStart[] asm( "_binary_help_html_start" );
+extern const char s_helpEnd[] asm( "_binary_help_html_end" );
 
 // Field names of the save request, one per Settings::Item.
-static const char *s_fieldNames[Settings::ItemCount] = { "timeout", "alwaysOn", "devMode",    "autoOff",
+static const char *s_fieldNames[] = { "timeout", "alwaysOn", "devMode",    "autoOff", "usbStayOn",
                                                          "offset",  "lat",      "lon",        "hijri",
                                                          "face",    "aod",      "faceItems",  "aodItems",
-                                                         "brightness", "aodDay", "aodNight" };
+                                                         "brightness", "aodDay", "aodNight",
+                                                         "chg1",    "aft1",     "chg2",       "aft2",
+                                                         // Set by the watch itself; the page never sends them.
+                                                         "rtcOffset", "rtcSet" };
+// One name per setting: a missing one would be read as a null name.
+static_assert( sizeof( s_fieldNames ) / sizeof( s_fieldNames[0] ) == Settings::ItemCount, "a field name per setting" );
 
 static bool s_networkReady = false;
 // The 404 handler has no user context: it reaches the running portal through this.
@@ -86,12 +95,14 @@ void Portal::newPassword()
     ESP_LOGI( TAG, "New password: %s", esp_err_to_name( err ) );
 }
 
-esp_err_t Portal::start( const Settings &settings )
+esp_err_t Portal::start( const Settings &settings, const WorldClock &worldClock, const DayCounters &counters )
 {
     if ( isRunning() ) {
         return ESP_OK;
     }
     m_settings = &settings;
+    m_worldClock = &worldClock;
+    m_counters = &counters;
     esp_err_t err = ESP_OK;
     if ( !s_networkReady ) {
         err = esp_netif_init();
@@ -153,14 +164,15 @@ esp_err_t Portal::start( const Settings &settings )
         stop();
         return err;
     }
-    const httpd_uri_t handlers[5] = {
+    const httpd_uri_t handlers[6] = {
         { "/", HTTP_GET, onPage, this },
+        { "/help", HTTP_GET, onHelp, this },
         { "/cities.js", HTTP_GET, onCities, this },
         { "/api/state", HTTP_GET, onState, this },
         { "/api/ping", HTTP_GET, onPing, this },
         { "/api/save", HTTP_POST, onSave, this },
     };
-    for ( int i = 0; i < 5; ++i ) {
+    for ( int i = 0; i < 6; ++i ) {
         httpd_register_uri_handler( m_server, &handlers[i] );
     }
     httpd_register_err_handler( m_server, HTTPD_404_NOT_FOUND, onNotFound );
@@ -267,6 +279,13 @@ esp_err_t Portal::onPage( httpd_req_t *request )
     return httpd_resp_send( request, s_pageStart, s_pageEnd - s_pageStart - 1 );
 }
 
+esp_err_t Portal::onHelp( httpd_req_t *request )
+{
+    static_cast<Portal *>( request->user_ctx )->touch();
+    httpd_resp_set_type( request, "text/html; charset=utf-8" );
+    return httpd_resp_send( request, s_helpStart, s_helpEnd - s_helpStart - 1 );
+}
+
 esp_err_t Portal::onCities( httpd_req_t *request )
 {
     static_cast<Portal *>( request->user_ctx )->touch();
@@ -279,11 +298,12 @@ esp_err_t Portal::onState( httpd_req_t *request )
     Portal *portal = static_cast<Portal *>( request->user_ctx );
     portal->touch();
     const Settings &settings = *portal->m_settings;
-    char json[360];
+    const WorldClock &world = *portal->m_worldClock;
+    static char json[1536];
     snprintf( json, sizeof( json ),
               "{\"timeout\":%d,\"alwaysOn\":%d,\"brightness\":%d,\"autoOff\":%d,\"face\":%d,\"aod\":%d,"
               "\"offset\":%d,\"lat\":%.6f,\"lon\":%.6f,\"hijri\":%d,\"faceItems\":%d,\"aodItems\":%d,"
-              "\"aodDay\":%d,\"aodNight\":%d,\"devMode\":%d}",
+              "\"aodDay\":%d,\"aodNight\":%d,\"devMode\":%d,\"usbStayOn\":%d,\"zone\":\"%s\",\"place\":\"%s\",\"cities\":[",
               settings.value( Settings::DisplayTimeout ), settings.value( Settings::AlwaysOnFace ),
               settings.value( Settings::Brightness ), settings.value( Settings::AutoOff ),
               settings.value( Settings::FaceStyle ), settings.value( Settings::AodStyle ),
@@ -291,7 +311,25 @@ esp_err_t Portal::onState( httpd_req_t *request )
               settings.value( Settings::Longitude ) / 1e6, settings.value( Settings::HijriMethod ),
               settings.value( Settings::FaceItems ), settings.value( Settings::AodItems ),
               settings.value( Settings::AodDayBrightness ), settings.value( Settings::AodNightBrightness ),
-              settings.value( Settings::DevMode ) );
+              settings.value( Settings::DevMode ), settings.value( Settings::UsbStayOn ), world.homeZoneName(),
+              world.homePlace() );
+    // The names come from the page's own city list: no quotes or backslashes.
+    for ( int i = 0; i < world.count(); ++i ) {
+        const int used = strlen( json );
+        snprintf( json + used, sizeof( json ) - used, "%s[\"%s\",\"%s\"]", i == 0 ? "" : ",", world.city( i ).name,
+                  world.city( i ).zoneName );
+    }
+    strlcat( json, "],\"days\":[", sizeof( json ) );
+    const DayCounters &counters = *portal->m_counters;
+    for ( int i = 0; i < counters.count(); ++i ) {
+        const time_t when = static_cast<time_t>( counters.counter( i ).day ) * 86400;
+        tm fields = {};
+        gmtime_r( &when, &fields );
+        const int used = strlen( json );
+        snprintf( json + used, sizeof( json ) - used, "%s[\"%s\",\"%04d-%02d-%02d\"]", i == 0 ? "" : ",",
+                  counters.counter( i ).name, fields.tm_year + 1900, fields.tm_mon + 1, fields.tm_mday );
+    }
+    strlcat( json, "]}", sizeof( json ) );
     httpd_resp_set_type( request, "application/json" );
     noCache( request );
     return httpd_resp_sendstr( request, json );
@@ -304,13 +342,33 @@ esp_err_t Portal::onPing( httpd_req_t *request )
     return httpd_resp_sendstr( request, "pong" );
 }
 
+// Decodes a form value in place: "+" is a space, "%XX" a byte.
+static void urlDecode( char *text )
+{
+    char *out = text;
+    for ( const char *in = text; *in != '\0'; ++in ) {
+        if ( *in == '+' ) {
+            *out++ = ' ';
+        } else if ( *in == '%' && isxdigit( static_cast<unsigned char>( in[1] ) ) &&
+                    isxdigit( static_cast<unsigned char>( in[2] ) ) ) {
+            const char hex[3] = { in[1], in[2], '\0' };
+            *out++ = static_cast<char>( strtol( hex, nullptr, 16 ) );
+            in += 2;
+        } else {
+            *out++ = *in;
+        }
+    }
+    *out = '\0';
+}
+
 // Body: "time=<ms since 1970>&rtt=<ms>&timeout=10&...&lat=41.0082&lon=28.9784", form-encoded.
 esp_err_t Portal::onSave( httpd_req_t *request )
 {
     const int64_t arrivedUs = esp_timer_get_time();
     Portal *portal = static_cast<Portal *>( request->user_ctx );
     portal->touch();
-    char body[384];
+    // Static: one request at a time, and the HTTP server task's stack is small.
+    static char body[1536];
     const int length = request->content_len < sizeof( body ) - 1 ? request->content_len : sizeof( body ) - 1;
     int read = 0;
     while ( read < length ) {
@@ -322,7 +380,8 @@ esp_err_t Portal::onSave( httpd_req_t *request )
     }
     body[read] = '\0';
 
-    Received received = {};
+    static Received received;
+    received = {};
     char value[24];
     if ( httpd_query_key_value( body, "time", value, sizeof( value ) ) == ESP_OK ) {
         char rtt[12] = "0";
@@ -343,6 +402,81 @@ esp_err_t Portal::onSave( httpd_req_t *request )
             received.values[i] = static_cast<int>( strtol( value, nullptr, 10 ) );
         }
         received.valueValid[i] = true;
+    }
+    // The world clock: "c0".."c3" = "name|zone|offset|change1|after1|change2|after2", URL-encoded.
+    if ( httpd_query_key_value( body, "cities", value, sizeof( value ) ) == ESP_OK ) {
+        received.citiesValid = true;
+        char text[128];
+        if ( httpd_query_key_value( body, "zone", text, sizeof( text ) ) == ESP_OK ) {
+            urlDecode( text );
+            strlcpy( received.homeZoneName, text, sizeof( received.homeZoneName ) );
+        }
+        const int count = static_cast<int>( strtol( value, nullptr, 10 ) );
+        for ( int i = 0; i < count && i < WorldClock::MaxCities; ++i ) {
+            char key[4] = { 'c', static_cast<char>( '0' + i ), '\0', '\0' };
+            if ( httpd_query_key_value( body, key, text, sizeof( text ) ) != ESP_OK ) {
+                continue;
+            }
+            urlDecode( text );
+            WorldClock::City &city = received.cities[received.cityCount];
+            char *fields[7] = {};
+            char *rest = text;
+            for ( int f = 0; f < 7 && rest != nullptr; ++f ) {
+                fields[f] = rest;
+                rest = strchr( rest, '|' );
+                if ( rest != nullptr ) {
+                    *rest++ = '\0';
+                }
+            }
+            if ( fields[6] == nullptr ) {
+                continue;
+            }
+            strlcpy( city.name, fields[0], sizeof( city.name ) );
+            strlcpy( city.zoneName, fields[1], sizeof( city.zoneName ) );
+            city.zone.offset = static_cast<int>( strtol( fields[2], nullptr, 10 ) );
+            city.zone.changeAt[0] = static_cast<int>( strtol( fields[3], nullptr, 10 ) );
+            city.zone.offsetAfter[0] = static_cast<int>( strtol( fields[4], nullptr, 10 ) );
+            city.zone.changeAt[1] = static_cast<int>( strtol( fields[5], nullptr, 10 ) );
+            city.zone.offsetAfter[1] = static_cast<int>( strtol( fields[6], nullptr, 10 ) );
+            ++received.cityCount;
+        }
+    }
+    {
+        char text[64];
+        if ( httpd_query_key_value( body, "place", text, sizeof( text ) ) == ESP_OK ) {
+            urlDecode( text );
+            strlcpy( received.place, text, sizeof( received.place ) );
+            received.placeValid = true;
+        }
+    }
+    // The day counters: "d0".."d3" = "name|YYYY-MM-DD", URL-encoded.
+    if ( httpd_query_key_value( body, "days", value, sizeof( value ) ) == ESP_OK ) {
+        received.countersValid = true;
+        const int count = static_cast<int>( strtol( value, nullptr, 10 ) );
+        for ( int i = 0; i < count && i < DayCounters::MaxCounters; ++i ) {
+            char key[4] = { 'd', static_cast<char>( '0' + i ), '\0', '\0' };
+            char text[96];
+            if ( httpd_query_key_value( body, key, text, sizeof( text ) ) != ESP_OK ) {
+                continue;
+            }
+            urlDecode( text );
+            char *date = strrchr( text, '|' );
+            int year = 0;
+            int month = 0;
+            int day = 0;
+            if ( date == nullptr || sscanf( date + 1, "%d-%d-%d", &year, &month, &day ) != 3 ) {
+                continue;
+            }
+            *date = '\0';
+            tm fields = {};
+            fields.tm_year = year - 1900;
+            fields.tm_mon = month - 1;
+            fields.tm_mday = day;
+            DayCounters::Counter &counter = received.counters[received.counterCount++];
+            strlcpy( counter.name, text, sizeof( counter.name ) );
+            // The firmware never sets TZ, so mktime() works in UTC.
+            counter.day = static_cast<int>( mktime( &fields ) / 86400 );
+        }
     }
     ESP_LOGI( TAG, "Setup page saved: %s", body );
     taskENTER_CRITICAL( &portal->m_lock );

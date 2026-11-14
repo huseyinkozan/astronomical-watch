@@ -1,4 +1,6 @@
 #include "Display.h"
+
+#include <ctime>
 #include "Fonts.h"
 #include "Panel.h"
 
@@ -7,6 +9,7 @@
 #include "bsp/touch.h"
 #include "esp_heap_caps.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "esp_app_desc.h"
 #include "esp_lvgl_port.h"
 #include "freertos/FreeRTOS.h"
@@ -34,21 +37,28 @@ static const int s_scrollLimitPx = 30;
 static const int s_rowHeight = 96;
 static const int s_rowWidth = 318;
 static const int s_rowGap = 12;
-static const char *s_settingNames[Settings::PageItemCount] = { "Screen off", "Always-on", "Dev mode", "Auto off" };
+static const char *s_settingNames[Settings::PageItemCount] = { "Screen off", "Always-on", "Dev mode", "Auto off",
+                                                               "On USB" };
+// Four rows fit on a part; the next ones go to the part below.
+static const int s_rowsPerPart = 4;
 
 // Page order, left to right.
 enum Page
 {
     AlwaysOnPage,
     FacePage,
+    ClockPage,     // world clock, timers and calendars, one over the other (ClockPages)
     InfoPage,      // the information parts, one over the other (InfoPart)
     SettingsPage,  // the settings, and under them the setup portal
     PageCount
 };
+static_assert( PageCount == 5, "Display.h sizes m_tiles and m_built for five pages" );
 
 enum SettingsPart
 {
     SettingsRows,
+    SettingsMoreRows,
+    SetupInfoPart,  // what the setup portal set, read only
 #if CONFIG_WATCH_SETUP_PORTAL
     SetupPart,
 #endif
@@ -65,9 +75,15 @@ struct Shot
 };
 [[maybe_unused]] static const Shot s_shots[] = {
     { "always-on", AlwaysOnPage, -1 }, { "face", FacePage, -1 },
+    { "world", ClockPage, ClockPages::WorldPart }, { "stopwatch", ClockPage, ClockPages::StopwatchPart },
+    { "timer", ClockPage, ClockPages::TimerPart }, { "gregorian", ClockPage, ClockPages::GregorianPart },
+    { "hijri", ClockPage, ClockPages::HijriPart }, { "days", ClockPage, ClockPages::DaysPart },
     { "sun", InfoPage, Display::InfoSun }, { "twilight", InfoPage, Display::InfoTwilight },
+    { "prayer", InfoPage, Display::InfoPrayer },
     { "moon", InfoPage, Display::InfoMoon }, { "compass", InfoPage, Display::InfoCompass },
+    { "time", InfoPage, Display::InfoTime },
     { "battery", InfoPage, Display::InfoBattery }, { "settings", SettingsPage, SettingsRows },
+    { "settings-2", SettingsPage, SettingsMoreRows }, { "setup-info", SettingsPage, SetupInfoPart },
 #if CONFIG_WATCH_SETUP_PORTAL
     { "setup", SettingsPage, SetupPart },
 #endif
@@ -218,6 +234,8 @@ bool Display::start( Settings &settings )
         return false;
     }
     // Black background: an AMOLED pixel that is off draws no current.
+    // How long building the pages takes: every PWR wake pays it before the first frame.
+    const int64_t buildStartUs = esp_timer_get_time();
     lv_obj_t *screen = lv_screen_active();
     lv_obj_set_style_bg_color( screen, lv_color_black(), 0 );
     lv_obj_t *pages = lv_tileview_create( screen );
@@ -228,7 +246,13 @@ bool Display::start( Settings &settings )
     for ( int i = 0; i < PageCount; ++i ) {
         const lv_dir_t direction = i == 0 ? LV_DIR_RIGHT : ( i == PageCount - 1 ? LV_DIR_LEFT : LV_DIR_HOR );
         tiles[i] = lv_tileview_add_tile( pages, static_cast<uint8_t>( i ), 0, direction );
+        m_tiles[i] = tiles[i];
     }
+    // The watch face and its neighbours now; the other pages when a neighbour is shown, so that
+    // a glance at the time builds no more than it shows (ensureBuilt).
+    m_built[AlwaysOnPage] = true;
+    m_built[FacePage] = true;
+    m_built[ClockPage] = true;
     lv_obj_t *facePage = tiles[FacePage];
     m_aodTile = tiles[AlwaysOnPage];
     m_faceTile = facePage;
@@ -253,16 +277,9 @@ bool Display::start( Settings &settings )
         lv_obj_add_event_cb( tile, onBrightnessDrag, LV_EVENT_RELEASED, this );
         lv_obj_add_event_cb( tile, onBrightnessDrag, LV_EVENT_PRESS_LOST, this );
     }
-    m_info.build( tiles[InfoPage], InfoCount );
-    m_settingsPage.build( tiles[SettingsPage], SettingsPartCount );
-    lv_obj_t *batteryPage = m_info.part( InfoBattery );
-    lv_obj_t *settingsPage = m_settingsPage.part( SettingsRows );
-    m_sky.build( m_info.part( InfoSun ), m_info.part( InfoTwilight ), m_info.part( InfoMoon ),
-                 m_info.part( InfoCompass ) );
-#if CONFIG_WATCH_SETUP_PORTAL
-    buildSetupPage( m_settingsPage.part( SetupPart ) );
-#endif
-    buildAboutPage( m_info.part( InfoAbout ) );
+    m_clock.build( tiles[ClockPage] );
+    m_clockTile = tiles[ClockPage];
+    lv_obj_add_event_cb( m_clockTile, onClockPartChanged, LV_EVENT_VALUE_CHANGED, this );
 
     m_face.build( facePage );
     m_face.setStyle( m_settings->value( Settings::FaceStyle ), m_settings->value( Settings::FaceItems ) );
@@ -275,22 +292,6 @@ bool Display::start( Settings &settings )
     m_pageMarks.build( lv_layer_top(), PageCount, true );
     m_pageMarks.setVisible( false );
     lv_obj_add_event_cb( pages, onPagesScrolled, LV_EVENT_SCROLL, this );
-
-    lv_obj_t *title = createLabel( batteryPage, &jetbrains_mono_26, -120 );
-    lv_label_set_text( title, "Battery" );
-    m_percentLabel = createLabel( batteryPage, &jetbrains_mono_48, -50 );
-    m_voltageLabel = createLabel( batteryPage, &jetbrains_mono_26, 20 );
-    m_chargeLabel = createLabel( batteryPage, &jetbrains_mono_26, 70 );
-
-    lv_obj_set_flex_flow( settingsPage, LV_FLEX_FLOW_COLUMN );
-    lv_obj_set_flex_align( settingsPage, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER );
-    lv_obj_set_style_pad_hor( settingsPage, 16, 0 );
-    lv_obj_set_style_pad_row( settingsPage, s_rowGap, 0 );
-    for ( int i = 0; i < Settings::PageItemCount; ++i ) {
-        m_settingValues[i] = createRow( settingsPage, s_settingNames[i], onSettingClicked );
-        m_settingRows[i] = lv_obj_get_parent( m_settingValues[i] );
-        showSetting( i );
-    }
 
     m_touchStarted = touch != nullptr;
     if ( touch != nullptr ) {
@@ -311,10 +312,103 @@ bool Display::start( Settings &settings )
     bsp_display_unlock();
 
     // Internal RAM left for the rest of active mode (the Wi-Fi setup portal needs about 100 KB).
-    ESP_LOGI( TAG, "Display started, brightness %d %%, internal heap %u free, %u largest", brightnessPercent,
+    ESP_LOGI( TAG, "Display started, pages built in %d ms, brightness %d %%, internal heap %u free, %u largest",
+              static_cast<int>( ( esp_timer_get_time() - buildStartUs ) / 1000 ), brightnessPercent,
               static_cast<unsigned>( heap_caps_get_free_size( MALLOC_CAP_INTERNAL ) ),
               static_cast<unsigned>( heap_caps_get_largest_free_block( MALLOC_CAP_INTERNAL ) ) );
     return true;
+}
+
+// The information page: built when a neighbouring page is shown (see onPageChanged), then
+// filled with the values kept since the start.
+void Display::buildInfoPage()
+{
+    lv_obj_t *tile = m_tiles[InfoPage];
+    m_info.build( tile, InfoCount );
+    m_sky.build( m_info.part( InfoSun ), m_info.part( InfoTwilight ), m_info.part( InfoPrayer ),
+                 m_info.part( InfoMoon ), m_info.part( InfoCompass ), m_info.part( InfoTime ) );
+    buildAboutPage( m_info.part( InfoAbout ) );
+    lv_obj_t *batteryPage = m_info.part( InfoBattery );
+    lv_obj_t *title = createLabel( batteryPage, &jetbrains_mono_26, -120 );
+    lv_label_set_text( title, "Battery" );
+    m_percentLabel = createLabel( batteryPage, &jetbrains_mono_48, -50 );
+    m_voltageLabel = createLabel( batteryPage, &jetbrains_mono_26, 20 );
+    m_chargeLabel = createLabel( batteryPage, &jetbrains_mono_26, 70 );
+    m_sky.setPlace( m_setupTexts[0] );
+    if ( m_haveSky ) {
+        m_sky.show( m_day, m_now, m_offsetMinutes );
+    }
+    showBattery();
+}
+
+// The settings page, built like the information page.
+void Display::buildSettingsPage()
+{
+    lv_obj_t *tile = m_tiles[SettingsPage];
+    m_settingsPage.build( tile, SettingsPartCount );
+    lv_obj_t *settingsParts[2] = { m_settingsPage.part( SettingsRows ), m_settingsPage.part( SettingsMoreRows ) };
+#if CONFIG_WATCH_SETUP_PORTAL
+    buildSetupPage( m_settingsPage.part( SetupPart ) );
+#endif
+    for ( int i = 0; i < 2; ++i ) {
+        lv_obj_set_flex_flow( settingsParts[i], LV_FLEX_FLOW_COLUMN );
+        // The rows of the second part start where those of the first do: a single row in the
+        // middle looked like a pop-up.
+        lv_obj_set_flex_align( settingsParts[i], i == 0 ? LV_FLEX_ALIGN_CENTER : LV_FLEX_ALIGN_START,
+                               LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER );
+        if ( i == 1 ) {
+            lv_obj_set_style_pad_top( settingsParts[i],
+                                      ( Panel::HEIGHT - s_rowsPerPart * s_rowHeight - ( s_rowsPerPart - 1 ) * s_rowGap ) / 2, 0 );
+        }
+        lv_obj_set_style_pad_hor( settingsParts[i], 16, 0 );
+        lv_obj_set_style_pad_row( settingsParts[i], s_rowGap, 0 );
+    }
+    for ( int i = 0; i < Settings::PageItemCount; ++i ) {
+        lv_obj_t *part = settingsParts[i < s_rowsPerPart ? 0 : 1];
+        m_settingValues[i] = createRow( part, s_settingNames[i], onSettingClicked );
+        m_settingRows[i] = lv_obj_get_parent( m_settingValues[i] );
+        showSetting( i );
+    }
+
+    // The Setup part: names left, values right, like the information pages.
+    static const char *s_setupNames[SetupInfoRows] = { "Place", "Lat/lon", "Zone", "Offset", "Change", "Hijri", "Clock set" };
+    lv_obj_t *setupInfo = m_settingsPage.part( SetupInfoPart );
+    lv_obj_t *setupTitle = createLabel( setupInfo, &jetbrains_mono_26, LV_ALIGN_TOP_MID, 76 );
+    lv_label_set_text( setupTitle, "Setup portal set" );
+    lv_obj_set_style_text_color( setupTitle, lv_color_hex( 0xA0A0A0 ), 0 );
+    for ( int i = 0; i < SetupInfoRows; ++i ) {
+        lv_obj_t *name = createLabel( setupInfo, &jetbrains_mono_26, LV_ALIGN_TOP_LEFT, 116 + i * 36 );
+        lv_obj_set_x( name, 30 );
+        lv_obj_set_style_text_color( name, lv_color_hex( 0xA0A0A0 ), 0 );
+        lv_label_set_text( name, s_setupNames[i] );
+        m_setupValues[i] = createLabel( setupInfo, &jetbrains_mono_26, LV_ALIGN_TOP_RIGHT, 116 + i * 36 );
+        lv_obj_set_x( m_setupValues[i], -30 );
+        // One line each: a long value ends in dots.
+        lv_obj_set_size( m_setupValues[i], 220, 30 );
+        lv_obj_set_style_text_align( m_setupValues[i], LV_TEXT_ALIGN_RIGHT, 0 );
+        lv_label_set_long_mode( m_setupValues[i], LV_LABEL_LONG_MODE_DOTS );
+    }
+
+    for ( int i = 0; i < SetupInfoRows; ++i ) {
+        lv_label_set_text( m_setupValues[i], m_setupTexts[i] );
+    }
+#if CONFIG_WATCH_SETUP_PORTAL
+    applySetup();
+#endif
+}
+
+// Builds a page that is not built yet; the watch face and its neighbours are built at the start.
+void Display::ensureBuilt( int page )
+{
+    if ( page < 0 || page >= PageCount || m_built[page] ) {
+        return;
+    }
+    m_built[page] = true;
+    if ( page == InfoPage ) {
+        buildInfoPage();
+    } else if ( page == SettingsPage ) {
+        buildSettingsPage();
+    }
 }
 
 // A full-width row with a name on the left; returns the value label on the right.
@@ -406,9 +500,20 @@ int Display::takeRequests()
 
 void Display::showSetup( const Setup &setup )
 {
-    if ( m_setupInfo == nullptr || !bsp_display_lock( s_lockTimeoutMs ) ) {
+    if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
         return;
     }
+    m_setup = setup;
+    applySetup();
+    bsp_display_unlock();
+}
+
+void Display::applySetup()
+{
+    if ( m_setupInfo == nullptr || m_setup.ssid == nullptr ) {
+        return;
+    }
+    const Setup &setup = m_setup;
     lv_label_set_text( m_portalValue, setup.running ? "On" : "Off" );
     lv_label_set_text( m_networkLabel, setup.ssid );
     lv_label_set_text( m_passwordLabel, setup.password );
@@ -420,7 +525,6 @@ void Display::showSetup( const Setup &setup )
     } else {
         lv_label_set_text( m_setupInfo, "Not started" );
     }
-    bsp_display_unlock();
 }
 
 void Display::showSky( const Sky::Day &day, const Sky::Now &now, int utcOffsetMinutes )
@@ -576,6 +680,25 @@ void Display::onPageChanged( lv_event_t *event )
     Display *display = static_cast<Display *>( lv_event_get_user_data( event ) );
     lv_obj_t *tile = lv_tileview_get_tile_active( display->m_pages );
     display->m_corners.setAlwaysOnLook( tile == display->m_aodTile );
+    display->updatePageSwipe();
+    // The next page beyond this one, while this one is looked at.
+    for ( int i = 0; i < PageCount; ++i ) {
+        if ( display->m_tiles[i] == tile ) {
+            display->ensureBuilt( i - 1 );
+            display->ensureBuilt( i + 1 );
+        }
+    }
+}
+
+void Display::onClockPartChanged( lv_event_t *event )
+{
+    static_cast<Display *>( lv_event_get_user_data( event ) )->updatePageSwipe();
+}
+
+void Display::updatePageSwipe()
+{
+    const bool clock = lv_tileview_get_tile_active( m_pages ) == m_clockTile;
+    lv_obj_set_scrollable( m_pages, !( clock && m_clock.swipesSideways() ) );
 }
 
 void Display::onPagesScrolled( lv_event_t *event )
@@ -620,12 +743,81 @@ void Display::update( const Rtc::DateTime &time, int utcOffsetMinutes, const Bat
     }
     m_face.showTime( time );
     m_battery = battery;
+    // The firmware never sets TZ, so mktime() works in UTC.
+    tm fields = {};
+    fields.tm_year = time.year - 1900;
+    fields.tm_mon = time.month - 1;
+    fields.tm_mday = time.day;
+    fields.tm_hour = time.hour;
+    fields.tm_min = time.minute;
+    fields.tm_sec = time.second;
+    m_clock.update( static_cast<int64_t>( mktime( &fields ) ) - utcOffsetMinutes * 60, utcOffsetMinutes, time );
 
-    lv_label_set_text_fmt( m_percentLabel, "%u %%", battery.percent );
-    lv_label_set_text_fmt( m_voltageLabel, "%u mV", battery.millivolts );
-    lv_label_set_text_fmt( m_chargeLabel, "%s", battery.vbusGood ? battery.chargeState : "on battery" );
+    showBattery();
     m_localTime = time;
     refreshAlwaysOnPage( false );
+    bsp_display_unlock();
+}
+
+void Display::showBattery()
+{
+    if ( m_percentLabel == nullptr || m_battery.chargeState == nullptr ) {
+        return;
+    }
+    lv_label_set_text_fmt( m_percentLabel, "%u %%", m_battery.percent );
+    lv_label_set_text_fmt( m_voltageLabel, "%u mV", m_battery.millivolts );
+    lv_label_set_text_fmt( m_chargeLabel, "%s", m_battery.vbusGood ? m_battery.chargeState : "on battery" );
+}
+
+void Display::showSetupInfo( const char *const values[SetupInfoRows] )
+{
+    if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
+        return;
+    }
+    for ( int i = 0; i < SetupInfoRows; ++i ) {
+        snprintf( m_setupTexts[i], sizeof( m_setupTexts[i] ), "%s", values[i] );
+        if ( m_setupValues[i] != nullptr ) {
+            lv_label_set_text( m_setupValues[i], m_setupTexts[i] );
+        }
+    }
+    m_sky.setPlace( m_setupTexts[0] );
+    bsp_display_unlock();
+}
+
+void Display::setCounters( const DayCounters &counters )
+{
+    if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
+        return;
+    }
+    m_clock.setCounters( counters );
+    bsp_display_unlock();
+}
+
+void Display::setCities( const WorldClock &worldClock )
+{
+    if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
+        return;
+    }
+    m_clock.setCities( worldClock );
+    bsp_display_unlock();
+}
+
+bool Display::takeHijriRequest( ClockPages::HijriRequest &request )
+{
+    if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
+        return false;
+    }
+    const bool wanted = m_clock.takeHijriRequest( request );
+    bsp_display_unlock();
+    return wanted;
+}
+
+void Display::showHijriMonth( const Hijri::Month &month, int today, int method )
+{
+    if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
+        return;
+    }
+    m_clock.showHijriMonth( month, today, method );
     bsp_display_unlock();
 }
 
@@ -730,6 +922,25 @@ void Display::showFaceStyle( int style )
     bsp_display_unlock();
 }
 
+void Display::setScene( bool scene )
+{
+    if ( !m_started || !bsp_display_lock( 1000 ) ) {
+        return;
+    }
+    m_clock.setScene( scene );
+    bsp_display_unlock();
+}
+
+bool Display::pressClockButton( const char *name )
+{
+    if ( !m_started || !bsp_display_lock( 1000 ) ) {
+        return false;
+    }
+    const bool pressed = m_clock.press( name );
+    bsp_display_unlock();
+    return pressed;
+}
+
 void Display::capture( int page )
 {
     if ( m_pages == nullptr || page < 0 || page >= s_shotCount || !bsp_display_lock( 1000 ) ) {
@@ -737,9 +948,11 @@ void Display::capture( int page )
     }
     ESP_LOGI( TAG, "Screenshot of page %d", page );
     const Shot &shot = s_shots[page];
+    ensureBuilt( shot.page );
     lv_tileview_set_tile_by_index( m_pages, static_cast<uint32_t>( shot.page ), 0, LV_ANIM_OFF );
     if ( shot.part >= 0 ) {
-        ( shot.page == InfoPage ? m_info : m_settingsPage ).show( shot.part, 0 );
+        StackPage &stack = shot.page == InfoPage ? m_info : ( shot.page == ClockPage ? m_clock.stack() : m_settingsPage );
+        stack.show( shot.part, 0 );
     }
     // The jump to the page counts as a swipe; the pictures show the pages at rest.
     m_pageMarks.setVisible( false );
@@ -782,10 +995,15 @@ void Display::showSetting( int item )
 {
     const int value = m_settings->value( static_cast<Settings::Item>( item ) );
     lv_obj_t *label = m_settingValues[item];
+    if ( label == nullptr ) {
+        return;
+    }
     if ( item == Settings::DisplayTimeout ) {
         lv_label_set_text_fmt( label, "%d s", value );
     } else if ( item == Settings::AlwaysOnFace || item == Settings::DevMode ) {
         lv_label_set_text( label, value != 0 ? "On" : "Off" );
+    } else if ( item == Settings::UsbStayOn ) {
+        lv_label_set_text( label, value != 0 ? "Stay on" : "Timeout" );
     } else if ( value == 0 ) {
         lv_label_set_text( label, "Never" );
     } else {

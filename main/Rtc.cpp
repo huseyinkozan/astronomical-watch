@@ -25,7 +25,6 @@ static const uint8_t SECONDS_OS = 1 << 7;
 // Measured on this board (docs/hardware.md): the crystal runs 41.8 ppm slow at CAP_SEL 7 pF.
 // Offset -10 in MODE 0 (4.34 ppm per step, applied once every two hours, the low-power mode)
 // leaves about +1.6 ppm. A slow clock takes a negative value (datasheet Figure 11).
-static const uint8_t s_offsetCalibration = 0x76;
 
 static uint8_t fromBcd( uint8_t value )
 {
@@ -46,15 +45,50 @@ esp_err_t Rtc::init( i2c_master_bus_handle_t bus )
     return i2c_master_bus_add_device( bus, &config, &m_device );
 }
 
-esp_err_t Rtc::applyCalibration()
+esp_err_t Rtc::applyCalibration( int steps )
 {
+    steps = steps < -64 ? -64 : ( steps > 63 ? 63 : steps );
+    // MODE 0 (bit 7 clear), the steps as 7-bit two's complement.
+    const uint8_t wanted = static_cast<uint8_t>( steps & 0x7F );
     uint8_t value = 0;
     esp_err_t err = readRegisters( REG_OFFSET, &value, 1 );
-    if ( err == ESP_OK && value != s_offsetCalibration ) {
-        err = writeRegister( REG_OFFSET, s_offsetCalibration );
-        ESP_LOGI( TAG, "Offset 0x%02X -> 0x%02X: %s", value, s_offsetCalibration, esp_err_to_name( err ) );
+    if ( err == ESP_OK && value != wanted ) {
+        err = writeRegister( REG_OFFSET, wanted );
+        ESP_LOGI( TAG, "Offset 0x%02X -> 0x%02X: %s", value, wanted, esp_err_to_name( err ) );
     }
     return err;
+}
+
+esp_err_t Rtc::measureErrorMs( int64_t unixMs, int64_t atTimerUs, int64_t &errorMs )
+{
+    uint8_t first = 0;
+    esp_err_t err = readRegisters( REG_SECONDS, &first, 1 );
+    const int64_t startUs = esp_timer_get_time();
+    uint8_t seconds = first;
+    while ( err == ESP_OK && seconds == first && esp_timer_get_time() - startUs < 1100 * 1000 ) {
+        err = readRegisters( REG_SECONDS, &seconds, 1 );
+    }
+    const int64_t tickUs = esp_timer_get_time();
+    if ( err != ESP_OK || seconds == first ) {
+        return err != ESP_OK ? err : ESP_ERR_TIMEOUT;
+    }
+    DateTime time = {};
+    bool oscillatorStopped = false;
+    err = read( time, oscillatorStopped );
+    if ( err != ESP_OK || oscillatorStopped ) {
+        return err != ESP_OK ? err : ESP_ERR_INVALID_STATE;
+    }
+    tm fields = {};
+    fields.tm_year = time.year - 1900;
+    fields.tm_mon = time.month - 1;
+    fields.tm_mday = time.day;
+    fields.tm_hour = time.hour;
+    fields.tm_min = time.minute;
+    fields.tm_sec = time.second;
+    // The read follows the tick within a few milliseconds: the clock showed this second then.
+    const int64_t clockMs = static_cast<int64_t>( mktime( &fields ) ) * 1000;
+    errorMs = clockMs - ( unixMs + ( tickUs - atTimerUs ) / 1000 );
+    return ESP_OK;
 }
 
 esp_err_t Rtc::readRegisters( uint8_t reg, uint8_t *values, int count )

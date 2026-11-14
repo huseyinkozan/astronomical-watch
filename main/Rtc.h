@@ -24,7 +24,14 @@ public:
 
     // Writes this board's rate correction to the Offset register when it differs. The register
     // keeps its value while a battery is present, like the time.
-    esp_err_t applyCalibration();
+    // `steps`: the Offset register's MODE 0 correction, 4.34 ppm per step, -64 to 63 (a slow
+    // clock takes a negative value).
+    esp_err_t applyCalibration( int steps );
+
+    // The clock's error (clock minus true time, milliseconds) against a Unix time in milliseconds
+    // valid at esp_timer time atTimerUs: waits for the next second (at most 1.1 s), when the clock
+    // is exactly on a whole second.
+    esp_err_t measureErrorMs( int64_t unixMs, int64_t atTimerUs, int64_t &errorMs );
 
     // Reads seconds through years in one access, as the datasheet requires. oscillatorStopped is
     // the OS flag: the clock stopped since the time was last set, so the time is not valid.

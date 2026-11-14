@@ -54,6 +54,14 @@ static lv_obj_t *createLine( lv_obj_t *page )
     return createCell( page, s_nameWidth + 2 * s_valueWidth, lv_color_white(), LV_TEXT_ALIGN_CENTER, "" );
 }
 
+void SkyPages::setPlace( const char *place )
+{
+    snprintf( m_place, sizeof( m_place ), "%s", place );
+    if ( m_sunPlace != nullptr ) {
+        lv_label_set_text( m_sunPlace, m_place );
+    }
+}
+
 const char *SkyPages::hijriMonthName( int month )
 {
     return s_hijriMonths[( month >= 1 && month <= 12 ) ? month - 1 : 0];
@@ -111,13 +119,36 @@ SkyPages::Row SkyPages::createRow( lv_obj_t *page, const char *name, bool twoVal
     return cells;
 }
 
-void SkyPages::build( lv_obj_t *sunPage, lv_obj_t *twilightPage, lv_obj_t *moonPage, lv_obj_t *compassPage )
+static const char *s_prayerNames[Sky::PrayerCount] = { "Imsak", "Sunrise", "Dhuhr", "Asr", "Maghrib", "Isha" };
+static const lv_color_t s_amber = LV_COLOR_MAKE( 0xFF, 0xB0, 0x40 );
+
+void SkyPages::build( lv_obj_t *sunPage, lv_obj_t *twilightPage, lv_obj_t *prayerPage, lv_obj_t *moonPage,
+                      lv_obj_t *compassPage, lv_obj_t *timePage )
 {
+    preparePage( prayerPage, "Prayer times" );
+    for ( int i = 0; i < Sky::PrayerCount; ++i ) {
+        m_prayer[i] = createRow( prayerPage, s_prayerNames[i], false );
+    }
+    m_nextPrayer = createLine( prayerPage );
+    lv_obj_set_style_text_color( m_nextPrayer, s_amber, 0 );
+    m_prayerMethod = createLine( prayerPage );
+    lv_obj_set_style_text_color( m_prayerMethod, s_grey, 0 );
+
+    // Time: the clocks of this moment and the day's numbers.
+    preparePage( timePage, "Time" );
+    const char *timeNames[TimeRows] = { "Local", "UTC", "Solar", "Eq. time", "Ezani", "Qibla", "Sidereal", "Week/day" };
+    for ( int i = 0; i < TimeRows; ++i ) {
+        m_time[i] = createRow( timePage, timeNames[i], i == 5 );
+    }
+
     preparePage( sunPage, "Sun" );
     const char *sunNames[SunRows] = { "Rise", "Set", "Noon", "Day", "", "Now" };
     for ( int i = 0; i < SunRows; ++i ) {
         m_sun[i] = createRow( sunPage, sunNames[i], true );
     }
+    // Where these times hold: a place changed by travel shows here.
+    m_sunPlace = createLine( sunPage );
+    lv_obj_set_style_text_color( m_sunPlace, s_grey, 0 );
 
     preparePage( twilightPage, "Twilight" );
     const Row header = createRow( twilightPage, "", true );
@@ -176,6 +207,43 @@ void SkyPages::show( const Sky::Day &day, const Sky::Now &now, int utcOffsetMinu
     }
     const Astronomy::SunDay &sun = day.sun;
     char text[24];
+    // Prayer times: the next one in amber.
+    for ( int i = 0; i < Sky::PrayerCount; ++i ) {
+        setTime( m_prayer[i].values[0], { day.prayers.valid[i], day.prayers.times[i] }, utcOffsetMinutes );
+        const lv_color_t colour = i == now.nextPrayer ? s_amber : s_grey;
+        lv_obj_set_style_text_color( m_prayer[i].name, colour, 0 );
+        lv_obj_set_style_text_color( m_prayer[i].values[0], i == now.nextPrayer ? s_amber : lv_color_white(), 0 );
+    }
+    if ( now.nextPrayer >= 0 ) {
+        formatDuration( text, sizeof( text ), now.secondsToPrayer );
+        setText( m_nextPrayer, "%s in %s", s_prayerNames[now.nextPrayer], text );
+    } else {
+        lv_label_set_text( m_nextPrayer, "" );
+    }
+    setText( m_prayerMethod, day.prayers.approximate ? "Diyanet (approx.), %s" : "Diyanet, %s", m_place );
+
+    // Time.
+    const int64_t local = now.time + static_cast<int64_t>( utcOffsetMinutes ) * 60;
+    const int localSeconds = static_cast<int>( ( local % 86400 + 86400 ) % 86400 );
+    const int utcSeconds = static_cast<int>( ( now.time % 86400 + 86400 ) % 86400 );
+    setText( m_time[0].values[0], "%02d:%02d:%02d", localSeconds / 3600, localSeconds / 60 % 60, localSeconds % 60 );
+    setText( m_time[1].values[0], "%02d:%02d:%02d", utcSeconds / 3600, utcSeconds / 60 % 60, utcSeconds % 60 );
+    setText( m_time[2].values[0], "%02d:%02d:%02d", now.solarSeconds / 3600, now.solarSeconds / 60 % 60,
+             now.solarSeconds % 60 );
+    const int equation = day.equationOfTime < 0 ? -day.equationOfTime : day.equationOfTime;
+    setText( m_time[3].values[0], "%c%d:%02d", day.equationOfTime < 0 ? '-' : '+', equation / 60, equation % 60 );
+    if ( now.ezaniSeconds >= 0 ) {
+        // Sunset is 12 o'clock.
+        const int hours = now.ezaniSeconds / 3600;
+        setText( m_time[4].values[0], "%02d:%02d", hours == 0 ? 12 : hours, now.ezaniSeconds / 60 % 60 );
+    } else {
+        lv_label_set_text( m_time[4].values[0], "--:--" );
+    }
+    setTime( m_time[5].values[0], day.qibla, utcOffsetMinutes );
+    setText( m_time[5].values[1], "%.0f\xC2\xB0", day.qiblaBearing );
+    setText( m_time[6].values[0], "%02d:%02d", now.siderealSeconds / 3600, now.siderealSeconds / 60 % 60 );
+    setText( m_time[7].values[0], "%d / %d", day.isoWeek, day.dayOfYear );
+
     setTime( m_sun[0].values[0], sun.riseSet.rising, utcOffsetMinutes );
     setTime( m_sun[1].values[0], sun.riseSet.setting, utcOffsetMinutes );
     setTime( m_sun[2].values[0], sun.noon, utcOffsetMinutes );
