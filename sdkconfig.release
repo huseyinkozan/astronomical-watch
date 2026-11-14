@@ -1,0 +1,9 @@
+# Release build, on top of sdkconfig.defaults: no development logging (no wait for the USB host at
+# each PWR wake, about 1.5 s on battery), code optimised for speed, only warnings and errors in the
+# log. The event log ("E", tools/read_events.py) and the core dump work as in the development build.
+#     idf.py -B build-release -D SDKCONFIG=build-release/sdkconfig \
+#            -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.release" build flash
+CONFIG_WATCH_DEV_LOGGING=n
+CONFIG_COMPILER_OPTIMIZATION_PERF=y
+CONFIG_LOG_DEFAULT_LEVEL_WARN=y
+CONFIG_BOOTLOADER_LOG_LEVEL_WARN=y

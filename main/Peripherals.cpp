@@ -426,6 +426,12 @@ void Peripherals::sleepTouch( i2c_master_bus_handle_t bus )
     sleepTouchController( bus );
 }
 
+uint8_t Peripherals::touchPowerMode( i2c_master_bus_handle_t bus )
+{
+    uint8_t mode = 0;
+    return readDeviceRegister( bus, TOUCH_ADDRESS, TOUCH_REG_POWER_MODE, mode ) == ESP_OK ? mode : 0xFF;
+}
+
 void Peripherals::holdSleepLines()
 {
     // Applied on every sleep: a touch or panel reset pulse releases the hold.

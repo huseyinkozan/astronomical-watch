@@ -99,6 +99,7 @@ astronomical-watch/
 ├── docs/screenshots/     pictures of the watch pages
 ├── tools/guided_test.py  guided hardware tests
 ├── tools/screenshot.py   screenshots from the watch (development build)
+├── tools/read_events.py  the watch's event log over USB (stability on the wrist)
 ├── tools/make_cities.py  city list of the setup page, from GeoNames
 ├── tools/setup_reference.sh  Python environment for the astronomy reference values
 ├── tools/make_fonts.sh   watch fonts (main/fonts/) from tools/fonts/, needs Node.js
@@ -114,10 +115,10 @@ astronomical-watch/
 Restarted on ESP-IDF with C++17. The watch puts the unused peripherals into their lowest-power
 state. A PWR press starts active mode: pages swiped sideways show the always-on face as it will look,
 the watch face (classic or day arc, with the date, Hijri date, next sunrise or sunset and the
-Moon's phase in the top-left corner; a vertical swipe changes the layout), the battery details,
-the settings (display timeout, always-on, brightness, auto-off; one tap per value, kept in
-flash; a long press and a vertical drag on the watch face sets the brightness, on the always-on
-page the always-on brightness by day or by night), the setup portal and an About page. The portal
+Moon's phase in the bottom-left corner; a vertical swipe changes the layout), the battery details,
+the settings (display timeout, always-on, development mode, auto-off; one tap per value, kept
+in flash; a long press and a vertical drag on the watch face sets the brightness, on the
+always-on page the always-on brightness by day or by night), the setup portal and an About page. The portal
 opens the watch's own Wi-Fi for a phone or computer, whose browser sets the time, UTC offset,
 location and settings. Four pages show the Sun (rise, set, noon, day length, time left until
 sunset), the twilights with the golden and blue hours, the Moon (phase, rise and set, the dark

@@ -16,8 +16,7 @@ static const int s_alwaysOnDefault = 1;
 static const int s_alwaysOnDefault = 0;
 #endif
 
-// An item has a list of values (count > 0), or takes any value from minimum to maximum, or both:
-// any value in the range, with the list as the steps of a tap.
+// An item either has a list of values (count > 0) or takes any value from minimum to maximum.
 struct ItemInfo
 {
     const char *key;  // NVS key, at most 15 characters
@@ -33,7 +32,7 @@ struct ItemInfo
 static const ItemInfo s_items[Settings::ItemCount] = {
     { "timeout_s", CONFIG_WATCH_DISPLAY_TIMEOUT_S, 5, { 5, 10, 20, 30, 60 }, 0, 0 },
     { "always_on", s_alwaysOnDefault, 2, { 1, 0 }, 0, 0 },
-    { "brightness", CONFIG_WATCH_DISPLAY_BRIGHTNESS, 3, { 20, 50, 100 }, 5, 100 },
+    { "dev_mode", 0, 2, { 0, 1 }, 0, 0 },
     { "auto_off_min", CONFIG_WATCH_MOTION_OFF_MIN, 4, { 20, 30, 60, 0 }, 0, 0 },
     { "utc_offset_min", 0, 0, {}, -720, 840 },
     { "latitude_ud", 0, 0, {}, -90000000, 90000000 },
@@ -43,6 +42,7 @@ static const ItemInfo s_items[Settings::ItemCount] = {
     { "aod_style", 0, 0, {}, 0, 2 },
     { "face_items", 7, 0, {}, 0, 7 },
     { "aod_items", 3, 0, {}, 0, 3 },
+    { "brightness", CONFIG_WATCH_DISPLAY_BRIGHTNESS, 0, {}, 5, 100 },
     { "aod_day_pct", CONFIG_WATCH_AOD_DAY_BRIGHTNESS, 0, {}, 1, 100 },
     { "aod_night_pct", CONFIG_WATCH_AOD_NIGHT_BRIGHTNESS, 0, {}, 1, 100 },
 };
@@ -57,17 +57,12 @@ static int indexOf( const ItemInfo &info, int value )
     return -1;
 }
 
-static bool hasRange( const ItemInfo &info )
-{
-    return info.maximum > info.minimum;
-}
-
 static bool isValid( const ItemInfo &info, int value )
 {
-    if ( hasRange( info ) ) {
-        return value >= info.minimum && value <= info.maximum;
+    if ( info.count > 0 ) {
+        return indexOf( info, value ) >= 0;
     }
-    return indexOf( info, value ) >= 0;
+    return value >= info.minimum && value <= info.maximum;
 }
 
 void Settings::load()
@@ -105,10 +100,11 @@ void Settings::load()
     }
     ESP_LOGI( TAG, "Settings: timeout %d s, always-on %d, brightness %d %%, auto off %d min, face %d, always-on "
               "style %d, UTC offset %d min, location %d, %d (micro-degrees), Hijri method %d, face items %d, "
-              "always-on items %d, always-on brightness %d %% by day, %d %% by night", m_values[DisplayTimeout], m_values[AlwaysOnFace], m_values[Brightness],
+              "always-on items %d, always-on brightness %d %% by day, %d %% by night, development mode %d",
+              m_values[DisplayTimeout], m_values[AlwaysOnFace], m_values[Brightness],
               m_values[AutoOff], m_values[FaceStyle], m_values[AodStyle], m_values[UtcOffset], m_values[Latitude],
               m_values[Longitude], m_values[HijriMethod], m_values[FaceItems], m_values[AodItems],
-              m_values[AodDayBrightness], m_values[AodNightBrightness] );
+              m_values[AodDayBrightness], m_values[AodNightBrightness], m_values[DevMode] );
 }
 
 void Settings::save()
@@ -147,17 +143,6 @@ void Settings::save()
 void Settings::next( Item item )
 {
     const ItemInfo &info = s_items[item];
-    if ( hasRange( info ) ) {
-        // A dragged value between the steps goes to the next step above it.
-        for ( int i = 0; i < info.count; ++i ) {
-            if ( info.values[i] > m_values[item] ) {
-                m_values[item] = info.values[i];
-                return;
-            }
-        }
-        m_values[item] = info.values[0];
-        return;
-    }
     // A test-build value outside the list steps to the first value.
     const int index = indexOf( info, m_values[item] ) + 1;
     m_values[item] = info.values[index < info.count ? index : 0];

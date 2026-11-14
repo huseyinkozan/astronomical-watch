@@ -34,6 +34,7 @@ struct WakeStatistics
     // Last timer wake: from chip reset to app_main (bootloader included) and app run time.
     uint32_t lastTimerBootMs;
     uint32_t lastTimerAwakeMs;
+    uint32_t longestTimerAwakeMs;
     // Timer set for the last sleep, 0 when only the PWR key could wake.
     uint64_t lastSleepTimerUs;
 };
@@ -199,6 +200,9 @@ void DeepSleep::enter( uint64_t timerUs )
     s_stats.totalAwakeMs += s_stats.lastAwakeMs;
     if ( s_currentWake == Event::WakeTimer ) {
         s_stats.lastTimerAwakeMs = s_stats.lastAwakeMs;
+        if ( s_stats.lastAwakeMs > s_stats.longestTimerAwakeMs ) {
+            s_stats.longestTimerAwakeMs = s_stats.lastAwakeMs;
+        }
     }
 
     ESP_LOGI( TAG, "Entering deep sleep after %" PRIu32 " ms (wake: %s)", s_stats.lastAwakeMs,
@@ -209,4 +213,19 @@ void DeepSleep::enter( uint64_t timerUs )
     }
 #endif
     esp_deep_sleep_start();
+}
+
+uint32_t DeepSleep::bootCount() const
+{
+    return s_stats.bootCount;
+}
+
+uint32_t DeepSleep::longestTimerWakeMs() const
+{
+    return s_stats.longestTimerAwakeMs;
+}
+
+void DeepSleep::clearLongestTimerWake()
+{
+    s_stats.longestTimerAwakeMs = 0;
 }

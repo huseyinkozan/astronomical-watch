@@ -29,3 +29,10 @@ CONFIG_LV_USE_CLIB_MALLOC=y
 # The main task computes the astronomy of the day (Sky::computeDay, with the neighbouring days'
 # moonrises for the corner gauges); 3584 bytes overflowed at power-on (2026-11-14).
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=6144
+
+# A crash stores a core dump in flash, read later over USB with `idf.py coredump-info` (the watch
+# runs on the wrist without a console). Not checked at boot: that would lengthen every minute
+# wake; the event log checks it only after a reset.
+CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH=y
+CONFIG_ESP_COREDUMP_DATA_FORMAT_ELF=y
+CONFIG_ESP_COREDUMP_CHECK_BOOT=n

@@ -60,7 +60,7 @@ void AodPage::show( const AlwaysOn::Look &look, const Rtc::DateTime &localTime, 
     // Centred as on the first always-on minute (it then moves a few pixels against burn-in).
     const int faceX = ( ( Panel::WIDTH - face.width ) / 2 ) & ~1;
     const int faceY = ( ( Panel::HEIGHT - face.height ) / 2 ) & ~1;
-    // The moon: its bitmap, pixel by pixel, in yellow on black, at its fixed place.
+    // The moon: its bitmap, pixel by pixel, in white on black, at its fixed place.
     const AodGlyph *moon = AlwaysOn::moon( look );
     lv_obj_set_hidden( m_moon, moon == nullptr );
     if ( moon != nullptr ) {
@@ -69,7 +69,7 @@ void AodPage::show( const AlwaysOn::Look &look, const Rtc::DateTime &localTime, 
             for ( int x = 0; x < moon->width; ++x ) {
                 const int bit = y * moon->width + x;
                 if ( moon->bits[bit / 8] & ( 0x80 >> ( bit % 8 ) ) ) {
-                    lv_canvas_set_px( m_moon, x, y, s_colours[AlwaysOn::Yellow], LV_OPA_COVER );
+                    lv_canvas_set_px( m_moon, x, y, s_colours[AlwaysOn::White], LV_OPA_COVER );
                 }
             }
         }

@@ -8,10 +8,11 @@
 
 static const int s_width = 410;
 static const int s_height = 502;
-// The Moon in the top-left corner, inside the day gauge, as on the always-on face.
+// The Moon in the bottom-left corner, inside the Moon's gauge, as on the always-on face
+// (AlwaysOn::MoonX, MoonY).
 static const int s_moonSize = 37;
 static const int s_moonX = 48;
-static const int s_moonY = 48;
+static const int s_moonY = 417;
 static const lv_color_t s_grey = LV_COLOR_MAKE( 0xA0, 0xA0, 0xA0 );
 static const lv_color_t s_amber = LV_COLOR_MAKE( 0xFF, 0xB0, 0x40 );
 

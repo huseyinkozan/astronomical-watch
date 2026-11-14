@@ -33,7 +33,7 @@ static const int s_scrollLimitPx = 30;
 // this panel). Four rows fill the page, so no vertical scroll competes with the page swipe.
 static const int s_rowHeight = 108;
 static const int s_rowGap = 12;
-static const char *s_settingNames[Settings::PageItemCount] = { "Screen off", "Always-on", "Brightness", "Auto off" };
+static const char *s_settingNames[Settings::PageItemCount] = { "Screen off", "Always-on", "Dev mode", "Auto off" };
 
 // Page order, left to right; the names label the development screenshots.
 enum Page
@@ -52,7 +52,7 @@ enum Page
     AboutPage,
     PageCount
 };
-static const char *s_pageNames[PageCount] = { "always-on", "face", "sun", "twilight", "moon", "compass", "battery", "settings",
+[[maybe_unused]] static const char *s_pageNames[PageCount] = { "always-on", "face", "sun", "twilight", "moon", "compass", "battery", "settings",
 #if CONFIG_WATCH_SETUP_PORTAL
                                               "setup",
 #endif
@@ -263,7 +263,9 @@ bool Display::start( Settings &settings )
         showSetting( i );
     }
 
+    m_touchStarted = touch != nullptr;
     if ( touch != nullptr ) {
+        lv_indev_add_event_cb( touch, onTouchCounted, LV_EVENT_PRESSED, this );
         lv_indev_set_scroll_limit( touch, s_scrollLimitPx );
 #if CONFIG_WATCH_DEV_LOGGING
         lv_indev_add_event_cb( touch, onTouchPressed, LV_EVENT_PRESSED, nullptr );
@@ -537,7 +539,6 @@ void Display::onBrightnessDrag( lv_event_t *event )
     lv_obj_set_hidden( self->m_brightnessBox, true );
     lv_obj_set_hidden( self->m_brightnessBar, true );
     setBrightness( self->m_settings->value( Settings::Brightness ) );
-    self->showSetting( Settings::Brightness );
     ESP_LOGI( TAG, "Brightness setting %d: %d %%", self->m_adjustItem, self->m_adjustPercent );
 }
 
@@ -726,9 +727,6 @@ void Display::onSettingClicked( lv_event_t *event )
         const Settings::Item item = static_cast<Settings::Item>( i );
         display->m_settings->next( item );
         display->showSetting( i );
-        if ( item == Settings::Brightness ) {
-            setBrightness( display->m_settings->value( item ) );
-        }
         ESP_LOGI( TAG, "Setting %s: %s", s_settingNames[i], lv_label_get_text( display->m_settingValues[i] ) );
     }
 }
@@ -739,15 +737,28 @@ void Display::showSetting( int item )
     lv_obj_t *label = m_settingValues[item];
     if ( item == Settings::DisplayTimeout ) {
         lv_label_set_text_fmt( label, "%d s", value );
-    } else if ( item == Settings::AlwaysOnFace ) {
+    } else if ( item == Settings::AlwaysOnFace || item == Settings::DevMode ) {
         lv_label_set_text( label, value != 0 ? "On" : "Off" );
-    } else if ( item == Settings::Brightness ) {
-        lv_label_set_text_fmt( label, "%d %%", value );
     } else if ( value == 0 ) {
         lv_label_set_text( label, "Never" );
     } else {
         lv_label_set_text_fmt( label, "%d min", value );
     }
+}
+
+void Display::onTouchCounted( lv_event_t *event )
+{
+    static_cast<Display *>( lv_event_get_user_data( event ) )->m_touches++;
+}
+
+int Display::touches() const
+{
+    return m_touches;
+}
+
+bool Display::touchStarted() const
+{
+    return m_touchStarted;
 }
 
 uint32_t Display::inactiveMs()

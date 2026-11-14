@@ -70,6 +70,10 @@ public:
     // holds the display lock.
     uint32_t inactiveMs();
 
+    // For the event log: touch presses since start(), and whether touch input started.
+    int touches() const;
+    bool touchStarted() const;
+
     // Before deep sleep: takes the display lock and keeps it, so LVGL no longer uses the bus.
     void stop();
 
@@ -153,5 +157,8 @@ private:
     lv_obj_t *m_passwordLabel = nullptr;
     lv_obj_t *m_setupInfo = nullptr;
     std::atomic<int> m_requests { 0 };
+    std::atomic<int> m_touches { 0 };
+    bool m_touchStarted = false;
+    static void onTouchCounted( lv_event_t *event );
     uint32_t m_inactiveMs = 0;
 };

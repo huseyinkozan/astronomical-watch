@@ -27,10 +27,10 @@ extern const char s_citiesStart[] asm( "_binary_cities_js_start" );
 extern const char s_citiesEnd[] asm( "_binary_cities_js_end" );
 
 // Field names of the save request, one per Settings::Item.
-static const char *s_fieldNames[Settings::ItemCount] = { "timeout", "alwaysOn", "brightness", "autoOff",
+static const char *s_fieldNames[Settings::ItemCount] = { "timeout", "alwaysOn", "devMode",    "autoOff",
                                                          "offset",  "lat",      "lon",        "hijri",
                                                          "face",    "aod",      "faceItems",  "aodItems",
-                                                         "aodDay",  "aodNight" };
+                                                         "brightness", "aodDay", "aodNight" };
 
 static bool s_networkReady = false;
 // The 404 handler has no user context: it reaches the running portal through this.
@@ -283,14 +283,15 @@ esp_err_t Portal::onState( httpd_req_t *request )
     snprintf( json, sizeof( json ),
               "{\"timeout\":%d,\"alwaysOn\":%d,\"brightness\":%d,\"autoOff\":%d,\"face\":%d,\"aod\":%d,"
               "\"offset\":%d,\"lat\":%.6f,\"lon\":%.6f,\"hijri\":%d,\"faceItems\":%d,\"aodItems\":%d,"
-              "\"aodDay\":%d,\"aodNight\":%d}",
+              "\"aodDay\":%d,\"aodNight\":%d,\"devMode\":%d}",
               settings.value( Settings::DisplayTimeout ), settings.value( Settings::AlwaysOnFace ),
               settings.value( Settings::Brightness ), settings.value( Settings::AutoOff ),
               settings.value( Settings::FaceStyle ), settings.value( Settings::AodStyle ),
               settings.value( Settings::UtcOffset ), settings.value( Settings::Latitude ) / 1e6,
               settings.value( Settings::Longitude ) / 1e6, settings.value( Settings::HijriMethod ),
               settings.value( Settings::FaceItems ), settings.value( Settings::AodItems ),
-              settings.value( Settings::AodDayBrightness ), settings.value( Settings::AodNightBrightness ) );
+              settings.value( Settings::AodDayBrightness ), settings.value( Settings::AodNightBrightness ),
+              settings.value( Settings::DevMode ) );
     httpd_resp_set_type( request, "application/json" );
     noCache( request );
     return httpd_resp_sendstr( request, json );

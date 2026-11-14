@@ -11,7 +11,7 @@ public:
     {
         DisplayTimeout,  // seconds without touch until active mode ends
         AlwaysOnFace,    // 1: always-on face after active mode, 0: power off
-        Brightness,      // active-mode panel brightness, percent
+        DevMode,         // 1: development mode, more entries in the event log (EventLog)
         AutoOff,         // minutes without motion in always-on until power-off, 0: never
         UtcOffset,       // minutes added to the RTC's UTC for the displayed time
         Latitude,        // micro-degrees, north positive
@@ -21,6 +21,7 @@ public:
         AodStyle,        // always-on style, an index of aodStyles (AodGlyphs.h)
         FaceItems,       // bits of WatchFace::Item shown on the active face
         AodItems,        // bits of AlwaysOn::Item shown on the always-on face
+        Brightness,      // active-mode panel brightness, percent (a long press and a drag)
         AodDayBrightness,    // always-on panel brightness from sunrise to sunset, percent
         AodNightBrightness,  // and from sunset to sunrise
         ItemCount
@@ -37,9 +38,7 @@ public:
     // Writes the values that changed since load(); test builds write nothing.
     void save();
 
-    // Steps the item to the next value of its list; after the last comes the first. An item with
-    // a list and a range (the brightness, also set by dragging) steps to the next listed value
-    // above the current one.
+    // Steps the item to the next value of its list; after the last comes the first.
     void next( Item item );
 
     // Sets a value from the setup portal; false (and no change) when it is not valid.

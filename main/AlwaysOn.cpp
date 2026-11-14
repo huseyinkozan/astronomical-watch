@@ -29,6 +29,7 @@ static const char *s_dayNames[7] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "
 RTC_DATA_ATTR static bool s_active;
 RTC_DATA_ATTR static bool s_screenCleared;
 RTC_DATA_ATTR static int s_failedMinutes;
+RTC_DATA_ATTR static int s_minutes;
 RTC_DATA_ATTR static AlwaysOn::Look s_look;
 // The rectangle drawn last, cleared with the next drawing.
 RTC_DATA_ATTR static int s_drawnX;
@@ -169,9 +170,13 @@ int AlwaysOn::gaugeColour( Corners::Kind kind )
     return colours[kind];
 }
 
-// Whether pixel (x, y) belongs to a notch: 2 x 2 pixels across each gauge at both ends and in the
-// middle, white.
-static bool notchPixel( int x, int y )
+// The notches: 2 x 2 pixels across each gauge at both ends and in the middle, white. Their
+// top-left pixels are computed once per wake, not per pixel.
+static int s_notchX[Corners::CornerCount * 3];
+static int s_notchY[Corners::CornerCount * 3];
+static bool s_notchesReady = false;
+
+static void computeNotches()
 {
     const float radius = Corners::OuterRadius - s_gaugeWidth / 2.0f;
     for ( int i = 0; i < Corners::CornerCount; ++i ) {
@@ -183,11 +188,21 @@ static bool notchPixel( int x, int y )
                            upper );
         for ( int k = 0; k < 3; ++k ) {
             const float angle = ( lower + ( upper - lower ) * k / 2.0f ) * static_cast<float>( M_PI ) / 180.0f;
-            const float notchX = centreX + radius * cosf( angle );
-            const float notchY = centreY + radius * sinf( angle );
-            if ( fabsf( x + 0.5f - notchX ) < 1.0f && fabsf( y + 0.5f - notchY ) < 1.0f ) {
-                return true;
-            }
+            // The 2 x 2 block whose centre lies nearest to the notch point.
+            s_notchX[i * 3 + k] = static_cast<int>( floorf( centreX + radius * cosf( angle ) - 0.5f ) );
+            s_notchY[i * 3 + k] = static_cast<int>( floorf( centreY + radius * sinf( angle ) - 0.5f ) );
+        }
+    }
+    s_notchesReady = true;
+}
+
+static bool notchPixel( int x, int y )
+{
+    for ( int i = 0; i < Corners::CornerCount * 3; ++i ) {
+        const int dx = x - s_notchX[i];
+        const int dy = y - s_notchY[i];
+        if ( dx >= 0 && dx < 2 && dy >= 0 && dy < 2 ) {
+            return true;
         }
     }
     return false;
@@ -258,6 +273,9 @@ static void render( Panel &panel, const AlwaysOn::Face &face, int faceX, int fac
                     int height, const AodGlyph *moon, const Corners::Gauge *gauges )
 {
     uint16_t *pixels = Panel::buffer();
+    if ( !s_notchesReady ) {
+        computeNotches();
+    }
     const int bandRows = ( Panel::BufferPixels / width ) & ~1;
     for ( int bandTop = top; bandTop < top + height; bandTop += bandRows ) {
         const int rows = ( top + height - bandTop < bandRows ) ? top + height - bandTop : bandRows;
@@ -268,8 +286,9 @@ static void render( Panel &panel, const AlwaysOn::Face &face, int faceX, int fac
                        s_colours[sprite.colour] );
         }
         if ( moon != nullptr ) {
+            // White: yellow read as the Sun's state.
             drawGlyph( pixels, bandTop, rows, left, width, *moon, AlwaysOn::MoonX, AlwaysOn::MoonY,
-                       s_colours[AlwaysOn::Yellow] );
+                       s_colours[AlwaysOn::White] );
         }
         for ( int row = bandTop; gauges != nullptr && row < bandTop + rows; ++row ) {
             if ( row >= s_cornerBox && row < Panel::HEIGHT - s_cornerBox ) {
@@ -344,6 +363,7 @@ void AlwaysOn::begin( const Look &look )
     s_active = true;
     s_screenCleared = false;
     s_failedMinutes = 0;
+    s_minutes = 0;
     s_look = look;
     s_look.style = validStyle( look.style );
     s_drawnWidth = 0;
@@ -361,6 +381,11 @@ void AlwaysOn::end()
 bool AlwaysOn::isActive() const
 {
     return s_active;
+}
+
+int AlwaysOn::minutes() const
+{
+    return s_minutes;
 }
 
 uint64_t AlwaysOn::update( const Rtc::DateTime &time, int64_t utcNow, bool timeRead, int batteryPercent )
@@ -461,6 +486,7 @@ uint64_t AlwaysOn::update( const Rtc::DateTime &time, int64_t utcNow, bool timeR
             s_drawnGauges[i][k] = drawn[k];
         }
     }
+    ++s_minutes;
     // The brightness command is sent after the drawing has finished.
     panel.setBrightness( brightness );
     Panel::holdPins();

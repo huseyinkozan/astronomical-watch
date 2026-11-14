@@ -5,9 +5,8 @@ The development build (CONFIG_WATCH_DEV_LOGGING) answers "S <page>" on the USB c
 shows that page, redraws it and prints each pixel row as "SHOT <y> <x> <runs>", where each run
 is "<RGB565 hex>*<count>" and runs are separated by commas. "A <style>" gives the always-on face in one of its styles,
 drawn without LVGL, as rectangles ("SHOT RECT <x> <y> <width> <height> <0|1>", black or white) and
-rows; it is shown here at full brightness, dimmer on the watch. Opening the port resets the board
-(Linux raises DTR and RTS), so the watch starts in active mode; the command is repeated until
-the watch answers.
+rows; it is shown here at full brightness, dimmer on the watch. Opening the port does not reset
+the board; the tool waits for active mode (a PWR press).
 
 Run inside the ESP-IDF environment, which provides pyserial:
     python tools/screenshot.py [--port /dev/ttyACM0] [--out docs/screenshots] [pages...]
@@ -153,14 +152,10 @@ def main():
 
     os.makedirs(args.out, exist_ok=True)
 
-    # Opening the port must not reset the board: keep DTR and RTS released.
-    port = serial.Serial()
-    port.port = args.port
-    port.baudrate = 115200
-    port.timeout = 1
-    port.dtr = False
-    port.rts = False
-    port.open()
+    # Linux raises DTR and RTS when it opens the port. pyserial's defaults keep both raised; lowering
+    # DTR while RTS is still high is the USB-Serial-JTAG reset request, which would restart the watch
+    # and clear its RTC memory.
+    port = serial.Serial(args.port, 115200, timeout=1)
     reader = LineReader(port)
     if commands:
         # Wait for active mode (a PWR press), then send the commands. Without them the pictures

@@ -23,6 +23,15 @@ idf.py build
 idf.py -p /dev/ttyACM0 flash monitor
 ```
 
+For use on the wrist, a release build skips the development logging (no wait for the USB host at
+each PWR wake, about 1.5 s on battery) and optimises for speed; the event log and the core dump
+work as in the development build:
+
+```bash
+idf.py -B build-release -D SDKCONFIG=build-release/sdkconfig \
+       -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.release" build flash
+```
+
 `sdkconfig` is generated from `sdkconfig.defaults` and committed. Change options in
 `sdkconfig.defaults` (or with `idf.py menuconfig` and copy the decision there).
 
@@ -34,6 +43,7 @@ idf.py -p /dev/ttyACM0 flash monitor
 | `docs/hardware.md` | Hardware fact base: pins, power tree, register semantics, sources, unknowns |
 | `tools/guided_test.py` | Guided hardware tests: prompts the tester and checks the serial log; logs go to `test-logs/` (ignored) |
 | `tools/screenshot.py` | Screenshots of the watch pages from the development build |
+| `tools/read_events.py` | Reads the watch's event log (stability on the wrist) |
 | `tools/make_fonts.sh`, `tools/fonts/` | The watch fonts in `main/fonts/` (JetBrains Mono, ASCII, ° and the Turkish letters; needs Node.js for `npx lv_font_conv`) |
 | `tests/` | Host tests of the astronomy code (`sh tests/run_host_tests.sh`, needs only g++) and their reference data |
 | `tools/setup_reference.sh`, `tools/make_*.py` | Python environment (Skyfield, Pillow in `tools/.venv`, ignored) and generators of reference data, tables, the always-on bitmaps (`main/AodGlyphs.c`) and the README animations |
@@ -141,14 +151,20 @@ ends and in the middle as long as the gauge is wide. Active mode draws them 5 px
 channel of a dim tone of their own colour. The always-on face draws them 2 px wide without the
 channel in idle-mode colours, outside the burn-in shift, and redraws a corner only when its
 gauge moved by a pixel; the always-on page shows that look with LVGL arcs, close to but not pixel
-for pixel the same. The Moon's phase icon sits in the top-left corner inside the day gauge, on
-the watch faces and the always-on face alike.
+for pixel the same. The Moon's phase icon sits in the bottom-left corner inside the Moon's gauge,
+on the watch faces and the always-on face alike (the top-left corner stands for the Sun).
 
 Brightness: active mode has one level, the always-on face one by day and one by night, switched
 at sunrise and sunset (the day gauge; no light sensor on the board). A long press and a vertical
 drag sets them: on the watch face the active level, on the always-on page the level of the
-moment, shown at that brightness while dragging. The settings page row steps through 20, 50 and
-100 %.
+moment, shown at that brightness while dragging; the portal sets all three.
+
+Event log (`main/EventLog.*`, NVS): boots with their reset reason, the end of each active session
+(touches, touch controller state), the end of always-on and power-offs, with battery, smallest
+heap and stack margins. Written once at the event, never at every minute wake; the development
+mode setting (settings page) adds an always-on summary every 30 min. A crash leaves a core dump
+in its flash partition. Read both over USB: `python tools/read_events.py`, then
+`idf.py -p /dev/ttyACM0 coredump-info`.
 
 - Small, focused modules; no layers or abstractions without a clear benefit.
 - Astronomy code is independent of UI and ESP-IDF so it can be tested on the host

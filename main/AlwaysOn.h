@@ -8,7 +8,7 @@
 #include "sdkconfig.h"
 
 // Always-on face (CLAUDE.md, always-on mode): a dim HH:MM in one of the aodStyles with the date
-// under it, the Moon's phase in the top-left corner and the corner gauges (Corners), at the day or
+// under it, the Moon's phase in the bottom-left corner and the corner gauges (Corners), at the day or
 // night brightness. A timer wake once a minute redraws the face;
 // between wakes the ESP32 deep-sleeps and the panel shows the image from its own memory. The
 // state is kept in RTC memory. The always-on page of active mode (AodPage) shows the same layout.
@@ -37,10 +37,10 @@ public:
         int nightBrightness;
     };
 
-    // Top-left corner of the moon on the screen: in the top-left corner, inside the day gauge, as
-    // on the watch faces.
+    // Top-left corner of the moon on the screen: in the bottom-left corner, inside the Moon's
+    // gauge, as on the watch faces.
     static const int MoonX = 48;
-    static const int MoonY = 48;
+    static const int MoonY = 417;
 
     enum Colour
     {
@@ -91,6 +91,9 @@ public:
     void end();
 
     bool isActive() const;
+
+    // Minutes drawn since begin(), for the event log.
+    int minutes() const;
 
     // Timer wake: draws the face for `time` (local; `utcNow` the same moment as Unix time) and
     // returns the microseconds until just after the next minute, or 0 when the face cannot go on

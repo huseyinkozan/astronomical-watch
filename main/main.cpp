@@ -8,6 +8,8 @@
 #include "Axp2101.h"
 #include "BatteryLog.h"
 #include "Corners.h"
+#include "EventLog.h"
+#include "esp_core_dump.h"
 #include "DeepSleep.h"
 #include "Display.h"
 #include "Motion.h"
@@ -41,6 +43,9 @@ static Peripherals s_peripherals;
 static Rtc s_rtc;
 static Display s_display;
 static bool s_displayOn = false;
+// For the event log of the active session.
+static uint8_t s_touchModeStart = 0xFF;
+static bool s_portalUsed = false;
 static AlwaysOn s_alwaysOn;
 static BatteryLog s_batteryLog;
 static Motion s_motion;
@@ -52,6 +57,10 @@ static Portal s_portal;
 // The UTC offset for the always-on face, copied when active mode ends: the minute wakes do not
 // read NVS.
 RTC_DATA_ATTR static int s_alwaysOnOffsetMinutes;
+// The development mode setting, copied when active mode ends (minute wakes read no NVS).
+RTC_DATA_ATTR static bool s_alwaysOnDevMode;
+// Development mode writes an always-on summary to the event log this often.
+static const int s_statusEveryMinutes = 30;
 // At or below this charge (and not on USB) the watch powers off instead of keeping the always-on
 // face, so that the cell still runs the RTC for days in the off state (CLAUDE.md, power
 // management). The gauge reads too low for a while after a power cycle (docs/hardware.md, run D),
@@ -70,16 +79,15 @@ static void logPowerKeyIrq()
     }
 }
 
-#if CONFIG_WATCH_DEV_LOGGING
 // Set by the host commands "P" and "N": the same as a tap on the setup page's rows.
-static int s_hostRequests = 0;
+[[maybe_unused]] static int s_hostRequests = 0;
 static char s_hostLine[32];
 // The scene of the published screenshots, so that they stay the same and do not show the
 // watch's location: Istanbul on 2026-06-21 at 19:19 local time (UTC+3), the local Hijri method.
 // The settings are not changed, so that nothing of it reaches NVS.
-static bool s_scene = false;
-static const int s_sceneInputs[4] = { 41008200, 28978400, 180, 0 };
-static const Rtc::DateTime s_sceneTime = { 2026, 6, 21, 16, 19, 0 };
+[[maybe_unused]] static bool s_scene = false;
+[[maybe_unused]] static const int s_sceneInputs[4] = { 41008200, 28978400, 180, 0 };
+[[maybe_unused]] static const Rtc::DateTime s_sceneTime = { 2026, 6, 21, 16, 19, 0 };
 static int s_hostLineLength = 0;
 
 // Development commands from the host: the guided test sends the UTC time as
@@ -88,7 +96,8 @@ static int s_hostLineLength = 0;
 // the always-on face in that style (at 19:19); "P" switches the setup
 // portal on or off and "N" makes a new portal password (so that a published screenshot does not
 // show the one in use). "D" shows a fixed scene until the next reset (s_sceneInputs); "F <style>"
-// shows the watch face in that style without changing the setting.
+// shows the watch face in that style without changing the setting. Only "E" (the event log, read
+// by tools/read_events.py) also works without CONFIG_WATCH_DEV_LOGGING.
 // Returns true when a command arrived: like a touch, it restarts the display timeout, so that
 // the watch stays in active mode while tools/screenshot.py works.
 static bool pollHostCommands()
@@ -108,6 +117,11 @@ static bool pollHostCommands()
         s_hostLine[s_hostLineLength] = '\0';
         s_hostLineLength = 0;
         received = true;
+        if ( s_hostLine[0] == 'E' && s_hostLine[1] == '\0' ) {
+            EventLog::print( s_settings.value( Settings::UtcOffset ) );
+            continue;
+        }
+#if CONFIG_WATCH_DEV_LOGGING
         int page = 0;
         if ( sscanf( s_hostLine, "S %d", &page ) == 1 ) {
             s_display.capture( page );
@@ -156,15 +170,15 @@ static bool pollHostCommands()
         const esp_err_t err = s_rtc.set( time );
         ESP_LOGI( TAG, "RTC set to %04d-%02d-%02d %02d:%02d:%02d UTC: %s", year, month, day, hour, minute, second,
                   esp_err_to_name( err ) );
+#endif
     }
     return received;
 }
-#endif
 
 // Deep-sleep floor check: a line that a chip holds low in sleep is still low right after the
 // wake. Read before the BSP configures the I2C pads. I2C, touch INT and RTC INT have pull-ups to
 // VCC3V3, so a low level there means current through the pull-up while sleeping.
-static void logPadLevels()
+[[maybe_unused]] static void logPadLevels()
 {
     // GPIO19/20 (USB) are left out: switching them to GPIO would drop the USB console.
     const gpio_num_t pads[11] = { GPIO_NUM_0,  GPIO_NUM_1,  GPIO_NUM_2,  GPIO_NUM_3,  GPIO_NUM_14, GPIO_NUM_15,
@@ -199,6 +213,25 @@ static int64_t unixTime( const Rtc::DateTime &time )
     fields.tm_min = time.minute;
     fields.tm_sec = time.second;
     return mktime( &fields );
+}
+
+// Writes an event with the battery state and the RTC time (the RTC must be initialised).
+static void logEvent( EventLog::Entry entry, bool pmuReady )
+{
+    if ( pmuReady ) {
+        uint16_t millivolts = 0;
+        uint8_t percent = 0;
+        bool vbusGood = false;
+        if ( s_pmu.readBattery( millivolts, percent, vbusGood ) == ESP_OK ) {
+            entry.batteryMillivolts = millivolts;
+            entry.batteryPercent = percent;
+            entry.flags |= vbusGood ? EventLog::Usb : 0;
+        }
+    }
+    Rtc::DateTime time = {};
+    bool oscillatorStopped = false;
+    const bool timeRead = s_rtc.read( time, oscillatorStopped ) == ESP_OK && !oscillatorStopped;
+    EventLog::add( entry, timeRead ? static_cast<uint32_t>( unixTime( time ) ) : 0 );
 }
 
 // `inputs`: latitude and longitude (micro-degrees), UTC offset (minutes), Hijri method.
@@ -295,6 +328,7 @@ static bool servicePortal( bool everySecond )
             s_portal.stop();
         } else {
             s_portal.start( s_settings );
+            s_portalUsed = true;
         }
     }
     if ( requests & Display::NewPassword ) {
@@ -321,7 +355,8 @@ static bool servicePortal( bool everySecond )
 // Active mode: the display shows the pages until the display timeout has passed since the
 // start or the last touch, or until a new PWR press. The press that woke the watch may still
 // be held; only a later press counts.
-static void runActiveMode()
+// Returns 1 at the display timeout, 2 at a PWR press (EventLog::ActiveEnd codes).
+static int runActiveMode()
 {
     int lastLevel = gpio_get_level( s_powerKeyGpio );
     ESP_LOGI( TAG, "Active mode, display timeout %d s", s_settings.value( Settings::DisplayTimeout ) );
@@ -345,7 +380,7 @@ static void runActiveMode()
             if ( level == 1 ) {
                 s_deepSleep.addEvent( DeepSleep::Event::PowerKeyPressed );
                 ESP_LOGI( TAG, "PWR press: active mode ends" );
-                return;
+                return 2;
             }
         }
         uint32_t idleMs = activeMs;
@@ -359,13 +394,11 @@ static void runActiveMode()
         const uint32_t timeoutMs = s_settings.value( Settings::DisplayTimeout ) * 1000;
         if ( idleMs >= timeoutMs ) {
             ESP_LOGI( TAG, "Display timeout: active mode ends" );
-            return;
+            return 1;
         }
-#if CONFIG_WATCH_DEV_LOGGING
         if ( pollHostCommands() ) {
             activeMs = 0;
         }
-#endif
         vTaskDelay( pdMS_TO_TICKS( 20 ) );
         activeMs += 20;
         sinceUpdateMs += 20;
@@ -437,9 +470,17 @@ static void sleepNow()
 // Display-off state (CLAUDE.md, off mode): the AXP2101 cuts every rail except RTCLDO and the PWR
 // key powers the watch on again. Battery-log builds keep deep sleep for their timer wake, and a
 // failed power-off also ends in deep sleep.
-static void powerOff( [[maybe_unused]] bool pmuReady )
+static void powerOff( [[maybe_unused]] bool pmuReady, [[maybe_unused]] EventLog::PowerOffReason reason )
 {
 #if !CONFIG_WATCH_BATTERY_LOG
+    EventLog::Entry entry = {};
+    entry.type = EventLog::PowerOff;
+    entry.code = reason;
+    if ( s_alwaysOn.isActive() ) {
+        entry.duration = static_cast<uint16_t>( s_alwaysOn.minutes() );
+        entry.longestWakeMs = static_cast<uint16_t>( s_deepSleep.longestTimerWakeMs() );
+    }
+    logEvent( entry, pmuReady );
     if ( pmuReady ) {
         uint16_t millivolts = 0;
         uint8_t percent = 0;
@@ -487,7 +528,7 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
         if ( s_pmu.readBattery( millivolts, percent, vbusGood ) == ESP_OK ) {
             batteryPercent = percent;
             if ( !vbusGood && batteryEmpty( millivolts, percent ) ) {
-                powerOff( pmuReady );
+                powerOff( pmuReady, EventLog::BatteryLimit );
             }
         }
     }
@@ -504,7 +545,14 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
     }
     if ( sleepUs == 0 || still ) {
         // No motion for the set time (or the panel or the RTC failed).
-        powerOff( pmuReady );
+        powerOff( pmuReady, still ? EventLog::NoMotion : EventLog::FaceFailed );
+    }
+    if ( s_alwaysOnDevMode && s_alwaysOn.minutes() % s_statusEveryMinutes == 0 ) {
+        EventLog::Entry entry = {};
+        entry.type = EventLog::AlwaysOnStatus;
+        entry.duration = static_cast<uint16_t>( s_alwaysOn.minutes() );
+        entry.longestWakeMs = static_cast<uint16_t>( s_deepSleep.longestTimerWakeMs() );
+        logEvent( entry, pmuReady );
     }
     s_peripherals.holdSleepLines();
     s_deepSleep.enter( sleepUs );
@@ -515,7 +563,7 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
 [[maybe_unused]] static void enterAlwaysOn( i2c_master_bus_handle_t bus, bool pmuReady )
 {
     if ( !s_displayOn || s_settings.value( Settings::AlwaysOnFace ) == 0 ) {
-        powerOff( pmuReady );
+        powerOff( pmuReady, EventLog::AlwaysOnDisabled );
     }
     if ( pmuReady ) {
         uint16_t millivolts = 0;
@@ -523,7 +571,7 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
         bool vbusGood = false;
         if ( s_pmu.readBattery( millivolts, percent, vbusGood ) == ESP_OK && !vbusGood &&
              batteryEmpty( millivolts, percent ) ) {
-            powerOff( pmuReady );
+            powerOff( pmuReady, EventLog::BatteryLimit );
         }
     }
     s_peripherals.sleepTouch( bus );
@@ -538,6 +586,8 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
         look.corners = Corners::fromSky( s_skyDay );
     }
     s_alwaysOn.begin( look );
+    s_deepSleep.clearLongestTimerWake();
+    s_alwaysOnDevMode = s_settings.value( Settings::DevMode ) != 0;
     s_motion.restart( s_settings.value( Settings::AutoOff ) );
     s_alwaysOnOffsetMinutes = s_settings.value( Settings::UtcOffset );
     Panel::holdPins();
@@ -609,18 +659,18 @@ extern "C" void app_main( void )
     setSdLinesLow( false );
 #endif
     // Active mode: the BSP takes over the panel pins and resets the panel and touch.
+    const bool alwaysOnEnded = s_alwaysOn.isActive();
+    const int alwaysOnMinutes = s_alwaysOn.minutes();
     s_alwaysOn.end();
     Panel::releasePins();
     s_peripherals.releaseSleepLines();
 
-#if CONFIG_WATCH_DEV_LOGGING
-    // Reading USB input needs the driver. Its writes never block: without a host they return at
-    // once, and a stalled host costs at most 50 ms before output is dropped.
+    // Reading USB input (host commands) needs the driver. Its writes never block: without a host
+    // they return at once, and a stalled host costs at most 50 ms before output is dropped.
     usb_serial_jtag_driver_config_t usbConfig = USB_SERIAL_JTAG_DRIVER_CONFIG_DEFAULT();
     if ( usb_serial_jtag_driver_install( &usbConfig ) == ESP_OK ) {
         usb_serial_jtag_vfs_use_driver();
     }
-#endif
 
     s_peripherals.quiesceOnce( bus, s_pmu );
     s_settings.load();
@@ -632,6 +682,24 @@ extern "C" void app_main( void )
         s_rtc.logAtTick();
     } else {
         ESP_LOGE( TAG, "RTC init failed" );
+    }
+    // The event log (NVS, after Settings::load): a boot other than a deep-sleep wake, and the end
+    // of the always-on face by this PWR press.
+    if ( esp_reset_reason() != ESP_RST_DEEPSLEEP ) {
+        EventLog::Entry entry = {};
+        entry.type = EventLog::Boot;
+        entry.code = static_cast<uint8_t>( esp_reset_reason() );
+        entry.wakes = static_cast<uint16_t>( s_deepSleep.bootCount() );
+        entry.flags = esp_core_dump_image_check() == ESP_OK ? EventLog::CoreDump : 0;
+        logEvent( entry, pmuReady );
+    }
+    if ( alwaysOnEnded ) {
+        EventLog::Entry entry = {};
+        entry.type = EventLog::AlwaysOnEnd;
+        entry.code = 1;
+        entry.duration = static_cast<uint16_t>( alwaysOnMinutes );
+        entry.longestWakeMs = static_cast<uint16_t>( s_deepSleep.longestTimerWakeMs() );
+        logEvent( entry, pmuReady );
     }
 #if CONFIG_WATCH_MOTION_LOG
     s_motion.printLog();
@@ -650,24 +718,36 @@ extern "C" void app_main( void )
         s_pmu.setPanelPower( true );
         s_displayOn = s_display.start( s_settings );
 #endif
+        s_touchModeStart = s_peripherals.touchPowerMode( bus );
 #if CONFIG_WATCH_BATTERY_LOG
         s_batteryLog.record( s_pmu );
         s_batteryLog.print();
 #endif
     }
 
-    runActiveMode();
+    const int64_t activeStartUs = esp_timer_get_time();
+    const int endCode = runActiveMode();
     logPowerKeyIrq();
+    EventLog::Entry active = {};
+    active.type = EventLog::ActiveEnd;
+    active.code = static_cast<uint8_t>( endCode );
+    active.duration = static_cast<uint16_t>( ( esp_timer_get_time() - activeStartUs ) / 1000000 );
+    active.touches = static_cast<uint16_t>( s_display.touches() );
+    active.touchModeStart = s_touchModeStart;
+    active.touchModeEnd = s_peripherals.touchPowerMode( bus );
+    active.flags = ( s_displayOn ? EventLog::DisplayStarted : 0 ) | ( s_display.touchStarted() ? EventLog::TouchStarted : 0 ) |
+                   ( s_portalUsed ? EventLog::PortalUsed : 0 );
 #if CONFIG_WATCH_SETUP_PORTAL
     s_portal.stop();
 #endif
     // No setting can change once LVGL has stopped.
     s_display.stop();
     s_settings.save();
+    logEvent( active, pmuReady );
 
 #if CONFIG_WATCH_BATTERY_LOG && !CONFIG_WATCH_BATTERY_LOG_AOD
     // Battery-log runs without the face sleep with their logging timer instead.
-    powerOff( pmuReady );
+    powerOff( pmuReady, EventLog::AlwaysOnDisabled );
 #else
     enterAlwaysOn( bus, pmuReady );
 #endif

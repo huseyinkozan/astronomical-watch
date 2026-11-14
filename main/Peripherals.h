@@ -26,4 +26,8 @@ public:
 
     // Puts the touch controller to sleep (1.5 mA active, 10 uA asleep) after the BSP started it.
     void sleepTouch( i2c_master_bus_handle_t bus );
+
+    // The touch controller's power mode register (0 active, 3 sleep), or 0xFF when it does not
+    // answer: for the event log.
+    uint8_t touchPowerMode( i2c_master_bus_handle_t bus );
 };

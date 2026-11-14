@@ -61,8 +61,8 @@ menu "Astronomical Watch"
         help
             Panel brightness in active mode (DBV, command 0x51). AMOLED
             current grows with brightness and with the number of lit pixels.
-            The settings page steps through 20, 50 and 100 %; a long press and
-            a vertical drag on the watch face sets any value from 5 %.
+            A long press and a vertical drag on the watch face sets any value
+            from 5 %; the setup portal too.
 
     config WATCH_AOD_DAY_BRIGHTNESS
         int "Always-on brightness from sunrise to sunset (%)"

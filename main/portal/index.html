@@ -67,6 +67,8 @@
   always-on brightness of the moment) and drag up or down.</small>
   <label for="autoOff">Switch off without motion after</label>
   <select id="autoOff"></select>
+  <label for="devMode">Development mode (more entries in the watch's event log)</label>
+  <select id="devMode"></select>
   <label for="hijri">Hijri months start with</label>
   <select id="hijri"></select>
   <small>Local: the new crescent visible to the naked eye at the watch's location (Odeh's
@@ -120,6 +122,7 @@ fill($('timeout'), [[5, '5 s'], [10, '10 s'], [20, '20 s'], [30, '30 s'], [60, '
 fill($('alwaysOn'), [[1, 'On'], [0, 'Off']]);
 fill($('autoOff'), [[20, '20 min'], [30, '30 min'], [60, '60 min'], [0, 'Never']]);
 fill($('hijri'), [[0, 'Local crescent'], [1, 'Diyanet']]);
+fill($('devMode'), [[0, 'Off'], [1, 'On']]);
 fill($('face'), [[0, 'Classic'], [1, 'Day arc']]);
 fill($('aod'), [[0, 'Thin'], [1, 'Regular'], [2, 'Dense (dotted seven segments)']]);
 
@@ -171,7 +174,7 @@ setInterval(() => { $('now').textContent = 'This device: ' + new Date().toLocale
 
 // Current values from the watch.
 fetch('/api/state').then((r) => r.json()).then((s) => {
-  for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'hijri', 'face', 'aod', 'aodDay', 'aodNight']) $(id).value = String(s[id]);
+  for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'hijri', 'face', 'aod', 'aodDay', 'aodNight', 'devMode']) $(id).value = String(s[id]);
   setBits($('faceItems'), s.faceItems);
   setBits($('aodItems'), s.aodItems);
   if (s.lat !== 0 || s.lon !== 0) {
@@ -195,7 +198,7 @@ $('save').addEventListener('click', async () => {
   $('status').textContent = 'Saving…';
   try {
     const fields = new URLSearchParams();
-    for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'offset', 'hijri', 'face', 'aod', 'aodDay', 'aodNight']) fields.set(id, $(id).value);
+    for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'offset', 'hijri', 'face', 'aod', 'aodDay', 'aodNight', 'devMode']) fields.set(id, $(id).value);
     fields.set('faceItems', String(bitsOf($('faceItems'))));
     fields.set('aodItems', String(bitsOf($('aodItems'))));
     if ($('lat').value !== '' && $('lon').value !== '') {

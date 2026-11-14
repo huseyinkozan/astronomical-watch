@@ -28,4 +28,10 @@ public:
     // Configures the wake sources (PWR key, and a timer when timerUs > 0) and enters deep
     // sleep. Does not return.
     void enter( uint64_t timerUs = 0 );
+
+    // For the event log: boots since power-on, and the longest timer wake (app run time) since
+    // clearLongestTimerWake().
+    uint32_t bootCount() const;
+    uint32_t longestTimerWakeMs() const;
+    void clearLongestTimerWake();
 };
