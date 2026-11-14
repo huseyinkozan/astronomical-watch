@@ -146,10 +146,10 @@ bitmaps): top left the day (yellow, sunrise to sunset) or the night (blue), top 
 battery (green, orange above 10 %, red at the power-off limit), bottom left the Moon above the
 horizon (bluish white, rise to set) or below it (dark grey, set to rise), bottom right the
 Moon's phase (the lit part grows from the lower end and shrinks towards the upper end). Each is
-a quarter circle 3 px inside the visible edge, starting at its lower end, with notches at both
-ends and in the middle as long as the gauge is wide. Active mode draws them 5 px wide in a
+a quarter circle 3 px inside the visible edge, starting at its lower end, with a notch in the
+middle as long as the gauge is wide. Active mode draws them 5 px wide with round ends in a
 channel of a dim tone of their own colour. The always-on face draws them 2 px wide without the
-channel in idle-mode colours, outside the burn-in shift, and redraws a corner only when its
+channel in idle-mode colours, with notches at both ends too, outside the burn-in shift, and redraws a corner only when its
 gauge moved by a pixel; the always-on page shows that look with LVGL arcs, close to but not pixel
 for pixel the same. The Moon's phase icon sits in the bottom-left corner inside the Moon's gauge,
 on the watch faces and the always-on face alike (the top-left corner stands for the Sun).
@@ -185,7 +185,8 @@ in its flash partition. Read both over USB: `python tools/read_events.py`, then
   battery, about) and the settings page (settings, setup portal; `main/StackPage.*`); the pages
   keep `LV_EVENT_GESTURE` and do not scroll, and the new style or part slides in. Marks along
   the right edge, in line with the corner gauges, show the position (`main/PageMarks.*`; on the
-  face only for a moment after a step). Large dark-grey areas shimmer on
+  face only for a moment after a step); marks along the bottom edge show the page while the
+  pages are swiped sideways. Large dark-grey areas shimmer on
   this panel; use black with outlines.
   The panel hides each corner outside a quarter circle of about 120 px radius (docs/hardware.md,
   Visible area); keep content inside it.

@@ -72,6 +72,9 @@ void CornerView::placeNotches( int corner )
         lv_line_set_points( notch, points, 2 );
         lv_obj_set_style_line_width( notch, 2, 0 );
         lv_obj_set_style_line_color( notch, lv_color_hex( m_alwaysOn ? 0xFFFFFF : s_notchColour ), 0 );
+        // Active mode rounds the gauge's ends, which then mark the limits themselves; the
+        // always-on look (no channel) keeps the end notches.
+        lv_obj_set_hidden( notch, !m_alwaysOn && k != 1 );
     }
 }
 
@@ -115,6 +118,8 @@ void CornerView::apply( int corner )
     const int width = m_alwaysOn ? s_alwaysOnWidth : s_activeWidth;
     lv_obj_set_style_arc_width( arc, width, LV_PART_MAIN );
     lv_obj_set_style_arc_width( arc, width, LV_PART_INDICATOR );
+    lv_obj_set_style_arc_rounded( arc, !m_alwaysOn, LV_PART_MAIN );
+    lv_obj_set_style_arc_rounded( arc, !m_alwaysOn, LV_PART_INDICATOR );
     const uint32_t colour = m_alwaysOn ? s_alwaysOnColours[gauge.kind] : s_activeColours[gauge.kind];
     // The channel takes the colour of what the gauge shows; below the horizon the Moon's gauge
     // keeps the channel of the Moon above it, so that the dark grey value stands out.

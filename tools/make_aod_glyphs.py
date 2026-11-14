@@ -2,13 +2,14 @@
 """Generates main/AodGlyphs.c: the 1-bit bitmaps of the always-on face.
 
 The always-on wakes draw without LVGL or fonts (main/AlwaysOn.cpp), and the panel's idle mode
-shows each colour channel on or off, so every glyph is stored with one bit per pixel. Styles,
-each as HH:MM:
+shows each colour channel on or off, so every glyph is stored with one bit per pixel. Digit
+sets, each as HH:MM:
 
     Thin, Regular   JetBrains Mono
     Dense           seven segments, each a hexagon tiled with dots 1 pixel apart
+    Thin 120        the smaller Thin digits of the sky arcs face
 
-plus the small characters of the date (solid, and dotted for the seven-segment style). The same
+plus the small characters of the date and time (solid, and dotted for the seven-segment style). The same
 bitmaps also form
 LVGL fonts (1 bpp), with which the always-on page of active mode shows the styles. The moon is
 drawn on the watch, since it changes with the phase.
@@ -28,6 +29,10 @@ OUTPUT = os.path.join(ROOT, 'main', 'AodGlyphs.c')
 # Day names on the face (English now, Turkish for M11): their letters and the digits.
 DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']
 SMALL_SIZE = 36
+# The always-on date "21 June" (the sky faces): the month names' letters, English and Turkish.
+MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September',
+               'October', 'November', 'December', 'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
+               'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
 
 SEGMENTS = [0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F]
 
@@ -252,6 +257,8 @@ def main():
         ('Thin', fontStyle('Thin', 140), False),
         ('Regular', fontStyle('Regular', 120), False),
         ('Dense', segmentStyle(), True),
+        # The digits of the sky arcs face (AlwaysOn style 3), under the arcs.
+        ('Thin 120', fontStyle('Thin', 120), False),
     ]
     if args.preview:
         preview(styles, args.preview)
@@ -276,7 +283,7 @@ def main():
             f'      {{ {", ".join(str(v) for v in y)} }},\n'
             f'      {width}, {height}, {"true" if dotted else "false"} }}')
 
-    characters = sorted({c for name in DAY_NAMES for c in name} | set('0123456789 '))
+    characters = sorted({c for name in DAY_NAMES + MONTH_NAMES for c in name} | set('0123456789: '))
     small, _ = renderText(font('Regular', SMALL_SIZE), characters)
     advance = round(font('Regular', SMALL_SIZE).getlength('0'))
     codes = [ord(c) for c in characters]

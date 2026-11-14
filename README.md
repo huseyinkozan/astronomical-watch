@@ -40,7 +40,8 @@ down there, or on the watch face, steps through the styles, and the one left sho
 | ![Always-on styles](docs/screenshots/always-on.gif) | ![Watch faces](docs/screenshots/faces.gif) |
 
 The always-on face is shown at full brightness; the watch dims it to its day or night level.
-Its three styles are JetBrains Mono Thin and Regular, and seven segments filled with dots.
+Its five styles are JetBrains Mono Thin and Regular, seven segments filled with dots, and the
+faces with the Sun's and the Moon's paths drawn in dots: arcs over the horizon, and a dial.
 
 | Sun | Twilight | Moon | Sun compass |
 |---|---|---|---|
@@ -115,7 +116,8 @@ astronomical-watch/
 Restarted on ESP-IDF with C++17. The watch puts the unused peripherals into their lowest-power
 state. A PWR press starts active mode: four pages swiped sideways show the always-on face as it will
 look, the watch face (classic or day arc, with the date, Hijri date, next sunrise or sunset and
-the Moon's phase in the bottom-left corner), the information and the settings; a vertical swipe
+the Moon's phase in the bottom-left corner; or the Sun's and the Moon's paths as arcs over the
+horizon or as orbits around a dial with hands), the information and the settings; a vertical swipe
 steps the always-on style, the face layout, and the parts of the last two pages. The information
 page holds the Sun (rise, set, noon, day length, time left until sunset), the twilights with the
 golden and blue hours, the Moon (phase, rise and set, the dark part of the night, the new
@@ -168,8 +170,8 @@ Each step is built, verified on the board and documented before the next one sta
     a monospaced font with the Turkish letters (JetBrains Mono), watch face layouts and
     always-on styles chosen with a vertical swipe or in the setup portal, with selectable items,
     the power cost of the always-on styles (battery run V: no visible cost of lit pixels), the
-    corner gauges, and the always-on brightness by day and by night (done); next, two faces with
-    the Sun's and the Moon's paths.
+    corner gauges, the always-on brightness by day and by night, and two faces with the Sun's and
+    the Moon's paths (done).
 12. **M11**: languages: Turkish and English on the watch and the setup page, chosen in the
     settings.
 13. Vibration motor.

@@ -58,6 +58,7 @@ Sky::Now Sky::computeNow( int64_t time, const Day &day, const Astronomy::Observe
     Now now = {};
     now.sun = Astronomy::sunPosition( time, observer );
     now.moon = Astronomy::moonPosition( time, observer );
+    now.time = time;
     now.sunUp = now.sun.altitude > -0.833;
     const Astronomy::Crossings &sun = day.sun.riseSet;
     if ( now.sunUp && sun.setting.occurs && sun.setting.time > time ) {

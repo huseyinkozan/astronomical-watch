@@ -106,6 +106,7 @@ private:
     static void onGesture( lv_event_t *event );
     // The always-on page shows the corners as the always-on face draws them.
     static void onPageChanged( lv_event_t *event );
+    static void onPagesScrolled( lv_event_t *event );
     // A long press and a vertical drag on the watch face sets the brightness; on the always-on
     // page, the always-on brightness of the moment (day or night), shown at that level while
     // dragging. Release saves the value (with the other settings when active mode ends).
@@ -146,6 +147,7 @@ private:
     StackPage m_settingsPage;
     PageMarks m_aodMarks;
     PageMarks m_faceMarks;
+    PageMarks m_pageMarks;  // the four pages, shown while they are swiped
     Rtc::DateTime m_localTime = {};
     int m_moonPercent = 0;
     bool m_waxing = true;

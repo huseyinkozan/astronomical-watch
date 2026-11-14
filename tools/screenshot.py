@@ -36,10 +36,10 @@ import serial
 
 
 # The always-on styles (main/AodGlyphs.h, AOD_STYLE_COUNT): "A <style>" draws one of them.
-ALWAYS_ON_STYLES = 3
+ALWAYS_ON_STYLES = 5
 # The watch face page and its layouts (main/WatchFace.h): "F <style>" shows one of them.
 FACE_PAGE = 1
-FACE_STYLES = 2
+FACE_STYLES = 4
 
 
 def writePng(path, width, height, rows):
@@ -155,7 +155,25 @@ def main():
     # Linux raises DTR and RTS when it opens the port. pyserial's defaults keep both raised; lowering
     # DTR while RTS is still high is the USB-Serial-JTAG reset request, which would restart the watch
     # and clear its RTC memory.
-    port = serial.Serial(args.port, 115200, timeout=1)
+    # A sleeping watch has no port: wait for a PWR press.
+    # The port can also vanish between the check and the open (the watch goes to sleep), so the
+    # open is retried until it succeeds.
+    port = None
+    start = time.time()
+    while port is None:
+        if time.time() - start > 120:
+            print('The watch did not appear within 2 min; nothing captured.')
+            return 1
+        if not os.path.exists(args.port):
+            print('Waiting for the watch: press PWR.')
+            while not os.path.exists(args.port) and time.time() - start < 120:
+                time.sleep(0.2)
+            time.sleep(0.5)
+            continue
+        try:
+            port = serial.Serial(args.port, 115200, timeout=1)
+        except serial.SerialException:
+            time.sleep(0.5)
     reader = LineReader(port)
     if commands:
         # Wait for active mode (a PWR press), then send the commands. Without them the pictures

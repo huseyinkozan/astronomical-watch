@@ -111,3 +111,32 @@ void Corners::compute( const Input &input, int64_t now, int batteryPercent, Gaug
         gauges[BottomRight] = { 1000 - lit, 1000, MoonLit };
     }
 }
+
+bool Corners::pass( const Events &events, int64_t now, Pass &result )
+{
+    for ( int i = 0; i + 1 < events.count; ++i ) {
+        if ( !( events.times[i] <= now && now < events.times[i + 1] ) ) {
+            continue;
+        }
+        result.up = events.rising[i];
+        if ( result.up ) {
+            // Rise, set, then the next rise.
+            if ( i + 2 >= events.count ) {
+                return false;
+            }
+            result.upStart = events.times[i];
+            result.upEnd = events.times[i + 1];
+            result.downEnd = events.times[i + 2];
+        } else {
+            // The rise before, this set, the next rise.
+            if ( i < 1 ) {
+                return false;
+            }
+            result.upStart = events.times[i - 1];
+            result.upEnd = events.times[i];
+            result.downEnd = events.times[i + 1];
+        }
+        return result.upStart < result.upEnd && result.upEnd < result.downEnd;
+    }
+    return false;
+}

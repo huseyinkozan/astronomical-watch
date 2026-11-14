@@ -37,8 +37,15 @@ public:
         int nightBrightness;
     };
 
+    // The styles: 0 to AOD_STYLE_COUNT - 2 the digit sets of aodStyles alone; then the sky arcs
+    // (the Sun's and the Moon's paths over the horizon, aodStyles' last digit set under them) and
+    // the dial (an analog clock between the Sun's and the Moon's orbits).
+    static const int ArcsStyle = AOD_STYLE_COUNT - 1;
+    static const int DialStyle = AOD_STYLE_COUNT;
+    static const int StyleCount = AOD_STYLE_COUNT + 1;
+
     // Top-left corner of the moon on the screen: in the bottom-left corner, inside the Moon's
-    // gauge, as on the watch faces.
+    // gauge, as on the watch faces (the digit styles; the sky styles draw it on its path).
     static const int MoonX = 48;
     static const int MoonY = 417;
 
@@ -48,11 +55,13 @@ public:
         Yellow,
         Red,
         Green,
-        Blue
+        Blue,
+        // Idle mode has no grey: white on every second pixel, which looks grey on this panel.
+        Grey
     };
 
     // One bitmap of the face, `x` and `y` from the face's top-left corner: a glyph of `font` with
-    // `code`, or the moon (font null).
+    // `code`, or the moon on its path (font null).
     struct Sprite
     {
         int x;
@@ -63,21 +72,54 @@ public:
         Colour colour;
     };
 
-    static const int MaxSprites = 16;
+    static const int MaxSprites = 24;
 
+    // A drawn shape of the sky styles, from the face's top-left corner: a 2 x 2 dot at (x0, y0),
+    // a disc or a ring (`width` wide) of `radius` around it, or a line to (x1, y1) `width` wide.
+    enum ShapeKind : uint8_t
+    {
+        DotShape,
+        DiscShape,
+        RingShape,
+        LineShape
+    };
+
+    struct Shape
+    {
+        uint8_t kind;
+        uint8_t colour;
+        uint8_t radius;
+        uint8_t width;
+        int16_t x0;
+        int16_t y0;
+        int16_t x1;
+        int16_t y1;
+    };
+
+    static const int MaxShapes = 420;
+
+    // `x` and `y`: the face's top-left corner on the screen for the sky styles, which have a
+    // fixed place; -1 for the digit styles, which are centred.
     struct Face
     {
         Sprite sprites[MaxSprites];
         int count;
+        Shape shapes[MaxShapes];
+        int shapeCount;
+        int x;
+        int y;
         int width;
         int height;
     };
 
-    // Places the face's bitmaps for the local time: the time and the date under it.
-    static Face layout( const Look &look, const Rtc::DateTime &time );
+    // Places the face's bitmaps and shapes for the local time `time` (`utcNow` the same moment as
+    // Unix time, for the Sun's and the Moon's places): the time and the date under it, or a sky
+    // style. The face is kept in a static buffer until the next call (it is too large for the
+    // main task's stack).
+    static const Face &layout( const Look &look, const Rtc::DateTime &time, int64_t utcNow );
 
-    // The moon's bitmap for MoonX, MoonY, or null when the Moon item is off. Kept in a static
-    // buffer until the next call.
+    // The moon's bitmap for MoonX, MoonY, or null when the Moon item is off or the style draws it
+    // on its path. Kept in a static buffer until the next call.
     static const AodGlyph *moon( const Look &look );
 
     // The idle-mode colour of a corner gauge, or -1 when it draws nothing.

@@ -46,6 +46,7 @@ public:
         Astronomy::Position moon;
         // Time to the next sunset while the Sun is up, else to the next sunrise; 0 without one.
         int secondsToSunEvent;
+        int64_t time;  // the moment, Unix time
         bool sunUp;
     };
 

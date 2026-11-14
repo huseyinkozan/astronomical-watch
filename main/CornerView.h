@@ -4,9 +4,10 @@
 #include "lvgl.h"
 
 // The corner gauges of active mode (Corners), drawn on LVGL's top layer so that every page shows
-// them: a channel in a dim tone of the gauge's own colour, filled by the value, with notches at
-// both ends and in the middle as long as the gauge is wide. On the always-on page they take the
-// always-on look: thinner, without the channel, in the colours of idle mode. Called with the
+// them: a channel in a dim tone of the gauge's own colour with round ends, filled by the value,
+// and a notch in the middle as long as the gauge is wide. On the always-on page they take the
+// always-on look: thinner, without the channel, in the colours of idle mode, with notches at both
+// ends too. Called with the
 // display lock held.
 class CornerView
 {

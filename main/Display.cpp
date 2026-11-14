@@ -267,10 +267,14 @@ bool Display::start( Settings &settings )
     m_face.build( facePage );
     m_face.setStyle( m_settings->value( Settings::FaceStyle ), m_settings->value( Settings::FaceItems ) );
     // Over the page contents: the always-on page shows its marks, the face only after a step.
-    m_aodMarks.build( m_aodTile, AOD_STYLE_COUNT );
+    m_aodMarks.build( m_aodTile, AlwaysOn::StyleCount );
     m_aodMarks.show( m_settings->value( Settings::AodStyle ) );
     m_faceMarks.build( facePage, WatchFace::StyleCount );
     m_faceMarks.setVisible( false );
+    // On the top layer, so that they stay in place while the pages move.
+    m_pageMarks.build( lv_layer_top(), PageCount, true );
+    m_pageMarks.setVisible( false );
+    lv_obj_add_event_cb( pages, onPagesScrolled, LV_EVENT_SCROLL, this );
 
     lv_obj_t *title = createLabel( batteryPage, &jetbrains_mono_26, -120 );
     lv_label_set_text( title, "Battery" );
@@ -574,6 +578,16 @@ void Display::onPageChanged( lv_event_t *event )
     display->m_corners.setAlwaysOnLook( tile == display->m_aodTile );
 }
 
+void Display::onPagesScrolled( lv_event_t *event )
+{
+    Display *display = static_cast<Display *>( lv_event_get_user_data( event ) );
+    const int scrollX = lv_obj_get_scroll_x( display->m_pages );
+    int page = ( scrollX + Panel::WIDTH / 2 ) / Panel::WIDTH;
+    page = page < 0 ? 0 : ( page >= PageCount ? PageCount - 1 : page );
+    // Each scroll step restarts the timer: the marks stay while the pages move and a moment after.
+    display->m_pageMarks.flash( page );
+}
+
 void Display::refreshSettings()
 {
     if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
@@ -621,8 +635,11 @@ void Display::refreshAlwaysOnPage( bool force, int direction )
     if ( m_localTime.month == 0 ) {
         return;
     }
-    const AlwaysOn::Look look = { m_settings->value( Settings::AodStyle ), m_settings->value( Settings::AodItems ),
-                                  m_moonPercent, m_waxing, {}, 0, 0 };
+    AlwaysOn::Look look = { m_settings->value( Settings::AodStyle ), m_settings->value( Settings::AodItems ),
+                            m_moonPercent, m_waxing, {}, 0, 0 };
+    if ( m_haveSky ) {
+        look.corners = Corners::fromSky( m_day );
+    }
     const int shown[4] = { m_localTime.hour * 60 + m_localTime.minute, look.style, look.items, look.moonPercent };
     bool same = !force;
     for ( int i = 0; i < 4; ++i ) {
@@ -630,7 +647,7 @@ void Display::refreshAlwaysOnPage( bool force, int direction )
         m_aodShown[i] = shown[i];
     }
     if ( !same ) {
-        m_aodPage.show( look, m_localTime, direction );
+        m_aodPage.show( look, m_localTime, m_now.time, direction );
     }
 }
 
@@ -644,7 +661,7 @@ void Display::onGesture( lv_event_t *event )
     }
     const bool alwaysOn = lv_event_get_current_target( event ) == display->m_aodTile;
     const Settings::Item item = alwaysOn ? Settings::AodStyle : Settings::FaceStyle;
-    const int count = alwaysOn ? AOD_STYLE_COUNT : WatchFace::StyleCount;
+    const int count = alwaysOn ? AlwaysOn::StyleCount : WatchFace::StyleCount;
     // Up: the next style; down: the one before. The choice is saved with the other settings when
     // active mode ends.
     const int step = direction == LV_DIR_TOP ? 1 : count - 1;
@@ -724,6 +741,8 @@ void Display::capture( int page )
     if ( shot.part >= 0 ) {
         ( shot.page == InfoPage ? m_info : m_settingsPage ).show( shot.part, 0 );
     }
+    // The jump to the page counts as a swipe; the pictures show the pages at rest.
+    m_pageMarks.setVisible( false );
     lv_display_trigger_activity( nullptr );
     printf( "SHOT BEGIN %d %d %d %s\n", page, BSP_LCD_H_RES, BSP_LCD_V_RES, shot.name );
     // The LVGL task draws the whole screen at its next refresh: rendering needs its larger stack

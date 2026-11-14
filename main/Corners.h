@@ -58,8 +58,8 @@ public:
         bool alwaysDown;  // below it all day
     };
 
-    // What the gauges take from the astronomy of a local day; kept with the always-on face, so
-    // that its minute wakes compute no astronomy.
+    // What the gauges and the sky faces take from the astronomy of a local day; kept with the
+    // always-on face, so that its minute wakes compute no astronomy.
     struct Input
     {
         bool valid;
@@ -80,6 +80,18 @@ public:
                           int &upperAngle );
 
     static Input fromSky( const Sky::Day &day );
+
+    // A body's pass around `now`: from its rise (upStart) to its set (upEnd) and on to the next
+    // rise (downEnd); `up` when `now` lies in the first part. False when the events do not
+    // surround `now` (no rise or set near it).
+    struct Pass
+    {
+        bool up;
+        int64_t upStart;
+        int64_t upEnd;
+        int64_t downEnd;
+    };
+    static bool pass( const Events &events, int64_t now, Pass &result );
 
     // The gauges at `now` (Unix time). `batteryPercent` < 0: unknown.
     static void compute( const Input &input, int64_t now, int batteryPercent, Gauge gauges[CornerCount] );

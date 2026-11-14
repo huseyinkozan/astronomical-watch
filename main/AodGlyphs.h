@@ -40,8 +40,8 @@ typedef struct
 
 enum
 {
-    AOD_STYLE_COUNT = 3,
-    AOD_SMALL_COUNT = 32
+    AOD_STYLE_COUNT = 4,
+    AOD_SMALL_COUNT = 53
 };
 
 extern const AodStyle aodStyles[AOD_STYLE_COUNT];
