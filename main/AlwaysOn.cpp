@@ -129,8 +129,10 @@ AlwaysOn::Face AlwaysOn::layout( const Look &look, const Rtc::DateTime &time )
     const lv_font_t *smallFont = dotted ? &aodSmallDottedFont : &aodSmallFont;
 
     char date[8] = "";
-    if ( showDate ) {
-        const int weekday = ( daysFromCivil( time.year, time.month, time.day ) + 4 ) % 7;
+    // A time not read yet (all zero) has no weekday: the name table must not be left.
+    const bool dateValid = time.month >= 1 && time.month <= 12 && time.day >= 1 && time.day <= 31;
+    if ( showDate && dateValid ) {
+        const int weekday = ( ( daysFromCivil( time.year, time.month, time.day ) + 4 ) % 7 + 7 ) % 7;
         snprintf( date, sizeof( date ), "%s %d", s_dayNames[weekday], time.day );
     }
     const int dateWidth = static_cast<int>( strlen( date ) ) * aodSmallAdvance;

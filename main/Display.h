@@ -7,6 +7,8 @@
 #include "Settings.h"
 #include "AodPage.h"
 #include "CornerView.h"
+#include "PageMarks.h"
+#include "StackPage.h"
 #include "WatchFace.h"
 #include "SkyPages.h"
 #include "lvgl.h"
@@ -14,12 +16,25 @@
 
 // AMOLED panel and touch through the BSP and LVGL, in active mode. The panel's power enable
 // DSI_PWR_EN is pulled up from AXP2101 ALDO2, so the caller switches ALDO2 on first
-// (docs/hardware.md). The pages are side by side; a horizontal swipe moves between them: watch
-// face, sun, twilight, moon, sun compass, battery, settings, setup portal
-// (CONFIG_WATCH_SETUP_PORTAL), about.
+// (docs/hardware.md). The pages are side by side; a horizontal swipe moves between them:
+// always-on preview, watch face, information, settings. The information page holds sun,
+// twilight, moon, sun compass, battery and about one over the other, the settings page the
+// settings and the setup portal (CONFIG_WATCH_SETUP_PORTAL); a vertical swipe moves between them.
 class Display
 {
 public:
+    // The parts of the information page, top to bottom.
+    enum InfoPart
+    {
+        InfoSun,
+        InfoTwilight,
+        InfoMoon,
+        InfoCompass,
+        InfoBattery,
+        InfoAbout,
+        InfoCount
+    };
+
     struct Battery
     {
         uint16_t millivolts;
@@ -96,6 +111,7 @@ private:
     // dragging. Release saves the value (with the other settings when active mode ends).
     static void onBrightnessDrag( lv_event_t *event );
     void buildBrightnessControl();
+
     void showBrightness( int percent );
     // Redraws the always-on page when the minute, the style, the items or the moon changed.
     // `direction` as in AodPage::show (a swipe).
@@ -126,6 +142,10 @@ private:
     int m_adjustY = 0;
     lv_obj_t *m_aodTile = nullptr;
     lv_obj_t *m_faceTile = nullptr;
+    StackPage m_info;
+    StackPage m_settingsPage;
+    PageMarks m_aodMarks;
+    PageMarks m_faceMarks;
     Rtc::DateTime m_localTime = {};
     int m_moonPercent = 0;
     bool m_waxing = true;

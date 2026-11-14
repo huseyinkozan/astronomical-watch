@@ -178,10 +178,14 @@ in its flash partition. Read both over USB: `python tools/read_events.py`, then
 - Settings are separate from UI code and persist across reboots, deep sleep and off mode (NVS,
   `main/Settings.*`); the Kconfig values are their defaults. Test builds that need other values
   set `CONFIG_WATCH_TEST_SETTINGS`, which ignores the saved settings.
-- Touch input: full-width rows of about 9 mm, one tap steps a value; no vertical scrolling
-  inside the swiped pages; sliding off a row cancels the tap. On the watch face and the
-  always-on page a vertical swipe steps the style (`LV_EVENT_GESTURE`; those pages keep the
-  gesture and do not scroll), and the new style slides in. Large dark-grey areas shimmer on
+- Touch input: rows of 7.8 x 26 mm inside the corner gauges, one tap steps a value; no vertical scrolling
+  inside the swiped pages; sliding off a row cancels the tap. Four pages side by side:
+  always-on preview, watch face, information, settings. A vertical swipe steps the style on the
+  face and always-on pages and the part on the information page (sun, twilight, moon, compass,
+  battery, about) and the settings page (settings, setup portal; `main/StackPage.*`); the pages
+  keep `LV_EVENT_GESTURE` and do not scroll, and the new style or part slides in. Marks along
+  the right edge, in line with the corner gauges, show the position (`main/PageMarks.*`; on the
+  face only for a moment after a step). Large dark-grey areas shimmer on
   this panel; use black with outlines.
   The panel hides each corner outside a quarter circle of about 120 px radius (docs/hardware.md,
   Visible area); keep content inside it.

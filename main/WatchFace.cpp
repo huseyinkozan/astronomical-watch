@@ -86,7 +86,7 @@ static int weekday( const Rtc::DateTime &time )
     const int yearOfEra = year - era * 400;
     const int dayOfYear = ( 153 * ( time.month + ( time.month > 2 ? -3 : 9 ) ) + 2 ) / 5 + time.day - 1;
     const int days = era * 146097 + yearOfEra * 365 + yearOfEra / 4 - yearOfEra / 100 + dayOfYear - 719468;
-    return ( days + 4 ) % 7;
+    return ( ( days + 4 ) % 7 + 7 ) % 7;
 }
 
 void WatchFace::buildClassic( lv_obj_t *page )
@@ -218,6 +218,11 @@ void WatchFace::showTime( const Rtc::DateTime &time )
     lv_label_set_text_fmt( layout.time, "%02u:%02u", time.hour, time.minute );
     if ( layout.seconds != nullptr ) {
         lv_label_set_text_fmt( layout.seconds, ":%02u", time.second );
+    }
+    if ( time.month < 1 || time.month > 12 || time.day < 1 || time.day > 31 ) {
+        // No valid time (the RTC was not read): no name tables are indexed with it.
+        lv_label_set_text( layout.date, "" );
+        return;
     }
     const int day = weekday( time );
     char month[4];

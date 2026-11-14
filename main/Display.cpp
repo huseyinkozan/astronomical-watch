@@ -29,34 +29,51 @@ static const int s_bufferLines = 40;
 // swipe responsive.
 static const int s_scrollLimitPx = 30;
 
-// Settings rows: full width and about the Wear OS minimum touch target of 48 dp (9 mm, 110 px on
-// this panel). Four rows fill the page, so no vertical scroll competes with the page swipe.
-static const int s_rowHeight = 108;
+// Settings rows: 7.8 mm high and 26 mm wide, the largest that keeps four rows (and the setup
+// page) inside the corner gauges with a margin. No vertical scroll competes with the page swipe.
+static const int s_rowHeight = 96;
+static const int s_rowWidth = 318;
 static const int s_rowGap = 12;
 static const char *s_settingNames[Settings::PageItemCount] = { "Screen off", "Always-on", "Dev mode", "Auto off" };
 
-// Page order, left to right; the names label the development screenshots.
+// Page order, left to right.
 enum Page
 {
     AlwaysOnPage,
     FacePage,
-    SunPage,
-    TwilightPage,
-    MoonPage,
-    CompassPage,
-    BatteryPage,
-    SettingsPage,
-#if CONFIG_WATCH_SETUP_PORTAL
-    SetupPage,
-#endif
-    AboutPage,
+    InfoPage,      // the information parts, one over the other (InfoPart)
+    SettingsPage,  // the settings, and under them the setup portal
     PageCount
 };
-[[maybe_unused]] static const char *s_pageNames[PageCount] = { "always-on", "face", "sun", "twilight", "moon", "compass", "battery", "settings",
+
+enum SettingsPart
+{
+    SettingsRows,
 #if CONFIG_WATCH_SETUP_PORTAL
-                                              "setup",
+    SetupPart,
 #endif
-                                              "about" };
+    SettingsPartCount
+};
+
+// The development screenshots keep one number per screen: the pages, with the information page's
+// parts in their own places. Part -1: no part.
+struct Shot
+{
+    const char *name;
+    int page;
+    int part;
+};
+[[maybe_unused]] static const Shot s_shots[] = {
+    { "always-on", AlwaysOnPage, -1 }, { "face", FacePage, -1 },
+    { "sun", InfoPage, Display::InfoSun }, { "twilight", InfoPage, Display::InfoTwilight },
+    { "moon", InfoPage, Display::InfoMoon }, { "compass", InfoPage, Display::InfoCompass },
+    { "battery", InfoPage, Display::InfoBattery }, { "settings", SettingsPage, SettingsRows },
+#if CONFIG_WATCH_SETUP_PORTAL
+    { "setup", SettingsPage, SetupPart },
+#endif
+    { "about", InfoPage, Display::InfoAbout } };
+[[maybe_unused]] static const int s_shotCount = sizeof( s_shots ) / sizeof( s_shots[0] );
+
 
 static void buildAboutPage( lv_obj_t *page )
 {
@@ -236,16 +253,24 @@ bool Display::start( Settings &settings )
         lv_obj_add_event_cb( tile, onBrightnessDrag, LV_EVENT_RELEASED, this );
         lv_obj_add_event_cb( tile, onBrightnessDrag, LV_EVENT_PRESS_LOST, this );
     }
-    lv_obj_t *batteryPage = tiles[BatteryPage];
-    lv_obj_t *settingsPage = tiles[SettingsPage];
-    m_sky.build( tiles[SunPage], tiles[TwilightPage], tiles[MoonPage], tiles[CompassPage] );
+    m_info.build( tiles[InfoPage], InfoCount );
+    m_settingsPage.build( tiles[SettingsPage], SettingsPartCount );
+    lv_obj_t *batteryPage = m_info.part( InfoBattery );
+    lv_obj_t *settingsPage = m_settingsPage.part( SettingsRows );
+    m_sky.build( m_info.part( InfoSun ), m_info.part( InfoTwilight ), m_info.part( InfoMoon ),
+                 m_info.part( InfoCompass ) );
 #if CONFIG_WATCH_SETUP_PORTAL
-    buildSetupPage( tiles[SetupPage] );
+    buildSetupPage( m_settingsPage.part( SetupPart ) );
 #endif
-    buildAboutPage( tiles[AboutPage] );
+    buildAboutPage( m_info.part( InfoAbout ) );
 
     m_face.build( facePage );
     m_face.setStyle( m_settings->value( Settings::FaceStyle ), m_settings->value( Settings::FaceItems ) );
+    // Over the page contents: the always-on page shows its marks, the face only after a step.
+    m_aodMarks.build( m_aodTile, AOD_STYLE_COUNT );
+    m_aodMarks.show( m_settings->value( Settings::AodStyle ) );
+    m_faceMarks.build( facePage, WatchFace::StyleCount );
+    m_faceMarks.setVisible( false );
 
     lv_obj_t *title = createLabel( batteryPage, &jetbrains_mono_26, -120 );
     lv_label_set_text( title, "Battery" );
@@ -292,7 +317,7 @@ bool Display::start( Settings &settings )
 lv_obj_t *Display::createRow( lv_obj_t *parent, const char *name, lv_event_cb_t onClicked )
 {
     lv_obj_t *row = lv_obj_create( parent );
-    lv_obj_set_size( row, lv_pct( 100 ), s_rowHeight );
+    lv_obj_set_size( row, s_rowWidth, s_rowHeight );
     lv_obj_set_scrollable( row, false );
     // A finger that slides off the row cancels the tap: no row changes on release.
     lv_obj_set_press_lock( row, false );
@@ -547,14 +572,6 @@ void Display::onPageChanged( lv_event_t *event )
     Display *display = static_cast<Display *>( lv_event_get_user_data( event ) );
     lv_obj_t *tile = lv_tileview_get_tile_active( display->m_pages );
     display->m_corners.setAlwaysOnLook( tile == display->m_aodTile );
-    // The tiles are the tileview's children in page order.
-    const int page = static_cast<int>( lv_obj_get_index( tile ) );
-#if CONFIG_WATCH_SETUP_PORTAL
-    const bool rows = page == SettingsPage || page == SetupPage;
-#else
-    const bool rows = page == SettingsPage;
-#endif
-    display->m_corners.setHidden( rows );
 }
 
 void Display::refreshSettings()
@@ -563,6 +580,7 @@ void Display::refreshSettings()
         return;
     }
     m_aodShown[1] = -1;
+    m_aodMarks.show( m_settings->value( Settings::AodStyle ) );
     m_face.setStyle( m_settings->value( Settings::FaceStyle ), m_settings->value( Settings::FaceItems ) );
     for ( int i = 0; i < Settings::PageItemCount; ++i ) {
         showSetting( i );
@@ -599,6 +617,10 @@ void Display::update( const Rtc::DateTime &time, int utcOffsetMinutes, const Bat
 
 void Display::refreshAlwaysOnPage( bool force, int direction )
 {
+    // Before the first update (or after a skipped one) the local time is still all zero.
+    if ( m_localTime.month == 0 ) {
+        return;
+    }
     const AlwaysOn::Look look = { m_settings->value( Settings::AodStyle ), m_settings->value( Settings::AodItems ),
                                   m_moonPercent, m_waxing, {}, 0, 0 };
     const int shown[4] = { m_localTime.hour * 60 + m_localTime.minute, look.style, look.items, look.moonPercent };
@@ -631,8 +653,10 @@ void Display::onGesture( lv_event_t *event )
     ESP_LOGI( TAG, "%s style %d", alwaysOn ? "Always-on" : "Face", display->m_settings->value( item ) );
     if ( alwaysOn ) {
         display->refreshAlwaysOnPage( true, slide );
+        display->m_aodMarks.show( display->m_settings->value( item ) );
         return;
     }
+    display->m_faceMarks.flash( display->m_settings->value( item ) );
     display->m_face.setStyle( display->m_settings->value( Settings::FaceStyle ),
                               display->m_settings->value( Settings::FaceItems ), slide );
     display->m_face.showTime( display->m_localTime );
@@ -691,13 +715,17 @@ void Display::showFaceStyle( int style )
 
 void Display::capture( int page )
 {
-    if ( m_pages == nullptr || page < 0 || page >= PageCount || !bsp_display_lock( 1000 ) ) {
+    if ( m_pages == nullptr || page < 0 || page >= s_shotCount || !bsp_display_lock( 1000 ) ) {
         return;
     }
     ESP_LOGI( TAG, "Screenshot of page %d", page );
-    lv_tileview_set_tile_by_index( m_pages, static_cast<uint32_t>( page ), 0, LV_ANIM_OFF );
+    const Shot &shot = s_shots[page];
+    lv_tileview_set_tile_by_index( m_pages, static_cast<uint32_t>( shot.page ), 0, LV_ANIM_OFF );
+    if ( shot.part >= 0 ) {
+        ( shot.page == InfoPage ? m_info : m_settingsPage ).show( shot.part, 0 );
+    }
     lv_display_trigger_activity( nullptr );
-    printf( "SHOT BEGIN %d %d %d %s\n", page, BSP_LCD_H_RES, BSP_LCD_V_RES, s_pageNames[page] );
+    printf( "SHOT BEGIN %d %d %d %s\n", page, BSP_LCD_H_RES, BSP_LCD_V_RES, shot.name );
     // The LVGL task draws the whole screen at its next refresh: rendering needs its larger stack
     // (the main task's overflowed). onRefreshReady() ends the capture.
     m_capturing = true;

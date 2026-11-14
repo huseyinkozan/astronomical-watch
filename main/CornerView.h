@@ -17,9 +17,6 @@ public:
 
     void setAlwaysOnLook( bool alwaysOn );
 
-    // The settings and setup pages hide the gauges: their full-width rows reach into the corners.
-    void setHidden( bool hidden );
-
 private:
     void apply( int corner );
     void placeNotches( int corner );

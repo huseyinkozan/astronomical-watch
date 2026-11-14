@@ -99,20 +99,6 @@ void CornerView::setAlwaysOnLook( bool alwaysOn )
     }
 }
 
-void CornerView::setHidden( bool hidden )
-{
-    for ( int i = 0; i < Corners::CornerCount; ++i ) {
-        if ( m_arcs[i] != nullptr ) {
-            lv_obj_set_hidden( m_arcs[i], hidden );
-        }
-        for ( int k = 0; k < 3; ++k ) {
-            if ( m_notches[i][k] != nullptr ) {
-                lv_obj_set_hidden( m_notches[i][k], hidden );
-            }
-        }
-    }
-}
-
 void CornerView::apply( int corner )
 {
     lv_obj_t *arc = m_arcs[corner];

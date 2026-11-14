@@ -113,16 +113,18 @@ astronomical-watch/
 ## Status
 
 Restarted on ESP-IDF with C++17. The watch puts the unused peripherals into their lowest-power
-state. A PWR press starts active mode: pages swiped sideways show the always-on face as it will look,
-the watch face (classic or day arc, with the date, Hijri date, next sunrise or sunset and the
-Moon's phase in the bottom-left corner; a vertical swipe changes the layout), the battery details,
-the settings (display timeout, always-on, development mode, auto-off; one tap per value, kept
-in flash; a long press and a vertical drag on the watch face sets the brightness, on the
-always-on page the always-on brightness by day or by night), the setup portal and an About page. The portal
-opens the watch's own Wi-Fi for a phone or computer, whose browser sets the time, UTC offset,
-location and settings. Four pages show the Sun (rise, set, noon, day length, time left until
-sunset), the twilights with the golden and blue hours, the Moon (phase, rise and set, the dark
-part of the night, the new crescent, the Hijri date) and a sun compass. 10 s after the last touch
+state. A PWR press starts active mode: four pages swiped sideways show the always-on face as it will
+look, the watch face (classic or day arc, with the date, Hijri date, next sunrise or sunset and
+the Moon's phase in the bottom-left corner), the information and the settings; a vertical swipe
+steps the always-on style, the face layout, and the parts of the last two pages. The information
+page holds the Sun (rise, set, noon, day length, time left until sunset), the twilights with the
+golden and blue hours, the Moon (phase, rise and set, the dark part of the night, the new
+crescent, the Hijri date), a sun compass, the battery details and an About page. The settings
+page holds the settings (display timeout, always-on, development mode, auto-off; one tap per
+value, kept in flash) and the setup portal, which opens the watch's own Wi-Fi for a phone or
+computer, whose browser sets the time, UTC offset, location and settings. A long press and a
+vertical drag on the watch face sets the brightness, on the always-on page the always-on
+brightness by day or by night. 10 s after the last touch
 (the default), or at the next PWR press, a
 dim face in the chosen style (the time, the Moon's phase and the date), at a brightness of its
 own by day and by night (switched at sunrise and sunset), stays on the display
