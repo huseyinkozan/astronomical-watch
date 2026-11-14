@@ -25,6 +25,10 @@ POWER_OFFS = {1: 'always-on off or no display', 2: 'no motion', 3: 'battery limi
 FLAGS = [(1, 'display'), (2, 'touch'), (4, 'portal'), (8, 'USB'), (16, 'CORE DUMP'), (32, 'no time'),
          (64, 'TOUCH RESET AGAIN')]
 TOUCH_MODES = {0x00: 'active', 0x01: 'monitor', 0x03: 'sleep', 0xFF: 'no answer'}
+# AXP2101 REG20 (power-on source) and REG21 (power-off source) bits.
+PMU_ON = [(1, 'PWR key'), (2, 'IRQ pin'), (4, 'VBUS insert'), (8, 'battery charged'), (16, 'battery insert')]
+PMU_OFF = [(1, 'PWR key hold'), (2, 'software'), (8, 'VSYS low'), (16, 'VBUS over voltage'),
+           (32, 'DCDC under voltage'), (64, 'DCDC over voltage'), (128, 'over temperature')]
 
 
 def words(fields):
@@ -35,6 +39,11 @@ def words(fields):
     if kind == 1:
         parts.append(RESETS[code] if code < len(RESETS) else f'reset {code}')
         parts.append(f'boot #{fields["wakes"]}')
+        if 'pmu' in fields and fields['pmu'] != '0x00/0x00':
+            on, off = (int(v, 16) for v in fields['pmu'].split('/'))
+            sources = [name for bit, name in PMU_ON if on & bit] or [hex(on)]
+            reasons = [name for bit, name in PMU_OFF if off & bit] or [hex(off)]
+            parts.append(f'PMU on by {"+".join(sources)}, last off by {"+".join(reasons)}')
     elif kind == 2:
         parts.append(ACTIVE_ENDS.get(code, str(code)))
         parts.append(f'{fields["duration"]} s, {fields["touches"]} touches')

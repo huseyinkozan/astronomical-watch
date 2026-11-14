@@ -57,7 +57,9 @@ public:
         uint16_t lvglStackFree;  // of the LVGL task's stack (0: not running)
         uint16_t wakes;          // always-on: timer wakes; Boot: boot count
         uint16_t longestWakeMs;  // always-on: the longest timer wake
-        uint8_t reserved[6];
+        uint8_t pmuPowerOn;      // Boot: AXP2101 REG20, what powered it on (bit0 PWR key, bit2 VBUS)
+        uint8_t pmuPowerOff;     // Boot: AXP2101 REG21, why it last powered off (bit1 software)
+        uint8_t reserved[4];
     };
 
     // Fills the fields every entry shares (time, battery, heap, stacks) and writes the entry.

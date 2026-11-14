@@ -303,6 +303,13 @@ Off mode [HW] (guided test `off`, 2026-10-31; `main/Axp2101.*`):
   present does not power it on (only a VBUS insert does, REG20 `0x04`).
 - Logging starts about 0.8 s after the ESP32 boots, as after a deep-sleep wake; the press itself
   must last at least 512 ms first.
+- On the wrist (2026-11-14, release build, on battery) the watch powered off after the motion
+  auto-off; two PWR presses of "about 1 s" (not timed) within 30 s did not power it on, a USB
+  plug did. A repeat by the tester (always-on off, then presses of about 2 s right after the
+  power-off, 1–2 s after and 30 s after) powered it on every time, so the presses were most
+  likely shorter than 512 ms. Each boot now logs REG20 and REG21 in the event log
+  (`tools/read_events.py`: "PMU on by PWR key / VBUS insert, last off by ..."), so that a case
+  like this can be told apart afterwards.
 - Battery limit (2026-11-13, a test build with the limit at 100 % and 4.5 V, on battery): the end
   of active mode powered the watch off instead of starting always-on, and an always-on minute
   wake after USB was unplugged powered it off within a minute. A press of about 1 s powered it on

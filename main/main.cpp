@@ -692,6 +692,11 @@ extern "C" void app_main( void )
         entry.code = static_cast<uint8_t>( esp_reset_reason() );
         entry.wakes = static_cast<uint16_t>( s_deepSleep.bootCount() );
         entry.flags = esp_core_dump_image_check() == ESP_OK ? EventLog::CoreDump : 0;
+        // What powered the AXP2101 on and why it last went off: tells a PWR press from a USB plug.
+        if ( pmuReady ) {
+            s_pmu.readRegister( 0x20, entry.pmuPowerOn );
+            s_pmu.readRegister( 0x21, entry.pmuPowerOff );
+        }
         logEvent( entry, pmuReady );
     }
     if ( alwaysOnEnded ) {

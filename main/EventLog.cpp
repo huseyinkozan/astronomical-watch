@@ -86,10 +86,11 @@ void EventLog::print( int utcOffsetMinutes )
                 strftime( when, sizeof( when ), "%Y-%m-%d %H:%M:%S", &fields );
             }
             printf( "EVENT %s type=%u code=%u flags=0x%02X battery=%u%%/%umV duration=%u touches=%u "
-                    "touch=0x%02X/0x%02X heapmin=%uK mainstack=%u lvglstack=%u wakes=%u longest=%ums\n",
+                    "touch=0x%02X/0x%02X heapmin=%uK mainstack=%u lvglstack=%u wakes=%u longest=%ums pmu=0x%02X/0x%02X\n",
                     when, entry.type, entry.code, entry.flags, entry.batteryPercent, entry.batteryMillivolts,
                     entry.duration, entry.touches, entry.touchModeStart, entry.touchModeEnd, entry.heapMinimumKb,
-                    entry.mainStackFree, entry.lvglStackFree, entry.wakes, entry.longestWakeMs );
+                    entry.mainStackFree, entry.lvglStackFree, entry.wakes, entry.longestWakeMs, entry.pmuPowerOn,
+                    entry.pmuPowerOff );
         }
         nvs_close( handle );
     }
