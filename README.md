@@ -165,13 +165,13 @@ Each step is built, verified on the board and documented before the next one sta
     opens by itself on a phone, the time is set to within a few milliseconds of the browser's
     clock) and the local time on the faces; the minute wake did not grow with the Wi-Fi stack.
     An About page and screenshots from the watch came with it.
-11. **M10** (in progress): astronomy on the watch (sun and moon events and positions, twilights,
+11. **M10** (done): astronomy on the watch (sun and moon events and positions, twilights,
     golden and blue hour, sun compass, Hijri date by local crescent visibility or Diyanet's rule),
     a monospaced font with the Turkish letters (JetBrains Mono), watch face layouts and
     always-on styles chosen with a vertical swipe or in the setup portal, with selectable items,
     the power cost of the always-on styles (battery run V: no visible cost of lit pixels), the
     corner gauges, the always-on brightness by day and by night, and two faces with the Sun's and
-    the Moon's paths (done).
+    the Moon's paths.
 12. **M11**: languages: Turkish and English on the watch and the setup page, chosen in the
     settings.
 13. Vibration motor.
