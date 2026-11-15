@@ -42,8 +42,9 @@ RTC_DATA_ATTR static int s_drawnX;
 RTC_DATA_ATTR static int s_drawnY;
 RTC_DATA_ATTR static int s_drawnWidth;
 RTC_DATA_ATTR static int s_drawnHeight;
-// The corner gauges drawn last, in pixels along the gauge; kind -1 before the first drawing.
-RTC_DATA_ATTR static int s_drawnGauges[Corners::CornerCount][3];
+// The corner gauges drawn last: start and end in pixels along the gauge, kind (-1 before the
+// first drawing) and charging.
+RTC_DATA_ATTR static int s_drawnGauges[Corners::CornerCount][4];
 
 // Corner gauges (Corners::AlwaysOnWidth): a corner is redrawn as an even-sized box when its gauge
 // changed by a pixel (the quarter circle is about 184 px long).
@@ -470,12 +471,14 @@ static uint16_t ringPixel( const Corners::Gauge *gauges, int x, int y )
     }
     const Corners::Gauge &gauge = gauges[corner];
     const int colour = AlwaysOn::gaugeColour( gauge.kind );
-    if ( !( pixel->flags & CORNER_AOD_RING ) || colour < 0 ||
-         ( gauge.kind == Corners::MoonDown && ( ( x + y ) & 3 ) != 0 ) ) {
+    if ( !( pixel->flags & CORNER_AOD_RING ) || colour < 0 ) {
         return 0;
     }
-    return ( along >= gauge.start * CORNER_ALONG_SCALE && along <= gauge.end * CORNER_ALONG_SCALE ) ? s_colours[colour]
-                                                                                                  : 0;
+    if ( along >= gauge.start * CORNER_ALONG_SCALE && along <= gauge.end * CORNER_ALONG_SCALE ) {
+        return ( gauge.kind == Corners::MoonDown && ( ( x + y ) & 3 ) != 0 ) ? 0 : s_colours[colour];
+    }
+    // While the battery charges, the part above its value is white (CornerView animates it).
+    return ( gauge.charging && along > gauge.end * CORNER_ALONG_SCALE ) ? s_colours[AlwaysOn::White] : 0;
 }
 
 uint16_t AlwaysOn::cornerPixel( const Corners::Gauge gauges[Corners::CornerCount], int x, int y )
@@ -662,8 +665,8 @@ void AlwaysOn::capture( int style )
     // The scene's gauges: 91 % of the day, the battery at 92 %, the Moon 55 % through its pass
     // and 45 % lit, waxing.
     const Corners::Gauge gauges[Corners::CornerCount] = {
-        { 0, 910, Corners::Day }, { 0, 920, Corners::BatteryHigh }, { 0, 546, Corners::MoonUp },
-        { 0, 450, Corners::MoonLit } };
+        { 0, 910, Corners::Day, false }, { 0, 920, Corners::BatteryHigh, false }, { 0, 546, Corners::MoonUp, false },
+        { 0, 450, Corners::MoonLit, false } };
     const int faceX = face.x >= 0 ? face.x : ( ( Panel::WIDTH - face.width ) / 2 ) & ~1;
     const int faceY = face.y >= 0 ? face.y : ( ( Panel::HEIGHT - face.height ) / 2 ) & ~1;
     Panel panel;
@@ -713,7 +716,8 @@ int AlwaysOn::minutes() const
     return s_minutes;
 }
 
-uint64_t AlwaysOn::update( const Rtc::DateTime &time, int64_t utcNow, bool timeRead, int batteryPercent )
+uint64_t AlwaysOn::update( const Rtc::DateTime &time, int64_t utcNow, bool timeRead, int batteryPercent,
+                           bool charging )
 {
     // A failed or corrupt read must not turn into a long sleep: try again in a minute.
     if ( !timeRead || time.hour > 23 || time.minute > 59 || time.second > 59 ) {
@@ -740,7 +744,7 @@ uint64_t AlwaysOn::update( const Rtc::DateTime &time, int64_t utcNow, bool timeR
     }
     Look look = s_look;
     Corners::Gauge gauges[Corners::CornerCount] = {};
-    Corners::compute( look.corners, utcNow, batteryPercent, gauges );
+    Corners::compute( look.corners, utcNow, batteryPercent, charging, gauges );
     // The day level from sunrise to sunset (the day gauge), else the night level.
     const int brightness = gauges[Corners::TopLeft].kind == Corners::Night ? look.nightBrightness : look.dayBrightness;
     if ( !s_screenCleared ) {
@@ -804,15 +808,16 @@ uint64_t AlwaysOn::update( const Rtc::DateTime &time, int64_t utcNow, bool timeR
     // The corners stay in place (no burn-in shift: they lie against the edge); one is drawn again
     // when its gauge changed by a pixel.
     for ( int i = 0; i < Corners::CornerCount; ++i ) {
-        const int drawn[3] = { gauges[i].start * s_gaugePixels / 1000, gauges[i].end * s_gaugePixels / 1000,
-                               gauges[i].kind };
-        if ( drawn[0] == s_drawnGauges[i][0] && drawn[1] == s_drawnGauges[i][1] && drawn[2] == s_drawnGauges[i][2] ) {
+        const int drawn[4] = { gauges[i].start * s_gaugePixels / 1000, gauges[i].end * s_gaugePixels / 1000,
+                               gauges[i].kind, gauges[i].charging ? 1 : 0 };
+        if ( drawn[0] == s_drawnGauges[i][0] && drawn[1] == s_drawnGauges[i][1] && drawn[2] == s_drawnGauges[i][2] &&
+             drawn[3] == s_drawnGauges[i][3] ) {
             continue;
         }
         const int boxX = ( i == Corners::TopLeft || i == Corners::BottomLeft ) ? 0 : Panel::WIDTH - s_cornerBox;
         const int boxY = ( i == Corners::TopLeft || i == Corners::TopRight ) ? 0 : Panel::HEIGHT - s_cornerBox;
         render( panel, face, faceX, faceY, boxX, boxY, s_cornerBox, s_cornerBox, moonBits, gauges );
-        for ( int k = 0; k < 3; ++k ) {
+        for ( int k = 0; k < 4; ++k ) {
             s_drawnGauges[i][k] = drawn[k];
         }
     }

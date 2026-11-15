@@ -44,6 +44,8 @@ public:
         FaceHidden,
         AodOrder,
         AodHidden,
+        PowerKeyPullUp,  // 1: the ESP32's pull-up on the PWR key line, set by the watch when the
+                         // board's resistor is missing (runActiveMode, DeepSleep)
         ItemCount
     };
     // The items before this one are on the watch's settings page; FaceStyle and AodStyle are

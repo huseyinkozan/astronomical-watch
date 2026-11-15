@@ -24,7 +24,7 @@ RESETS = ['unknown', 'power-on', 'external pin', 'software', 'PANIC', 'INTERRUPT
 ACTIVE_ENDS = {1: 'display timeout', 2: 'PWR press'}
 POWER_OFFS = {1: 'always-on off or no display', 2: 'no motion', 3: 'battery limit', 4: 'face failed'}
 FLAGS = [(1, 'display'), (2, 'touch'), (4, 'portal'), (8, 'USB'), (16, 'CORE DUMP'), (32, 'no time'),
-         (64, 'TOUCH RESET AGAIN')]
+         (64, 'TOUCH RESET AGAIN'), (128, 'PWR PULL-UP ON')]
 TOUCH_MODES = {0x00: 'active', 0x01: 'monitor', 0x03: 'sleep', 0xFF: 'no answer'}
 # AXP2101 REG20 (power-on source) and REG21 (power-off source) bits.
 PMU_ON = [(1, 'PWR key'), (2, 'IRQ pin'), (4, 'VBUS insert'), (8, 'battery charged'), (16, 'battery insert')]

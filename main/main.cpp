@@ -52,6 +52,8 @@ static bool s_displayOn = false;
 // For the event log of the active session.
 static uint8_t s_touchModeStart = 0xFF;
 static bool s_touchRecovered = false;
+// For the event log: this session switched the PWR key's internal pull-up on (powerKeyMissed).
+static bool s_powerKeyPullUpSwitched = false;
 static bool s_portalUsed = false;
 static AlwaysOn s_alwaysOn;
 static BatteryLog s_batteryLog;
@@ -81,8 +83,9 @@ static void logPowerKeyIrq()
 {
     bool shortPress = false;
     bool longPress = false;
-    if ( s_pmu.clearPowerKeyIrq( shortPress, longPress ) == ESP_OK ) {
-        ESP_LOGI( TAG, "PWR key IRQ: short %d, long %d", shortPress, longPress );
+    bool pressStart = false;
+    if ( s_pmu.clearPowerKeyIrq( shortPress, longPress, pressStart ) == ESP_OK ) {
+        ESP_LOGI( TAG, "PWR key IRQ: short %d, long %d, press start %d", shortPress, longPress, pressStart );
     } else {
         ESP_LOGE( TAG, "PWR key IRQ read failed" );
     }
@@ -361,7 +364,8 @@ static void updateDisplay()
     updateSky( unixTime( time ), inputs );
     Corners::Gauge gauges[Corners::CornerCount] = {};
     const Corners::Input corners = s_skyValid ? Corners::fromSky( s_skyDay ) : Corners::Input {};
-    Corners::compute( corners, unixTime( time ), batteryRead ? battery.percent : -1, gauges );
+    const bool charging = s_usbPower && s_pmu.charging();
+    Corners::compute( corners, unixTime( time ), batteryRead ? battery.percent : -1, charging, gauges );
     s_display.showCorners( gauges );
 }
 
@@ -551,6 +555,30 @@ static bool servicePortal( bool everySecond )
 }
 #endif
 
+// A PWR press that reached only the AXP2101: on a board without the key's pull-up resistor (R11,
+// docs/hardware.md) GPIO10 stays low. Switches the internal pull-up on for good.
+static bool powerKeyMissed( bool &flagsCleared )
+{
+    bool shortPress = false;
+    bool longPress = false;
+    bool pressStart = false;
+    if ( s_pmu.clearPowerKeyIrq( shortPress, longPress, pressStart ) != ESP_OK ) {
+        return false;
+    }
+    // The first read only clears the flags left by the press that woke the watch. GPIO10 is read
+    // after the AXP2101, so that a press starting between the two reads is not taken as missed.
+    const bool missed = flagsCleared && pressStart && gpio_get_level( s_powerKeyGpio ) == 0;
+    flagsCleared = true;
+    if ( missed && s_settings.value( Settings::PowerKeyPullUp ) == 0 ) {
+        ESP_LOGW( TAG, "PWR press seen only by the AXP2101: internal pull-up on" );
+        s_settings.setValue( Settings::PowerKeyPullUp, 1 );
+        s_settings.save();
+        s_deepSleep.setPowerKeyPullUp( true );
+        s_powerKeyPullUpSwitched = true;
+    }
+    return missed;
+}
+
 // Active mode: the display shows the pages until the display timeout has passed since the
 // start or the last touch, or until a new PWR press. The press that woke the watch may still
 // be held; only a later press counts.
@@ -561,6 +589,11 @@ static int runActiveMode()
     ESP_LOGI( TAG, "Active mode, display timeout %d s", s_settings.value( Settings::DisplayTimeout ) );
     uint32_t activeMs = 0;
     int sinceUpdateMs = 1000;
+    // The AXP2101's key flags are read after the first second (the waking press is over by then
+    // or no longer starts) and then every 200 ms.
+    uint32_t elapsedMs = 0;
+    int sinceKeyFlagsMs = 0;
+    bool keyFlagsCleared = false;
     while ( true ) {
         const bool everySecond = s_displayOn && sinceUpdateMs >= 1000;
         if ( everySecond ) {
@@ -579,6 +612,14 @@ static int runActiveMode()
             if ( level == 1 ) {
                 s_deepSleep.addEvent( DeepSleep::Event::PowerKeyPressed );
                 ESP_LOGI( TAG, "PWR press: active mode ends" );
+                return 2;
+            }
+        }
+        if ( elapsedMs >= 1000 && sinceKeyFlagsMs >= 200 ) {
+            sinceKeyFlagsMs = 0;
+            if ( powerKeyMissed( keyFlagsCleared ) ) {
+                s_deepSleep.addEvent( DeepSleep::Event::PowerKeyPressed );
+                ESP_LOGI( TAG, "PWR press (AXP2101): active mode ends" );
                 return 2;
             }
         }
@@ -601,6 +642,8 @@ static int runActiveMode()
         vTaskDelay( pdMS_TO_TICKS( 20 ) );
         activeMs += 20;
         sinceUpdateMs += 20;
+        elapsedMs += 20;
+        sinceKeyFlagsMs += 20;
     }
 }
 
@@ -720,6 +763,7 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
     const bool timeRead = s_rtc.init( bus ) == ESP_OK && s_rtc.read( time, oscillatorStopped ) == ESP_OK;
     // For the battery gauge; at the power-off limit (and not charging) the watch switches off.
     int batteryPercent = -1;
+    bool charging = false;
     if ( pmuReady ) {
         uint16_t millivolts = 0;
         uint8_t percent = 0;
@@ -729,11 +773,12 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
             if ( !vbusGood && batteryEmpty( millivolts, percent ) ) {
                 powerOff( pmuReady, EventLog::BatteryLimit );
             }
+            charging = vbusGood && s_pmu.charging();
         }
     }
     const int offsetMinutes = Zones::offsetAt( s_alwaysOnZone, unixTime( time ) );
     const uint64_t sleepUs = s_alwaysOn.update( Rtc::addMinutes( time, offsetMinutes ), unixTime( time ),
-                                                timeRead, batteryPercent );
+                                                timeRead, batteryPercent, charging );
     // Without the device the readings fail, which the motion check counts as no motion.
     s_motion.init( bus );
 #if CONFIG_WATCH_MOTION_LOG
@@ -875,6 +920,7 @@ extern "C" void app_main( void )
 
     s_peripherals.quiesceOnce( bus, s_pmu );
     s_settings.load();
+    s_deepSleep.setPowerKeyPullUp( s_settings.value( Settings::PowerKeyPullUp ) != 0 );
     Language::set( s_settings.value( Settings::Language ) );
 #if CONFIG_WATCH_SETUP_PORTAL
     s_portal.init();
@@ -961,7 +1007,8 @@ extern "C" void app_main( void )
     active.touchModeStart = s_touchModeStart;
     active.touchModeEnd = s_peripherals.touchPowerMode( bus );
     active.flags = ( s_displayOn ? EventLog::DisplayStarted : 0 ) | ( s_display.touchStarted() ? EventLog::TouchStarted : 0 ) |
-                   ( s_portalUsed ? EventLog::PortalUsed : 0 ) | ( s_touchRecovered ? EventLog::TouchRecovered : 0 );
+                   ( s_portalUsed ? EventLog::PortalUsed : 0 ) | ( s_touchRecovered ? EventLog::TouchRecovered : 0 ) |
+                   ( s_powerKeyPullUpSwitched ? EventLog::PowerKeyPullUp : 0 );
 #if CONFIG_WATCH_SETUP_PORTAL
     s_portal.stop();
 #endif

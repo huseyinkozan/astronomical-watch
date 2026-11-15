@@ -291,6 +291,39 @@ PWR key [HW]:
   160 ms press while the chip is awake, seen at the same time as GPIO10 going high.
 - Holding the key about 6 s powers the whole board off (AXP OFFLEVEL); a short press powers it on
   again with RTC memory cleared and REG20 = `0x01`.
+- REG49 bit1 (PWRON falling edge) is set when a press starts, bit0 when it ends; both latch
+  although their IRQs are disabled. After a PWR wake REG49 reads short, long (key held 1.5 s)
+  and press start set [HW, 2026-11-16]. The AXP2101 debounces: a press caught on GPIO10 within
+  20 ms may not have set bit1 yet.
+
+Second board without the PWR key pull-up [HW, 2026-11-15/16] (MAC 28:84:85:b4:fd:90, PCB rev
+not printed; battery replaced by a Sertec 402030 3.7 V 200 mAh cell with BMS):
+- Symptom: PWR neither ended active mode nor woke the watch from always-on; the AXP2101 still
+  saw the key (power-on and the 6 s power-off by the key worked, event log "PMU on by PWR key").
+- In ROM download mode GPIO_IN_REG bit 10 stayed 0 through presses (IO_MUX GPIO10 `0xa00`:
+  input enabled, no internal pull); BOOT on GPIO0 went 1 → 0 → 1 as expected. With the internal
+  pull-up written on (IO_MUX bit 8, `0xb00`) GPIO10 went 1 for each press: T1 (BSS138, marking
+  "J1", next to the PWR key) and R16 work, the pull-up R11 (10K to VCC3V3 on SYS_OUT) does not.
+  The photo shows an empty two-pad footprint straight above T1's drain pin, the likely R11 place
+  (not checked with a meter).
+- Firmware workaround (`runActiveMode`, `powerKeyMissed`, `Settings::PowerKeyPullUp`): from the
+  second second of active mode the AXP2101 key flags are read every 200 ms; a press start there
+  while GPIO10 is low (read after the AXP2101) switches the internal pull-up on, saves the
+  setting and ends active mode as a PWR press. `DeepSleep::enter` then enables the RTC pull-up,
+  which ESP-IDF holds through deep sleep without the RTC_PERIPH domain. A board with R11 never
+  takes this path: its press ends active mode on GPIO10 first, and the internal pull-up stays off
+  (on it, the idle MOSFET would draw about 73 µA through the internal pull-up; an estimate from
+  its nominal 45 kΩ).
+- Verified on the second board with the development build: the first press after the flash took
+  the AXP2101 path ("internal pull-up on"); later presses ended active mode on GPIO10, also after
+  a reset that cleared RTC memory (the setting is in NVS); a PWR press woke it from always-on
+  after three minute wakes (boot #5, causes EXT1, no fallback sleeps). On the first board (with
+  R11) the same build never took the AXP2101 path: every press ended active mode on GPIO10 and
+  woke it from always-on, also a wake press held 2–3 s (REG49 short, long and press start set at
+  boot) after which the watch stayed in active mode for 21 s on USB until the next press.
+- A serial logger that lowers DTR while RTS is still high resets the chip (`rst:0x15`
+  USB_UART_CHIP_RESET) each time the port returns after a sleep; keep pyserial's defaults, as
+  `tools/read_events.py` does.
 
 Off mode [HW] (guided test `off`, 2026-10-31; `main/Axp2101.*`):
 - Writing REG10 bit0 powers the board off: the USB connection drops within 40 ms of the last log

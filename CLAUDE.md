@@ -117,7 +117,9 @@ development builds `v0.0.1-3-gabc1234-dirty`. A new release is a new tag, pushed
   always-on and the alarm timer while an alarm is pending. In off mode the AXP2101 itself powers
   the watch on from the PWR key. Motion does not wake the watch: the QMI8658 is powered down
   between motion checks and its INT1 is not used. Touch (GPIO38) and the RTC interrupt (GPIO39)
-  cannot wake from deep sleep.
+  cannot wake from deep sleep. A board whose PWR line lacks its pull-up resistor (R11) is found
+  by the AXP2101's key flags in active mode and gets the internal pull-up from then on
+  (docs/hardware.md).
 - Avoid periodic wakeups and background tasks unless they provide a necessary function.
 - Settings are persistent, simple and limited to meaningful user-facing trade-offs.
 
@@ -152,7 +154,9 @@ After a change, regenerate the file and compare both with `tools/screenshot.py`.
 The four screen corners are gauges on every page and on the always-on face (`main/Corners.*`
 computes them, `main/CornerView.*` draws them on LVGL's top layer, `AlwaysOn` with its own
 bitmaps): top left the day (yellow, sunrise to sunset) or the night (blue), top right the
-battery (green, orange above 10 %, red at the power-off limit), bottom left the Moon above the
+battery (green, orange above 10 %, red at the power-off limit; while charging, the part above the
+value is white: in active mode it grows step by step to the full end and starts again, on the
+always-on face it is drawn solid from the next minute wake), bottom left the Moon above the
 horizon (bluish white, rise to set) or below it (dark grey, set to rise), bottom right the
 Moon's phase (the lit part grows from the lower end and shrinks towards the upper end). Each is
 a quarter circle 3 px inside the visible edge, starting at its lower end, with a notch in the

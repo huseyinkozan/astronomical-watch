@@ -42,6 +42,9 @@ static const uint8_t REG_BATTERY_PERCENT = 0xA4;
 
 static const uint8_t IRQ1_KEY_SHORT = 1 << 3;
 static const uint8_t IRQ1_KEY_LONG = 1 << 2;
+// PWRON going low (the key pressed) and high again; latched although their IRQs are disabled.
+static const uint8_t IRQ1_KEY_FALL = 1 << 1;
+static const uint8_t IRQ1_KEY_RISE = 1 << 0;
 
 esp_err_t Axp2101::init( i2c_master_bus_handle_t bus )
 {
@@ -229,6 +232,13 @@ const char *Axp2101::chargeState()
     return chargeStateName( status2 );
 }
 
+bool Axp2101::charging()
+{
+    uint8_t status2 = 0;
+    // REG01 bits 2:0: 0 trickle, 1 pre-charge, 2 constant current, 3 constant voltage, 4 done.
+    return readRegister( REG_STATUS2, status2 ) == ESP_OK && ( status2 & 0x07 ) <= 3;
+}
+
 // Read-modify-write: only the named enable bits change.
 static const uint8_t DCDC_OFF_MASK = 0x0E;    // DCDC2-4 (DCDC1 stays on)
 static const uint8_t LDO0_KEEP_MASK = 0x01;   // ALDO1 (all other REG90 rails go off)
@@ -359,7 +369,7 @@ esp_err_t Axp2101::limitIrqs()
     return expected ? ESP_OK : ESP_ERR_INVALID_STATE;
 }
 
-esp_err_t Axp2101::clearPowerKeyIrq( bool &shortPress, bool &longPress )
+esp_err_t Axp2101::clearPowerKeyIrq( bool &shortPress, bool &longPress, bool &pressStart )
 {
     uint8_t status = 0;
     esp_err_t err = readRegister( REG_IRQ_STATUS1, status );
@@ -368,8 +378,10 @@ esp_err_t Axp2101::clearPowerKeyIrq( bool &shortPress, bool &longPress )
     }
     shortPress = ( status & IRQ1_KEY_SHORT ) != 0;
     longPress = ( status & IRQ1_KEY_LONG ) != 0;
+    pressStart = ( status & IRQ1_KEY_FALL ) != 0;
     // Write 1 only to the key bits so that other IRQ flags are left untouched.
-    return writeRegister( REG_IRQ_STATUS1, status & ( IRQ1_KEY_SHORT | IRQ1_KEY_LONG ) );
+    const uint8_t keyBits = IRQ1_KEY_SHORT | IRQ1_KEY_LONG | IRQ1_KEY_FALL | IRQ1_KEY_RISE;
+    return writeRegister( REG_IRQ_STATUS1, status & keyBits );
 }
 
 esp_err_t Axp2101::setPowerOnPress()

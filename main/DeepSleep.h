@@ -29,6 +29,11 @@ public:
     // sleep. Does not return.
     void enter( uint64_t timerUs = 0 );
 
+    // The ESP32's internal pull-up on the PWR key line, for a board whose pull-up resistor (R11)
+    // is missing (docs/hardware.md). Applied at once and kept in RTC memory for the sleep entry
+    // of the minute wakes, which do not read the settings.
+    void setPowerKeyPullUp( bool on );
+
     // For the event log: boots since power-on, and the longest timer wake (app run time) since
     // clearLongestTimerWake().
     uint32_t bootCount() const;

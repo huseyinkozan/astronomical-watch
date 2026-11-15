@@ -16,7 +16,7 @@ and the PWR key turns it on again.
 - Sunrise, sunset, solar noon, civil/nautical/astronomical twilight, day length
 - Moon phase, illumination, age, moonrise and moonset
 - Battery level, the day or night, the Moon's time above or below the horizon and its phase as
-  gauges in the four screen corners
+  gauges in the four screen corners; while charging, the battery gauge fills up in white
 - Alarms at a clock time or relative to a sun or moon event (sunrise, twilights, solar noon,
   sunset, moonrise, moonset), with an offset; a countdown timer; signalled by vibration
 - PWR key opens the interactive mode (touch, pages); after a configurable timeout the watch
@@ -149,7 +149,9 @@ dim face in the chosen style (the time, the Moon's phase and the date), at a bri
 own by day and by night (switched at sunrise and sunset), stays on the display
 while the processor deep-sleeps, redrawn once a minute. On every page and on the always-on face
 the four screen corners are gauges: the day or night, the battery, the Moon's time above or
-below the horizon and its phase. Every 10 min the accelerometer is read once; when the watch has not moved for 30 min it
+below the horizon and its phase. While the battery charges, a white part grows from its level to
+the full end in active mode; the always-on face shows that part in white from its next minute.
+Every 10 min the accelerometer is read once; when the watch has not moved for 30 min it
 switches itself off through the power-management IC, and a PWR press of at least half a second
 turns it on again.
 The earlier Wake-on-Motion validation results are kept in `docs/hardware.md`, and the validator
@@ -192,7 +194,8 @@ Each step is built, verified on the board and documented before the next one sta
 12. **M11** (done): languages: Turkish and English on the watch and the setup page, chosen in the
     settings or on the page; software updates from a phone through the setup portal, with a
     return to the previous version if the new one does not start; the event log and crash dump
-    downloaded from the same page. First release: v0.0.1.
+    downloaded from the same page. First release: v0.0.1. v0.0.2: the charging indicator, and the
+    PWR key on boards whose key line lacks its pull-up resistor.
 13. Vibration motor.
 14. Alarms (clock time and sun/moon events) and countdown timer, also set through the portal.
 

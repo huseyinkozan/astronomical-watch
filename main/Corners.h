@@ -45,6 +45,7 @@ public:
         int start;
         int end;
         Kind kind;
+        bool charging;  // the battery gauge: the part above the value is drawn as charging
     };
 
     // A body's rises and sets around the local day, in time order.
@@ -96,6 +97,8 @@ public:
     };
     static bool pass( const Events &events, int64_t now, Pass &result );
 
-    // The gauges at `now` (Unix time). `batteryPercent` < 0: unknown.
-    static void compute( const Input &input, int64_t now, int batteryPercent, Gauge gauges[CornerCount] );
+    // The gauges at `now` (Unix time). `batteryPercent` < 0: unknown; `charging`: the charger is
+    // charging the battery.
+    static void compute( const Input &input, int64_t now, int batteryPercent, bool charging,
+                         Gauge gauges[CornerCount] );
 };

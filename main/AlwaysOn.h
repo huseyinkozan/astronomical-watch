@@ -145,8 +145,9 @@ public:
     // Timer wake: draws the face for `time` (local; `utcNow` the same moment as Unix time) and
     // returns the microseconds until just after the next minute, or 0 when the face cannot go on
     // (the panel failed, or no valid time for s_maxFailedMinutes). Without a valid time it draws
-    // nothing and asks for another wake in a minute. `batteryPercent` < 0: unknown.
-    uint64_t update( const Rtc::DateTime &time, int64_t utcNow, bool timeRead, int batteryPercent );
+    // nothing and asks for another wake in a minute. `batteryPercent` < 0: unknown; `charging`
+    // draws the battery gauge's part above its value white.
+    uint64_t update( const Rtc::DateTime &time, int64_t utcNow, bool timeRead, int batteryPercent, bool charging );
 
 #if CONFIG_WATCH_AOD_CYCLE_MIN > 0
     // Battery run V: the style shown `seconds` after power-on, or -1 for the blank face.

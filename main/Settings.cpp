@@ -64,6 +64,7 @@ static const ItemInfo s_items[Settings::ItemCount] = {
     { "face_hidden", 0, 0, {}, 0, 255 },
     { "aod_order", 0, 0, {}, 0, 16777215 },
     { "aod_hidden", 0, 0, {}, 0, 255 },
+    { "pwr_pullup", 0, 2, { 0, 1 }, 0, 0 },
 };
 
 static int indexOf( const ItemInfo &info, int value )

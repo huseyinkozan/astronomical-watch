@@ -27,8 +27,13 @@ public:
     // "done"; "unknown" when the read fails.
     const char *chargeState();
 
-    // Reads and clears the PWRON short/long press IRQ flags (REG49, write 1 to clear).
-    esp_err_t clearPowerKeyIrq( bool &shortPress, bool &longPress );
+    // True while the charger charges the battery (trickle, pre-charge, constant current or
+    // constant voltage); false when done, not charging or on a read error.
+    bool charging();
+
+    // Reads and clears the PWRON key flags (REG49, write 1 to clear): short and long press, and
+    // the start of a press (PWRON falling edge).
+    esp_err_t clearPowerKeyIrq( bool &shortPress, bool &longPress, bool &pressStart );
 
     // Switches off every rail without a load on this board; keeps DCDC1 (VCC3V3) and
     // ALDO1 (A3V3: an unpowered ES7210 would hang the shared I2C bus). See docs/hardware.md.

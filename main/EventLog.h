@@ -37,7 +37,8 @@ public:
         Usb = 8,          // VBUS present
         CoreDump = 16,       // Boot: a core dump is stored in flash
         TimeInvalid = 32,    // the RTC time was not read
-        TouchRecovered = 64  // the touch controller was silent after the BSP's reset and reset again
+        TouchRecovered = 64,  // the touch controller was silent after the BSP's reset and reset again
+        PowerKeyPullUp = 128  // a PWR press reached only the AXP2101: the internal pull-up was switched on
     };
 
     struct Entry

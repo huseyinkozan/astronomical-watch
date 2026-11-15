@@ -50,6 +50,7 @@ struct EventRecord
 RTC_DATA_ATTR static WakeStatistics s_stats;
 RTC_DATA_ATTR static EventRecord s_events[s_eventCapacity];
 RTC_DATA_ATTR static uint32_t s_eventCount;
+RTC_DATA_ATTR static bool s_powerKeyPullUp;
 
 static DeepSleep::Event s_currentWake = DeepSleep::Event::PowerOn;
 
@@ -168,14 +169,29 @@ static bool waitForKeyRelease()
     return false;
 }
 
+void DeepSleep::setPowerKeyPullUp( bool on )
+{
+    s_powerKeyPullUp = on;
+    if ( on ) {
+        gpio_pullup_en( s_powerKeyGpio );
+    } else {
+        gpio_pullup_dis( s_powerKeyGpio );
+    }
+}
+
 void DeepSleep::enter( uint64_t timerUs )
 {
     // ANY_HIGH would wake again at once while the key is still held.
     const bool keyReleased = waitForKeyRelease();
 
     if ( keyReleased ) {
-        // The 10k pull-up to VCC3V3 stays powered in deep sleep; internal pulls are not needed.
-        rtc_gpio_pullup_dis( s_powerKeyGpio );
+        // The 10k pull-up to VCC3V3 stays powered in deep sleep; the internal one only stands in
+        // for a missing resistor. ESP-IDF holds the wake pin's pulls through deep sleep.
+        if ( s_powerKeyPullUp ) {
+            rtc_gpio_pullup_en( s_powerKeyGpio );
+        } else {
+            rtc_gpio_pullup_dis( s_powerKeyGpio );
+        }
         rtc_gpio_pulldown_dis( s_powerKeyGpio );
         esp_sleep_enable_ext1_wakeup_io( 1ULL << s_powerKeyGpio, ESP_EXT1_WAKEUP_ANY_HIGH );
         addEvent( Event::SleepPowerKey );

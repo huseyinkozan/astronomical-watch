@@ -75,16 +75,17 @@ static bool progress( const Corners::Events &events, int64_t now, bool &up, int 
     return false;
 }
 
-void Corners::compute( const Input &input, int64_t now, int batteryPercent, Gauge gauges[CornerCount] )
+void Corners::compute( const Input &input, int64_t now, int batteryPercent, bool charging,
+                       Gauge gauges[CornerCount] )
 {
     for ( int i = 0; i < CornerCount; ++i ) {
-        gauges[i] = { 0, 0, Empty };
+        gauges[i] = { 0, 0, Empty, false };
     }
 
     if ( batteryPercent >= 0 ) {
         const int percent = batteryPercent > 100 ? 100 : batteryPercent;
         const Kind kind = percent > 50 ? BatteryHigh : ( percent > 10 ? BatteryMiddle : BatteryLow );
-        gauges[TopRight] = { 0, percent * 10, kind };
+        gauges[TopRight] = { 0, percent * 10, kind, charging };
     }
     if ( !input.valid ) {
         return;
@@ -93,22 +94,22 @@ void Corners::compute( const Input &input, int64_t now, int batteryPercent, Gaug
     bool up = false;
     int passed = 0;
     if ( progress( input.sun, now, up, passed ) ) {
-        gauges[TopLeft] = { 0, passed, up ? Day : Night };
+        gauges[TopLeft] = { 0, passed, up ? Day : Night, false };
     } else if ( input.sun.alwaysUp ) {
-        gauges[TopLeft] = { 0, 1000, Day };
+        gauges[TopLeft] = { 0, 1000, Day, false };
     } else if ( input.sun.alwaysDown ) {
-        gauges[TopLeft] = { 0, 1000, Night };
+        gauges[TopLeft] = { 0, 1000, Night, false };
     }
 
     if ( progress( input.moon, now, up, passed ) ) {
-        gauges[BottomLeft] = { 0, passed, up ? MoonUp : MoonDown };
+        gauges[BottomLeft] = { 0, passed, up ? MoonUp : MoonDown, false };
     }
 
     const int lit = input.moonPercent * 10;
     if ( input.waxing ) {
-        gauges[BottomRight] = { 0, lit, MoonLit };
+        gauges[BottomRight] = { 0, lit, MoonLit, false };
     } else {
-        gauges[BottomRight] = { 1000 - lit, 1000, MoonLit };
+        gauges[BottomRight] = { 1000 - lit, 1000, MoonLit, false };
     }
 }
 

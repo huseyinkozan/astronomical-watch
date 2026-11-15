@@ -6,6 +6,11 @@
 #include "Panel.h"
 
 static const uint32_t s_trackColour = 0x222222;
+static const float s_chargeColour = 0xFF;  // white
+// The charging part grows in this many steps to the full end, stays there one step and starts
+// again: a round of 2 s.
+static const int s_chargeSteps = 8;
+static const uint32_t s_chargeStepMs = 200;
 static const float s_notchColour = 0xD0;
 // The channel: the gauge's colour at this share of its brightness.
 static const float s_channelShare = 0.3f;
@@ -21,6 +26,20 @@ static const uint32_t s_activeColours[] = { 0x000000, 0xFFD040, 0x5078FF, 0x40D0
 static float clamp01( float value )
 {
     return value < 0 ? 0 : ( value > 1 ? 1 : value );
+}
+
+// How much of a pixel the part from `start` to `end` along the gauge covers, with round ends:
+// inside the part the distance to its centre line, past an end the distance to the end's centre.
+static float cover( int along, int start, int end, float radial )
+{
+    float past = 0;
+    if ( along < start ) {
+        past = ( start - along ) * s_pixelsPerAlong;
+    } else if ( along > end ) {
+        past = ( along - end ) * s_pixelsPerAlong;
+    }
+    const float distance = past <= s_halfWidth + 1 ? sqrtf( past * past + radial * radial ) : s_halfWidth + 1;
+    return clamp01( s_halfWidth + 0.5f - distance );
 }
 
 static void toChannels( uint32_t hex, float share, float out[3] )
@@ -46,6 +65,7 @@ void CornerView::updateLook( int corner )
     look.empty = gauge.kind == Corners::Empty || gauge.end <= gauge.start;
     look.start = gauge.start * CORNER_ALONG_SCALE;
     look.end = gauge.end * CORNER_ALONG_SCALE;
+    look.charging = gauge.charging;
 }
 
 void CornerView::invalidate( int corner )
@@ -64,6 +84,20 @@ void CornerView::build()
         updateLook( i );
     }
     m_built = true;
+    lv_timer_create( onChargeStep, s_chargeStepMs, this );
+}
+
+// Runs in the LVGL task, which holds the display lock. Only the battery corner is drawn again,
+// and only while it charges in the active look.
+void CornerView::onChargeStep( lv_timer_t *timer )
+{
+    CornerView *self = static_cast<CornerView *>( lv_timer_get_user_data( timer ) );
+    const bool animate = self->m_looks[Corners::TopRight].charging && !self->m_alwaysOn;
+    const int step = animate ? ( self->m_chargeStep + 1 ) % ( s_chargeSteps + 2 ) : 0;
+    if ( step != self->m_chargeStep ) {
+        self->m_chargeStep = step;
+        self->invalidate( Corners::TopRight );
+    }
 }
 
 void CornerView::show( const Corners::Gauge gauges[Corners::CornerCount] )
@@ -71,7 +105,8 @@ void CornerView::show( const Corners::Gauge gauges[Corners::CornerCount] )
     for ( int i = 0; i < Corners::CornerCount; ++i ) {
         const Corners::Gauge &old = m_gauges[i];
         const Corners::Gauge &gauge = gauges[i];
-        if ( old.start != gauge.start || old.end != gauge.end || old.kind != gauge.kind ) {
+        if ( old.start != gauge.start || old.end != gauge.end || old.kind != gauge.kind ||
+             old.charging != gauge.charging ) {
             m_gauges[i] = gauge;
             updateLook( i );
             if ( m_built ) {
@@ -102,24 +137,22 @@ uint16_t CornerView::colour( int corner, const CornerPixel &pixel, int along, in
     }
     const Look &look = m_looks[corner];
     const float radial = pixel.radial / 16.0f;
-    float fill = 0;
-    if ( !look.empty ) {
-        // Inside the filled part the distance to its centre line; past an end, to the end's
-        // centre, which gives the round end.
-        float past = 0;
-        if ( along < look.start ) {
-            past = ( look.start - along ) * s_pixelsPerAlong;
-        } else if ( along > look.end ) {
-            past = ( along - look.end ) * s_pixelsPerAlong;
+    const float fill = look.empty ? 0 : cover( along, look.start, look.end, radial );
+    float charge = 0;
+    if ( look.charging && m_chargeStep > 0 ) {
+        const int full = 1000 * CORNER_ALONG_SCALE;
+        const int steps = m_chargeStep < s_chargeSteps ? m_chargeStep : s_chargeSteps;
+        const int chargeEnd = look.end + ( full - look.end ) * steps / s_chargeSteps;
+        if ( chargeEnd > look.end ) {
+            charge = cover( along, look.end, chargeEnd, radial );
         }
-        const float distance = past <= s_halfWidth + 1 ? sqrtf( past * past + radial * radial ) : s_halfWidth + 1;
-        fill = clamp01( s_halfWidth + 0.5f - distance );
     }
     const float channel = pixel.channel / 255.0f;
     const float notch = pixel.notch / 255.0f * channel;
     float rgb[3] = {};
     for ( int i = 0; i < 3; ++i ) {
         float value = look.channel[i] * channel;
+        value = s_chargeColour * charge + value * ( 1 - charge );
         value = look.fill[i] * fill + value * ( 1 - fill );
         rgb[i] = s_notchColour * notch + value * ( 1 - notch );
     }

@@ -8,8 +8,9 @@
 
 // The corner gauges of active mode (Corners), on every page: a channel in a dim tone of the
 // gauge's own colour with round ends, filled by the value, and a notch in the middle as long as
-// the gauge is wide. On the always-on page they take the always-on look, pixel for pixel as the
-// minute wakes draw it (AlwaysOn::cornerPixel).
+// the gauge is wide. While the battery charges, a white part grows step by step from its value to
+// the full end and starts again. On the always-on page they take the always-on look, pixel for
+// pixel as the minute wakes draw it (AlwaysOn::cornerPixel).
 //
 // Not LVGL objects: four arcs with round ends cost about a quarter of every frame while the pages
 // were swiped (docs/hardware.md). Instead paint() writes the ring's pixels into each band LVGL
@@ -20,7 +21,7 @@
 class CornerView
 {
 public:
-    // Once LVGL runs, before the gauges are drawn.
+    // Once LVGL runs, before the gauges are drawn; starts the charging animation's timer.
     void build();
 
     void show( const Corners::Gauge gauges[Corners::CornerCount] );
@@ -40,14 +41,18 @@ private:
         bool empty;
         int start;  // along the gauge (CORNER_ALONG_SCALE)
         int end;
+        bool charging;
     };
 
     void updateLook( int corner );
     void invalidate( int corner );
     uint16_t colour( int corner, const CornerPixel &pixel, int along, int x, int y ) const;
+    static void onChargeStep( lv_timer_t *timer );
 
     Corners::Gauge m_gauges[Corners::CornerCount] = {};
     Look m_looks[Corners::CornerCount] = {};
     bool m_alwaysOn = false;
     bool m_built = false;
+    // The charging animation's step: 0 shows the value alone (CornerView.cpp).
+    int m_chargeStep = 0;
 };

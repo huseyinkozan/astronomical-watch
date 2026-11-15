@@ -44,7 +44,7 @@ int main()
     Sky::Day sky = Sky::computeDay( day, offsetMinutes, istanbul, Hijri::Diyanet );
     int64_t now = static_cast<int64_t>( day ) * 86400 + ( 19 * 60 + 19 - offsetMinutes ) * 60;
     Corners::Gauge gauges[Corners::CornerCount] = {};
-    Corners::compute( Corners::fromSky( sky ), now, 92, gauges );
+    Corners::compute( Corners::fromSky( sky ), now, 92, false, gauges );
     check( "day 19:19", gauges[Corners::TopLeft], Corners::Day, 0, 912 );
     check( "battery 92 %", gauges[Corners::TopRight], Corners::BatteryHigh, 0, 920 );
     check( "Moon up 19:19", gauges[Corners::BottomLeft], Corners::MoonUp, 0, 546 );
@@ -56,19 +56,32 @@ int main()
     day = dayNumber( 2026, 6, 22 );
     sky = Sky::computeDay( day, offsetMinutes, istanbul, Hijri::Diyanet );
     now = static_cast<int64_t>( day ) * 86400 + ( 3 * 60 - offsetMinutes ) * 60;
-    Corners::compute( Corners::fromSky( sky ), now, 8, gauges );
+    Corners::compute( Corners::fromSky( sky ), now, 8, true, gauges );
     check( "night 03:00", gauges[Corners::TopLeft], Corners::Night, 0, 712 );
     check( "battery 8 %", gauges[Corners::TopRight], Corners::BatteryLow, 0, 80 );
     check( "Moon down 03:00", gauges[Corners::BottomLeft], Corners::MoonDown, 0, 167 );
+    // Charging marks only the battery gauge.
+    ++s_checks;
+    if ( !gauges[Corners::TopRight].charging || gauges[Corners::TopLeft].charging ||
+         gauges[Corners::BottomLeft].charging || gauges[Corners::BottomRight].charging ) {
+        ++s_failures;
+        printf( "FAIL charging: only the battery gauge should be marked\n" );
+    }
 
     // A waning Moon: the lit part ends at the upper end.
     Corners::Input input = {};
     input.valid = true;
     input.moonPercent = 30;
     input.waxing = false;
-    Corners::compute( input, now, -1, gauges );
+    Corners::compute( input, now, -1, true, gauges );
     check( "waning phase", gauges[Corners::BottomRight], Corners::MoonLit, 700, 1000 );
     check( "battery unknown", gauges[Corners::TopRight], Corners::Empty, 0, 0 );
+    // An unknown battery is not drawn, so it does not charge either.
+    ++s_checks;
+    if ( gauges[Corners::TopRight].charging ) {
+        ++s_failures;
+        printf( "FAIL charging with the battery unknown\n" );
+    }
     check( "no events", gauges[Corners::TopLeft], Corners::Empty, 0, 0 );
 
     printf( "Corners: %d checks, %d failures\n", s_checks, s_failures );

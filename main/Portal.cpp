@@ -50,7 +50,9 @@ static const char *s_fieldNames[] = { "timeout", "alwaysOn", "devMode",    "auto
                                                          "rtcOffset", "rtcSet",
                                                          "clockOrder", "clockHidden", "infoOrder", "infoHidden",
                                                          "settingsOrder", "faceOrder", "faceHidden", "aodOrder",
-                                                         "aodHidden" };
+                                                         "aodHidden",
+                                                         // Set by the watch itself (runActiveMode).
+                                                         "pwrPullUp" };
 // One name per setting: a missing one would be read as a null name.
 static_assert( sizeof( s_fieldNames ) / sizeof( s_fieldNames[0] ) == Settings::ItemCount, "a field name per setting" );
 
