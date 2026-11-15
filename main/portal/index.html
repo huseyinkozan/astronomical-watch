@@ -22,100 +22,128 @@
   .checks label { display: inline-block; margin: 4px 16px 4px 0; }
   .checks input { width: auto; }
   a { color: #8ab4f8; }
+  .order { margin: 4px 0 12px; }
+  .order div { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
+  .order label { flex: 1; margin: 0; }
+  .order input { width: auto; }
+  .order button { width: auto; padding: 4px 12px; font-size: 1em; background: #333; }
+  .suggest button { display: block; text-align: left; margin: 2px 0; padding: 10px; font-size: 1em;
+                    background: #2a2a2a; }
 </style>
 </head>
 <body>
 <main>
 <h1>Astronomical Watch</h1>
-<p><a href="/help">How to use the watch</a></p>
+<div class="row">
+  <div><p><a href="/help" id="helpLink" data-tr="Saatin kullanımı">How to use the watch</a></p></div>
+  <div><select id="language" aria-label="Language / Dil"><option value="0">English</option><option value="1">Türkçe</option></select></div>
+</div>
 
 <fieldset>
-  <legend>Time</legend>
+  <legend data-tr="Zaman">Time</legend>
   <div id="now"></div>
-  <label><input type="checkbox" id="setTime" checked style="width:auto"> Set the watch to this time</label>
-  <small>The watch takes this device's clock, so it is as accurate as this device.</small>
-  <label for="offset">UTC offset</label>
+  <label><input type="checkbox" id="setTime" checked style="width:auto"> <span data-tr="Saati bu cihazın saatine ayarla">Set the watch to this time</span></label>
+  <small data-tr="Saat bu cihazın saatini alır; bu cihaz kadar doğrudur.">The watch takes this device's clock, so it is as accurate as this device.</small>
+  <label for="offset" data-tr="UTC farkı">UTC offset</label>
   <select id="offset"></select>
   <small id="zoneText"></small>
 </fieldset>
 
 <fieldset>
-  <legend>Location</legend>
-  <label for="country">Country</label>
-  <select id="country"></select>
-  <label for="city">City</label>
-  <select id="city"></select>
+  <legend data-tr="Konum">Location</legend>
+  <label for="city" data-tr="Şehir (birkaç harf yazın)">City (type a few letters)</label>
+  <input id="city" autocomplete="off" placeholder="Search" data-tr-ph="Ara">
   <div class="row">
-    <div><label for="lat">Latitude</label><input id="lat" type="number" step="0.0001" min="-90" max="90"></div>
-    <div><label for="lon">Longitude</label><input id="lon" type="number" step="0.0001" min="-180" max="180"></div>
+    <div><label for="lat" data-tr="Enlem">Latitude</label><input id="lat" type="number" step="0.0001" min="-90" max="90"></div>
+    <div><label for="lon" data-tr="Boylam">Longitude</label><input id="lon" type="number" step="0.0001" min="-180" max="180"></div>
   </div>
-  <small>Degrees; north and east are positive. A city fills them in.</small>
+  <small data-tr="Derece; kuzey ve doğu artıdır. Şehir seçilince dolar.">Degrees; north and east are positive. A city fills them in.</small>
 </fieldset>
 
 <fieldset>
-  <legend>Watch</legend>
-  <label for="timeout">Screen off after</label>
+  <legend data-tr="Saat">Watch</legend>
+  <label for="timeout" data-tr="Ekranın kapanma süresi">Screen off after</label>
   <select id="timeout"></select>
-  <label for="alwaysOn">Always-on face</label>
+  <label for="alwaysOn" data-tr="Bekleme ekranı">Always-on face</label>
   <select id="alwaysOn"></select>
-  <label for="brightness">Brightness (%)</label>
+  <label for="brightness" data-tr="Parlaklık (%)">Brightness (%)</label>
   <input id="brightness" type="number" min="5" max="100" step="1">
-  <label for="aodDay">Always-on brightness from sunrise to sunset (%)</label>
+  <label for="aodDay" data-tr="Gündüz bekleme parlaklığı (%)">Always-on brightness from sunrise to sunset (%)</label>
   <input id="aodDay" type="number" min="1" max="100" step="1">
-  <label for="aodNight">Always-on brightness from sunset to sunrise (%)</label>
+  <label for="aodNight" data-tr="Gece bekleme parlaklığı (%)">Always-on brightness from sunset to sunrise (%)</label>
   <input id="aodNight" type="number" min="1" max="100" step="1">
-  <small>On the watch: hold a finger on the watch face (or on the always-on page for the
+  <small data-tr="Saatte: ön yüzde (ya da bekleme parlaklığı için bekleme sayfasında) parmağınızı basılı tutup yukarı veya aşağı sürükleyin.">On the watch: hold a finger on the watch face (or on the always-on page for the
   always-on brightness of the moment) and drag up or down.</small>
-  <label for="usbStayOn">Screen stays on while USB is plugged in</label>
+  <label for="usbStayOn" data-tr="USB takılıyken ekran açık kalsın">Screen stays on while USB is plugged in</label>
   <select id="usbStayOn"></select>
-  <label for="autoOff">Switch off without motion after</label>
+  <label for="autoOff" data-tr="Hareketsiz kalınca kapanma">Switch off without motion after</label>
   <select id="autoOff"></select>
-  <label for="devMode">Development mode (more entries in the watch's event log)</label>
+  <label for="devMode" data-tr="Geliştirme modu (olay kaydına daha çok kayıt)">Development mode (more entries in the watch's event log)</label>
   <select id="devMode"></select>
-  <label for="hijri">Hijri months start with</label>
+  <label for="isha" data-tr="Yatsı vakti için Güneş açısı">Night prayer (isha) ends twilight at</label>
+  <select id="isha"></select>
+  <small data-tr="Diyanet Türkiye'de 17&deg;, bazı ülkelerde (örneğin Romanya, Bosna, Kanada) 16&deg; kullanır; şehriniz için Diyanet'in vakitlerine bakın.">Diyanet uses 17&deg; in Turkey and 16&deg; in some countries (for example Romania,
+  Bosnia, Canada); see its prayer times for your city.</small>
+  <label for="hijri" data-tr="Hicri aylar şununla başlar">Hijri months start with</label>
   <select id="hijri"></select>
-  <small>Local: the new crescent visible to the naked eye at the watch's location (Odeh's
+  <small data-tr="Yerel: yeni hilalin saatin bulunduğu yerde çıplak gözle görülmesi (Odeh ölçütü). Diyanet: Türkiye'nin resmî kuralı (İstanbul 1978: karada herhangi bir yerde, gün batımında Güneş'ten 8&deg; uzak ve 5&deg; yüksek).">Local: the new crescent visible to the naked eye at the watch's location (Odeh's
   criterion). Diyanet: Turkey's official rule (Istanbul 1978: anywhere on land, 8&deg; from the
   Sun and 5&deg; high at sunset).</small>
 </fieldset>
 
 <fieldset>
-  <legend>World clock</legend>
-  <label for="w0">Cities on the watch's clock page (up to four)</label>
-  <select id="w0"></select>
-  <select id="w1"></select>
-  <select id="w2"></select>
-  <select id="w3"></select>
-  <small>The watch follows their clock changes (daylight saving time) for a year from now; open
+  <legend data-tr="Dünya saati">World clock</legend>
+  <label for="w0" data-tr="Saat sayfasındaki şehirler (en çok dört; birkaç harf yazın)">Cities on the watch's clock page (up to four; type a few letters)</label>
+  <input id="w0" autocomplete="off" placeholder="Search" data-tr-ph="Ara">
+  <input id="w1" autocomplete="off" placeholder="Search" data-tr-ph="Ara">
+  <input id="w2" autocomplete="off" placeholder="Search" data-tr-ph="Ara">
+  <input id="w3" autocomplete="off" placeholder="Search" data-tr-ph="Ara">
+  <small data-tr="Saat, bu şehirlerin saat değişimlerini (yaz saati) bir yıl boyunca izler; bu sayfayı bir yıl içinde yeniden açın.">The watch follows their clock changes (daylight saving time) for a year from now; open
   this page again within a year.</small>
 </fieldset>
 
 <fieldset>
-  <legend>Day counters</legend>
-  <label>Dates shown as days until or since them (up to four)</label>
-  <div class="row"><div><input id="dn0" maxlength="20" placeholder="Name"></div><div><input id="dd0" type="date"></div></div>
-  <div class="row"><div><input id="dn1" maxlength="20" placeholder="Name"></div><div><input id="dd1" type="date"></div></div>
-  <div class="row"><div><input id="dn2" maxlength="20" placeholder="Name"></div><div><input id="dd2" type="date"></div></div>
-  <div class="row"><div><input id="dn3" maxlength="20" placeholder="Name"></div><div><input id="dd3" type="date"></div></div>
+  <legend data-tr="Gün sayaçları">Day counters</legend>
+  <label data-tr="Kaç gün kaldığı ya da geçtiği gösterilecek tarihler (en çok dört)">Dates shown as days until or since them (up to four)</label>
+  <div class="row"><div><input id="dn0" maxlength="20" placeholder="Name" data-tr-ph="Ad"></div><div><input id="dd0" type="date"></div></div>
+  <div class="row"><div><input id="dn1" maxlength="20" placeholder="Name" data-tr-ph="Ad"></div><div><input id="dd1" type="date"></div></div>
+  <div class="row"><div><input id="dn2" maxlength="20" placeholder="Name" data-tr-ph="Ad"></div><div><input id="dd2" type="date"></div></div>
+  <div class="row"><div><input id="dn3" maxlength="20" placeholder="Name" data-tr-ph="Ad"></div><div><input id="dd3" type="date"></div></div>
 </fieldset>
 
 <fieldset>
-  <legend>Faces</legend>
-  <label for="face">Watch face</label>
+  <legend data-tr="Yüzler">Faces</legend>
+  <label for="face" data-tr="Ön yüz">Watch face</label>
   <select id="face"></select>
   <div class="checks" id="faceItems"></div>
-  <label for="aod">Always-on face</label>
+  <label for="aod" data-tr="Bekleme yüzü">Always-on face</label>
   <select id="aod"></select>
   <div class="checks" id="aodItems"></div>
-  <small>On the watch: swipe up or down on the watch face, or on the always-on page left of it.
+  <small data-tr="Saatte: ön yüzde ya da solundaki bekleme sayfasında yukarı veya aşağı kaydırın. Ekran köşeleri gündüzü ya da geceyi, pili, Ay'ın ufkun üstünde ya da altında geçen süresini ve evresini gösterir.">On the watch: swipe up or down on the watch face, or on the always-on page left of it.
   The screen corners show the day or night, the battery, the Moon's time above or below the
   horizon and its phase.</small>
 </fieldset>
 
-<button id="save">Save to the watch</button>
+<fieldset>
+  <legend data-tr="Sayfalar ve yüzler">Pages and faces</legend>
+  <small data-tr="Dikey kaydırmanın geçtiği parçaların sırası ve hangilerinin gösterileceği.">The order of the parts a vertical swipe steps through, and which of them to show.</small>
+  <div id="orders"></div>
+</fieldset>
+
+<fieldset>
+  <legend data-tr="Yazılım güncelleme ve kayıtlar">Software update and logs</legend>
+  <div><span data-tr="Saatteki sürüm:">Version on the watch:</span> <b id="version">?</b></div>
+  <p><a href="/update" data-tr="Güncelleme ve kayıtlar sayfası &rarr;">Update and logs page &rarr;</a></p>
+  <small data-tr="Yeni sürüm telefonun giriş penceresinden değil, tarayıcıdan yüklenir; sayfa nasıl yapılacağını anlatır. Sorun bildirmek için kayıtlar da oradadır.">A new version is installed from the browser, not from the phone's sign-in window; the page
+  explains how. The logs for a problem report are there too.</small>
+</fieldset>
+
+<button id="save" data-tr="Saate kaydet">Save to the watch</button>
+<small data-tr="Kaydetmek saati ayarlar ve Wi-Fi ağını kapatır; telefonunuz kendi ağına döner. Sonradan bir şeyi değiştirmek için kurulumu saatte yeniden başlatın.">Saving sets the watch and closes its Wi-Fi network; your phone returns to its usual
+network. To change something later, start the setup on the watch again.</small>
 <div id="status"></div>
-<p><small>City data: <a href="https://www.geonames.org/">GeoNames</a> (CC BY 4.0).
-Source code: gitlab.com/huseyinkozan/astronomical-watch</small></p>
+<p><small><span data-tr="Şehir verisi:">City data:</span> <a href="https://www.geonames.org/">GeoNames</a> (CC BY 4.0).
+<span data-tr="Kaynak kod:">Source code:</span> gitlab.com/huseyinkozan/astronomical-watch</small></p>
 </main>
 
 <script src="/cities.js"></script>
@@ -134,21 +162,52 @@ function fill(select, options, value) {
   if (value !== undefined) select.value = String(value);
 }
 
+// The page's language: the watch's (main/Language.h), English (0) or Turkish (1). Static texts
+// carry their Turkish in data-tr (data-tr-ph for placeholders); the script picks with t().
+let L = (navigator.language || '').startsWith('tr') ? 1 : 0;
+const t = (en, tr) => (L === 1 ? tr : en);
+function translatePage() {
+  document.documentElement.lang = L === 1 ? 'tr' : 'en';
+  for (const element of document.querySelectorAll('[data-tr]')) {
+    if (element.dataset.en === undefined) element.dataset.en = element.innerHTML;
+    element.innerHTML = L === 1 ? element.dataset.tr : element.dataset.en;
+  }
+  for (const element of document.querySelectorAll('[data-tr-ph]')) {
+    if (element.dataset.enPh === undefined) element.dataset.enPh = element.placeholder;
+    element.placeholder = L === 1 ? element.dataset.trPh : element.dataset.enPh;
+  }
+  $('helpLink').href = L === 1 ? '/help#tr' : '/help';
+}
+
 function offsetText(minutes) {
   const sign = minutes < 0 ? '-' : '+';
   const m = Math.abs(minutes);
   return 'UTC' + sign + String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
 }
 
-// The same value lists as the watch (main/Settings.cpp).
-fill($('timeout'), [[5, '5 s'], [10, '10 s'], [20, '20 s'], [30, '30 s'], [60, '60 s']]);
-fill($('alwaysOn'), [[1, 'On'], [0, 'Off']]);
-fill($('autoOff'), [[20, '20 min'], [30, '30 min'], [60, '60 min'], [0, 'Never']]);
-fill($('hijri'), [[0, 'Local crescent'], [1, 'Diyanet']]);
-fill($('devMode'), [[0, 'Off'], [1, 'On']]);
-fill($('usbStayOn'), [[1, 'On'], [0, 'Off']]);
-fill($('face'), [[0, 'Classic'], [1, 'Day arc'], [2, 'Sky arcs'], [3, 'Dial']]);
-fill($('aod'), [[0, 'Thin'], [1, 'Regular'], [2, 'Dense (dotted seven segments)'], [3, 'Sky arcs'], [4, 'Dial']]);
+// The same value lists as the watch (main/Settings.cpp), in the page's language; values kept.
+function fillLists() {
+  const keep = (id) => $(id).value || undefined;
+  const on = t('On', 'Açık'), off = t('Off', 'Kapalı'), s = t(' s', ' sn'), min = t(' min', ' dk');
+  fill($('timeout'), [5, 10, 20, 30, 60].map((v) => [v, v + s]), keep('timeout'));
+  fill($('alwaysOn'), [[1, on], [0, off]], keep('alwaysOn'));
+  fill($('autoOff'), [[20, '20' + min], [30, '30' + min], [60, '60' + min], [0, t('Never', 'Asla')]], keep('autoOff'));
+  fill($('hijri'), [[0, t('Local crescent', 'Yerel hilal')], [1, 'Diyanet']], keep('hijri'));
+  fill($('devMode'), [[0, off], [1, on]], keep('devMode'));
+  fill($('usbStayOn'), [[1, on], [0, off]], keep('usbStayOn'));
+  fill($('isha'), [[17, t('17° (Turkey)', '17° (Türkiye)')], [16, '16°']], keep('isha'));
+  fill($('face'), [[0, t('Classic', 'Klasik')], [1, t('Day arc', 'Gün yayı')], [2, t('Sky arcs', 'Gökyüzü yayları')],
+                   [3, t('Dial', 'Kadran')]], keep('face'));
+  fill($('aod'), [[0, t('Thin', 'İnce')], [1, t('Regular', 'Normal')], [2, t('Dense (dotted seven segments)', 'Yoğun (noktalı yedi parça)')],
+                  [3, t('Sky arcs', 'Gökyüzü yayları')], [4, t('Dial', 'Kadran')]], keep('aod'));
+  const faceBits = bitsOf($('faceItems')), aodBits = bitsOf($('aodItems'));
+  $('faceItems').innerHTML = '';
+  $('aodItems').innerHTML = '';
+  checks($('faceItems'), [[1, t('Date', 'Tarih')], [2, t('Next sun event', 'Sonraki Güneş olayı')], [4, t('Moon', 'Ay')]]);
+  checks($('aodItems'), [[1, t('Moon', 'Ay')], [2, t('Date', 'Tarih')]]);
+  setBits($('faceItems'), faceBits);
+  setBits($('aodItems'), aodBits);
+}
 
 // Item choices as bits, as in main/Display.h (FaceItem) and main/AlwaysOn.h (Item).
 function checks(box, items) {
@@ -166,8 +225,11 @@ function bitsOf(box) {
 function setBits(box, bits) {
   for (const input of box.querySelectorAll('input')) input.checked = (bits & Number(input.dataset.bit)) !== 0;
 }
-checks($('faceItems'), [[1, 'Date'], [2, 'Next sun event'], [4, 'Moon']]);
-checks($('aodItems'), [[1, 'Moon'], [2, 'Date']]);
+checks($('faceItems'), [[1, ''], [2, ''], [4, '']]);
+checks($('aodItems'), [[1, ''], [2, '']]);
+setBits($('faceItems'), 7);
+setBits($('aodItems'), 3);
+fillLists();
 const offsets = [];
 for (let m = -720; m <= 840; m += 15) offsets.push([m, offsetText(m)]);
 fill($('offset'), offsets, -new Date().getTimezoneOffset());
@@ -208,13 +270,20 @@ function zoneValid(zone) {
 let homeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
 let place = '';
 function showZone() {
-  if (!zoneValid(homeZone)) { $('zoneText').textContent = 'Set it when daylight saving time starts or ends.'; return; }
+  if (!zoneValid(homeZone)) {
+    $('zoneText').textContent = t('Set it when daylight saving time starts or ends.', 'Yaz saati başlayınca ya da bitince ayarlayın.');
+    return;
+  }
   const info = zoneInfo(homeZone);
   $('offset').value = String(info[0]);
   let text = homeZone + ': ' + offsetText(info[0]);
-  if (info[1]) text += ', ' + offsetText(info[2]) + ' from ' + new Date(info[1] * 60000).toLocaleString();
-  else text += ', no clock change within a year';
-  $('zoneText').textContent = text + '. The watch changes by itself.';
+  if (info[1]) {
+    const when = new Date(info[1] * 60000).toLocaleString(t('en', 'tr'));
+    text += t(', ' + offsetText(info[2]) + ' from ' + when, ', ' + when + ' itibarıyla ' + offsetText(info[2]));
+  } else {
+    text += t(', no clock change within a year', ', bir yıl içinde saat değişimi yok');
+  }
+  $('zoneText').textContent = text + t('. The watch changes by itself.', '. Saat kendisi değişir.');
 }
 
 // Names on the watch: its font has ASCII and the Turkish letters; other letters lose their marks.
@@ -230,61 +299,189 @@ function watchName(name) {
 // Cities: "country|name|latitude|longitude|zone" lines from /cities.js.
 const cities = CITIES.trim().split('\n').map((line) => line.split('|'));
 let countryNames = null;
-try { countryNames = new Intl.DisplayNames(['en'], { type: 'region' }); } catch (e) { }
 const countryName = (code) => { try { return countryNames ? countryNames.of(code) : code; } catch (e) { return code; } };
-const countries = [...new Set(cities.map((c) => c[0]))]
-  .map((code) => [code, countryName(code)])
-  .sort((a, b) => a[1].localeCompare(b[1]));
-fill($('country'), [['', 'Choose…']].concat(countries));
 
-$('country').addEventListener('change', () => {
-  const list = cities.filter((c) => c[0] === $('country').value)
-    .sort((a, b) => a[1].localeCompare(b[1]));
-  fill($('city'), [['', 'Choose…']].concat(list.map((c) => [c[2] + ',' + c[3] + ',' + c[4], c[1]])));
-});
-$('city').addEventListener('change', () => {
-  if (!$('city').value) return;
-  const [lat, lon, zone] = $('city').value.split(',');
-  $('lat').value = lat;
-  $('lon').value = lon;
-  homeZone = zone;
-  place = watchName($('city').options[$('city').selectedIndex].textContent);
+// Every city field searches one list of "City, Country" (the country in the page's language).
+// The page shows the matches itself: browsers' own lists (datalist) are missing in some phone
+// browsers and match letters exactly, so "kirsehir" would not find Kırşehir.
+const cityText = (c) => c[1] + ', ' + countryName(c[0]);
+const cityIndex = new Map();
+const cityFields = ['city', 'w0', 'w1', 'w2', 'w3'];
+// Without case or accents, the Turkish dotless i included.
+const searchKey = (text) => text.toLocaleLowerCase('tr').replace(/ı/g, 'i').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+let cityKeys = [];
+function fillCities() {
+  // The cities already chosen stay chosen across a change of language.
+  const chosen = cityFields.map((id) => (cityIndex.has($(id).value) ? cityIndex.get($(id).value) : -1));
+  try { countryNames = new Intl.DisplayNames([t('en', 'tr')], { type: 'region' }); } catch (e) { countryNames = null; }
+  cityIndex.clear();
+  cityKeys = cities.map((c, index) => [cityText(c), index]).sort((a, b) => a[0].localeCompare(b[0], t('en', 'tr')))
+    .map(([text, index]) => { cityIndex.set(text, index); return [searchKey(text), text]; });
+  cityFields.forEach((id, i) => { if (chosen[i] >= 0) $(id).value = cityText(cities[chosen[i]]); });
+}
+fillCities();
+
+// Up to eight matches under the field as one types: the letters start a word of the city or the
+// country ("york" finds New York, "istan" not Turkmenistan), the city's own name first; a tap
+// chooses one.
+const maxSuggestions = 8;
+function wordStart(cityKey, key) {
+  for (let at = cityKey.indexOf(key); at >= 0; at = cityKey.indexOf(key, at + 1)) {
+    if (at === 0 || ' ,-(\''.includes(cityKey[at - 1])) return at;
+  }
+  return -1;
+}
+function suggest(input, box) {
+  box.innerHTML = '';
+  const key = searchKey(input.value.trim());
+  if (key.length < 2 || cityIndex.has(input.value)) return;
+  const starts = [], inside = [];
+  for (const [cityKey, text] of cityKeys) {
+    const at = wordStart(cityKey, key);
+    if (at === 0) starts.push(text);
+    else if (at > 0 && inside.length < maxSuggestions) inside.push(text);
+    if (starts.length >= maxSuggestions) break;
+  }
+  for (const text of starts.concat(inside).slice(0, maxSuggestions)) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = text;
+    button.addEventListener('click', () => {
+      input.value = text;
+      input.dispatchEvent(new Event('input'));
+    });
+    box.appendChild(button);
+  }
+}
+for (const id of cityFields) {
+  const input = $(id);
+  const box = document.createElement('div');
+  box.className = 'suggest';
+  input.after(box);
+  input.addEventListener('input', () => suggest(input, box));
+}
+const chosenCity = (id) => cityIndex.has($(id).value) ? cities[cityIndex.get($(id).value)] : null;
+
+$('city').addEventListener('input', () => {
+  const c = chosenCity('city');
+  if (!c) return;
+  $('lat').value = c[2];
+  $('lon').value = c[3];
+  homeZone = c[4];
+  place = watchName(c[1]);
   showZone();
 });
 // Typed coordinates have no place name.
 for (const id of ['lat', 'lon']) $(id).addEventListener('input', () => { place = ''; });
 showZone();
 
-// The world clock: one list of all cities, grouped by country.
-for (let w = 0; w < 4; w++) {
-  const select = $('w' + w);
-  select.innerHTML = '<option value="">—</option>';
-  for (const [code, name] of countries) {
-    const group = document.createElement('optgroup');
-    group.label = name;
-    cities.forEach((c, index) => {
-      if (c[0] !== code) return;
-      const option = document.createElement('option');
-      option.value = String(index);
-      option.textContent = c[1];
-      group.appendChild(option);
-    });
-    select.appendChild(group);
+
+// Orders and hidden parts (main/PartOrder.h): part numbers in 3-bit fields, hidden ones as bits.
+// Titles and names as [English, Turkish].
+const orderLists = [
+  { title: ['Clock page', 'Saat sayfası'], order: 'clockOrder', hidden: 'clockHidden',
+    names: [['World clock', 'Dünya saati'], ['Stopwatch', 'Kronometre'], ['Timer', 'Geri sayım'],
+            ['Gregorian calendar', 'Miladi takvim'], ['Hijri calendar', 'Hicri takvim'], ['Day counters', 'Gün sayaçları']] },
+  { title: ['Information page', 'Bilgi sayfası'], order: 'infoOrder', hidden: 'infoHidden',
+    names: [['Sun', 'Güneş'], ['Twilight', 'Alacakaranlık'], ['Prayer times', 'Namaz vakitleri'], ['Moon', 'Ay'],
+            ['Sun compass', 'Güneş pusulası'], ['Time', 'Zaman'], ['Battery', 'Pil'], ['About', 'Hakkında']] },
+  { title: ['Settings page', 'Ayarlar sayfası'], order: 'settingsOrder', hidden: null,
+    names: [['Settings', 'Ayarlar'], ['More settings', 'Diğer ayarlar'], ['What this page set', 'Bu sayfanın girdikleri'],
+            ['Wi-Fi setup', 'Wi-Fi kurulum']] },
+  { title: ['Watch faces', 'Ön yüzler'], order: 'faceOrder', hidden: 'faceHidden',
+    names: [['Classic', 'Klasik'], ['Day arc', 'Gün yayı'], ['Sky arcs', 'Gökyüzü yayları'], ['Dial', 'Kadran']] },
+  { title: ['Always-on faces', 'Bekleme yüzleri'], order: 'aodOrder', hidden: 'aodHidden',
+    names: [['Thin', 'İnce'], ['Regular', 'Normal'], ['Dense', 'Yoğun'], ['Sky arcs', 'Gökyüzü yayları'], ['Dial', 'Kadran']] },
+];
+function decodeOrder(value, count) {
+  const parts = [];
+  for (let i = 0; i < count; i++) parts.push((value >> (3 * i)) & 7);
+  const valid = value > 0 && parts.every((p, i) => p < count && parts.indexOf(p) === i);
+  return valid ? parts : [...Array(count).keys()];
+}
+function drawOrder(list) {
+  list.box.innerHTML = '';
+  list.parts.forEach((part, i) => {
+    const row = document.createElement('div');
+    const label = document.createElement('label');
+    if (list.hidden) {
+      const check = document.createElement('input');
+      check.type = 'checkbox';
+      check.checked = !list.off.has(part);
+      check.addEventListener('change', () => {
+        // At least one part stays shown.
+        if (!check.checked && list.off.size + 1 >= list.parts.length) { check.checked = true; return; }
+        if (check.checked) list.off.delete(part); else list.off.add(part);
+      });
+      label.appendChild(check);
+    }
+    label.appendChild(document.createTextNode(' ' + list.names[part][L]));
+    row.appendChild(label);
+    for (const [text, move] of [['↑', -1], ['↓', 1]]) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = text;
+      button.disabled = i + move < 0 || i + move >= list.parts.length;
+      button.addEventListener('click', () => {
+        [list.parts[i], list.parts[i + move]] = [list.parts[i + move], list.parts[i]];
+        drawOrder(list);
+      });
+      row.appendChild(button);
+    }
+    list.box.appendChild(row);
+  });
+}
+function drawOrders() {
+  $('orders').innerHTML = '';
+  for (const list of orderLists) {
+    const title = document.createElement('label');
+    title.textContent = list.title[L];
+    $('orders').appendChild(title);
+    list.box = document.createElement('div');
+    list.box.className = 'order';
+    $('orders').appendChild(list.box);
+    drawOrder(list);
   }
 }
+function setOrders(s) {
+  for (const list of orderLists) {
+    list.parts = decodeOrder(s[list.order] || 0, list.names.length);
+    list.off = new Set();
+    if (list.hidden) list.names.forEach((n, p) => { if ((s[list.hidden] || 0) & (1 << p)) list.off.add(p); });
+  }
+  drawOrders();
+}
+setOrders({});
 
-setInterval(() => { $('now').textContent = 'This device: ' + new Date().toLocaleString(); }, 500);
+function setLanguage(language) {
+  L = language === 1 ? 1 : 0;
+  $('language').value = String(L);
+  translatePage();
+  fillLists();
+  fillCities();
+  drawOrders();
+  showZone();
+}
+$('language').addEventListener('change', () => setLanguage(Number($('language').value)));
+setLanguage(L);
+
+setInterval(() => { $('now').textContent = t('This device: ', 'Bu cihaz: ') + new Date().toLocaleString(t('en', 'tr')); }, 500);
 
 // Current values from the watch.
 fetch('/api/state').then((r) => r.json()).then((s) => {
-  for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'hijri', 'face', 'aod', 'aodDay', 'aodNight', 'devMode', 'usbStayOn']) $(id).value = String(s[id]);
+  if (s.language !== undefined) setLanguage(s.language);
+  $('version').textContent = s.version || '?';
+  for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'hijri', 'face', 'aod', 'aodDay', 'aodNight', 'devMode', 'usbStayOn', 'isha']) $(id).value = String(s[id]);
+  setOrders(s);
   setBits($('faceItems'), s.faceItems);
   setBits($('aodItems'), s.aodItems);
   if (s.zone && zoneValid(s.zone)) { homeZone = s.zone; showZone(); }
   place = s.place || '';
+  const home = cities.find((c) => c[4] === s.zone && watchName(c[1]) === place);
+  if (home) $('city').value = cityText(home);
   (s.cities || []).forEach(([name, zone], w) => {
     const index = cities.findIndex((c) => c[4] === zone && watchName(c[1]) === name);
-    if (index >= 0 && w < 4) $('w' + w).value = String(index);
+    if (index >= 0 && w < 4) $('w' + w).value = cityText(cities[index]);
   });
   (s.days || []).forEach(([name, date], i) => {
     if (i < 4) { $('dn' + i).value = name; $('dd' + i).value = date; }
@@ -293,7 +490,7 @@ fetch('/api/state').then((r) => r.json()).then((s) => {
     $('lat').value = s.lat.toFixed(4);
     $('lon').value = s.lon.toFixed(4);
   }
-}).catch(() => { $('status').textContent = 'Could not read the watch.'; });
+}).catch(() => { $('status').textContent = t('Could not read the watch.', 'Saat okunamadı.'); });
 
 // Round trip to the watch, the shortest of a few: half of it is the time a request travels.
 async function roundTrip() {
@@ -307,25 +504,28 @@ async function roundTrip() {
 }
 
 $('save').addEventListener('click', async () => {
-  $('status').textContent = 'Saving…';
+  $('status').textContent = t('Saving…', 'Kaydediliyor…');
   try {
     const fields = new URLSearchParams();
-    for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'offset', 'hijri', 'face', 'aod', 'aodDay', 'aodNight', 'devMode', 'usbStayOn']) fields.set(id, $(id).value);
+    for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'offset', 'hijri', 'face', 'aod', 'aodDay', 'aodNight', 'devMode', 'usbStayOn', 'isha', 'language']) fields.set(id, $(id).value);
     // The own zone's clock changes, unless the offset was set by hand.
     const home = zoneValid(homeZone) ? zoneInfo(homeZone) : null;
     const byZone = home !== null && String(home[0]) === $('offset').value;
     fields.set('zone', byZone ? homeZone : '');
     fields.set('place', place);
     ['chg1', 'aft1', 'chg2', 'aft2'].forEach((id, i) => fields.set(id, byZone ? String(home[1 + i]) : '0'));
-    const chosen = [0, 1, 2, 3].map((w) => $('w' + w).value).filter((v) => v !== '');
+    const chosen = [0, 1, 2, 3].map((w) => chosenCity('w' + w)).filter((c) => c !== null);
     fields.set('cities', String(chosen.length));
-    chosen.forEach((v, i) => {
-      const c = cities[Number(v)];
+    chosen.forEach((c, i) => {
       fields.set('c' + i, [watchName(c[1]), c[4]].concat(zoneInfo(c[4])).join('|'));
     });
     const days = [0, 1, 2, 3].filter((i) => $('dd' + i).value !== '');
     fields.set('days', String(days.length));
-    days.forEach((d, i) => fields.set('d' + i, watchName($('dn' + d).value || 'Day') + '|' + $('dd' + d).value));
+    days.forEach((d, i) => fields.set('d' + i, watchName($('dn' + d).value || t('Day', 'Gün')) + '|' + $('dd' + d).value));
+    for (const list of orderLists) {
+      fields.set(list.order, String(list.parts.reduce((value, part, i) => value | (part << (3 * i)), 0)));
+      if (list.hidden) fields.set(list.hidden, String([...list.off].reduce((bits, part) => bits | (1 << part), 0)));
+    }
     fields.set('faceItems', String(bitsOf($('faceItems'))));
     fields.set('aodItems', String(bitsOf($('aodItems'))));
     if ($('lat').value !== '' && $('lon').value !== '') {
@@ -337,9 +537,10 @@ $('save').addEventListener('click', async () => {
       fields.set('time', String(Date.now()));
     }
     const response = await fetch('/api/save', { method: 'POST', body: fields });
-    $('status').textContent = response.ok ? 'Saved. The watch closes the setup network now.' : 'The watch refused the data.';
+    $('status').textContent = response.ok ? t('Saved. The watch closes the setup network now.', 'Kaydedildi. Saat kurulum ağını şimdi kapatıyor.')
+                                          : t('The watch refused the data.', 'Saat verileri kabul etmedi.');
   } catch (e) {
-    $('status').textContent = 'Could not reach the watch.';
+    $('status').textContent = t('Could not reach the watch.', 'Saate ulaşılamadı.');
   }
 });
 </script>

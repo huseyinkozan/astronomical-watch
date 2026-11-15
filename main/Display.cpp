@@ -1,8 +1,11 @@
 #include "Display.h"
 
+#include <cstring>
 #include <ctime>
 #include "Fonts.h"
 #include "Panel.h"
+#include "Language.h"
+#include "PartOrder.h"
 
 #include "bsp/display.h"
 #include "bsp/esp32_s3_touch_amoled_2_06.h"
@@ -37,8 +40,9 @@ static const int s_scrollLimitPx = 30;
 static const int s_rowHeight = 96;
 static const int s_rowWidth = 318;
 static const int s_rowGap = 12;
-static const char *s_settingNames[Settings::PageItemCount] = { "Screen off", "Always-on", "Dev mode", "Auto off",
-                                                               "On USB" };
+static const Language::Text s_settingNames[Settings::PageItemCount] = {
+    Language::ScreenOff, Language::AlwaysOnRow, Language::DevMode, Language::AutoOff, Language::OnUsb,
+    Language::LanguageRow };
 // Four rows fit on a part; the next ones go to the part below.
 static const int s_rowsPerPart = 4;
 
@@ -98,7 +102,7 @@ static void buildAboutPage( lv_obj_t *page )
     lv_obj_set_style_pad_row( page, 24, 0 );
     lv_obj_set_scrollbar_mode( page, LV_SCROLLBAR_MODE_OFF );
     const char *lines[4] = { "Astronomical Watch", esp_app_get_description()->version,
-                             "gitlab.com/huseyinkozan/\nastronomical-watch", "MIT License" };
+                             "gitlab.com/huseyinkozan/\nastronomical-watch", Language::text( Language::License ) };
     for ( int i = 0; i < 4; ++i ) {
         lv_obj_t *label = lv_label_create( page );
         lv_obj_set_style_text_font( label, &jetbrains_mono_26, 0 );
@@ -288,6 +292,7 @@ bool Display::start( Settings &settings )
     m_aodMarks.show( m_settings->value( Settings::AodStyle ) );
     m_faceMarks.build( facePage, WatchFace::StyleCount );
     m_faceMarks.setVisible( false );
+    applyOrders();
     // On the top layer, so that they stay in place while the pages move.
     m_pageMarks.build( lv_layer_top(), PageCount, true );
     m_pageMarks.setVisible( false );
@@ -301,8 +306,8 @@ bool Display::start( Settings &settings )
         lv_indev_add_event_cb( touch, onTouchPressed, LV_EVENT_PRESSED, nullptr );
 #endif
     }
-#if CONFIG_WATCH_DEV_LOGGING
     lv_display_add_event_cb( display, onFlushStart, LV_EVENT_FLUSH_START, this );
+#if CONFIG_WATCH_DEV_LOGGING
     lv_display_add_event_cb( display, onRefreshReady, LV_EVENT_REFR_READY, this );
 #endif
     m_started = true;
@@ -330,7 +335,7 @@ void Display::buildInfoPage()
     buildAboutPage( m_info.part( InfoAbout ) );
     lv_obj_t *batteryPage = m_info.part( InfoBattery );
     lv_obj_t *title = createLabel( batteryPage, &jetbrains_mono_26, -120 );
-    lv_label_set_text( title, "Battery" );
+    lv_label_set_text( title, Language::text( Language::Battery ) );
     m_percentLabel = createLabel( batteryPage, &jetbrains_mono_48, -50 );
     m_voltageLabel = createLabel( batteryPage, &jetbrains_mono_26, 20 );
     m_chargeLabel = createLabel( batteryPage, &jetbrains_mono_26, 70 );
@@ -339,6 +344,7 @@ void Display::buildInfoPage()
         m_sky.show( m_day, m_now, m_offsetMinutes );
     }
     showBattery();
+    applyOrders();
 }
 
 // The settings page, built like the information page.
@@ -365,22 +371,24 @@ void Display::buildSettingsPage()
     }
     for ( int i = 0; i < Settings::PageItemCount; ++i ) {
         lv_obj_t *part = settingsParts[i < s_rowsPerPart ? 0 : 1];
-        m_settingValues[i] = createRow( part, s_settingNames[i], onSettingClicked );
+        m_settingValues[i] = createRow( part, Language::text( s_settingNames[i] ), onSettingClicked );
         m_settingRows[i] = lv_obj_get_parent( m_settingValues[i] );
         showSetting( i );
     }
 
     // The Setup part: names left, values right, like the information pages.
-    static const char *s_setupNames[SetupInfoRows] = { "Place", "Lat/lon", "Zone", "Offset", "Change", "Hijri", "Clock set" };
+    static const Language::Text s_setupNames[SetupInfoRows] = { Language::Place, Language::LatLon, Language::Zone,
+                                                               Language::Offset, Language::Change, Language::Hijri,
+                                                               Language::ClockSet };
     lv_obj_t *setupInfo = m_settingsPage.part( SetupInfoPart );
     lv_obj_t *setupTitle = createLabel( setupInfo, &jetbrains_mono_26, LV_ALIGN_TOP_MID, 76 );
-    lv_label_set_text( setupTitle, "Setup portal set" );
+    lv_label_set_text( setupTitle, Language::text( Language::SetupTitle ) );
     lv_obj_set_style_text_color( setupTitle, lv_color_hex( 0xA0A0A0 ), 0 );
     for ( int i = 0; i < SetupInfoRows; ++i ) {
         lv_obj_t *name = createLabel( setupInfo, &jetbrains_mono_26, LV_ALIGN_TOP_LEFT, 116 + i * 36 );
         lv_obj_set_x( name, 30 );
         lv_obj_set_style_text_color( name, lv_color_hex( 0xA0A0A0 ), 0 );
-        lv_label_set_text( name, s_setupNames[i] );
+        lv_label_set_text( name, Language::text( s_setupNames[i] ) );
         m_setupValues[i] = createLabel( setupInfo, &jetbrains_mono_26, LV_ALIGN_TOP_RIGHT, 116 + i * 36 );
         lv_obj_set_x( m_setupValues[i], -30 );
         // One line each: a long value ends in dots.
@@ -395,6 +403,51 @@ void Display::buildSettingsPage()
 #if CONFIG_WATCH_SETUP_PORTAL
     applySetup();
 #endif
+    applyOrders();
+}
+
+int Display::shownStyles( bool alwaysOn, int parts[8] ) const
+{
+    if ( alwaysOn ) {
+        return PartOrder::decode( m_settings->value( Settings::AodOrder ), m_settings->value( Settings::AodHidden ),
+                                  AlwaysOn::StyleCount, -1, parts );
+    }
+    return PartOrder::decode( m_settings->value( Settings::FaceOrder ), m_settings->value( Settings::FaceHidden ),
+                              WatchFace::StyleCount, -1, parts );
+}
+
+void Display::applyOrders()
+{
+    int parts[PartOrder::MaxParts] = {};
+    int shown = PartOrder::decode( m_settings->value( Settings::ClockOrder ), m_settings->value( Settings::ClockHidden ),
+                                   ClockPages::PartCount, -1, parts );
+    m_clock.stack().setOrder( parts, shown );
+    if ( m_built[InfoPage] ) {
+        shown = PartOrder::decode( m_settings->value( Settings::InfoOrder ), m_settings->value( Settings::InfoHidden ),
+                                   InfoCount, -1, parts );
+        m_info.setOrder( parts, shown );
+    }
+    if ( m_built[SettingsPage] ) {
+#if CONFIG_WATCH_SETUP_PORTAL
+        const int alwaysShown = SetupPart;
+#else
+        const int alwaysShown = -1;
+#endif
+        shown = PartOrder::decode( m_settings->value( Settings::SettingsOrder ), 0, SettingsPartCount, alwaysShown, parts );
+        m_settingsPage.setOrder( parts, shown );
+    }
+    // A style left out falls back to the first one shown.
+    for ( int i = 0; i < 2; ++i ) {
+        const bool alwaysOn = i == 0;
+        const Settings::Item item = alwaysOn ? Settings::AodStyle : Settings::FaceStyle;
+        shown = shownStyles( alwaysOn, parts );
+        if ( PartOrder::position( parts, shown, m_settings->value( item ) ) < 0 ) {
+            m_settings->setValue( item, parts[0] );
+        }
+        PageMarks &marks = alwaysOn ? m_aodMarks : m_faceMarks;
+        marks.setCount( shown );
+        marks.show( PartOrder::position( parts, shown, m_settings->value( item ) ) );
+    }
 }
 
 // Builds a page that is not built yet; the watch face and its neighbours are built at the start.
@@ -453,7 +506,7 @@ void Display::buildSetupPage( lv_obj_t *page )
     lv_obj_set_style_pad_hor( page, 16, 0 );
     lv_obj_set_style_pad_row( page, s_rowGap, 0 );
     lv_obj_set_scrollbar_mode( page, LV_SCROLLBAR_MODE_OFF );
-    m_portalValue = createRow( page, "Wi-Fi setup", onSetupClicked );
+    m_portalValue = createRow( page, Language::text( Language::WifiSetup ), onSetupClicked );
     m_portalRow = lv_obj_get_parent( m_portalValue );
 
     lv_obj_t *info = lv_obj_create( page );
@@ -467,17 +520,17 @@ void Display::buildSetupPage( lv_obj_t *page )
     lv_obj_set_flex_flow( info, LV_FLEX_FLOW_COLUMN );
     lv_obj_set_flex_align( info, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER );
     const lv_color_t grey = lv_color_hex( 0xA0A0A0 );
-    createInfoLabel( info, &jetbrains_mono_26, grey, "Network" );
+    createInfoLabel( info, &jetbrains_mono_26, grey, Language::text( Language::Network ) );
     m_networkLabel = createInfoLabel( info, &jetbrains_mono_26, lv_color_white(), "" );
     // A gap separates the network from the password.
-    lv_obj_set_style_margin_top( createInfoLabel( info, &jetbrains_mono_26, grey, "Password" ), 12, 0 );
+    lv_obj_set_style_margin_top( createInfoLabel( info, &jetbrains_mono_26, grey, Language::text( Language::Password ) ), 12, 0 );
     m_passwordLabel = createInfoLabel( info, &jetbrains_mono_48, lv_color_white(), "" );
     m_setupInfo = createInfoLabel( info, &jetbrains_mono_26, grey, "" );
 
     lv_obj_t *buttonLabel = createRow( page, "", onSetupClicked );
     m_passwordRow = lv_obj_get_parent( buttonLabel );
     lv_obj_align( buttonLabel, LV_ALIGN_CENTER, 0, 0 );
-    lv_label_set_text( buttonLabel, "New password" );
+    lv_label_set_text( buttonLabel, Language::text( Language::NewPassword ) );
 }
 
 void Display::onSetupClicked( lv_event_t *event )
@@ -514,16 +567,16 @@ void Display::applySetup()
         return;
     }
     const Setup &setup = m_setup;
-    lv_label_set_text( m_portalValue, setup.running ? "On" : "Off" );
+    lv_label_set_text( m_portalValue, Language::text( setup.running ? Language::On : Language::Off ) );
     lv_label_set_text( m_networkLabel, setup.ssid );
     lv_label_set_text( m_passwordLabel, setup.password );
     // A new password only while the access point is off; the button dims meanwhile.
     lv_obj_set_style_opa( m_passwordRow, setup.running ? LV_OPA_40 : LV_OPA_COVER, 0 );
     if ( setup.running ) {
-        lv_label_set_text_fmt( m_setupInfo, "%s  %d:%02d left", setup.address, setup.secondsLeft / 60,
+        lv_label_set_text_fmt( m_setupInfo, Language::text( Language::TimeLeft ), setup.address, setup.secondsLeft / 60,
                                setup.secondsLeft % 60 );
     } else {
-        lv_label_set_text( m_setupInfo, "Not started" );
+        lv_label_set_text( m_setupInfo, Language::text( Language::NotStarted ) );
     }
 }
 
@@ -640,9 +693,9 @@ void Display::onBrightnessDrag( lv_event_t *event )
         // The active level is one for day and night; the period is shown for information.
         const char *title = nullptr;
         if ( alwaysOn ) {
-            title = self->m_night ? "Always-on\nat night" : "Always-on\nby day";
+            title = Language::text( self->m_night ? Language::AodNight : Language::AodDay );
         } else {
-            title = self->m_night ? "Brightness\n(night)" : "Brightness\n(day)";
+            title = Language::text( self->m_night ? Language::BrightnessNight : Language::BrightnessDay );
         }
         lv_label_set_text( self->m_brightnessTitle, title );
         lv_obj_set_hidden( self->m_brightnessShade, false );
@@ -717,7 +770,7 @@ void Display::refreshSettings()
         return;
     }
     m_aodShown[1] = -1;
-    m_aodMarks.show( m_settings->value( Settings::AodStyle ) );
+    applyOrders();
     m_face.setStyle( m_settings->value( Settings::FaceStyle ), m_settings->value( Settings::FaceItems ) );
     for ( int i = 0; i < Settings::PageItemCount; ++i ) {
         showSetting( i );
@@ -766,7 +819,19 @@ void Display::showBattery()
     }
     lv_label_set_text_fmt( m_percentLabel, "%u %%", m_battery.percent );
     lv_label_set_text_fmt( m_voltageLabel, "%u mV", m_battery.millivolts );
-    lv_label_set_text_fmt( m_chargeLabel, "%s", m_battery.vbusGood ? m_battery.chargeState : "on battery" );
+    // Axp2101 names the charger state in English.
+    static const char *s_states[7] = { "trickle", "pre-charge", "constant current", "constant voltage", "done",
+                                       "not charging", "unknown" };
+    const char *state = Language::text( Language::OnBattery );
+    if ( m_battery.vbusGood ) {
+        state = Language::text( Language::ChargeUnknown );
+        for ( int i = 0; i < 7; ++i ) {
+            if ( strcmp( m_battery.chargeState, s_states[i] ) == 0 ) {
+                state = Language::text( static_cast<Language::Text>( Language::ChargeTrickle + i ) );
+            }
+        }
+    }
+    lv_label_set_text( m_chargeLabel, state );
 }
 
 void Display::showSetupInfo( const char *const values[SetupInfoRows] )
@@ -828,7 +893,7 @@ void Display::refreshAlwaysOnPage( bool force, int direction )
         return;
     }
     AlwaysOn::Look look = { m_settings->value( Settings::AodStyle ), m_settings->value( Settings::AodItems ),
-                            m_moonPercent, m_waxing, {}, 0, 0 };
+                            m_moonPercent, m_waxing, {}, 0, 0, m_settings->value( Settings::Language ) };
     if ( m_haveSky ) {
         look.corners = Corners::fromSky( m_day );
     }
@@ -853,19 +918,23 @@ void Display::onGesture( lv_event_t *event )
     }
     const bool alwaysOn = lv_event_get_current_target( event ) == display->m_aodTile;
     const Settings::Item item = alwaysOn ? Settings::AodStyle : Settings::FaceStyle;
-    const int count = alwaysOn ? AlwaysOn::StyleCount : WatchFace::StyleCount;
-    // Up: the next style; down: the one before. The choice is saved with the other settings when
-    // active mode ends.
-    const int step = direction == LV_DIR_TOP ? 1 : count - 1;
+    // Up: the next style shown; down: the one before. The choice is saved with the other
+    // settings when active mode ends.
+    int parts[PartOrder::MaxParts] = {};
+    const int shown = display->shownStyles( alwaysOn, parts );
+    if ( shown < 2 ) {
+        return;
+    }
     const int slide = direction == LV_DIR_TOP ? 1 : -1;
-    display->m_settings->setValue( item, ( display->m_settings->value( item ) + step ) % count );
+    display->m_settings->setValue( item, PartOrder::step( parts, shown, display->m_settings->value( item ), slide ) );
+    const int position = PartOrder::position( parts, shown, display->m_settings->value( item ) );
     ESP_LOGI( TAG, "%s style %d", alwaysOn ? "Always-on" : "Face", display->m_settings->value( item ) );
     if ( alwaysOn ) {
         display->refreshAlwaysOnPage( true, slide );
-        display->m_aodMarks.show( display->m_settings->value( item ) );
+        display->m_aodMarks.show( position );
         return;
     }
-    display->m_faceMarks.flash( display->m_settings->value( item ) );
+    display->m_faceMarks.flash( position );
     display->m_face.setStyle( display->m_settings->value( Settings::FaceStyle ),
                               display->m_settings->value( Settings::FaceItems ), slide );
     display->m_face.showTime( display->m_localTime );
@@ -874,18 +943,21 @@ void Display::onGesture( lv_event_t *event )
     }
 }
 
-#if CONFIG_WATCH_DEV_LOGGING
+// Before each band goes to the panel: the corner gauges are written into it (CornerView), then
+// a development screenshot reads it.
 void Display::onFlushStart( lv_event_t *event )
 {
     Display *self = static_cast<Display *>( lv_event_get_user_data( event ) );
+    const lv_area_t *area = static_cast<const lv_area_t *>( lv_event_get_param( event ) );
+    lv_draw_buf_t *band = lv_display_get_buf_active( lv_display_get_default() );
+    self->m_corners.paint( *area, reinterpret_cast<uint16_t *>( band->data ) );
+#if CONFIG_WATCH_DEV_LOGGING
     if ( !self->m_capturing ) {
         return;
     }
-    // Called before the band goes to the panel: the draw buffer holds it in LVGL's RGB565, row
-    // after row (esp_lvgl_port swaps the bytes only inside the flush).
-    const lv_area_t *area = static_cast<const lv_area_t *>( lv_event_get_param( event ) );
-    const lv_draw_buf_t *buffer = lv_display_get_buf_active( lv_display_get_default() );
-    const uint16_t *pixels = reinterpret_cast<const uint16_t *>( buffer->data );
+    // The draw buffer holds the band in LVGL's RGB565, row after row (esp_lvgl_port swaps the
+    // bytes only inside the flush).
+    const uint16_t *pixels = reinterpret_cast<const uint16_t *>( band->data );
     const int width = lv_area_get_width( area );
     // Runs of one colour as "<RGB565 hex>*<count>", comma-separated: the screen is mostly black.
     static char line[24 + 11 * BSP_LCD_H_RES];
@@ -907,8 +979,10 @@ void Display::onFlushStart( lv_event_t *event )
     }
     // Sending a band takes a while; let the idle task run so that the task watchdog stays quiet.
     vTaskDelay( 1 );
+#endif
 }
 
+#if CONFIG_WATCH_DEV_LOGGING
 void Display::showFaceStyle( int style )
 {
     if ( !m_started || !bsp_display_lock( 1000 ) ) {
@@ -928,6 +1002,15 @@ void Display::setScene( bool scene )
         return;
     }
     m_clock.setScene( scene );
+    bsp_display_unlock();
+}
+
+void Display::swipeTo( int page )
+{
+    if ( !m_started || page < 0 || page >= PageCount || !bsp_display_lock( 1000 ) ) {
+        return;
+    }
+    lv_tileview_set_tile_by_index( m_pages, static_cast<uint32_t>( page ), 0, LV_ANIM_ON );
     bsp_display_unlock();
 }
 
@@ -987,7 +1070,10 @@ void Display::onSettingClicked( lv_event_t *event )
         const Settings::Item item = static_cast<Settings::Item>( i );
         display->m_settings->next( item );
         display->showSetting( i );
-        ESP_LOGI( TAG, "Setting %s: %s", s_settingNames[i], lv_label_get_text( display->m_settingValues[i] ) );
+        ESP_LOGI( TAG, "Setting %d: %s", i, lv_label_get_text( display->m_settingValues[i] ) );
+        if ( item == Settings::Language ) {
+            display->m_requests |= Restart;
+        }
     }
 }
 
@@ -999,15 +1085,18 @@ void Display::showSetting( int item )
         return;
     }
     if ( item == Settings::DisplayTimeout ) {
-        lv_label_set_text_fmt( label, "%d s", value );
+        lv_label_set_text_fmt( label, Language::text( Language::Seconds ), value );
     } else if ( item == Settings::AlwaysOnFace || item == Settings::DevMode ) {
-        lv_label_set_text( label, value != 0 ? "On" : "Off" );
+        lv_label_set_text( label, Language::text( value != 0 ? Language::On : Language::Off ) );
     } else if ( item == Settings::UsbStayOn ) {
-        lv_label_set_text( label, value != 0 ? "Stay on" : "Timeout" );
+        lv_label_set_text( label, Language::text( value != 0 ? Language::StayOn : Language::TimeoutValue ) );
+    } else if ( item == Settings::Language ) {
+        // Each language by its own name.
+        lv_label_set_text( label, value == Language::Turkish ? "Türkçe" : "English" );
     } else if ( value == 0 ) {
-        lv_label_set_text( label, "Never" );
+        lv_label_set_text( label, Language::text( Language::Never ) );
     } else {
-        lv_label_set_text_fmt( label, "%d min", value );
+        lv_label_set_text_fmt( label, Language::text( Language::Minutes ), value );
     }
 }
 

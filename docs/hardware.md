@@ -498,6 +498,16 @@ Scrolling speed (2026-11-14, `sdkconfig.perf`: LVGL's system monitor) [HW]:
   examples), flush 20–30 ms. LVGL waits on flash reads of code and fonts, so the CPU clock barely
   matters; QIO and the cache line are now the default, the CPU stays at 160 MHz.
 - The corner gauges take about a quarter of the render time (101 ms without them, DIO).
+- Since 2026-11-15 the gauges are no LVGL objects: `main/CornerView.cpp` writes the ring's
+  pixels into each rendered band at the flush start. Measured with scripted page swipes (host
+  command `W <page>`, pages 2 3 2 1 0 1, twelve rounds; QIO, 160 MHz): 130 ms per frame with the
+  four arcs (last commit), 84–90 ms with the colours computed when a gauge changes and kept in
+  RAM, 85–90 ms with the painting switched off in the same firmware. The colours kept in RAM took
+  14.8 KB, so the ring's geometry went into a table in flash (`main/CornerTable.c`, 1327 pixels of
+  one corner, the others mirrored; `tools/make_corner_table.cpp`) and the colours are computed
+  per pixel while painting: 86 ms, no measurable cost. The always-on face reads the same table,
+  so the always-on page shows its corners pixel for pixel; its notches in the three mirrored
+  corners moved by one pixel against the earlier per-corner rounding.
 - LVGL rendering on both cores (`LV_OS_FREERTOS`, 2 draw units, as in the Waveshare LVGL example)
   crashed five times in three minutes (LoadProhibited on core 0) and rendered slower (143 ms):
   rejected.
@@ -522,6 +532,14 @@ PSRAM is not enabled; LVGL and Wi-Fi share the internal heap.
   pages, 43.8 KB with the portal on, no crash.
 - Pages built when a neighbour is shown (`Display::ensureBuilt`): the watch face and its
   neighbours take 0.54 s at a PWR wake, with 155 KB of heap left.
+- The portal is always started with every page built (the Setup part lies beyond them). With
+  the languages, ordering, updates and the corner overlay only 18.6 KB remained with the portal
+  on (largest block 9.2 KB): the page loaded only in part, its values not at all, and the phone
+  failed to join several times (reason 15). Static RAM had grown by 23 KB: 14.8 KB of corner
+  colours and two 4 KB buffers of the update and core dump downloads. One shared 1.5 KB buffer
+  for the portal's requests (one at a time in the server task) and the corner table in flash:
+  44.8 KB free with the portal on, largest block 31.7 KB (2026-11-15, host commands `W 2`..`W 4`,
+  then `P`).
 
 ### Astronomy computation time [HW] (M10, 2026-11-12; `main/Astronomy.*`, `main/Hijri.*`)
 The ESP32-S3 has a single-precision FPU only; the astronomy code uses `double`, done in software.

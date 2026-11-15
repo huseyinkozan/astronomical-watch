@@ -13,7 +13,7 @@ public:
     // Prayer times by the method of Turkey's Diyanet, checked against its published 2026 tables
     // (tests/PrayerTest.cpp: 94 % to the minute, all within one): imsak at -18 degrees, the night
     // prayer at -17, asr with a shadow factor of 1, precautions of 0, -7, +5, +4, +7 and 0
-    // minutes, rounded to the minute. Some countries use -16 for the night prayer (not yet).
+    // minutes, rounded to the minute. Some countries use -16 for the night prayer (a setting).
     enum Prayer
     {
         Imsak,
@@ -90,9 +90,12 @@ public:
 
     // The prayer times of local day `day` (Diyanet's tables are in local civil time; the date is
     // what matters, the times are UTC).
-    static PrayerTimes prayerTimes( int day, const Astronomy::Observer &observer );
+    static PrayerTimes prayerTimes( int day, const Astronomy::Observer &observer, int ishaAngle = 17 );
 
-    static Day computeDay( int day, int utcOffsetMinutes, const Astronomy::Observer &observer, Hijri::Method method );
+    // `ishaAngle`: the Sun's depression for the night prayer, 17 (Turkey) or 16 degrees (the
+    // countries where Diyanet uses it, research/prayer-times.md).
+    static Day computeDay( int day, int utcOffsetMinutes, const Astronomy::Observer &observer, Hijri::Method method,
+                           int ishaAngle = 17 );
 
     static Now computeNow( int64_t time, const Day &day, const Astronomy::Observer &observer );
 

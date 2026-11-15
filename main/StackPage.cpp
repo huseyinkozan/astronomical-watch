@@ -1,6 +1,7 @@
 #include "StackPage.h"
 
 #include "Panel.h"
+#include "PartOrder.h"
 
 static const uint32_t s_slideMs = 250;
 
@@ -49,7 +50,9 @@ void StackPage::build( lv_obj_t *tile, int count )
         // Not clickable: presses and swipes go to the tile (the rows in it still take taps).
         lv_obj_set_clickable( part, false );
         m_parts[i] = part;
+        m_order[i] = i;
     }
+    m_shown = m_count;
     // A single part needs no marks.
     if ( m_count > 1 ) {
         m_marks.build( tile, m_count );
@@ -60,6 +63,24 @@ void StackPage::build( lv_obj_t *tile, int count )
 lv_obj_t *StackPage::part( int index ) const
 {
     return m_parts[index];
+}
+
+void StackPage::setOrder( const int *parts, int count )
+{
+    m_shown = 0;
+    for ( int i = 0; i < count && i < m_count; ++i ) {
+        if ( parts[i] >= 0 && parts[i] < m_count ) {
+            m_order[m_shown++] = parts[i];
+        }
+    }
+    if ( m_shown == 0 ) {
+        m_order[m_shown++] = 0;
+    }
+    if ( m_count > 1 ) {
+        m_marks.setCount( m_shown );
+    }
+    const int at = PartOrder::position( m_order, m_shown, m_current );
+    show( at < 0 ? m_order[0] : m_current, 0 );
 }
 
 int StackPage::current() const
@@ -78,7 +99,7 @@ void StackPage::show( int index, int direction )
         lv_obj_set_hidden( m_parts[i], i != index );
     }
     if ( m_count > 1 ) {
-        m_marks.show( index );
+        m_marks.show( PartOrder::position( m_order, m_shown, index ) );
     }
     if ( direction != 0 && previous != index ) {
         lv_obj_set_hidden( m_parts[previous], false );
@@ -92,9 +113,9 @@ void StackPage::onGesture( lv_event_t *event )
 {
     StackPage *self = static_cast<StackPage *>( lv_event_get_user_data( event ) );
     const lv_dir_t direction = lv_indev_get_gesture_dir( lv_indev_active() );
-    if ( self->m_count < 2 || ( direction != LV_DIR_TOP && direction != LV_DIR_BOTTOM ) ) {
+    if ( self->m_shown < 2 || ( direction != LV_DIR_TOP && direction != LV_DIR_BOTTOM ) ) {
         return;
     }
-    const int step = direction == LV_DIR_TOP ? 1 : self->m_count - 1;
-    self->show( ( self->m_current + step ) % self->m_count, direction == LV_DIR_TOP ? 1 : -1 );
+    const int step = direction == LV_DIR_TOP ? 1 : -1;
+    self->show( PartOrder::step( self->m_order, self->m_shown, self->m_current, step ), step );
 }

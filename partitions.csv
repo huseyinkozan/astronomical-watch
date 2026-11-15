@@ -1,8 +1,12 @@
-# Name,   Type, SubType, Offset,  Size
-# The Wi-Fi setup portal makes the application larger than the default 1 MB partition.
-# The 32 MB flash leaves room to grow; the application stays below 16 MB (sdkconfig.defaults).
-nvs,      data, nvs,     0x9000,  0x6000
-phy_init, data, phy,     0xf000,  0x1000
-factory,  app,  factory, 0x10000, 4M
-# A crash writes its core dump here (EventLog, idf.py coredump-info).
-coredump, data, coredump, ,       64K
+# Name,   Type, SubType, Offset,   Size
+# nvs and phy_init stay where they were, so that the settings survive the change to two
+# application slots (updates through the setup portal, main/Portal.cpp: one slot runs, the other
+# takes the new image; the bootloader returns to the old one if the new one fails to start).
+# The 32 MB flash leaves room to grow; each slot holds up to 4 MB (the image is about 1.6 MB).
+nvs,      data, nvs,     0x9000,   0x6000
+phy_init, data, phy,     0xf000,   0x1000
+otadata,  data, ota,     0x10000,  0x2000
+ota_0,    app,  ota_0,   0x20000,  4M
+ota_1,    app,  ota_1,   0x420000, 4M
+# A crash writes its core dump here (EventLog, idf.py coredump-info; the portal offers it too).
+coredump, data, coredump, 0x820000, 64K

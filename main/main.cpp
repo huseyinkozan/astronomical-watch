@@ -11,6 +11,7 @@
 #include "Corners.h"
 #include "EventLog.h"
 #include "esp_core_dump.h"
+#include "esp_ota_ops.h"
 #include "DeepSleep.h"
 #include "Display.h"
 #include "Motion.h"
@@ -22,6 +23,7 @@
 #include "Rtc.h"
 #include "Settings.h"
 #include "DayCounters.h"
+#include "Language.h"
 #include "WorldClock.h"
 #include "Zones.h"
 
@@ -93,7 +95,7 @@ static char s_hostLine[32];
 // watch's location: Istanbul on 2026-06-21 at 19:19 local time (UTC+3), the local Hijri method.
 // The settings are not changed, so that nothing of it reaches NVS.
 [[maybe_unused]] static bool s_scene = false;
-[[maybe_unused]] static const int s_sceneInputs[4] = { 41008200, 28978400, 180, 0 };
+[[maybe_unused]] static const int s_sceneInputs[5] = { 41008200, 28978400, 180, 0, 17 };
 [[maybe_unused]] static const Rtc::DateTime s_sceneTime = { 2026, 6, 21, 16, 19, 0 };
 static int s_hostLineLength = 0;
 
@@ -129,6 +131,18 @@ static bool pollHostCommands()
             continue;
         }
 #if CONFIG_WATCH_DEV_LOGGING
+        int swipePage = 0;
+        if ( sscanf( s_hostLine, "W %d", &swipePage ) == 1 ) {
+            s_display.swipeTo( swipePage );
+            continue;
+        }
+        int language = 0;
+        if ( sscanf( s_hostLine, "L %d", &language ) == 1 ) {
+            // As the settings row does: save, then restart in the new language.
+            s_settings.setValue( Settings::Language, language );
+            s_settings.save();
+            esp_restart();
+        }
         if ( s_hostLine[0] == 'B' && s_hostLine[1] == ' ' ) {
             ESP_LOGI( TAG, "Button %s: %s", s_hostLine + 2,
                       s_display.pressClockButton( s_hostLine + 2 ) ? "pressed" : "unknown" );
@@ -160,9 +174,12 @@ static bool pollHostCommands()
             s_scene = true;
             s_display.setScene( true );
             // Never the real place in a published picture.
-            static const char *const s_sceneSetup[Display::SetupInfoRows] = {
-                "Istanbul", "41.01N 28.98E", "Istanbul", "UTC+3", "none", "Crescent", "21 Jun 2026" };
-            s_display.showSetupInfo( s_sceneSetup );
+            char sceneDate[24];
+            snprintf( sceneDate, sizeof( sceneDate ), "21 %s 2026", Language::shortMonth( 6 ) );
+            const char *const sceneSetup[Display::SetupInfoRows] = {
+                "Istanbul", "41.01N 28.98E", "Istanbul", "UTC+3", Language::text( Language::None ),
+                Language::text( Language::Crescent ), sceneDate };
+            s_display.showSetupInfo( sceneSetup );
             // tools/screenshot.py waits for this line: without the scene the pictures would show
             // the real time and location.
             ESP_LOGI( TAG, "Fixed scene on" );
@@ -214,9 +231,9 @@ static bool pollHostCommands()
 
 // The astronomy pages' values for the local day, kept in RTC memory across deep sleep: they take
 // about 0.5 s on the ESP32-S3, so they are computed once a day, or when a setting they depend on
-// changes (s_skyInputs: location, UTC offset, Hijri method).
+// changes (s_skyInputs: location, UTC offset, Hijri method, the night prayer's angle).
 RTC_DATA_ATTR static Sky::Day s_skyDay;
-RTC_DATA_ATTR static int s_skyInputs[4];
+RTC_DATA_ATTR static int s_skyInputs[5];
 RTC_DATA_ATTR static bool s_skyValid;
 
 static int64_t unixTime( const Rtc::DateTime &time )
@@ -252,21 +269,21 @@ static void logEvent( EventLog::Entry entry, bool pmuReady )
 }
 
 // `inputs`: latitude and longitude (micro-degrees), UTC offset (minutes), Hijri method.
-static void updateSky( int64_t now, const int inputs[4] )
+static void updateSky( int64_t now, const int inputs[5] )
 {
     const int offsetMinutes = inputs[2];
     const Astronomy::Observer observer = { inputs[0] / 1e6, inputs[1] / 1e6 };
     const int day = static_cast<int>( ( now + offsetMinutes * 60 ) / 86400 );
     bool same = true;
-    for ( int i = 0; i < 4; ++i ) {
+    for ( int i = 0; i < 5; ++i ) {
         same = same && s_skyInputs[i] == inputs[i];
     }
     if ( !s_skyValid || s_skyDay.day != day || !same ) {
-        for ( int i = 0; i < 4; ++i ) {
+        for ( int i = 0; i < 5; ++i ) {
             s_skyInputs[i] = inputs[i];
         }
         const int64_t start = esp_timer_get_time();
-        s_skyDay = Sky::computeDay( day, offsetMinutes, observer, static_cast<Hijri::Method>( inputs[3] ) );
+        s_skyDay = Sky::computeDay( day, offsetMinutes, observer, static_cast<Hijri::Method>( inputs[3] ), inputs[4] );
         s_skyValid = true;
         // The stack margin left: the computation is the deepest call of the main task.
         ESP_LOGI( TAG, "Sky day computed in %d ms, main stack %u bytes never used",
@@ -276,8 +293,10 @@ static void updateSky( int64_t now, const int inputs[4] )
     s_display.showSky( s_skyDay, Sky::computeNow( now, s_skyDay, observer ), offsetMinutes );
 }
 
-// USB power at the last display update (the "On USB: stay on" setting).
+// USB power and the battery at the last display update (the "On USB: stay on" setting, the
+// portal's update condition).
 static bool s_usbPower = false;
+static int s_batteryPercent = -1;
 
 // The own time zone from the settings (Settings::UtcOffset and the Home* items).
 static Zone homeZone()
@@ -315,12 +334,14 @@ static void updateDisplay()
     const bool batteryRead = s_pmu.readBattery( battery.millivolts, battery.percent, battery.vbusGood ) == ESP_OK;
     battery.chargeState = s_pmu.chargeState();
     s_usbPower = batteryRead && battery.vbusGood;
-    int inputs[4] = { s_settings.value( Settings::Latitude ), s_settings.value( Settings::Longitude ),
-                      s_settings.value( Settings::UtcOffset ), s_settings.value( Settings::HijriMethod ) };
+    s_batteryPercent = batteryRead ? battery.percent : -1;
+    int inputs[5] = { s_settings.value( Settings::Latitude ), s_settings.value( Settings::Longitude ),
+                      s_settings.value( Settings::UtcOffset ), s_settings.value( Settings::HijriMethod ),
+                      s_settings.value( Settings::IshaAngle ) };
 #if CONFIG_WATCH_DEV_LOGGING
     if ( s_scene ) {
         time = s_sceneTime;
-        for ( int i = 0; i < 4; ++i ) {
+        for ( int i = 0; i < 5; ++i ) {
             inputs[i] = s_sceneInputs[i];
         }
     }
@@ -361,8 +382,6 @@ static void showSetup()
 // place on the location-dependent pages.
 static void showSetupInfo()
 {
-    static const char *s_monthNames[12] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                                            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
     char texts[Display::SetupInfoRows][40] = {};
     const double latitude = s_settings.value( Settings::Latitude ) / 1e6;
     const double longitude = s_settings.value( Settings::Longitude ) / 1e6;
@@ -372,7 +391,7 @@ static void showSetupInfo()
     // The zone's last part ("Europe/Istanbul": "Istanbul"), which fits the row.
     const char *zoneName = s_worldClock.homeZoneName();
     const char *slash = strrchr( zoneName, '/' );
-    snprintf( texts[2], sizeof( texts[2] ), "%s", zoneName[0] == '\0' ? "fixed" : ( slash != nullptr ? slash + 1 : zoneName ) );
+    snprintf( texts[2], sizeof( texts[2] ), "%s", zoneName[0] == '\0' ? Language::text( Language::Fixed ) : ( slash != nullptr ? slash + 1 : zoneName ) );
     for ( char *c = texts[2]; *c != '\0'; ++c ) {
         *c = *c == '_' ? ' ' : *c;
     }
@@ -387,22 +406,22 @@ static void showSetupInfo()
         const time_t when = static_cast<time_t>( zone.changeAt[0] ) * 60 + zone.offset * 60;
         tm fields = {};
         gmtime_r( &when, &fields );
-        snprintf( texts[4], sizeof( texts[4] ), "%d %s %02d:%02d", fields.tm_mday, s_monthNames[fields.tm_mon],
+        snprintf( texts[4], sizeof( texts[4] ), "%d %s %02d:%02d", fields.tm_mday, Language::shortMonth( fields.tm_mon + 1 ),
                   fields.tm_hour, fields.tm_min );
     } else {
-        snprintf( texts[4], sizeof( texts[4] ), "none" );
+        snprintf( texts[4], sizeof( texts[4] ), "%s", Language::text( Language::None ) );
     }
     snprintf( texts[5], sizeof( texts[5] ), "%s",
-              s_settings.value( Settings::HijriMethod ) == Hijri::Diyanet ? "Diyanet" : "Crescent" );
+              s_settings.value( Settings::HijriMethod ) == Hijri::Diyanet ? "Diyanet" : Language::text( Language::Crescent ) );
     const int setMinute = s_settings.value( Settings::RtcSetMinute );
     if ( setMinute != 0 ) {
         const time_t when = static_cast<time_t>( setMinute ) * 60 + zone.offset * 60;
         tm fields = {};
         gmtime_r( &when, &fields );
-        snprintf( texts[6], sizeof( texts[6] ), "%d %s %d", fields.tm_mday, s_monthNames[fields.tm_mon],
+        snprintf( texts[6], sizeof( texts[6] ), "%d %s %d", fields.tm_mday, Language::shortMonth( fields.tm_mon + 1 ),
                   fields.tm_year + 1900 );
     } else {
-        snprintf( texts[6], sizeof( texts[6] ), "never" );
+        snprintf( texts[6], sizeof( texts[6] ), "%s", Language::text( Language::NeverSet ) );
     }
     const char *values[Display::SetupInfoRows] = {};
     for ( int i = 0; i < Display::SetupInfoRows; ++i ) {
@@ -439,8 +458,13 @@ static void correctRtcRate( const Portal::Received &received )
               s_settings.value( Settings::RtcOffset ) );
 }
 
+// Set by applyPortalData when the page changed the language: the watch restarts once the portal
+// has stopped, so that every page is built in it.
+static bool s_languageChanged = false;
+
 static void applyPortalData( const Portal::Received &received )
 {
+    const int language = s_settings.value( Settings::Language );
     for ( int i = 0; i < Settings::ItemCount; ++i ) {
         const Settings::Item item = static_cast<Settings::Item>( i );
         if ( received.valueValid[i] && !s_settings.setValue( item, received.values[i] ) ) {
@@ -449,6 +473,7 @@ static void applyPortalData( const Portal::Received &received )
     }
     s_settings.save();
     s_display.refreshSettings();
+    s_languageChanged = s_settings.value( Settings::Language ) != language;
     if ( received.countersValid ) {
         s_dayCounters.set( received.counters, received.counterCount );
         s_display.setCounters( s_dayCounters );
@@ -479,6 +504,12 @@ static bool servicePortal( bool everySecond )
     requests |= s_hostRequests;
     s_hostRequests = 0;
 #endif
+    if ( requests & Display::Restart ) {
+        // A new language: every page is built again in it after the restart.
+        ESP_LOGI( TAG, "Language changed: restart" );
+        s_settings.save();
+        esp_restart();
+    }
     if ( requests & Display::TogglePortal ) {
         if ( s_portal.isRunning() ) {
             s_portal.stop();
@@ -496,6 +527,18 @@ static bool servicePortal( bool everySecond )
         // Let the browser receive its answer before the access point goes.
         vTaskDelay( pdMS_TO_TICKS( 500 ) );
         s_portal.stop();
+        if ( s_languageChanged ) {
+            ESP_LOGI( TAG, "Language changed: restart" );
+            esp_restart();
+        }
+    }
+    s_portal.setBattery( s_batteryPercent, s_usbPower );
+    if ( s_portal.takeUpdated() ) {
+        // The new image starts after a full restart (deep-sleep wakes skip the bootloader's check).
+        ESP_LOGI( TAG, "Update written: restart" );
+        vTaskDelay( pdMS_TO_TICKS( 1000 ) );
+        s_portal.stop();
+        esp_restart();
     }
     if ( s_portal.isRunning() && s_portal.idleSeconds() >= CONFIG_WATCH_SETUP_PORTAL_TIMEOUT_S ) {
         ESP_LOGI( TAG, "Setup portal timeout" );
@@ -737,6 +780,7 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
     look.items = s_settings.value( Settings::AodItems );
     look.dayBrightness = s_settings.value( Settings::AodDayBrightness );
     look.nightBrightness = s_settings.value( Settings::AodNightBrightness );
+    look.language = s_settings.value( Settings::Language );
     if ( s_skyValid ) {
         look.moonPercent = static_cast<int>( s_skyDay.phase.illumination * 100 + 0.5 );
         look.waxing = s_skyDay.phase.elongation < 180;
@@ -831,6 +875,7 @@ extern "C" void app_main( void )
 
     s_peripherals.quiesceOnce( bus, s_pmu );
     s_settings.load();
+    Language::set( s_settings.value( Settings::Language ) );
 #if CONFIG_WATCH_SETUP_PORTAL
     s_portal.init();
 #endif
@@ -879,6 +924,13 @@ extern "C" void app_main( void )
 #else
         s_pmu.setPanelPower( true );
         s_displayOn = s_display.start( s_settings );
+        // A new image from the portal is kept once it has drawn its pages; a reset before this
+        // returns to the previous one.
+        esp_ota_img_states_t state = ESP_OTA_IMG_UNDEFINED;
+        if ( s_displayOn && esp_ota_get_state_partition( esp_ota_get_running_partition(), &state ) == ESP_OK &&
+             state == ESP_OTA_IMG_PENDING_VERIFY ) {
+            ESP_LOGI( TAG, "New software confirmed: %s", esp_err_to_name( esp_ota_mark_app_valid_cancel_rollback() ) );
+        }
         s_worldClock.load();
         s_display.setCities( s_worldClock );
         s_dayCounters.load();

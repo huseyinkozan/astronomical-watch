@@ -1,4 +1,5 @@
 #include "AlwaysOn.h"
+#include "Language.h"
 
 #include <cmath>
 #include <cstdlib>
@@ -6,6 +7,7 @@
 #include <cstring>
 #include <sys/time.h>
 
+#include "CornerTable.h"
 #include "Panel.h"
 #include "esp_attr.h"
 #include "sdkconfig.h"
@@ -25,9 +27,6 @@ static const int s_moonSize = 2 * s_moonRadius + 1;
 static const int s_skyMoonRadius = 10;  // the moon on its path (sky styles)
 static const int s_itemsGap = 24;  // between the time and the date
 
-static const char *s_dayNames[7] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
-static const char *s_monthNames[12] = { "January", "February", "March",     "April",   "May",      "June",
-                                        "July",    "August",   "September", "October", "November", "December" };
 
 // The face of the last layout() (too large for the main task's stack).
 static AlwaysOn::Face s_face;
@@ -46,9 +45,8 @@ RTC_DATA_ATTR static int s_drawnHeight;
 // The corner gauges drawn last, in pixels along the gauge; kind -1 before the first drawing.
 RTC_DATA_ATTR static int s_drawnGauges[Corners::CornerCount][3];
 
-// Corner gauges: 2 px wide; a corner is redrawn as an even-sized box when its gauge changed by a
-// pixel (the quarter circle is about 184 px long).
-static const int s_gaugeWidth = 2;
+// Corner gauges (Corners::AlwaysOnWidth): a corner is redrawn as an even-sized box when its gauge
+// changed by a pixel (the quarter circle is about 184 px long).
 static const int s_gaugePixels = 184;
 static const int s_cornerBox = 122;
 
@@ -144,17 +142,51 @@ static bool dateValid( const Rtc::DateTime &time )
     return time.month >= 1 && time.month <= 12 && time.day >= 1 && time.day <= 31;
 }
 
-// `text` in the small glyphs, centred on `centreX` with its top at `y` (face coordinates).
-static void addSmallText( AlwaysOn::Face &face, const char *text, int centreX, int y, AlwaysOn::Colour colour )
+// The code point at `text[*index]` (UTF-8, up to three bytes: the Turkish letters), moving the
+// index past it.
+static uint32_t nextCodePoint( const char *text, int *index )
 {
-    int x = centreX - static_cast<int>( strlen( text ) ) * aodSmallAdvance / 2;
-    for ( int i = 0; text[i] != '\0'; ++i ) {
-        const AodGlyph *glyph = smallGlyph( static_cast<uint8_t>( text[i] ), false );
+    const uint8_t first = static_cast<uint8_t>( text[( *index )++] );
+    if ( first < 0x80 ) {
+        return first;
+    }
+    const int extra = first >= 0xE0 ? 2 : 1;
+    uint32_t code = first & ( extra == 2 ? 0x0F : 0x1F );
+    for ( int i = 0; i < extra && text[*index] != '\0'; ++i ) {
+        code = ( code << 6 ) | ( static_cast<uint8_t>( text[( *index )++] ) & 0x3F );
+    }
+    return code;
+}
+
+// Letters, not bytes: the width of a text in the small glyphs.
+static int smallTextWidth( const char *text )
+{
+    int count = 0;
+    for ( int i = 0; text[i] != '\0'; ) {
+        nextCodePoint( text, &i );
+        ++count;
+    }
+    return count * aodSmallAdvance;
+}
+
+// `text` in the small glyphs (solid or dotted), from `x` with its top at `y` (face coordinates).
+static void addSmallGlyphs( AlwaysOn::Face &face, const char *text, int x, int y, bool dotted, AlwaysOn::Colour colour )
+{
+    const lv_font_t *font = dotted ? &aodSmallDottedFont : &aodSmallFont;
+    for ( int i = 0; text[i] != '\0'; ) {
+        const uint32_t code = nextCodePoint( text, &i );
+        const AodGlyph *glyph = smallGlyph( code, dotted );
         if ( glyph != nullptr ) {
-            addSprite( face, x, y, glyph, &aodSmallFont, static_cast<uint8_t>( text[i] ), colour );
+            addSprite( face, x, y, glyph, font, code, colour );
         }
         x += aodSmallAdvance;
     }
+}
+
+// `text` in the small glyphs, centred on `centreX` with its top at `y` (face coordinates).
+static void addSmallText( AlwaysOn::Face &face, const char *text, int centreX, int y, AlwaysOn::Colour colour )
+{
+    addSmallGlyphs( face, text, centreX - smallTextWidth( text ) / 2, y, false, colour );
 }
 
 // The date as "21 June", centred on `centreX` with its top at `y` (face coordinates).
@@ -164,8 +196,8 @@ static void addLongDate( AlwaysOn::Face &face, const Rtc::DateTime &time, int ce
     if ( !dateValid( time ) ) {
         return;
     }
-    char date[16];
-    snprintf( date, sizeof( date ), "%d %s", time.day, s_monthNames[time.month - 1] );
+    char date[32];
+    Language::longDate( date, sizeof( date ), -1, time.day, time.month );
     addSmallText( face, date, centreX, y, colour );
 }
 
@@ -367,6 +399,7 @@ static void layoutDial( AlwaysOn::Face &face, const AlwaysOn::Look &look, const 
 
 const AlwaysOn::Face &AlwaysOn::layout( const Look &look, const Rtc::DateTime &time, int64_t utcNow )
 {
+    Language::set( look.language );
     s_face.count = 0;
     s_face.shapeCount = 0;
     s_face.x = -1;
@@ -383,15 +416,15 @@ const AlwaysOn::Face &AlwaysOn::layout( const Look &look, const Rtc::DateTime &t
     const AodStyle &style = aodStyles[look.style];
     const bool dotted = style.dottedItems;
     const bool showDate = look.items & DateItem;
-    const lv_font_t *smallFont = dotted ? &aodSmallDottedFont : &aodSmallFont;
 
-    char date[8] = "";
+    char date[16] = "";
     // A time not read yet (all zero) has no weekday: the name table must not be left.
     if ( showDate && dateValid( time ) ) {
-        const int weekday = ( ( daysFromCivil( time.year, time.month, time.day ) + 4 ) % 7 + 7 ) % 7;
-        snprintf( date, sizeof( date ), "%s %d", s_dayNames[weekday], time.day );
+        // Monday first, as Language counts.
+        const int weekday = ( ( daysFromCivil( time.year, time.month, time.day ) + 3 ) % 7 + 7 ) % 7;
+        snprintf( date, sizeof( date ), "%s %d", Language::shortDay( weekday ), time.day );
     }
-    const int dateWidth = static_cast<int>( strlen( date ) ) * aodSmallAdvance;
+    const int dateWidth = smallTextWidth( date );
     const int dateHeight = aodSmall[1].height;  // [0] is the space
 
     face.width = style.width > dateWidth ? style.width : dateWidth;
@@ -407,14 +440,7 @@ const AlwaysOn::Face &AlwaysOn::layout( const Look &look, const Rtc::DateTime &t
     y += style.height;
     if ( showDate ) {
         y += s_itemsGap;
-        int x = ( face.width - dateWidth ) / 2;
-        for ( int i = 0; date[i] != '\0'; ++i ) {
-            const AodGlyph *glyph = smallGlyph( static_cast<uint8_t>( date[i] ), dotted );
-            if ( glyph != nullptr ) {
-                addSprite( face, x, y, glyph, smallFont, static_cast<uint8_t>( date[i] ), White );
-            }
-            x += aodSmallAdvance;
-        }
+        addSmallGlyphs( face, date, ( face.width - dateWidth ) / 2, y, dotted, White );
         y += dateHeight;
     }
     face.height = y;
@@ -428,82 +454,33 @@ int AlwaysOn::gaugeColour( Corners::Kind kind )
     return colours[kind];
 }
 
-// The notches: 2 x 2 pixels across each gauge at both ends and in the middle, white. Their
-// top-left pixels are computed once per wake, not per pixel.
-static int s_notchX[Corners::CornerCount * 3];
-static int s_notchY[Corners::CornerCount * 3];
-static bool s_notchesReady = false;
-
-static void computeNotches()
+// The colour of pixel (x, y) on a corner gauge, white on a notch (2 x 2 pixels at both ends and
+// in the middle), 0 where nothing is lit; the ring's pixels come from main/CornerTable.c. The Moon
+// below the horizon is dotted.
+static uint16_t ringPixel( const Corners::Gauge *gauges, int x, int y )
 {
-    const float radius = Corners::OuterRadius - s_gaugeWidth / 2.0f;
-    for ( int i = 0; i < Corners::CornerCount; ++i ) {
-        int centreX = 0;
-        int centreY = 0;
-        int lower = 0;
-        int upper = 0;
-        Corners::geometry( static_cast<Corners::Corner>( i ), Panel::WIDTH, Panel::HEIGHT, centreX, centreY, lower,
-                           upper );
-        for ( int k = 0; k < 3; ++k ) {
-            const float angle = ( lower + ( upper - lower ) * k / 2.0f ) * static_cast<float>( M_PI ) / 180.0f;
-            // The 2 x 2 block whose centre lies nearest to the notch point.
-            s_notchX[i * 3 + k] = static_cast<int>( floorf( centreX + radius * cosf( angle ) - 0.5f ) );
-            s_notchY[i * 3 + k] = static_cast<int>( floorf( centreY + radius * sinf( angle ) - 0.5f ) );
-        }
+    int corner = 0;
+    int along = 0;
+    const CornerPixel *pixel = cornerTablePixel( Panel::WIDTH, Panel::HEIGHT, x, y, &corner, &along );
+    if ( pixel == nullptr ) {
+        return 0;
     }
-    s_notchesReady = true;
+    if ( pixel->flags & CORNER_AOD_NOTCH ) {
+        return s_colours[AlwaysOn::White];
+    }
+    const Corners::Gauge &gauge = gauges[corner];
+    const int colour = AlwaysOn::gaugeColour( gauge.kind );
+    if ( !( pixel->flags & CORNER_AOD_RING ) || colour < 0 ||
+         ( gauge.kind == Corners::MoonDown && ( ( x + y ) & 3 ) != 0 ) ) {
+        return 0;
+    }
+    return ( along >= gauge.start * CORNER_ALONG_SCALE && along <= gauge.end * CORNER_ALONG_SCALE ) ? s_colours[colour]
+                                                                                                  : 0;
 }
 
-static bool notchPixel( int x, int y )
+uint16_t AlwaysOn::cornerPixel( const Corners::Gauge gauges[Corners::CornerCount], int x, int y )
 {
-    for ( int i = 0; i < Corners::CornerCount * 3; ++i ) {
-        const int dx = x - s_notchX[i];
-        const int dy = y - s_notchY[i];
-        if ( dx >= 0 && dx < 2 && dy >= 0 && dy < 2 ) {
-            return true;
-        }
-    }
-    return false;
-}
-
-// The colour of pixel (x, y) on a corner gauge, or 0 when no gauge lights it. The Moon below the
-// horizon is dotted.
-static uint16_t gaugePixel( const Corners::Gauge *gauges, int x, int y )
-{
-    const int outer = Corners::OuterRadius * Corners::OuterRadius;
-    const int inner = ( Corners::OuterRadius - s_gaugeWidth ) * ( Corners::OuterRadius - s_gaugeWidth );
-    for ( int i = 0; i < Corners::CornerCount; ++i ) {
-        int centreX = 0;
-        int centreY = 0;
-        int lower = 0;
-        int upper = 0;
-        Corners::geometry( static_cast<Corners::Corner>( i ), Panel::WIDTH, Panel::HEIGHT, centreX, centreY, lower,
-                           upper );
-        const int dx = x - centreX;
-        const int dy = y - centreY;
-        const bool left = i == Corners::TopLeft || i == Corners::BottomLeft;
-        const bool top = i == Corners::TopLeft || i == Corners::TopRight;
-        if ( ( left ? dx > 0 : dx < 0 ) || ( top ? dy > 0 : dy < 0 ) ) {
-            continue;
-        }
-        const int distance = dx * dx + dy * dy;
-        if ( distance > outer || distance <= inner ) {
-            continue;
-        }
-        const Corners::Gauge &gauge = gauges[i];
-        const int colour = AlwaysOn::gaugeColour( gauge.kind );
-        if ( colour < 0 || ( gauge.kind == Corners::MoonDown && ( ( x + y ) & 3 ) != 0 ) ) {
-            return 0;
-        }
-        float angle = atan2f( static_cast<float>( dy ), static_cast<float>( dx ) ) * 180.0f / static_cast<float>( M_PI );
-        const int lowest = lower < upper ? lower : upper;
-        if ( angle < lowest - 1 ) {
-            angle += 360.0f;
-        }
-        const int along = static_cast<int>( ( angle - lower ) * 1000.0f / ( upper - lower ) );
-        return ( along >= gauge.start && along <= gauge.end ) ? s_colours[colour] : 0;
-    }
-    return 0;
+    return ringPixel( gauges, x, y );
 }
 
 // Draws the part of `glyph` (top-left corner at x, y on the screen) that falls into the band;
@@ -606,9 +583,6 @@ static void render( Panel &panel, const AlwaysOn::Face &face, int faceX, int fac
                     int height, const AodGlyph *moon, const Corners::Gauge *gauges )
 {
     uint16_t *pixels = Panel::buffer();
-    if ( !s_notchesReady ) {
-        computeNotches();
-    }
     const int bandRows = ( Panel::BufferPixels / width ) & ~1;
     for ( int bandTop = top; bandTop < top + height; bandTop += bandRows ) {
         const int rows = ( top + height - bandTop < bandRows ) ? top + height - bandTop : bandRows;
@@ -635,7 +609,7 @@ static void render( Panel &panel, const AlwaysOn::Face &face, int faceX, int fac
                 if ( x >= s_cornerBox && x < Panel::WIDTH - s_cornerBox ) {
                     continue;
                 }
-                const uint16_t colour = notchPixel( x, row ) ? s_colours[AlwaysOn::White] : gaugePixel( gauges, x, row );
+                const uint16_t colour = ringPixel( gauges, x, row );
                 if ( colour != 0 ) {
                     line[x - left] = colour;
                 }
@@ -671,7 +645,7 @@ void AlwaysOn::capture( int style )
     // sunset, sunrise 05:32, sunset 20:40, tomorrow's sunrise; moonset 00:29, moonrise 12:40,
     // moonset 00:51 and moonrise 13:45 the next day.
     const int64_t midnight = static_cast<int64_t>( daysFromCivil( 2026, 6, 21 ) ) * 86400 - 3 * 3600;
-    Look look = { validStyle( style ), MoonItem | DateItem, 45, true, {}, 25, 2 };
+    Look look = { validStyle( style ), MoonItem | DateItem, 45, true, {}, 25, 2, Language::current() };
     look.corners.valid = true;
     const int sunMinutes[4] = { 1238 - 1440, 332, 1240, 333 + 1440 };
     const int moonMinutes[4] = { 29, 760, 51 + 1440, 825 + 1440 };

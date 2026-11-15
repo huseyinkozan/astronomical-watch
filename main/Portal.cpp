@@ -1,4 +1,5 @@
 #include "Portal.h"
+#include "EventLog.h"
 
 #include <cctype>
 #include <cmath>
@@ -8,7 +9,12 @@
 #include <ctime>
 
 #include "dns_server.h"
+#include "esp_app_desc.h"
+#include "esp_app_format.h"
+#include "esp_core_dump.h"
+#include "esp_flash.h"
 #include "esp_heap_caps.h"
+#include "esp_ota_ops.h"
 #include "esp_log.h"
 #include "esp_mac.h"
 #include "esp_random.h"
@@ -23,21 +29,28 @@ static const char *s_namespace = "portal";
 static const char *s_passwordKey = "password";
 
 // The page and the city list, embedded by main/CMakeLists.txt (EMBED_TXTFILES adds a final 0).
-extern const char s_pageStart[] asm( "_binary_index_html_start" );
-extern const char s_pageEnd[] asm( "_binary_index_html_end" );
-extern const char s_citiesStart[] asm( "_binary_cities_js_start" );
-extern const char s_citiesEnd[] asm( "_binary_cities_js_end" );
-extern const char s_helpStart[] asm( "_binary_help_html_start" );
-extern const char s_helpEnd[] asm( "_binary_help_html_end" );
+// The pages gzipped at build time (main/CMakeLists.txt): the browser unpacks them, the watch sends
+// them from flash as they are.
+extern const char s_pageStart[] asm( "_binary_index_html_gz_start" );
+extern const char s_pageEnd[] asm( "_binary_index_html_gz_end" );
+extern const char s_citiesStart[] asm( "_binary_cities_js_gz_start" );
+extern const char s_citiesEnd[] asm( "_binary_cities_js_gz_end" );
+extern const char s_helpStart[] asm( "_binary_help_html_gz_start" );
+extern const char s_helpEnd[] asm( "_binary_help_html_gz_end" );
+extern const char s_updateStart[] asm( "_binary_update_html_gz_start" );
+extern const char s_updateEnd[] asm( "_binary_update_html_gz_end" );
 
 // Field names of the save request, one per Settings::Item.
-static const char *s_fieldNames[] = { "timeout", "alwaysOn", "devMode",    "autoOff", "usbStayOn",
-                                                         "offset",  "lat",      "lon",        "hijri",
+static const char *s_fieldNames[] = { "timeout", "alwaysOn", "devMode",    "autoOff", "usbStayOn", "language",
+                                                         "offset",  "lat",      "lon",        "hijri", "isha",
                                                          "face",    "aod",      "faceItems",  "aodItems",
                                                          "brightness", "aodDay", "aodNight",
                                                          "chg1",    "aft1",     "chg2",       "aft2",
                                                          // Set by the watch itself; the page never sends them.
-                                                         "rtcOffset", "rtcSet" };
+                                                         "rtcOffset", "rtcSet",
+                                                         "clockOrder", "clockHidden", "infoOrder", "infoHidden",
+                                                         "settingsOrder", "faceOrder", "faceHidden", "aodOrder",
+                                                         "aodHidden" };
 // One name per setting: a missing one would be read as a null name.
 static_assert( sizeof( s_fieldNames ) / sizeof( s_fieldNames[0] ) == Settings::ItemCount, "a field name per setting" );
 
@@ -103,6 +116,7 @@ esp_err_t Portal::start( const Settings &settings, const WorldClock &worldClock,
     m_settings = &settings;
     m_worldClock = &worldClock;
     m_counters = &counters;
+    m_hasCoreDump = esp_core_dump_image_check() == ESP_OK;
     esp_err_t err = ESP_OK;
     if ( !s_networkReady ) {
         err = esp_netif_init();
@@ -157,22 +171,34 @@ esp_err_t Portal::start( const Settings &settings, const WorldClock &worldClock,
 
     httpd_config_t serverConfig = HTTPD_DEFAULT_CONFIG();
     serverConfig.lru_purge_enable = true;
+    // lwIP has CONFIG_LWIP_MAX_SOCKETS sockets: the server keeps 3 for itself and the captive DNS
+    // takes 1. With the default 7 connections two browsers used up the last socket before the
+    // server's own count was full, so it never closed an idle connection and accepted nothing
+    // more ("error in accept (23)"). One fewer, and the least recently used one is closed.
+    serverConfig.max_open_sockets = CONFIG_LWIP_MAX_SOCKETS - 4;
     serverConfig.stack_size = 6144;
+    serverConfig.max_uri_handlers = 12;
+    // An image upload takes a while between packets on a busy phone.
+    serverConfig.recv_wait_timeout = 15;
     err = httpd_start( &m_server, &serverConfig );
     if ( err != ESP_OK ) {
         ESP_LOGE( TAG, "HTTP server start failed: %s", esp_err_to_name( err ) );
         stop();
         return err;
     }
-    const httpd_uri_t handlers[6] = {
+    const httpd_uri_t handlers[10] = {
         { "/", HTTP_GET, onPage, this },
         { "/help", HTTP_GET, onHelp, this },
+        { "/update", HTTP_GET, onUpdatePage, this },
+        { "/api/update", HTTP_POST, onUpdate, this },
+        { "/api/events", HTTP_GET, onEvents, this },
+        { "/api/coredump", HTTP_GET, onCoreDump, this },
         { "/cities.js", HTTP_GET, onCities, this },
         { "/api/state", HTTP_GET, onState, this },
         { "/api/ping", HTTP_GET, onPing, this },
         { "/api/save", HTTP_POST, onSave, this },
     };
-    for ( int i = 0; i < 6; ++i ) {
+    for ( int i = 0; i < 10; ++i ) {
         httpd_register_uri_handler( m_server, &handlers[i] );
     }
     httpd_register_err_handler( m_server, HTTPD_404_NOT_FOUND, onNotFound );
@@ -275,23 +301,39 @@ esp_err_t Portal::onPage( httpd_req_t *request )
     static_cast<Portal *>( request->user_ctx )->touch();
     ESP_LOGI( TAG, "Setup page served" );
     httpd_resp_set_type( request, "text/html; charset=utf-8" );
+    httpd_resp_set_hdr( request, "Content-Encoding", "gzip" );
     noCache( request );
-    return httpd_resp_send( request, s_pageStart, s_pageEnd - s_pageStart - 1 );
+    return httpd_resp_send( request, s_pageStart, s_pageEnd - s_pageStart );
 }
 
 esp_err_t Portal::onHelp( httpd_req_t *request )
 {
     static_cast<Portal *>( request->user_ctx )->touch();
     httpd_resp_set_type( request, "text/html; charset=utf-8" );
-    return httpd_resp_send( request, s_helpStart, s_helpEnd - s_helpStart - 1 );
+    httpd_resp_set_hdr( request, "Content-Encoding", "gzip" );
+    return httpd_resp_send( request, s_helpStart, s_helpEnd - s_helpStart );
+}
+
+esp_err_t Portal::onUpdatePage( httpd_req_t *request )
+{
+    static_cast<Portal *>( request->user_ctx )->touch();
+    httpd_resp_set_type( request, "text/html; charset=utf-8" );
+    httpd_resp_set_hdr( request, "Content-Encoding", "gzip" );
+    noCache( request );
+    return httpd_resp_send( request, s_updateStart, s_updateEnd - s_updateStart );
 }
 
 esp_err_t Portal::onCities( httpd_req_t *request )
 {
     static_cast<Portal *>( request->user_ctx )->touch();
     httpd_resp_set_type( request, "text/javascript; charset=utf-8" );
-    return httpd_resp_send( request, s_citiesStart, s_citiesEnd - s_citiesStart - 1 );
+    httpd_resp_set_hdr( request, "Content-Encoding", "gzip" );
+    return httpd_resp_send( request, s_citiesStart, s_citiesEnd - s_citiesStart );
 }
+
+// One buffer for every request that needs one: the HTTP server serves one request at a time in
+// its own task, whose stack is small. Its size holds the setup page's form and state.
+static char s_buffer[1536];
 
 esp_err_t Portal::onState( httpd_req_t *request )
 {
@@ -299,11 +341,16 @@ esp_err_t Portal::onState( httpd_req_t *request )
     portal->touch();
     const Settings &settings = *portal->m_settings;
     const WorldClock &world = *portal->m_worldClock;
-    static char json[1536];
-    snprintf( json, sizeof( json ),
+    char *json = s_buffer;
+    const size_t jsonSize = sizeof( s_buffer );
+    snprintf( json, jsonSize,
               "{\"timeout\":%d,\"alwaysOn\":%d,\"brightness\":%d,\"autoOff\":%d,\"face\":%d,\"aod\":%d,"
               "\"offset\":%d,\"lat\":%.6f,\"lon\":%.6f,\"hijri\":%d,\"faceItems\":%d,\"aodItems\":%d,"
-              "\"aodDay\":%d,\"aodNight\":%d,\"devMode\":%d,\"usbStayOn\":%d,\"zone\":\"%s\",\"place\":\"%s\",\"cities\":[",
+              "\"aodDay\":%d,\"aodNight\":%d,\"devMode\":%d,\"usbStayOn\":%d,\"isha\":%d,\"language\":%d,"
+              "\"clockOrder\":%d,\"clockHidden\":%d,\"infoOrder\":%d,\"infoHidden\":%d,"
+              "\"settingsOrder\":%d,\"faceOrder\":%d,\"faceHidden\":%d,\"aodOrder\":%d,\"aodHidden\":%d,"
+              "\"version\":\"%s\",\"battery\":%d,\"usb\":%d,\"updateMin\":%d,\"coreDump\":%d,"
+              "\"zone\":\"%s\",\"place\":\"%s\",\"cities\":[",
               settings.value( Settings::DisplayTimeout ), settings.value( Settings::AlwaysOnFace ),
               settings.value( Settings::Brightness ), settings.value( Settings::AutoOff ),
               settings.value( Settings::FaceStyle ), settings.value( Settings::AodStyle ),
@@ -311,28 +358,161 @@ esp_err_t Portal::onState( httpd_req_t *request )
               settings.value( Settings::Longitude ) / 1e6, settings.value( Settings::HijriMethod ),
               settings.value( Settings::FaceItems ), settings.value( Settings::AodItems ),
               settings.value( Settings::AodDayBrightness ), settings.value( Settings::AodNightBrightness ),
-              settings.value( Settings::DevMode ), settings.value( Settings::UsbStayOn ), world.homeZoneName(),
+              settings.value( Settings::DevMode ), settings.value( Settings::UsbStayOn ),
+              settings.value( Settings::IshaAngle ), settings.value( Settings::Language ),
+              settings.value( Settings::ClockOrder ),
+              settings.value( Settings::ClockHidden ), settings.value( Settings::InfoOrder ),
+              settings.value( Settings::InfoHidden ), settings.value( Settings::SettingsOrder ),
+              settings.value( Settings::FaceOrder ), settings.value( Settings::FaceHidden ),
+              settings.value( Settings::AodOrder ), settings.value( Settings::AodHidden ),
+              esp_app_get_description()->version, portal->m_batteryPercent, portal->m_usb ? 1 : 0, UpdateMinPercent,
+              portal->m_hasCoreDump ? 1 : 0,
+              world.homeZoneName(),
               world.homePlace() );
     // The names come from the page's own city list: no quotes or backslashes.
     for ( int i = 0; i < world.count(); ++i ) {
         const int used = strlen( json );
-        snprintf( json + used, sizeof( json ) - used, "%s[\"%s\",\"%s\"]", i == 0 ? "" : ",", world.city( i ).name,
+        snprintf( json + used, jsonSize - used, "%s[\"%s\",\"%s\"]", i == 0 ? "" : ",", world.city( i ).name,
                   world.city( i ).zoneName );
     }
-    strlcat( json, "],\"days\":[", sizeof( json ) );
+    strlcat( json, "],\"days\":[", jsonSize );
     const DayCounters &counters = *portal->m_counters;
     for ( int i = 0; i < counters.count(); ++i ) {
         const time_t when = static_cast<time_t>( counters.counter( i ).day ) * 86400;
         tm fields = {};
         gmtime_r( &when, &fields );
         const int used = strlen( json );
-        snprintf( json + used, sizeof( json ) - used, "%s[\"%s\",\"%04d-%02d-%02d\"]", i == 0 ? "" : ",",
+        snprintf( json + used, jsonSize - used, "%s[\"%s\",\"%04d-%02d-%02d\"]", i == 0 ? "" : ",",
                   counters.counter( i ).name, fields.tm_year + 1900, fields.tm_mon + 1, fields.tm_mday );
     }
-    strlcat( json, "]}", sizeof( json ) );
+    strlcat( json, "]}", jsonSize );
     httpd_resp_set_type( request, "application/json" );
     noCache( request );
     return httpd_resp_sendstr( request, json );
+}
+
+void Portal::setBattery( int percent, bool usb )
+{
+    m_batteryPercent = percent;
+    m_usb = usb;
+}
+
+bool Portal::takeUpdated()
+{
+    taskENTER_CRITICAL( &m_lock );
+    const bool updated = m_updated;
+    m_updated = false;
+    taskEXIT_CRITICAL( &m_lock );
+    return updated;
+}
+
+// Body: the application image. Written to the slot that does not run, checked by ESP-IDF
+// (header, segments, SHA-256), and chosen for the next start; the old image stays until a later
+// update, and the bootloader returns to it if the new one fails before it is marked valid.
+esp_err_t Portal::onUpdate( httpd_req_t *request )
+{
+    Portal *portal = static_cast<Portal *>( request->user_ctx );
+    portal->touch();
+    if ( !portal->m_usb && portal->m_batteryPercent < UpdateMinPercent ) {
+        httpd_resp_set_status( request, "403 Forbidden" );
+        return httpd_resp_sendstr( request, "battery" );
+    }
+    const esp_partition_t *target = esp_ota_get_next_update_partition( nullptr );
+    esp_ota_handle_t ota = 0;
+    if ( target == nullptr || esp_ota_begin( target, OTA_WITH_SEQUENTIAL_WRITES, &ota ) != ESP_OK ) {
+        return httpd_resp_send_err( request, HTTPD_500_INTERNAL_SERVER_ERROR, "No update slot" );
+    }
+    char *buffer = s_buffer;
+    int left = request->content_len;
+    bool first = true;
+    esp_err_t err = ESP_OK;
+    while ( left > 0 && err == ESP_OK ) {
+        const int part = httpd_req_recv( request, buffer, left < static_cast<int>( sizeof( s_buffer ) ) ? left : sizeof( s_buffer ) );
+        if ( part == HTTPD_SOCK_ERR_TIMEOUT ) {
+            continue;
+        }
+        if ( part <= 0 ) {
+            err = ESP_FAIL;
+            break;
+        }
+        portal->touch();
+        // The first block holds the image header and the application description: only this
+        // project's images for this chip.
+        const size_t descOffset = sizeof( esp_image_header_t ) + sizeof( esp_image_segment_header_t );
+        if ( first ) {
+            first = false;
+            const esp_image_header_t *header = reinterpret_cast<const esp_image_header_t *>( buffer );
+            const esp_app_desc_t *desc = reinterpret_cast<const esp_app_desc_t *>( buffer + descOffset );
+            if ( part < static_cast<int>( descOffset + sizeof( esp_app_desc_t ) ) || header->magic != ESP_IMAGE_HEADER_MAGIC ||
+                 header->chip_id != ESP_CHIP_ID_ESP32S3 ||
+                 strncmp( desc->project_name, esp_app_get_description()->project_name, sizeof( desc->project_name ) ) != 0 ) {
+                esp_ota_abort( ota );
+                httpd_resp_set_status( request, "415 Unsupported Media Type" );
+                return httpd_resp_sendstr( request, "not this watch's software" );
+            }
+            ESP_LOGI( TAG, "Update to version %s, %d bytes", desc->version, request->content_len );
+        }
+        err = esp_ota_write( ota, buffer, part );
+        left -= part;
+    }
+    if ( err != ESP_OK ) {
+        esp_ota_abort( ota );
+        ESP_LOGE( TAG, "Update failed: %s", esp_err_to_name( err ) );
+        return httpd_resp_send_err( request, HTTPD_500_INTERNAL_SERVER_ERROR, "Update failed" );
+    }
+    err = esp_ota_end( ota );
+    if ( err == ESP_OK ) {
+        err = esp_ota_set_boot_partition( target );
+    }
+    if ( err != ESP_OK ) {
+        ESP_LOGE( TAG, "Update not accepted: %s", esp_err_to_name( err ) );
+        return httpd_resp_send_err( request, HTTPD_500_INTERNAL_SERVER_ERROR, "Image not valid" );
+    }
+    taskENTER_CRITICAL( &portal->m_lock );
+    portal->m_updated = true;
+    taskEXIT_CRITICAL( &portal->m_lock );
+    noCache( request );
+    return httpd_resp_sendstr( request, "Updated" );
+}
+
+static void sendLine( const char *line, void *user )
+{
+    httpd_resp_sendstr_chunk( static_cast<httpd_req_t *>( user ), line );
+}
+
+esp_err_t Portal::onEvents( httpd_req_t *request )
+{
+    Portal *portal = static_cast<Portal *>( request->user_ctx );
+    portal->touch();
+    httpd_resp_set_type( request, "text/plain; charset=utf-8" );
+    httpd_resp_set_hdr( request, "Content-Disposition", "attachment; filename=\"watch-events.txt\"" );
+    noCache( request );
+    // The format of tools/read_events.py, which also reads a downloaded file.
+    EventLog::write( portal->m_settings->value( Settings::UtcOffset ), sendLine, request );
+    return httpd_resp_sendstr_chunk( request, nullptr );
+}
+
+esp_err_t Portal::onCoreDump( httpd_req_t *request )
+{
+    static_cast<Portal *>( request->user_ctx )->touch();
+    size_t address = 0;
+    size_t size = 0;
+    if ( esp_core_dump_image_check() != ESP_OK || esp_core_dump_image_get( &address, &size ) != ESP_OK ) {
+        httpd_resp_set_status( request, "404 Not Found" );
+        return httpd_resp_sendstr( request, "No crash dump" );
+    }
+    httpd_resp_set_type( request, "application/octet-stream" );
+    httpd_resp_set_hdr( request, "Content-Disposition", "attachment; filename=\"watch-coredump.bin\"" );
+    noCache( request );
+    for ( size_t done = 0; done < size; ) {
+        const size_t part = size - done < sizeof( s_buffer ) ? size - done : sizeof( s_buffer );
+        if ( esp_flash_read( nullptr, s_buffer, address + done, part ) != ESP_OK ||
+             httpd_resp_send_chunk( request, s_buffer, part ) != ESP_OK ) {
+            break;
+        }
+        done += part;
+    }
+    return httpd_resp_send_chunk( request, nullptr, 0 );
 }
 
 esp_err_t Portal::onPing( httpd_req_t *request )
@@ -367,9 +547,8 @@ esp_err_t Portal::onSave( httpd_req_t *request )
     const int64_t arrivedUs = esp_timer_get_time();
     Portal *portal = static_cast<Portal *>( request->user_ctx );
     portal->touch();
-    // Static: one request at a time, and the HTTP server task's stack is small.
-    static char body[1536];
-    const int length = request->content_len < sizeof( body ) - 1 ? request->content_len : sizeof( body ) - 1;
+    char *body = s_buffer;
+    const int length = request->content_len < sizeof( s_buffer ) - 1 ? request->content_len : sizeof( s_buffer ) - 1;
     int read = 0;
     while ( read < length ) {
         const int part = httpd_req_recv( request, body + read, length - read );

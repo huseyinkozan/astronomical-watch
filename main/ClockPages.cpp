@@ -5,6 +5,7 @@
 
 #include "Dates.h"
 #include "Fonts.h"
+#include "Language.h"
 #include "Panel.h"
 #include "SkyPages.h"
 #include "esp_timer.h"
@@ -17,12 +18,6 @@ static const int s_left = 52;
 static const int s_right = 358;
 static const int s_tickMs = 50;
 
-static const char *s_monthNames[12] = { "January", "February", "March",     "April",   "May",      "June",
-                                        "July",    "August",   "September", "October", "November", "December" };
-static const char *s_shortMonths[12] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                                         "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
-static const char *s_weekdays[7] = { "Mo", "Tu", "We", "Th", "Fr", "Sa", "Su" };
-static const char *s_shortDays[7] = { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" };
 
 static lv_obj_t *label( lv_obj_t *parent, const lv_font_t *font, lv_color_t colour, lv_align_t align, int x, int y,
                         const char *text )
@@ -88,8 +83,8 @@ void ClockPages::build( lv_obj_t *tile )
     m_stack.build( tile, PartCount );
 
     lv_obj_t *world = m_stack.part( WorldPart );
-    title( world, "World clock" );
-    label( world, &jetbrains_mono_26, lv_color_white(), LV_ALIGN_TOP_LEFT, s_left, 76, "Here" );
+    title( world, Language::text( Language::WorldClock ) );
+    label( world, &jetbrains_mono_26, lv_color_white(), LV_ALIGN_TOP_LEFT, s_left, 76, Language::text( Language::Here ) );
     m_homeDate = label( world, &jetbrains_mono_26, s_grey, LV_ALIGN_TOP_RIGHT, s_right - Panel::WIDTH, 76, "" );
     m_homeTime = label( world, &jetbrains_mono_48, lv_color_white(), LV_ALIGN_TOP_LEFT, s_left, 104, "" );
     m_homeZone = label( world, &jetbrains_mono_26, s_grey, LV_ALIGN_TOP_RIGHT, s_right - Panel::WIDTH, 120, "" );
@@ -99,7 +94,7 @@ void ClockPages::build( lv_obj_t *tile )
     lv_obj_set_size( line, s_right - s_left, 1 );
     lv_obj_set_style_bg_opa( line, LV_OPA_COVER, 0 );
     lv_obj_set_style_bg_color( line, lv_color_hex( 0x303030 ), 0 );
-    m_cityHint = label( world, &jetbrains_mono_26, s_dim, LV_ALIGN_TOP_MID, 0, 230, "Cities: choose them\nin the setup portal" );
+    m_cityHint = label( world, &jetbrains_mono_26, s_dim, LV_ALIGN_TOP_MID, 0, 230, Language::text( Language::CitiesHint ) );
     lv_obj_set_style_text_align( m_cityHint, LV_TEXT_ALIGN_CENTER, 0 );
     for ( int i = 0; i < WorldClock::MaxCities; ++i ) {
         const int y = 178 + i * 64;
@@ -113,7 +108,7 @@ void ClockPages::build( lv_obj_t *tile )
     }
 
     lv_obj_t *stopwatch = m_stack.part( StopwatchPart );
-    title( stopwatch, "Stopwatch" );
+    title( stopwatch, Language::text( Language::Stopwatch ) );
     m_stopwatchTime = label( stopwatch, &jetbrains_mono_48, lv_color_white(), LV_ALIGN_TOP_MID, 0, 84, "" );
     m_stopwatchSince = label( stopwatch, &jetbrains_mono_26, s_grey, LV_ALIGN_TOP_MID, 0, 142, "" );
     for ( int i = 0; i < Timers::LapCount; ++i ) {
@@ -125,14 +120,14 @@ void ClockPages::build( lv_obj_t *tile )
     m_stopwatchRight = button( stopwatch, 210, 318, s_right, 398, "", onStopwatchButton, this );
 
     lv_obj_t *timer = m_stack.part( TimerPart );
-    title( timer, "Timer" );
+    title( timer, Language::text( Language::Timer ) );
     m_timerTime = label( timer, &jetbrains_mono_light_90, lv_color_white(), LV_ALIGN_TOP_MID, 0, 72, "" );
     m_timerInfo = label( timer, &jetbrains_mono_26, s_grey, LV_ALIGN_TOP_MID, 0, 182, "" );
     static const char *s_add[3] = { "+1", "+5", "+10" };
     for ( int i = 0; i < 3; ++i ) {
         m_timerButtons[i] = button( timer, s_left + i * 104, 224, s_left + 96 + i * 104, 292, s_add[i], onTimerButton, this );
     }
-    m_timerButtons[3] = button( timer, s_left, 318, 200, 398, "Reset", onTimerButton, this );
+    m_timerButtons[3] = button( timer, s_left, 318, 200, 398, Language::text( Language::Reset ), onTimerButton, this );
     m_timerButtons[4] = button( timer, 210, 318, s_right, 398, "", onTimerButton, this );
 
     buildCalendar( m_gregorian, m_stack.part( GregorianPart ) );
@@ -140,8 +135,8 @@ void ClockPages::build( lv_obj_t *tile )
     lv_label_set_text( m_hijri.title, "..." );
 
     lv_obj_t *days = m_stack.part( DaysPart );
-    title( days, "Days" );
-    m_counterHint = label( days, &jetbrains_mono_26, s_dim, LV_ALIGN_TOP_MID, 0, 200, "Dates: set them\nin the setup portal" );
+    title( days, Language::text( Language::Days ) );
+    m_counterHint = label( days, &jetbrains_mono_26, s_dim, LV_ALIGN_TOP_MID, 0, 200, Language::text( Language::DaysHint ) );
     lv_obj_set_style_text_align( m_counterHint, LV_TEXT_ALIGN_CENTER, 0 );
     for ( int i = 0; i < DayCounters::MaxCounters; ++i ) {
         m_counterNames[i] = label( days, &jetbrains_mono_26, s_grey, LV_ALIGN_TOP_LEFT, s_left, 90 + i * 74, "" );
@@ -195,7 +190,7 @@ void ClockPages::onDrawCalendar( lv_event_t *event )
         const int x = coords.x1 + 61 + column * 48;
         const lv_area_t area = { x - 24, coords.y1 + 84, x + 24, coords.y1 + 84 + 30 };
         text.color = column < 5 ? s_grey : s_amber;
-        text.text = s_weekdays[column];
+        text.text = Language::dayInitials( column );
         lv_draw_label( layer, &text, &area );
     }
     for ( int day = 1; day <= calendar.length && day <= 31; ++day ) {
@@ -245,10 +240,10 @@ void ClockPages::showGregorian()
         return;
     }
     memcpy( m_gregorianShown, shown, sizeof( shown ) );
-    lv_label_set_text_fmt( m_gregorian.title, "%s %d", s_monthNames[month - 1], year );
+    lv_label_set_text_fmt( m_gregorian.title, "%s %d", Language::monthName( month ), year );
     fillCalendar( m_gregorian, Dates::weekday( Dates::dayNumber( year, month, 1 ) ), Dates::daysInMonth( year, month ),
                   m_gregorianStep == 0 ? m_local.day : 0 );
-    lv_label_set_text_fmt( m_gregorian.footer, "Week %d, day %d", Dates::isoWeek( m_today ),
+    lv_label_set_text_fmt( m_gregorian.footer, Language::text( Language::WeekDay ), Dates::isoWeek( m_today ),
                            m_today - Dates::dayNumber( m_local.year, 1, 1 ) + 1 );
 }
 
@@ -270,8 +265,13 @@ void ClockPages::update( int64_t utcSeconds, int utcOffsetMinutes, const Rtc::Da
     char text[32];
     snprintf( text, sizeof( text ), "%02d:%02d", localTime.hour, localTime.minute );
     setText( m_homeTime, text );
-    snprintf( text, sizeof( text ), "%s %d %s", s_shortDays[Dates::weekday( m_today )], localTime.day,
-              s_shortMonths[localTime.month - 1] );
+    if ( Language::current() == Language::Turkish ) {
+        snprintf( text, sizeof( text ), "%d %s %s", localTime.day, Language::shortMonth( localTime.month ),
+                  Language::shortDay( Dates::weekday( m_today ) ) );
+    } else {
+        snprintf( text, sizeof( text ), "%s %d %s", Language::shortDay( Dates::weekday( m_today ) ), localTime.day,
+                  Language::shortMonth( localTime.month ) );
+    }
     setText( m_homeDate, text );
     const int offset = utcOffsetMinutes < 0 ? -utcOffsetMinutes : utcOffsetMinutes;
     if ( offset % 60 == 0 ) {
@@ -336,11 +336,11 @@ void ClockPages::showCounters()
         const int days = m_counters[i].day - m_today;
         char text[24];
         if ( days == 0 ) {
-            snprintf( text, sizeof( text ), "today" );
+            snprintf( text, sizeof( text ), "%s", Language::text( Language::Today ) );
         } else if ( days > 0 ) {
-            snprintf( text, sizeof( text ), "in %d d", days );
+            snprintf( text, sizeof( text ), Language::text( Language::InDays ), days );
         } else {
-            snprintf( text, sizeof( text ), "%d d ago", -days );
+            snprintf( text, sizeof( text ), Language::text( Language::DaysAgo ), -days );
         }
         setText( m_counterNames[i], m_counters[i].name );
         setText( m_counterValues[i], text );
@@ -362,15 +362,15 @@ void ClockPages::showCities( int64_t utcSeconds )
         const int size = diff < 0 ? -diff : diff;
         int length = 0;
         if ( diff == 0 ) {
-            length = snprintf( text, sizeof( text ), "same time" );
+            length = snprintf( text, sizeof( text ), "%s", Language::text( Language::SameTime ) );
         } else if ( size % 60 == 0 ) {
-            length = snprintf( text, sizeof( text ), "%c%d h", diff < 0 ? '-' : '+', size / 60 );
+            length = snprintf( text, sizeof( text ), Language::text( Language::Hours ), diff < 0 ? '-' : '+', size / 60 );
         } else {
             length = snprintf( text, sizeof( text ), "%c%d:%02d", diff < 0 ? '-' : '+', size / 60, size % 60 );
         }
         const int cityDay = static_cast<int>( ( local >= 0 ? local : local - 86399 ) / 86400 );
         if ( cityDay != m_today ) {
-            snprintf( text + length, sizeof( text ) - length, ", %s", s_shortDays[Dates::weekday( cityDay )] );
+            snprintf( text + length, sizeof( text ) - length, ", %s", Language::shortDay( Dates::weekday( cityDay ) ) );
         }
         setText( m_cityDiffs[i], text );
     }
@@ -395,7 +395,7 @@ void ClockPages::showHijriMonth( const Hijri::Month &month, int today, int metho
     lv_label_set_text_fmt( m_hijri.title, "%s %d", SkyPages::hijriMonthName( month.month ), month.year );
     const bool holdsToday = today >= month.firstDay && today < month.firstDay + month.length;
     fillCalendar( m_hijri, Dates::weekday( month.firstDay ), month.length, holdsToday ? today - month.firstDay + 1 : 0 );
-    lv_label_set_text( m_hijri.footer, method == Hijri::Diyanet ? "Diyanet" : "Local crescent" );
+    lv_label_set_text( m_hijri.footer, Language::text( method == Hijri::Diyanet ? Language::DiyanetMethod : Language::LocalCrescent ) );
 }
 
 int64_t ClockPages::nowMs() const
@@ -419,9 +419,9 @@ void ClockPages::showStopwatch( int64_t now )
     if ( watch.running ) {
         char since[8];
         formatLocal( since, sizeof( since ), watch.startMs );
-        snprintf( text, sizeof( text ), "running since %s", since );
+        snprintf( text, sizeof( text ), Language::text( Language::RunningSince ), since );
     } else {
-        snprintf( text, sizeof( text ), "%s", watch.accumulatedMs > 0 ? "stopped" : "" );
+        snprintf( text, sizeof( text ), "%s", watch.accumulatedMs > 0 ? Language::text( Language::Stopped ) : "" );
     }
     setText( m_stopwatchSince, text );
     for ( int i = 0; i < Timers::LapCount; ++i ) {
@@ -431,13 +431,13 @@ void ClockPages::showStopwatch( int64_t now )
             setText( m_lapTimes[i], "" );
             continue;
         }
-        snprintf( text, sizeof( text ), "Lap %d", number );
+        snprintf( text, sizeof( text ), Language::text( Language::LapNumber ), number );
         setText( m_lapNames[i], text );
         formatStopwatch( text, sizeof( text ), watch.lapMs[i] );
         setText( m_lapTimes[i], text );
     }
-    setText( m_stopwatchLeft, watch.running ? "Lap" : "Reset" );
-    setText( m_stopwatchRight, watch.running ? "Stop" : "Start" );
+    setText( m_stopwatchLeft, Language::text( watch.running ? Language::Lap : Language::Reset ) );
+    setText( m_stopwatchRight, Language::text( watch.running ? Language::Stop : Language::Start ) );
     lv_obj_set_style_text_color( m_stopwatchRight, watch.running ? s_amber : lv_color_white(), 0 );
 }
 
@@ -452,20 +452,20 @@ void ClockPages::showCountdown( int64_t now )
     setText( m_timerTime, text );
     char end[8];
     if ( timer.durationS == 0 ) {
-        snprintf( text, sizeof( text ), "Add minutes" );
+        snprintf( text, sizeof( text ), "%s", Language::text( Language::AddMinutes ) );
     } else if ( timer.running ) {
         formatLocal( end, sizeof( end ), timer.endMs );
         if ( remaining > 0 ) {
-            snprintf( text, sizeof( text ), "of %d:%02d, ends %s", timer.durationS / 60, timer.durationS % 60, end );
+            snprintf( text, sizeof( text ), Language::text( Language::TimerEnds ), timer.durationS / 60, timer.durationS % 60, end );
         } else {
-            snprintf( text, sizeof( text ), "done at %s", end );
+            snprintf( text, sizeof( text ), Language::text( Language::TimerDone ), end );
         }
     } else {
-        snprintf( text, sizeof( text ), "of %d:%02d, paused", timer.durationS / 60, timer.durationS % 60 );
+        snprintf( text, sizeof( text ), Language::text( Language::TimerPaused ), timer.durationS / 60, timer.durationS % 60 );
     }
     setText( m_timerInfo, text );
     const bool counting = timer.running && remaining > 0;
-    setText( m_timerButtons[4], counting ? "Pause" : "Start" );
+    setText( m_timerButtons[4], Language::text( counting ? Language::Pause : Language::Start ) );
     lv_obj_set_style_text_color( m_timerButtons[4], counting ? s_amber : lv_color_white(), 0 );
 }
 
@@ -607,26 +607,30 @@ void ClockPages::setScene( bool scene )
     }
     lv_obj_set_hidden( m_cityHint, true );
     // Day counters relative to the scene's 21 June 2026.
-    static const char *s_counterNames[4] = { "Trip home", "Ramadan", "Birthday", "Wedding" };
+    static const char *s_counterNames[2][4] = { { "Trip home", "Ramadan", "Birthday", "Wedding" },
+                                                { "Eve dönüş", "Ramazan", "Doğum günü", "Düğün" } };
     static const int s_counterDays[4] = { 12, 232, 143, -4212 };
     m_counterCount = 4;
     for ( int i = 0; i < 4; ++i ) {
-        strlcpy( m_counters[i].name, s_counterNames[i], sizeof( m_counters[i].name ) );
+        strlcpy( m_counters[i].name, s_counterNames[Language::current()][i], sizeof( m_counters[i].name ) );
         m_counters[i].day = Dates::dayNumber( 2026, 6, 21 ) + s_counterDays[i];
     }
     lv_obj_set_hidden( m_counterHint, true );
     setText( m_stopwatchTime, "12:34.56" );
-    setText( m_stopwatchSince, "running since 19:06" );
+    char text[40];
+    snprintf( text, sizeof( text ), Language::text( Language::RunningSince ), "19:06" );
+    setText( m_stopwatchSince, text );
     static const char *s_laps[3] = { "04:10.20", "04:02.81", "04:21.55" };
     for ( int i = 0; i < Timers::LapCount; ++i ) {
-        lv_label_set_text_fmt( m_lapNames[i], "Lap %d", 3 - i );
+        lv_label_set_text_fmt( m_lapNames[i], Language::text( Language::LapNumber ), 3 - i );
         setText( m_lapTimes[i], s_laps[i] );
     }
-    setText( m_stopwatchLeft, "Lap" );
-    setText( m_stopwatchRight, "Stop" );
+    setText( m_stopwatchLeft, Language::text( Language::Lap ) );
+    setText( m_stopwatchRight, Language::text( Language::Stop ) );
     lv_obj_set_style_text_color( m_stopwatchRight, s_amber, 0 );
     setText( m_timerTime, "07:42" );
-    setText( m_timerInfo, "of 10:00, ends 19:27" );
-    setText( m_timerButtons[4], "Pause" );
+    snprintf( text, sizeof( text ), Language::text( Language::TimerEnds ), 10, 0, "19:27" );
+    setText( m_timerInfo, text );
+    setText( m_timerButtons[4], Language::text( Language::Pause ) );
     lv_obj_set_style_text_color( m_timerButtons[4], s_amber, 0 );
 }

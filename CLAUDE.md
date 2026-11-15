@@ -32,6 +32,10 @@ idf.py -B build-release -D SDKCONFIG=build-release/sdkconfig \
        -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.release" build flash
 ```
 
+Versions are annotated git tags `vX.Y.Z` (from v0.0.1): ESP-IDF names the image with
+`git describe`, which takes only annotated tags, so a release shows `v0.0.1` and later
+development builds `v0.0.1-3-gabc1234-dirty`. A new release is a new tag, pushed with approval.
+
 `sdkconfig` is generated from `sdkconfig.defaults` and committed. Change options in
 `sdkconfig.defaults` (or with `idf.py menuconfig` and copy the decision there).
 
@@ -44,6 +48,8 @@ idf.py -B build-release -D SDKCONFIG=build-release/sdkconfig \
 | `tools/guided_test.py` | Guided hardware tests: prompts the tester and checks the serial log; logs go to `test-logs/` (ignored) |
 | `tools/screenshot.py` | Screenshots of the watch pages from the development build |
 | `tools/read_events.py` | Reads the watch's event log (stability on the wrist) |
+| `tools/portal_preview.py` | Serves the setup portal's pages with a fake watch on localhost; pictures of them |
+| `tools/make_corner_table.cpp` | The corner gauges' pixel table `main/CornerTable.c` (built by the host tests, which check it is current) |
 | `tools/make_fonts.sh`, `tools/fonts/` | The watch fonts in `main/fonts/` (JetBrains Mono, ASCII, ° and the Turkish letters; needs Node.js for `npx lv_font_conv`) |
 | `tests/` | Host tests of the astronomy code (`sh tests/run_host_tests.sh`, needs only g++) and their reference data |
 | `tools/setup_reference.sh`, `tools/make_*.py` | Python environment (Skyfield, Pillow in `tools/.venv`, ignored) and generators of reference data, tables, the always-on bitmaps (`main/AodGlyphs.c`) and the README animations |
@@ -65,6 +71,9 @@ idf.py -B build-release -D SDKCONFIG=build-release/sdkconfig \
 - Comment only what the code cannot say: the why, a hardware constraint, a workaround.
 - Text uses the monospaced fonts of `main/Fonts.h` (26 and 48 px), so that numbers line up in
   columns; a new character or size goes into `tools/make_fonts.sh`, and the C files are made again.
+- Every text the user sees comes from `main/Language.*` in English and Turkish (the portal page
+  keeps its Turkish beside the English in `data-tr`); a new text gets both, short enough for the
+  rows in both languages. A change of language restarts the watch, so the pages are built in it.
 - LVGL's own printf has no floating point (`lv_label_set_text_fmt` with `%f` crashes): format
   with `snprintf` and set the text.
 - All code, comments, identifiers, commit messages and documentation are in English.
@@ -150,8 +159,11 @@ a quarter circle 3 px inside the visible edge, starting at its lower end, with a
 middle as long as the gauge is wide. Active mode draws them 5 px wide with round ends in a
 channel of a dim tone of their own colour. The always-on face draws them 2 px wide without the
 channel in idle-mode colours, with notches at both ends too, outside the burn-in shift, and redraws a corner only when its
-gauge moved by a pixel; the always-on page shows that look with LVGL arcs, close to but not pixel
-for pixel the same. The Moon's phase icon sits in the bottom-left corner inside the Moon's gauge,
+gauge moved by a pixel; the always-on page shows that look pixel for pixel. In active mode the
+gauges are no LVGL objects (four arcs cost a quarter of each frame while swiping): `CornerView`
+writes the ring's pixels into each rendered band, their colours computed from a table of the
+ring's pixels in flash (`main/CornerTable.c`, made by `tools/make_corner_table.cpp`; the host
+tests fail when it is stale), which the always-on face reads too. The Moon's phase icon sits in the bottom-left corner inside the Moon's gauge,
 on the watch faces and the always-on face alike (the top-left corner stands for the Sun).
 
 Brightness: active mode has one level, the always-on face one by day and one by night, switched
@@ -215,8 +227,15 @@ in its flash partition. Read both over USB: `python tools/read_events.py`, then
   measured, the RTC started on the true second) and UTC offset (fixed; daylight saving time
   changes are set again through the portal), a location (country/city list from GeoNames or
   coordinates; no map; browsers give no geolocation to a plain HTTP page) and every setting.
-  The faces show local time. The Wi-Fi stack stays out of IRAM (sdkconfig.defaults) so that the
-  deep-sleep wakes load little more; if they still grow too much, a build option
+  The faces show local time. The page also takes a new application image (on USB or at least
+  30 % battery; only this project's images): two application slots (`partitions.csv`; nvs and
+  phy_init keep their offsets, so settings survive a change of the table), and the bootloader's
+  rollback: a new image is confirmed once active mode has drawn its pages, a reset before that
+  returns to the old one, and the update ends with a full restart because deep-sleep wakes skip
+  that check. The page offers the event log and the core dump for download
+  (`tools/read_events.py --file`). The pages go into the image gzipped at build time
+  (`main/CMakeLists.txt`), sent with `Content-Encoding: gzip`: 28 KB instead of 72 KB. The
+  Wi-Fi stack stays out of IRAM (sdkconfig.defaults) so that the deep-sleep wakes load little more; if they still grow too much, a build option
   (`CONFIG_WATCH_SETUP_PORTAL`) removes the portal and the watch's own settings page remains.
 - Alarms are stored as definitions (clock time, or sun/moon event plus offset; repeat) in NVS,
   never as a computed time. The next occurrence is computed from the definition, location and
@@ -306,11 +325,26 @@ power-on state, unplug USB for the run, then plug it in and read the log with
 
 Update the matching document in the same change when a design decision changes.
 
-Before a push that changes what the watch shows, refresh `docs/screenshots/` from the board with
-the development build: `python tools/screenshot.py --send P --after P --after N` (all pages,
-every always-on style and every watch face layout; the setup portal on for its page, then off with
-a new password, so that the published one is not in use), then
-`tools/.venv/bin/python tools/make_gifs.py` for the animations of the README. The pages show a fixed scene (Istanbul, 2026-06-21 19:19), so that
-the published pictures stay comparable and never show the watch's real location.
+Before a push that changes what the watch shows, refresh `docs/screenshots/en/` and `tr/` from
+the board with the development build, once per language (host command `L 0` or `L 1` switches
+the watch's language; put back the one it had):
+`python tools/screenshot.py --out docs/screenshots/<en|tr> --send P --after P --after N` (all
+pages, every always-on style and watch face layout; the setup portal on for its page, then off
+with a new password, so that the published one is not in use), then
+`tools/.venv/bin/python tools/make_gifs.py --dir docs/screenshots/<en|tr>` and the portal
+pictures `tools/portal_preview.py --shot docs/screenshots/<en|tr>/<portal|update>.png
+--language <0|1> [--page /update]`. Each language has its page of them
+(`docs/screenshots/<en|tr>/README.md`, the watch's pages as columns, their parts below each
+other); the README shows only the animations. The pages show a fixed scene (Istanbul,
+2026-06-21 19:19), so that the published pictures stay comparable and never show the watch's
+real location.
+
+A release: the commits pushed, an annotated tag `vX.Y.Z` on the last one (pushed to both
+remotes), the About page and the portal pictures captured again from a clean build of the tag
+(they show the version), then the release build of the tag (`build-release`, as above) gives
+`astronomical_watch-vX.Y.Z.bin` (the update through the portal) and, with
+`esptool --chip esp32s3 merge-bin -o astronomical_watch-vX.Y.Z-full.bin @flash_args` in the
+build directory, the full image for a first install over USB. Both go on the release pages of
+GitLab and GitHub with the notes.
 `tools/screenshot.py` can also be used during development to check a layout without the tester
 (`--live` for the watch's own time and settings).

@@ -69,4 +69,8 @@ public:
     // Prints every entry, oldest first, as "EVENT ..." lines between "EVENTS BEGIN" and
     // "EVENTS END"; times in local time by `utcOffsetMinutes`.
     static void print( int utcOffsetMinutes );
+
+    // The same lines, each handed to `write` (the setup portal's download).
+    typedef void ( *LineWriter )( const char *line, void *user );
+    static void write( int utcOffsetMinutes, LineWriter writer, void *user );
 };

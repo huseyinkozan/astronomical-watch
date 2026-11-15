@@ -60,7 +60,10 @@ public:
     enum Request
     {
         TogglePortal = 1,
-        NewPassword = 2
+        NewPassword = 2,
+        // The language changed: the main task saves the settings and restarts, so that every
+        // page is built in it.
+        Restart = 4
     };
 
     // Starts LVGL, the panel and touch (BSP), sets the brightness and builds the pages. A tap on
@@ -120,6 +123,9 @@ public:
     // Presses a clock page button by name (ClockPages::press).
     bool pressClockButton( const char *name );
 
+    // Swipes to page `page` with the page animation, as a finger would (speed measurements).
+    void swipeTo( int page );
+
     // Development screenshot (tools/screenshot.py): shows page `page`, redraws the whole screen
     // and writes each pixel row to the console as "SHOT <y> <x> <colour runs>". Counts as activity.
     void capture( int page );
@@ -141,6 +147,11 @@ private:
     void buildSettingsPage();
     void showBattery();
     void applySetup();
+    // The orders and hidden parts set in the portal (PartOrder), on the stacked pages built so far
+    // and on the face and always-on styles.
+    void applyOrders();
+    // The styles shown on the face (or always-on) page, in order; returns how many.
+    int shownStyles( bool alwaysOn, int parts[8] ) const;
     lv_obj_t *m_tiles[5] = {};
     bool m_built[5] = {};
     Setup m_setup = {};
@@ -158,8 +169,8 @@ private:
     static void onSetupClicked( lv_event_t *event );
     lv_obj_t *createRow( lv_obj_t *parent, const char *name, lv_event_cb_t onClicked );
     void buildSetupPage( lv_obj_t *page );
-#if CONFIG_WATCH_DEV_LOGGING
     static void onFlushStart( lv_event_t *event );
+#if CONFIG_WATCH_DEV_LOGGING
     static void onRefreshReady( lv_event_t *event );
     bool m_capturing = false;
 #endif

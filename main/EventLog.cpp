@@ -61,10 +61,22 @@ void EventLog::add( Entry entry, uint32_t utcTime )
     }
 }
 
+static void printLine( const char *line, void * )
+{
+    fputs( line, stdout );
+}
+
 void EventLog::print( int utcOffsetMinutes )
 {
+    write( utcOffsetMinutes, printLine, nullptr );
+    fflush( stdout );
+}
+
+void EventLog::write( int utcOffsetMinutes, LineWriter writer, void *user )
+{
     nvs_handle_t handle = 0;
-    printf( "EVENTS BEGIN\n" );
+    char line[256];
+    writer( "EVENTS BEGIN\n", user );
     if ( nvs_open( s_namespace, NVS_READONLY, &handle ) == ESP_OK ) {
         uint16_t next = 0;
         nvs_get_u16( handle, "next", &next );
@@ -85,15 +97,16 @@ void EventLog::print( int utcOffsetMinutes )
                 gmtime_r( &local, &fields );
                 strftime( when, sizeof( when ), "%Y-%m-%d %H:%M:%S", &fields );
             }
-            printf( "EVENT %s type=%u code=%u flags=0x%02X battery=%u%%/%umV duration=%u touches=%u "
-                    "touch=0x%02X/0x%02X heapmin=%uK mainstack=%u lvglstack=%u wakes=%u longest=%ums pmu=0x%02X/0x%02X\n",
-                    when, entry.type, entry.code, entry.flags, entry.batteryPercent, entry.batteryMillivolts,
-                    entry.duration, entry.touches, entry.touchModeStart, entry.touchModeEnd, entry.heapMinimumKb,
-                    entry.mainStackFree, entry.lvglStackFree, entry.wakes, entry.longestWakeMs, entry.pmuPowerOn,
-                    entry.pmuPowerOff );
+            snprintf( line, sizeof( line ),
+                      "EVENT %s type=%u code=%u flags=0x%02X battery=%u%%/%umV duration=%u touches=%u "
+                      "touch=0x%02X/0x%02X heapmin=%uK mainstack=%u lvglstack=%u wakes=%u longest=%ums pmu=0x%02X/0x%02X\n",
+                      when, entry.type, entry.code, entry.flags, entry.batteryPercent, entry.batteryMillivolts,
+                      entry.duration, entry.touches, entry.touchModeStart, entry.touchModeEnd, entry.heapMinimumKb,
+                      entry.mainStackFree, entry.lvglStackFree, entry.wakes, entry.longestWakeMs, entry.pmuPowerOn,
+                      entry.pmuPowerOff );
+            writer( line, user );
         }
         nvs_close( handle );
     }
-    printf( "EVENTS END\n" );
-    fflush( stdout );
+    writer( "EVENTS END\n", user );
 }

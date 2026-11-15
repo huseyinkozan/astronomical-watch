@@ -10,10 +10,20 @@ g++ -std=c++17 -O2 -Wall -Wextra -I main tests/CornersTest.cpp main/Corners.cpp 
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/ZonesTest.cpp main/Zones.cpp -o build-host/zones_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/SkyTest.cpp main/Sky.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/sky_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/PrayerTest.cpp main/Sky.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/prayer_test
-build-host/prayer_test
+g++ -std=c++17 -O2 -Wall -Wextra -I main tests/PartOrderTest.cpp main/PartOrder.cpp -o build-host/part_order_test
+g++ -std=c++17 -O2 -Wall -Wextra -I main tools/make_corner_table.cpp main/Corners.cpp main/Sky.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/make_corner_table
 build-host/astronomy_test tests/astronomy_reference.csv
 build-host/hijri_test
 build-host/corners_test
 build-host/zones_test
 build-host/sky_test
 build-host/prayer_test
+build-host/part_order_test
+# main/CornerTable.c must be what the corner geometry gives today.
+build-host/make_corner_table > build-host/CornerTable.c
+if cmp -s build-host/CornerTable.c main/CornerTable.c; then
+    echo "Corner table: up to date"
+else
+    echo "Corner table: stale, run build-host/make_corner_table > main/CornerTable.c"
+    exit 1
+fi

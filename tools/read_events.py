@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Reads the watch's event log (main/EventLog.*) over USB and prints it in words; a copy goes to
 test-logs/. The watch must be in active mode (press PWR); the port is opened without a reset.
+--file reads a log downloaded from the setup portal instead (watch-events.txt).
 
     python tools/read_events.py [--port /dev/ttyACM0]
 
@@ -66,7 +67,14 @@ def words(fields):
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--port', default='/dev/ttyACM0')
+    parser.add_argument('--file', help="a log downloaded from the setup portal (watch-events.txt) instead of the watch")
     args = parser.parse_args()
+    if args.file:
+        with open(args.file, encoding='utf-8', errors='replace') as source:
+            lines = [line.strip() for line in source if line.startswith('EVENT ')]
+        show(lines)
+        print(f'{len(lines)} entries from {args.file}')
+        return 0
 
     print('Waiting for the watch: press PWR.')
     # Linux raises DTR and RTS when it opens the port. pyserial's defaults keep both raised; lowering
@@ -108,13 +116,18 @@ def main():
     with open(path, 'w') as log:
         for line in lines:
             log.write(line + '\n')
-            match = re.match(r'EVENT (\S+ \S+|no time) (.*)', line)
-            if not match:
-                continue
-            fields = dict(item.split('=', 1) for item in match.group(2).split())
-            print(f'{match.group(1)}  {words(fields)}')
+    show(lines)
     print(f'{len(lines)} entries. Raw log: {path}')
     return 0
+
+
+def show(lines):
+    for line in lines:
+        match = re.match(r'EVENT (\S+ \S+|no time) (.*)', line)
+        if not match:
+            continue
+        fields = dict(item.split('=', 1) for item in match.group(2).split())
+        print(f'{match.group(1)}  {words(fields)}')
 
 
 if __name__ == '__main__':

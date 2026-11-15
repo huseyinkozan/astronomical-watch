@@ -73,6 +73,9 @@ public:
     // visible area), its outer edge 3 px inside the visible edge.
     static const int CornerRadius = 120;
     static const int OuterRadius = 117;
+    // The gauge's width in active mode (with a channel and round ends) and on the always-on face.
+    static const int ActiveWidth = 5;
+    static const int AlwaysOnWidth = 2;
 
     // The centre of a corner's circle on a `width` x `height` screen, and the screen angles
     // (degrees, clockwise from 3 o'clock) of the gauge's lower and upper ends.

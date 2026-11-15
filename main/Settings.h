@@ -14,10 +14,12 @@ public:
         DevMode,         // 1: development mode, more entries in the event log (EventLog)
         AutoOff,         // minutes without motion in always-on until power-off, 0: never
         UsbStayOn,       // 1: no display timeout while USB power is present
+        Language,        // Language::Id: 0 English, 1 Turkish
         UtcOffset,       // minutes added to the RTC's UTC for the displayed time
         Latitude,        // micro-degrees, north positive
         Longitude,       // micro-degrees, east positive
         HijriMethod,     // Hijri::Method: 0 local crescent visibility, 1 Diyanet
+        IshaAngle,       // the night prayer's Sun depression: 17 (Turkey) or 16 degrees
         FaceStyle,       // active face layout: 0 classic, 1 day arc, 2 sky arcs, 3 dial
         AodStyle,        // always-on style, an index of aodStyles (AodGlyphs.h)
         FaceItems,       // bits of WatchFace::Item shown on the active face
@@ -31,6 +33,17 @@ public:
         HomeAfter2,
         RtcOffset,       // the PCF85063 Offset register's correction steps (Rtc::applyCalibration)
         RtcSetMinute,    // when the setup portal last set the clock: minutes since 1970 UTC, 0: never
+        // The order of the stacked pages' parts and of the styles, and the hidden ones (PartOrder;
+        // 0: the natural order, nothing hidden). The settings page hides nothing.
+        ClockOrder,
+        ClockHidden,
+        InfoOrder,
+        InfoHidden,
+        SettingsOrder,
+        FaceOrder,
+        FaceHidden,
+        AodOrder,
+        AodHidden,
         ItemCount
     };
     // The items before this one are on the watch's settings page; FaceStyle and AodStyle are

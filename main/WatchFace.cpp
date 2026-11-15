@@ -1,4 +1,5 @@
 #include "WatchFace.h"
+#include "Language.h"
 
 #include <cmath>
 #include <cstdio>
@@ -19,10 +20,6 @@ static const lv_color_t s_grey = LV_COLOR_MAKE( 0xA0, 0xA0, 0xA0 );
 static const lv_color_t s_dialGrey = LV_COLOR_MAKE( 0x70, 0x70, 0x70 );
 static const lv_color_t s_amber = LV_COLOR_MAKE( 0xFF, 0xB0, 0x40 );
 
-static const char *s_dayNames[7] = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };
-static const char *s_shortDays[7] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
-static const char *s_monthNames[12] = { "January", "February", "March",     "April",   "May",      "June",
-                                        "July",    "August",   "September", "October", "November", "December" };
 
 static const uint32_t s_slideMs = 250;
 
@@ -473,18 +470,17 @@ void WatchFace::showTime( const Rtc::DateTime &time )
         lv_label_set_text( layout.date, "" );
         return;
     }
-    const int day = weekday( time );
-    char month[4];
-    snprintf( month, sizeof( month ), "%.3s", s_monthNames[time.month - 1] );
-    char date[40];
+    // Language counts the week from Monday, weekday() from Sunday.
+    const int day = ( weekday( time ) + 6 ) % 7;
+    char date[48];
     if ( m_style == 0 ) {
-        snprintf( date, sizeof( date ), "%s %u %s", s_dayNames[day], time.day, s_monthNames[time.month - 1] );
+        Language::longDate( date, sizeof( date ), day, time.day, time.month );
     } else if ( m_style == 1 ) {
-        snprintf( date, sizeof( date ), "%s %u %s %u", s_shortDays[day], time.day, month, time.year );
+        Language::shortDate( date, sizeof( date ), day, time.day, time.month, time.year );
     } else {
         // The sky faces: "21 June", the day name on its own.
-        snprintf( date, sizeof( date ), "%u %s", time.day, s_monthNames[time.month - 1] );
-        lv_label_set_text( layout.dayName, m_style == 2 ? s_dayNames[day] : s_shortDays[day] );
+        Language::longDate( date, sizeof( date ), -1, time.day, time.month );
+        lv_label_set_text( layout.dayName, m_style == 2 ? Language::dayName( day ) : Language::shortDay( day ) );
     }
     lv_label_set_text( layout.date, date );
 }
@@ -601,12 +597,12 @@ void WatchFace::showSky( const Sky::Day &day, const Sky::Now &now, int utcOffset
     char set[8];
     formatTime( rise, sizeof( rise ), day.sun.riseSet.rising, utcOffsetMinutes );
     formatTime( set, sizeof( set ), day.sun.riseSet.setting, utcOffsetMinutes );
-    const char *eventName = now.sunUp ? "Sunset" : "Sunrise";
+    const char *eventName = Language::text( now.sunUp ? Language::Sunset : Language::Sunrise );
     const char *eventTime = now.sunUp ? set : rise;
     const int minutesLeft = ( now.secondsToSunEvent + 30 ) / 60;
     char left[16] = "";
     if ( now.secondsToSunEvent > 0 ) {
-        snprintf( left, sizeof( left ), "in %d:%02d", minutesLeft / 60, minutesLeft % 60 );
+        snprintf( left, sizeof( left ), Language::text( Language::InTime ), minutesLeft / 60, minutesLeft % 60 );
     }
 
     const Layout &layout = m_layouts[m_style];

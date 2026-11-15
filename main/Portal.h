@@ -63,13 +63,27 @@ public:
     // True once for each save from the page.
     bool takeReceived( Received &received );
 
+    // The battery, for the update's condition (USB power or at least UpdateMinPercent).
+    static const int UpdateMinPercent = 30;
+    void setBattery( int percent, bool usb );
+
+    // True once after a new image was written and chosen for the next start: the main task
+    // stops the portal and restarts.
+    bool takeUpdated();
+
 private:
     static esp_err_t onPage( httpd_req_t *request );
     static esp_err_t onCities( httpd_req_t *request );
     static esp_err_t onHelp( httpd_req_t *request );
+    static esp_err_t onUpdatePage( httpd_req_t *request );
     static esp_err_t onState( httpd_req_t *request );
     static esp_err_t onPing( httpd_req_t *request );
     static esp_err_t onSave( httpd_req_t *request );
+    // A new application image from the page (the request body is the .bin file).
+    static esp_err_t onUpdate( httpd_req_t *request );
+    // Downloads for a report: the event log as text, the core dump of the last crash.
+    static esp_err_t onEvents( httpd_req_t *request );
+    static esp_err_t onCoreDump( httpd_req_t *request );
     static esp_err_t onNotFound( httpd_req_t *request, httpd_err_code_t error );
     void touch();
 
@@ -87,4 +101,9 @@ private:
     portMUX_TYPE m_lock = portMUX_INITIALIZER_UNLOCKED;
     bool m_hasReceived = false;
     Received m_received = {};
+    int m_batteryPercent = -1;
+    bool m_usb = false;
+    bool m_updated = false;
+    // A crash dump in flash, checked once at the start: the page offers it only then.
+    bool m_hasCoreDump = false;
 };

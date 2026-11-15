@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Astronomical Watch update</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; padding: 16px; background: #111; color: #eee; line-height: 1.45; }
+  main { max-width: 480px; margin: 0 auto; }
+  h1 { font-size: 1.4em; }
+  h2 { font-size: 1.1em; margin: 20px 0 6px; color: #8ab4f8; }
+  p, li { margin: 4px 0; }
+  ol, ul { padding-left: 20px; }
+  b { color: #fff; }
+  a { color: #8ab4f8; }
+  input { width: 100%; box-sizing: border-box; font-size: 1em; padding: 8px; margin: 8px 0;
+          background: #222; color: #eee; border: 1px solid #555; border-radius: 6px; }
+  button { width: 100%; font-size: 1.1em; padding: 12px; border: 0; border-radius: 8px;
+           background: #3a6ea5; color: #fff; }
+  #status { margin-top: 12px; min-height: 1.4em; font-weight: bold; }
+  small { color: #888; }
+</style>
+</head>
+<body>
+<main>
+<h1 data-tr="Saatin yazılımını güncelleme">Updating the watch's software</h1>
+<p><a href="/" data-tr="&larr; Ayarlara dön">&larr; Back to the settings</a></p>
+<p data-tr="Yeni bir sürüm saate yeni özellikler getirir ya da hataları düzeltir. Ayarlarınız olduğu gibi kalır.">A new version brings the watch new features or fixes faults. Your settings stay as they
+are.</p>
+<p><span data-tr="Saatteki sürüm:">Version on the watch:</span> <b id="version">?</b><br>
+<span data-tr="Pil:">Battery:</span> <b id="battery">?</b></p>
+
+<h2 data-tr="Başlamadan önce">Before you start</h2>
+<ol>
+  <li data-tr="Yeni sürüm dosyasını telefonunuza kaydedin. Adı <b>.bin</b> ile biten tek bir dosyadır (örneğin astronomical_watch.bin); size kim verdiyse ondan alın. Bunu telefonda internet varken yapın: saatin ağında internet yoktur.">Save the new version file on your phone. It is a single file whose name ends in <b>.bin</b>
+    (for example astronomical_watch.bin); get it from whoever gave you the update. Do this
+    while the phone has internet: the watch's network has none.</li>
+  <li id="power" data-tr="Saati şarj kablosuna takın ya da pilinin en az %30 olduğundan emin olun.">Put the watch on its charging cable, or make sure its battery is at least 30 %.</li>
+</ol>
+
+<h2 data-tr="Telefonu saate bağlayın">Connect the phone to the watch</h2>
+<ol start="3">
+  <li data-tr="Saatte en sağdaki Ayarlar sayfasına gidin, yukarı kaydırarak <b>Kurulum</b>'a gelin ve en üstteki düğmeye dokunun. Saat bir ağ adı ve bir şifre gösterir.">On the watch, go to the Settings page (the last one on the right), swipe up to <b>Wi-Fi
+    setup</b> and tap the top button. The watch shows a network name and a password.</li>
+  <li data-tr="Telefonun Wi-Fi ayarlarını açın, saatte yazan ağ adını seçin ve şifreyi girin.">Open the phone's Wi-Fi settings, choose the network name the watch shows and type the
+    password.</li>
+  <li data-tr="Saatin ayarlar sayfası kendiliğinden küçük bir pencerede açılır. Bu pencere dosya seçemez; telefonunuza göre şunu yapın:">The watch's settings page opens by itself in a small window. This window cannot choose
+    files; do this for your phone:</li>
+</ol>
+<p><b>Android</b></p>
+<ul>
+  <li data-tr="Pencerenin sağ üst köşesindeki üç noktaya (⋮) dokunun.">Tap the three dots (⋮) in the top right corner of the window.</li>
+  <li data-tr="<b>Bu ağı olduğu gibi kullan</b>'a dokunun.">Tap <b>Use this network as is</b>.</li>
+  <li data-tr="Chrome'u ya da Firefox'u açın.">Open Chrome or Firefox.</li>
+</ul>
+<p><b>iPhone, iPad</b></p>
+<ul>
+  <li data-tr="Pencerenin sağ üst köşesindeki <b>İptal</b>'e dokunun.">Tap <b>Cancel</b> in the top right corner of the window.</li>
+  <li data-tr="Sorulduğunda <b>İnternet olmadan kullan</b>'ı seçin.">When asked, choose <b>Use Without Internet</b>.</li>
+  <li data-tr="Safari'yi açın.">Open Safari.</li>
+</ul>
+<ol start="6">
+  <li data-tr="Tarayıcının üstündeki adres çubuğuna tam olarak şunu yazın: <b>192.168.4.1/update</b> &mdash; bu sayfa yeniden açılır.">In the address bar at the top of the browser, type exactly: <b>192.168.4.1/update</b>
+    &mdash; this page opens again.</li>
+</ol>
+<p><small data-tr="Bu adımlar olmadan telefon, internet olmayan saatin ağını kullanmaz ve sayfa açılmaz.">Without these steps the phone does not use the watch's network, which has no internet, and
+the page does not open.</small></p>
+
+<h2 data-tr="Yükleyin">Install</h2>
+<ol start="7">
+  <li data-tr="Aşağıdaki dosya düğmesine dokunun ve 1. adımda kaydettiğiniz dosyayı seçin.">Tap the file button below and choose the file you saved in step 1.</li>
+  <li data-tr="<b>Yükle</b>'ye dokunun ve bekleyin. Yüzde 100'e kadar sayar; yarım dakika kadar sürer. Bu sırada telefonu saatin yanında tutun ve ekranını kilitlemeyin.">Tap <b>Install</b> and wait. It counts up to 100 %; this takes about half a minute. Keep
+    the phone near the watch meanwhile and do not lock its screen.</li>
+</ol>
+<input id="image" type="file" accept=".bin,application/octet-stream">
+<button type="button" id="install" data-tr="Yükle">Install</button>
+<div id="status"></div>
+<ol start="9">
+  <li data-tr="Saat kendiliğinden kapanıp açılır ve ağı kapanır; telefonunuz kendi ağına döner. Bu kadar. Yeni sürümü saatin Bilgi sayfasının en alt kısmında (Hakkında) görebilirsiniz.">The watch restarts by itself and its network closes; your phone returns to its usual
+    network. That is all. The new version is shown in the last part of the watch's information
+    page (About).</li>
+</ol>
+
+<h2 data-tr="Bir sorun olursa">If something goes wrong</h2>
+<p data-tr="Yeni sürüm açılmazsa saat kendiliğinden eski sürüme döner; hiçbir şey kaybolmaz. Yeniden deneyebilirsiniz. Sorun sürerse aşağıdaki iki dosyayı indirip güncellemeyi size verene gönderin.">If the new version does not start, the watch goes back to the old one by itself; nothing is
+lost. You can try again. If the problem stays, download the two files below and send them to
+whoever gave you the update.</p>
+<p><a href="/api/events" download="watch-events.txt" data-tr="Olay kaydını indir">Download the event log</a></p>
+<p id="dump"><a href="/api/coredump" download="watch-coredump.bin" data-tr="Çökme dökümünü indir">Download the crash dump</a></p>
+<p id="noDump" hidden><small data-tr="Çökme dökümü yok: saat bir hatayla yeniden başlamamış.">No crash dump: the watch has not restarted because of a fault.</small></p>
+</main>
+
+<script>
+'use strict';
+const $ = (id) => document.getElementById(id);
+// The watch's language (main/Language.h), like the settings page: Turkish texts in data-tr.
+let L = (navigator.language || '').startsWith('tr') ? 1 : 0;
+const t = (en, tr) => (L === 1 ? tr : en);
+function translatePage() {
+  document.documentElement.lang = L === 1 ? 'tr' : 'en';
+  for (const element of document.querySelectorAll('[data-tr]')) {
+    if (element.dataset.en === undefined) element.dataset.en = element.innerHTML;
+    element.innerHTML = L === 1 ? element.dataset.tr : element.dataset.en;
+  }
+}
+translatePage();
+
+let watch = {};
+fetch('/api/state').then((r) => r.json()).then((s) => {
+  watch = s;
+  if (s.language !== undefined) { L = s.language === 1 ? 1 : 0; translatePage(); }
+  $('version').textContent = s.version || '?';
+  $('dump').hidden = !s.coreDump;
+  $('noDump').hidden = !!s.coreDump;
+  $('battery').textContent = (s.battery >= 0 ? s.battery + ' %' : '?') + (s.usb ? t(', charging cable in', ', şarj kablosu takılı') : '');
+  $('power').textContent = t('Put the watch on its charging cable, or make sure its battery is at least ' + s.updateMin + ' %.',
+                             'Saati şarj kablosuna takın ya da pilinin en az %' + s.updateMin + ' olduğundan emin olun.');
+}).catch(() => { $('status').textContent = t('Could not read the watch.', 'Saat okunamadı.'); });
+
+// The file goes as the request body; the watch checks it, writes it and restarts
+// (main/Portal.cpp, onUpdate).
+$('install').addEventListener('click', () => {
+  const file = $('image').files[0];
+  const status = $('status');
+  if (!file) { status.textContent = t('Choose the file first.', 'Önce dosyayı seçin.'); return; }
+  if (!watch.usb && watch.battery >= 0 && watch.battery < watch.updateMin) {
+    status.textContent = t('Charge the watch or put it on its charging cable first.', 'Önce saati şarj edin ya da şarj kablosuna takın.');
+    return;
+  }
+  const request = new XMLHttpRequest();
+  request.open('POST', '/api/update');
+  request.upload.onprogress = (e) => {
+    if (e.lengthComputable) status.textContent = t('Sending ', 'Gönderiliyor ') + Math.round(e.loaded * 100 / e.total) + ' %';
+  };
+  request.onload = () => {
+    if (request.status === 200) {
+      status.textContent = t('Done. The watch restarts with the new version; its Wi-Fi closes.',
+                             'Tamam. Saat yeni sürümle yeniden başlıyor; Wi-Fi ağı kapanıyor.');
+    } else if (request.status === 403) {
+      status.textContent = t('Charge the watch or put it on its charging cable first.', 'Önce saati şarj edin ya da şarj kablosuna takın.');
+    } else if (request.status === 415) {
+      status.textContent = t('This file is not software for this watch.', 'Bu dosya bu saatin yazılımı değil.');
+    } else {
+      status.textContent = t('The update failed; the watch keeps its version.', 'Güncelleme olmadı; saat kendi sürümünde kalıyor.');
+    }
+  };
+  request.onerror = () => { status.textContent = t('Could not reach the watch.', 'Saate ulaşılamadı.'); };
+  status.textContent = t('Sending…', 'Gönderiliyor…');
+  request.send(file);
+});
+</script>
+</body>
+</html>

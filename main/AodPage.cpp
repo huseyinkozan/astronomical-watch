@@ -54,7 +54,7 @@ void AodPage::build( lv_obj_t *page )
         lv_obj_set_hidden( m_labels[i], true );
     }
     // The moon changes with the phase, so it is a small canvas rather than a glyph.
-    const AlwaysOn::Look look = { 0, AlwaysOn::MoonItem, 50, true, {}, 0, 0 };
+    const AlwaysOn::Look look = { 0, AlwaysOn::MoonItem, 50, true, {}, 0, 0, 0 };
     const int size = AlwaysOn::moon( look )->width;
     m_moon = lv_canvas_create( m_content );
     lv_obj_set_pos( m_moon, AlwaysOn::MoonX, AlwaysOn::MoonY );

@@ -35,6 +35,7 @@ public:
         Corners::Input corners;
         int dayBrightness;
         int nightBrightness;
+        int language;  // Language::Id: the minute wakes read no settings
     };
 
     // The styles: 0 to AOD_STYLE_COUNT - 2 the digit sets of aodStyles alone; then the sky arcs
@@ -124,6 +125,10 @@ public:
 
     // The idle-mode colour of a corner gauge, or -1 when it draws nothing.
     static int gaugeColour( Corners::Kind kind );
+
+    // The colour of pixel (x, y) of the screen's corner gauges as the always-on face draws them,
+    // in the panel's byte order; 0 where nothing is lit. The always-on page shows the same.
+    static uint16_t cornerPixel( const Corners::Gauge gauges[Corners::CornerCount], int x, int y );
 
     // Called when active mode ends; the following timer wakes draw the face until the
     // motion check powers the watch off (main.cpp) or a PWR wake ends it.

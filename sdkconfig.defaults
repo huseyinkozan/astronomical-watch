@@ -13,6 +13,10 @@ CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 # Always-on wakes once a minute: skipping the app image check on deep-sleep wakes saves about
 # 150 ms of the 0.5 s wake (docs/hardware.md, ESP32-S3). It still runs after power-on and reset.
 CONFIG_BOOTLOADER_SKIP_VALIDATE_IN_DEEP_SLEEP=y
+# Updates through the portal: a new image starts "pending" and is marked valid once active mode
+# has drawn its pages (main.cpp); a reset before that returns to the previous image. Deep-sleep
+# wakes skip this check, so the update ends with a full restart.
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
 
 # Wi-Fi setup portal (M9): speed is not needed there. Without these IRAM optimisations the Wi-Fi
 # and lwIP code stays in flash, which leaves internal RAM for the portal and keeps the RAM image

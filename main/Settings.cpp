@@ -35,10 +35,12 @@ static const ItemInfo s_items[Settings::ItemCount] = {
     { "dev_mode", 0, 2, { 0, 1 }, 0, 0 },
     { "auto_off_min", CONFIG_WATCH_MOTION_OFF_MIN, 4, { 20, 30, 60, 0 }, 0, 0 },
     { "usb_stay_on", 1, 2, { 1, 0 }, 0, 0 },
+    { "language", 0, 2, { 0, 1 }, 0, 0 },
     { "utc_offset_min", 0, 0, {}, -720, 840 },
     { "latitude_ud", 0, 0, {}, -90000000, 90000000 },
     { "longitude_ud", 0, 0, {}, -180000000, 180000000 },
     { "hijri_method", 0, 2, { 0, 1 }, 0, 0 },
+    { "isha_angle", 17, 2, { 17, 16 }, 0, 0 },
     { "face_style", 0, 0, {}, 0, 3 },
     { "aod_style", 0, 0, {}, 0, 4 },
     { "face_items", 7, 0, {}, 0, 7 },
@@ -53,6 +55,15 @@ static const ItemInfo s_items[Settings::ItemCount] = {
     // -10: measured on the first board (docs/hardware.md, PCF85063A); the portal corrects it.
     { "rtc_offset", -10, 0, {}, -64, 63 },
     { "rtc_set_min", 0, 0, {}, 0, 70000000 },
+    { "clock_order", 0, 0, {}, 0, 16777215 },
+    { "clock_hidden", 0, 0, {}, 0, 255 },
+    { "info_order", 0, 0, {}, 0, 16777215 },
+    { "info_hidden", 0, 0, {}, 0, 255 },
+    { "set_order", 0, 0, {}, 0, 16777215 },
+    { "face_order", 0, 0, {}, 0, 16777215 },
+    { "face_hidden", 0, 0, {}, 0, 255 },
+    { "aod_order", 0, 0, {}, 0, 16777215 },
+    { "aod_hidden", 0, 0, {}, 0, 255 },
 };
 
 static int indexOf( const ItemInfo &info, int value )

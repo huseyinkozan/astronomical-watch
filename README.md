@@ -31,25 +31,29 @@ and the PWR key turns it on again.
 
 ## Screenshots
 
-Active-mode pages, swiped sideways (taken from the watch with `tools/screenshot.py`, in a fixed
-scene: Istanbul, 21 June 2026, 19:19). Left of the watch face is the always-on page: a swipe up or
-down there, or on the watch face, steps through the styles, and the one left showing is kept:
-
 | Always-on styles | Watch faces |
 |---|---|
-| ![Always-on styles](docs/screenshots/always-on.gif) | ![Watch faces](docs/screenshots/faces.gif) |
+| ![Always-on styles](docs/screenshots/en/always-on.gif) | ![Watch faces](docs/screenshots/en/faces.gif) |
 
-The always-on face is shown at full brightness; the watch dims it to its day or night level.
-Its five styles are JetBrains Mono Thin and Regular, seven segments filled with dots, and the
-faces with the Sun's and the Moon's paths drawn in dots: arcs over the horizon, and a dial.
+Every page, part and style, and the setup portal: **[English](docs/screenshots/en/README.md)** ·
+**[Türkçe](docs/screenshots/tr/README.md)**. Taken from the watch in a fixed scene (Istanbul,
+21 June 2026, 19:19); the always-on face is shown at full brightness, the watch dims it.
 
-| Sun | Twilight | Moon | Sun compass |
-|---|---|---|---|
-| ![Sun](docs/screenshots/2-sun.png) | ![Twilight](docs/screenshots/3-twilight.png) | ![Moon](docs/screenshots/4-moon.png) | ![Sun compass](docs/screenshots/5-compass.png) |
+## Install and Update
 
-| Battery | Settings | Setup | About |
-|---|---|---|---|
-| ![Battery](docs/screenshots/6-battery.png) | ![Settings](docs/screenshots/7-settings.png) | ![Setup portal](docs/screenshots/8-setup.png) | ![About](docs/screenshots/9-about.png) |
+Releases are on the project's release page (GitLab and GitHub), each with two files:
+
+- `astronomical_watch-<version>-full.bin`: the first install over USB, one command
+  (Python's esptool; if no port appears, hold BOOT while pressing PWR for the download mode).
+  It also clears the settings, so it is meant for the first install only:
+
+  ```bash
+  pip install esptool
+  esptool --chip esp32s3 -p /dev/ttyACM0 write-flash 0x0 astronomical_watch-<version>-full.bin
+  ```
+
+- `astronomical_watch-<version>.bin`: later updates from a phone, no computer needed: start the
+  setup portal on the watch (Settings, Wi-Fi setup) and follow its "Software update" page.
 
 ## Hardware
 
@@ -62,6 +66,8 @@ Pins, power tree and device notes are in [docs/hardware.md](docs/hardware.md).
 ESP-IDF v6.1, C++17, LVGL, Waveshare board support package.
 
 ## Build and Flash
+
+For development (see [CLAUDE.md](CLAUDE.md) for the release and battery-test builds):
 
 ```bash
 source ~/.espressif/v6.1/esp-idf/export.sh
@@ -96,8 +102,8 @@ astronomical-watch/
 ├── sdkconfig.defaults    project configuration (sdkconfig is generated)
 ├── dependencies.lock     locked component versions
 ├── docs/hardware.md      hardware fact base
-├── partitions.csv        flash layout (4 MB application)
-├── docs/screenshots/     pictures of the watch pages
+├── partitions.csv        flash layout (two 4 MB application slots for updates)
+├── docs/screenshots/     pictures of the watch pages, in English (en/) and Turkish (tr/)
 ├── tools/guided_test.py  guided hardware tests
 ├── tools/screenshot.py   screenshots from the watch (development build)
 ├── tools/read_events.py  the watch's event log over USB (stability on the wrist)
@@ -106,6 +112,8 @@ astronomical-watch/
 ├── tools/make_fonts.sh   watch fonts (main/fonts/) from tools/fonts/, needs Node.js
 ├── tools/make_aod_glyphs.py  always-on bitmaps (main/AodGlyphs.c), needs Pillow (tools/.venv)
 ├── tools/make_gifs.py    README animations from the screenshots, needs Pillow
+├── tools/portal_preview.py  the setup portal's pages on localhost with a fake watch; pictures
+├── tools/make_corner_table.cpp  corner gauge pixel table (main/CornerTable.c)
 ├── tests/                host tests of the astronomy code and their reference data
 ├── main/                 application
 └── archive/              earlier QMI8658 validator (reference only)
@@ -130,7 +138,10 @@ page. The settings page holds the settings (display timeout, always-on, developm
 auto-off, screen on while on USB; one tap per value, kept in flash), what the portal set, and the
 setup portal, which opens the watch's own Wi-Fi for a phone or computer, whose browser sets the
 time, time zone, location, world clock cities, day counters and settings, and shows a short
-help page; each save also corrects the clock's rate. A long press and a
+help page; each save also corrects the clock's rate. The portal also orders the stacked pages'
+parts and the faces, and hides the ones not wanted. The watch and the page speak English or
+Turkish. New versions install from a phone through the same page, which also hands over the
+watch's event log and crash dump for a report. A long press and a
 vertical drag on the watch face sets the brightness, on the always-on page the always-on
 brightness by day or by night. 10 s after the last touch
 (the default), or at the next PWR press, a
@@ -178,8 +189,10 @@ Each step is built, verified on the board and documented before the next one sta
     the power cost of the always-on styles (battery run V: no visible cost of lit pixels), the
     corner gauges, the always-on brightness by day and by night, and two faces with the Sun's and
     the Moon's paths.
-12. **M11**: languages: Turkish and English on the watch and the setup page, chosen in the
-    settings.
+12. **M11** (done): languages: Turkish and English on the watch and the setup page, chosen in the
+    settings or on the page; software updates from a phone through the setup portal, with a
+    return to the previous version if the new one does not start; the event log and crash dump
+    downloaded from the same page. First release: v0.0.1.
 13. Vibration motor.
 14. Alarms (clock time and sun/moon events) and countdown timer, also set through the portal.
 

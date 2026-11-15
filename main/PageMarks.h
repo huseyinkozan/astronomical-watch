@@ -13,6 +13,9 @@ public:
 
     void build( lv_obj_t *parent, int count, bool horizontal = false );
 
+    // A new number of items (the parts shown, set in the portal); the marks are laid out again.
+    void setCount( int count );
+
     void show( int index );
 
     // Shows the marks for a moment after a step, then hides them again (the watch face).
@@ -25,5 +28,7 @@ private:
 
     lv_obj_t *m_marks[MaxCount] = {};
     int m_count = 0;
+    bool m_horizontal = false;
+    bool m_visible = true;
     lv_timer_t *m_hideTimer = nullptr;
 };

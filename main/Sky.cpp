@@ -77,7 +77,8 @@ static Astronomy::Event sunAtBearing( const Astronomy::SunDay &sun, double beari
     return event;
 }
 
-Sky::Day Sky::computeDay( int day, int utcOffsetMinutes, const Astronomy::Observer &observer, Hijri::Method method )
+Sky::Day Sky::computeDay( int day, int utcOffsetMinutes, const Astronomy::Observer &observer, Hijri::Method method,
+                          int ishaAngle )
 {
     Day result = {};
     result.day = day;
@@ -102,7 +103,7 @@ Sky::Day Sky::computeDay( int day, int utcOffsetMinutes, const Astronomy::Observ
     }
     result.qiblaBearing = qiblaBearing( observer );
     result.qibla = sunAtBearing( result.sun, result.qiblaBearing, observer );
-    result.prayers = prayerTimes( day, observer );
+    result.prayers = prayerTimes( day, observer, ishaAngle );
     result.isoWeek = Dates::isoWeek( day );
     result.dayOfYear = Dates::dayOfYear( day );
 
@@ -142,7 +143,7 @@ static int64_t roundedMinute( int64_t time )
     return ( time + 30 ) / 60 * 60;
 }
 
-Sky::PrayerTimes Sky::prayerTimes( int day, const Astronomy::Observer &observer )
+Sky::PrayerTimes Sky::prayerTimes( int day, const Astronomy::Observer &observer, int ishaAngle )
 {
     // Like Diyanet: the Sun's declination and the equation of time taken once for the date (at
     // 0 h UT), then each time from the hour angle at which the Sun reaches its altitude.
@@ -164,7 +165,7 @@ Sky::PrayerTimes Sky::prayerTimes( int day, const Astronomy::Observer &observer 
     };
     // Asr: a shadow as long as the object plus its noon shadow.
     const double asrAltitude = std::atan( 1.0 / ( 1.0 + std::tan( std::fabs( phi - delta ) ) ) ) * 180.0 / M_PI;
-    static const double s_altitudes[PrayerCount] = { -18.0, -0.8333, 0, 0, -0.8333, -17.0 };
+    const double altitudes[PrayerCount] = { -18.0, -0.8333, 0, 0, -0.8333, -static_cast<double>( ishaAngle ) };
     static const int s_sides[PrayerCount] = { -1, -1, 0, 1, 1, 1 };
     static const int s_precautionMinutes[PrayerCount] = { 0, -7, 5, 4, 7, 0 };
     PrayerTimes result = {};
@@ -173,12 +174,17 @@ Sky::PrayerTimes Sky::prayerTimes( int day, const Astronomy::Observer &observer 
         if ( i == Dhuhr ) {
             result.valid[i] = true;
         } else {
-            result.valid[i] = fromTransit( i == Asr ? asrAltitude : s_altitudes[i], offsets[i] );
+            result.valid[i] = fromTransit( i == Asr ? asrAltitude : altitudes[i], offsets[i] );
         }
         const double time = transit + s_sides[i] * offsets[i] + s_precautionMinutes[i] * 60;
         result.times[i] = roundedMinute( static_cast<int64_t>( std::floor( time ) ) );
     }
     result.approximate = observer.latitude > 44.5 || observer.latitude < -44.5;
+    // Where Diyanet uses 16 degrees it limits imsak and the night prayer in short summer nights
+    // by a rule not reproduced here (Bucharest, tests/PrayerTest.cpp): from nights under 9 h.
+    if ( ishaAngle == 16 && result.valid[Sunrise] && s_dayS - 2 * offsets[Sunrise] < 9 * 3600 ) {
+        result.approximate = true;
+    }
     // No dark enough twilight (summer at high latitudes): a third of the night after sunset and
     // before sunrise.
     if ( ( !result.valid[Imsak] || !result.valid[Isha] ) && result.valid[Sunrise] && result.valid[Maghrib] ) {

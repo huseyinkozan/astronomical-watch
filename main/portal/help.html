@@ -13,12 +13,13 @@
   ul { padding-left: 20px; }
   b { color: #fff; }
   a { color: #8ab4f8; }
+  [hidden] { display: none; }
 </style>
 </head>
 <body>
-<main>
+<main id="en">
 <h1>Using the watch</h1>
-<p><a href="/">&larr; Back to the settings</a></p>
+<p><a href="/">&larr; Back to the settings</a> &middot; <a href="#tr" onclick="show('tr')">Türkçe</a></p>
 
 <h2>Buttons and gestures</h2>
 <ul>
@@ -88,8 +89,95 @@ to it are the qibla direction from north.</p>
 <p>Start it on the watch (Settings, swipe up to Wi-Fi setup), join the network shown there with
 its password, and this page opens. If it does not, open http://192.168.4.1 in the browser. The
 network closes itself after a few minutes, or when you save.</p>
+<p>A new software version is installed on its own page, which explains each step:
+<a href="/update">Updating the watch's software</a>.</p>
 
 <p><a href="/">&larr; Back to the settings</a></p>
 </main>
+<main id="tr" hidden>
+<h1>Saatin kullanımı</h1>
+<p><a href="/">&larr; Ayarlara dön</a> &middot; <a href="#en" onclick="show('en')">English</a></p>
+
+<h2>Düğme ve hareketler</h2>
+<ul>
+  <li><b>PWR</b> saati uyandırır. Saat kapalıyken <b>en az yarım saniye</b> basılı tutun. Saat
+    açıkken basmak onu hemen bekleme moduna alır. Tamamen kapatmak için 6 sn basılı tutun.</li>
+  <li><b>Yana kaydırma</b> sayfalar arasında geçer: bekleme önizlemesi, ön yüz, saat, bilgi,
+    ayarlar.</li>
+  <li><b>Yukarı ya da aşağı kaydırma</b> sayfanın bir sonraki parçasına, ön yüzlerde bir sonraki
+    stile geçer. Sağ kenardaki çizgiler nerede olduğunuzu gösterir.</li>
+  <li>Takvimlerde yana kaydırma <b>ayı</b> değiştirir (alttaki &lt; &gt; bunu anlatır). Sayfadan
+    çıkmak için yukarı ya da aşağı kaydırıp başka bir parçaya geçin.</li>
+  <li>Ön yüzde <b>basılı tutup yukarı ya da aşağı sürüklemek</b> parlaklığı ayarlar; bekleme
+    sayfasında gündüz ya da gece bekleme parlaklığını.</li>
+</ul>
+
+<h2>Ekran köşeleri</h2>
+<p>Sol üst: geçen gündüz (sarı) ya da gece (mavi). Sağ üst: pil. Sol alt: Ay ufkun üstünde
+(beyaz) ya da altında (gri). Sağ alt: Ay'ın evresi. Çentik ortayı gösterir.</p>
+
+<h2>Pil</h2>
+<p>Ekran süresi dolunca saat soluk bir bekleme yüzü gösterip uyur. Bir süre kıpırdamadan durursa
+ya da pil %10'a inerse tamamen kapanır; PWR (yarım saniye) yeniden açar. USB takılıyken ekran
+açık kalabilir (Ayarlar, "USB'de").</p>
+
+<h2>Saat sayfası</h2>
+<ul>
+  <li><b>Dünya saati</b>: sizin saatiniz ve burada seçilen en çok dört şehir.</li>
+  <li><b>Kronometre</b> ve <b>geri sayım</b> saat uyurken de çalışır. Geri sayım henüz sinyal
+    vermez; saate bakın.</li>
+  <li><b>Günler</b>: burada girdiğiniz tarihlere kalan ya da geçen gün sayısı.</li>
+</ul>
+
+<h2>Saat ve yaz saati</h2>
+<p>Bu sayfa saati telefonunuzun saatine ayarlar. Şehrinizi seçince saat dilimi de gelir; saat
+yaz saati değişimlerini bir yıl boyunca kendisi yapar. Bu sayfayı bir yıl içinde ve başka bir
+şehre her gidişinizde yeniden açın: Güneş, Ay ve namaz vakitleri burada girilen yere göredir;
+Güneş ve namaz sayfalarının altında bu yer yazar.</p>
+
+<h2>Namaz vakitleri</h2>
+<p>Türkiye Diyanet İşleri Başkanlığı'nın yöntemiyle (imsak 18&deg;, yatsı 17&deg;, ikindi bir boy
+gölge, Diyanet'in temkin dakikaları). Genellikle Diyanet'in tablolarıyla dakikası dakikasına
+aynıdır. 44,5&deg; enlemin kuzeyinde Diyanet özel kurallar uygular; saat o zaman "yaklaşık"
+yazar.</p>
+
+<h2>Güneş pusulası</h2>
+<p>Saati yatay tutun ve <b>üst kenarı Güneş'e bakacak</b> şekilde çevirin. Ok o zaman kuzeyi
+gösterir. Güneş doğmuşken ve çok yüksekte değilken çalışır.</p>
+
+<h2>Kıble saati</h2>
+<p>Zaman sayfasında "Kıble" altında yazan saatte Güneş tam Kâbe yönündedir. O dakikada Güneş'i
+önünüze alın: kıbleye dönmüş olursunuz. Yanındaki derece, kıblenin kuzeyden yönüdür.</p>
+
+<h2>Diğer zamanlar (Zaman sayfası)</h2>
+<ul>
+  <li><b>Güneş</b>: güneş saati; Güneş en yüksekteyken 12:00.</li>
+  <li><b>Denklem</b>: güneş saatinin ortalama saatten ne kadar ileri (+) ya da geri (&minus;)
+    olduğu (zaman denklemi).</li>
+  <li><b>Ezani</b>: eski Osmanlı saati; her gün batımında 12:00.</li>
+  <li><b>Yıldız</b>: yıldız zamanı; bir yıldız aynı yıldız zamanında gökte aynı yerdedir.</li>
+</ul>
+
+<h2>Hicri tarih</h2>
+<p>"Yerel hilal": ay, yeni hilal bulunduğunuz yerde çıplak gözle görülebildikten sonra başlar.
+"Diyanet": Türkiye'nin resmî takvimi.</p>
+
+<h2>Wi-Fi kurulum</h2>
+<p>Saatte başlatın (Ayarlar, yukarı kaydırıp Kurulum), saatte yazan ağa yanındaki şifreyle
+bağlanın; bu sayfa açılır. Açılmazsa tarayıcıda http://192.168.4.1 adresini açın. Ağ birkaç
+dakika sonra ya da kaydedince kendisi kapanır.</p>
+<p>Yeni bir yazılım sürümü, her adımı anlatan kendi sayfasından yüklenir:
+<a href="/update">Saatin yazılımını güncelleme</a>.</p>
+
+<p><a href="/">&larr; Ayarlara dön</a></p>
+</main>
+<script>
+function show(language) {
+  document.getElementById('en').hidden = language !== 'en';
+  document.getElementById('tr').hidden = language !== 'tr';
+  document.documentElement.lang = language;
+}
+show(location.hash === '#tr' ? 'tr' : 'en');
+</script>
 </body>
 </html>

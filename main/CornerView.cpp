@@ -2,80 +2,68 @@
 
 #include <cmath>
 
+#include "AlwaysOn.h"
 #include "Panel.h"
 
-static const int s_activeWidth = 5;
-static const int s_alwaysOnWidth = 2;
 static const uint32_t s_trackColour = 0x222222;
-static const uint32_t s_notchColour = 0xD0D0D0;
+static const float s_notchColour = 0xD0;
 // The channel: the gauge's colour at this share of its brightness.
-static const int s_channelPercent = 30;
+static const float s_channelShare = 0.3f;
+static const float s_halfWidth = Corners::ActiveWidth / 2.0f;
+// Pixels per step along the gauge, on the gauge's centre line (a quarter circle).
+static const float s_pixelsPerAlong =
+    static_cast<float>( M_PI / 2 * ( Corners::OuterRadius - Corners::ActiveWidth / 2.0 ) / ( 1000.0 * CORNER_ALONG_SCALE ) );
 
-// Colours by Corners::Kind: active mode, and the always-on face's idle-mode colours (each channel
-// on or off), where orange becomes yellow and the Moon's dark grey white.
+// Colours by Corners::Kind in active mode.
 static const uint32_t s_activeColours[] = { 0x000000, 0xFFD040, 0x5078FF, 0x40D060, 0xFF8020,
                                             0xFF4030, 0xB8C4DC, 0x5C5C60, 0xB8C4DC };
-static const uint32_t s_alwaysOnColours[] = { 0x000000, 0xFFFF00, 0x0000FF, 0x00FF00, 0xFFFF00,
-                                              0xFF0000, 0xFFFFFF, 0xFFFFFF, 0xFFFFFF };
+
+static float clamp01( float value )
+{
+    return value < 0 ? 0 : ( value > 1 ? 1 : value );
+}
+
+static void toChannels( uint32_t hex, float share, float out[3] )
+{
+    out[0] = ( ( hex >> 16 ) & 0xFF ) * share;
+    out[1] = ( ( hex >> 8 ) & 0xFF ) * share;
+    out[2] = ( hex & 0xFF ) * share;
+}
+
+void CornerView::updateLook( int corner )
+{
+    const Corners::Gauge &gauge = m_gauges[corner];
+    Look &look = m_looks[corner];
+    // The channel takes the colour of what the gauge shows; below the horizon the Moon's gauge
+    // keeps the channel of the Moon above it, so that the dark grey value stands out.
+    const Corners::Kind channelKind = gauge.kind == Corners::MoonDown ? Corners::MoonUp : gauge.kind;
+    if ( channelKind == Corners::Empty ) {
+        toChannels( s_trackColour, 1, look.channel );
+    } else {
+        toChannels( s_activeColours[channelKind], s_channelShare, look.channel );
+    }
+    toChannels( s_activeColours[gauge.kind], 1, look.fill );
+    look.empty = gauge.kind == Corners::Empty || gauge.end <= gauge.start;
+    look.start = gauge.start * CORNER_ALONG_SCALE;
+    look.end = gauge.end * CORNER_ALONG_SCALE;
+}
+
+void CornerView::invalidate( int corner )
+{
+    const bool left = corner == Corners::TopLeft || corner == Corners::BottomLeft;
+    const bool top = corner == Corners::TopLeft || corner == Corners::TopRight;
+    const int x = left ? 0 : Panel::WIDTH - CORNER_TABLE_BOX;
+    const int y = top ? 0 : Panel::HEIGHT - CORNER_TABLE_BOX;
+    lv_area_t area = { x, y, x + CORNER_TABLE_BOX - 1, y + CORNER_TABLE_BOX - 1 };
+    lv_obj_invalidate_area( lv_layer_top(), &area );
+}
 
 void CornerView::build()
 {
-    lv_obj_t *layer = lv_layer_top();
-    lv_obj_set_scrollable( layer, false );
     for ( int i = 0; i < Corners::CornerCount; ++i ) {
-        int centreX = 0;
-        int centreY = 0;
-        int lower = 0;
-        int upper = 0;
-        Corners::geometry( static_cast<Corners::Corner>( i ), Panel::WIDTH, Panel::HEIGHT, centreX, centreY, lower,
-                           upper );
-        lv_obj_t *arc = lv_arc_create( layer );
-        lv_obj_remove_style_all( arc );
-        lv_obj_set_clickable( arc, false );
-        lv_obj_set_size( arc, 2 * Corners::OuterRadius, 2 * Corners::OuterRadius );
-        lv_obj_set_pos( arc, centreX - Corners::OuterRadius, centreY - Corners::OuterRadius );
-        lv_arc_set_bg_angles( arc, lower < upper ? lower : upper, lower < upper ? upper : lower );
-        m_arcs[i] = arc;
-        apply( i );
+        updateLook( i );
     }
-    // Over the arcs.
-    for ( int i = 0; i < Corners::CornerCount; ++i ) {
-        for ( int k = 0; k < 3; ++k ) {
-            lv_obj_t *notch = lv_line_create( layer );
-            lv_obj_set_clickable( notch, false );
-            m_notches[i][k] = notch;
-        }
-        placeNotches( i );
-    }
-}
-
-void CornerView::placeNotches( int corner )
-{
-    int centreX = 0;
-    int centreY = 0;
-    int lower = 0;
-    int upper = 0;
-    Corners::geometry( static_cast<Corners::Corner>( corner ), Panel::WIDTH, Panel::HEIGHT, centreX, centreY, lower,
-                       upper );
-    const int width = m_alwaysOn ? s_alwaysOnWidth : s_activeWidth;
-    for ( int k = 0; k < 3; ++k ) {
-        const double angle = ( lower + ( upper - lower ) * k / 2.0 ) * M_PI / 180.0;
-        // Across the gauge, from its outer edge inwards; a line's width is centred on its points.
-        const double outer = Corners::OuterRadius - 0.5;
-        const double inner = Corners::OuterRadius - width + 0.5;
-        lv_point_precise_t *points = m_notchPoints[corner][k];
-        points[0] = { static_cast<lv_value_precise_t>( std::lround( centreX + outer * std::cos( angle ) ) ),
-                      static_cast<lv_value_precise_t>( std::lround( centreY + outer * std::sin( angle ) ) ) };
-        points[1] = { static_cast<lv_value_precise_t>( std::lround( centreX + inner * std::cos( angle ) ) ),
-                      static_cast<lv_value_precise_t>( std::lround( centreY + inner * std::sin( angle ) ) ) };
-        lv_obj_t *notch = m_notches[corner][k];
-        lv_line_set_points( notch, points, 2 );
-        lv_obj_set_style_line_width( notch, 2, 0 );
-        lv_obj_set_style_line_color( notch, lv_color_hex( m_alwaysOn ? 0xFFFFFF : s_notchColour ), 0 );
-        // Active mode rounds the gauge's ends, which then mark the limits themselves; the
-        // always-on look (no channel) keeps the end notches.
-        lv_obj_set_hidden( notch, !m_alwaysOn && k != 1 );
-    }
+    m_built = true;
 }
 
 void CornerView::show( const Corners::Gauge gauges[Corners::CornerCount] )
@@ -85,7 +73,10 @@ void CornerView::show( const Corners::Gauge gauges[Corners::CornerCount] )
         const Corners::Gauge &gauge = gauges[i];
         if ( old.start != gauge.start || old.end != gauge.end || old.kind != gauge.kind ) {
             m_gauges[i] = gauge;
-            apply( i );
+            updateLook( i );
+            if ( m_built ) {
+                invalidate( i );
+            }
         }
     }
 }
@@ -96,50 +87,80 @@ void CornerView::setAlwaysOnLook( bool alwaysOn )
         return;
     }
     m_alwaysOn = alwaysOn;
-    for ( int i = 0; i < Corners::CornerCount; ++i ) {
-        apply( i );
-        placeNotches( i );
+    for ( int i = 0; i < Corners::CornerCount && m_built; ++i ) {
+        invalidate( i );
     }
 }
 
-void CornerView::apply( int corner )
+// The colour of one ring pixel in LVGL's RGB565, 0 to leave LVGL's pixel.
+uint16_t CornerView::colour( int corner, const CornerPixel &pixel, int along, int x, int y ) const
 {
-    lv_obj_t *arc = m_arcs[corner];
-    if ( arc == nullptr ) {
+    if ( m_alwaysOn ) {
+        // The always-on face's own pixels (panel byte order), LVGL's buffer the other way.
+        const uint16_t panel = AlwaysOn::cornerPixel( m_gauges, x, y );
+        return static_cast<uint16_t>( ( panel >> 8 ) | ( panel << 8 ) );
+    }
+    const Look &look = m_looks[corner];
+    const float radial = pixel.radial / 16.0f;
+    float fill = 0;
+    if ( !look.empty ) {
+        // Inside the filled part the distance to its centre line; past an end, to the end's
+        // centre, which gives the round end.
+        float past = 0;
+        if ( along < look.start ) {
+            past = ( look.start - along ) * s_pixelsPerAlong;
+        } else if ( along > look.end ) {
+            past = ( along - look.end ) * s_pixelsPerAlong;
+        }
+        const float distance = past <= s_halfWidth + 1 ? sqrtf( past * past + radial * radial ) : s_halfWidth + 1;
+        fill = clamp01( s_halfWidth + 0.5f - distance );
+    }
+    const float channel = pixel.channel / 255.0f;
+    const float notch = pixel.notch / 255.0f * channel;
+    float rgb[3] = {};
+    for ( int i = 0; i < 3; ++i ) {
+        float value = look.channel[i] * channel;
+        value = look.fill[i] * fill + value * ( 1 - fill );
+        rgb[i] = s_notchColour * notch + value * ( 1 - notch );
+    }
+    const int r = static_cast<int>( rgb[0] * 31 / 255 + 0.5f );
+    const int g = static_cast<int>( rgb[1] * 63 / 255 + 0.5f );
+    const int b = static_cast<int>( rgb[2] * 31 / 255 + 0.5f );
+    return static_cast<uint16_t>( ( r << 11 ) | ( g << 5 ) | b );
+}
+
+void CornerView::paint( const lv_area_t &area, uint16_t *pixels ) const
+{
+    if ( !m_built ) {
         return;
     }
-    int centreX = 0;
-    int centreY = 0;
-    int lower = 0;
-    int upper = 0;
-    Corners::geometry( static_cast<Corners::Corner>( corner ), Panel::WIDTH, Panel::HEIGHT, centreX, centreY, lower,
-                       upper );
-    const Corners::Gauge &gauge = m_gauges[corner];
-    const int width = m_alwaysOn ? s_alwaysOnWidth : s_activeWidth;
-    lv_obj_set_style_arc_width( arc, width, LV_PART_MAIN );
-    lv_obj_set_style_arc_width( arc, width, LV_PART_INDICATOR );
-    lv_obj_set_style_arc_rounded( arc, !m_alwaysOn, LV_PART_MAIN );
-    lv_obj_set_style_arc_rounded( arc, !m_alwaysOn, LV_PART_INDICATOR );
-    const uint32_t colour = m_alwaysOn ? s_alwaysOnColours[gauge.kind] : s_activeColours[gauge.kind];
-    // The channel takes the colour of what the gauge shows; below the horizon the Moon's gauge
-    // keeps the channel of the Moon above it, so that the dark grey value stands out.
-    const Corners::Kind channelKind = gauge.kind == Corners::MoonDown ? Corners::MoonUp : gauge.kind;
-    lv_color_t channel = lv_color_hex( s_trackColour );
-    if ( channelKind != Corners::Empty ) {
-        channel = lv_color_mix( lv_color_hex( s_activeColours[channelKind] ), lv_color_black(),
-                                static_cast<uint8_t>( 255 * s_channelPercent / 100 ) );
-    }
-    lv_obj_set_style_arc_color( arc, channel, LV_PART_MAIN );
-    lv_obj_set_style_arc_opa( arc, m_alwaysOn ? LV_OPA_TRANSP : LV_OPA_COVER, LV_PART_MAIN );
-
-    lv_obj_set_style_arc_color( arc, lv_color_hex( colour ), LV_PART_INDICATOR );
-    // The always-on face dots the Moon's time below the horizon; half opacity stands for it here.
-    const bool dotted = m_alwaysOn && gauge.kind == Corners::MoonDown;
-    const bool empty = gauge.kind == Corners::Empty || gauge.end <= gauge.start;
-    lv_obj_set_style_arc_opa( arc, empty ? LV_OPA_TRANSP : ( dotted ? LV_OPA_50 : LV_OPA_COVER ), LV_PART_INDICATOR );
-    if ( !empty ) {
-        const int a = lower + ( upper - lower ) * gauge.start / 1000;
-        const int b = lower + ( upper - lower ) * gauge.end / 1000;
-        lv_arc_set_angles( arc, a < b ? a : b, a < b ? b : a );
+    const int width = lv_area_get_width( &area );
+    for ( int y = area.y1; y <= area.y2; ++y ) {
+        const bool bottom = y >= Panel::HEIGHT - CORNER_TABLE_BOX;
+        if ( y >= CORNER_TABLE_BOX && !bottom ) {
+            continue;
+        }
+        const int row = bottom ? Panel::HEIGHT - 1 - y : y;
+        const int first = cornerRowFirst[row];
+        const int count = cornerRowCount[row];
+        const CornerPixel *run = cornerPixels + cornerRowOffset[row];
+        uint16_t *line = pixels + ( y - area.y1 ) * width;
+        for ( int side = 0; side < 2; ++side ) {
+            const bool right = side == 1;
+            const int corner = bottom ? ( right ? Corners::BottomRight : Corners::BottomLeft )
+                                      : ( right ? Corners::TopRight : Corners::TopLeft );
+            for ( int i = 0; i < count; ++i ) {
+                const int x = right ? Panel::WIDTH - 1 - ( first + i ) : first + i;
+                if ( x < area.x1 || x > area.x2 ) {
+                    continue;
+                }
+                // As in cornerTablePixel(): the bottom gauges run the other way.
+                const int along = bottom ? 1000 * CORNER_ALONG_SCALE - run[i].along : run[i].along;
+                const uint16_t value = colour( corner, run[i], along, x, y );
+                if ( value != 0 ) {
+                    line[x - area.x1] = value;
+                }
+            }
+        }
     }
 }

@@ -18,7 +18,12 @@ public:
     lv_obj_t *part( int index ) const;
 
     // `direction`: 1 after a swipe up (the part comes in from below), -1 after a swipe down, 0 at once.
+    // `index` is a part number; a part left out of the order is shown too (screenshots).
     void show( int index, int direction );
+
+    // The parts to show and their order (PartOrder::decode); all of them by default. The part
+    // shown moves to the first of them when it is left out.
+    void setOrder( const int *parts, int count );
 
     int current() const;
 
@@ -28,6 +33,8 @@ private:
     lv_obj_t *m_tile = nullptr;
     lv_obj_t *m_parts[MaxParts] = {};
     int m_count = 0;
+    int m_order[MaxParts] = {};
+    int m_shown = 0;
     int m_current = 0;
     PageMarks m_marks;
 };

@@ -14,12 +14,14 @@ struct City
     const char *name;
     Astronomy::Observer observer;
     bool european;  // EET/EEST instead of Turkey's fixed UTC+3
+    int ishaAngle;  // 16 where Diyanet uses it (Romania)
 };
 
 // Istanbul and Ankara as Diyanet gives them; the others are ordinary city centres.
-static const City s_cities[] = { { "istanbul", { 41.012, 28.974 }, false },  { "ankara", { 39.938, 32.848 }, false },
-                                 { "diyarbakir", { 37.914, 40.231 }, false }, { "antalya", { 36.897, 30.713 }, false },
-                                 { "sofia", { 42.698, 23.322 }, true } };
+static const City s_cities[] = { { "istanbul", { 41.012, 28.974 }, false, 17 },  { "ankara", { 39.938, 32.848 }, false, 17 },
+                                 { "diyarbakir", { 37.914, 40.231 }, false, 17 }, { "antalya", { 36.897, 30.713 }, false, 17 },
+                                 { "sofia", { 42.698, 23.322 }, true, 17 },       { "bucharest", { 44.427, 26.103 }, true, 16 } };
+static const int s_cityCount = sizeof( s_cities ) / sizeof( s_cities[0] );
 
 // Eastern European time: UTC+3 from the last Sunday of March to the last Sunday of October
 // (01:00 UTC each), UTC+2 otherwise.
@@ -62,7 +64,7 @@ int main( int argc, char **argv )
             continue;
         }
         const City *city = nullptr;
-        for ( int i = 0; i < 5; ++i ) {
+        for ( int i = 0; i < s_cityCount; ++i ) {
             if ( strcmp( s_cities[i].name, name ) == 0 ) {
                 city = &s_cities[i];
             }
@@ -73,8 +75,13 @@ int main( int argc, char **argv )
         const int day = Dates::dayNumber( year, month, date );
         const int offset = city->european ? europeanOffset( day ) : 180;
         const int64_t midnight = static_cast<int64_t>( day ) * 86400 - offset * 60;
-        const Sky::PrayerTimes prayers = Sky::prayerTimes( day, city->observer );
+        const Sky::PrayerTimes prayers = Sky::prayerTimes( day, city->observer, city->ishaAngle );
         for ( int i = 0; i < Sky::PrayerCount; ++i ) {
+            // Diyanet's summer limit of imsak and the night prayer in 16-degree countries is not
+            // reproduced; the watch marks those days as approximate (Sky::prayerTimes).
+            if ( prayers.approximate && ( i == Sky::Imsak || i == Sky::Isha ) ) {
+                continue;
+            }
             const int published = hours[i] * 60 + minutes[i];
             const int computed = static_cast<int>( ( prayers.times[i] - midnight ) / 60 );
             const int difference = std::abs( computed - published );

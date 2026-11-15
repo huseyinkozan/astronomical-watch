@@ -21,24 +21,34 @@ static const uint32_t s_flashMs = 1200;
 
 void PageMarks::build( lv_obj_t *parent, int count, bool horizontal )
 {
-    m_count = count > MaxCount ? MaxCount : count;
-    const int span = horizontal ? s_right - s_left + 1 : s_bottom - s_top + 1;
-    const int length = ( span - ( m_count - 1 ) * s_gap ) / m_count;
-    for ( int i = 0; i < m_count; ++i ) {
+    m_horizontal = horizontal;
+    for ( int i = 0; i < MaxCount; ++i ) {
         lv_obj_t *mark = lv_obj_create( parent );
         lv_obj_remove_style_all( mark );
-        if ( horizontal ) {
+        lv_obj_set_style_bg_opa( mark, LV_OPA_COVER, 0 );
+        lv_obj_set_clickable( mark, false );
+        m_marks[i] = mark;
+    }
+    setCount( count );
+    show( 0 );
+}
+
+void PageMarks::setCount( int count )
+{
+    m_count = count > MaxCount ? MaxCount : ( count < 1 ? 1 : count );
+    const int span = m_horizontal ? s_right - s_left + 1 : s_bottom - s_top + 1;
+    const int length = ( span - ( m_count - 1 ) * s_gap ) / m_count;
+    for ( int i = 0; i < MaxCount; ++i ) {
+        lv_obj_t *mark = m_marks[i];
+        if ( m_horizontal ) {
             lv_obj_set_size( mark, length, s_width );
             lv_obj_set_pos( mark, s_left + i * ( length + s_gap ), s_y );
         } else {
             lv_obj_set_size( mark, s_width, length );
             lv_obj_set_pos( mark, s_x, s_top + i * ( length + s_gap ) );
         }
-        lv_obj_set_style_bg_opa( mark, LV_OPA_COVER, 0 );
-        lv_obj_set_clickable( mark, false );
-        m_marks[i] = mark;
+        lv_obj_set_hidden( mark, !m_visible || i >= m_count );
     }
-    show( 0 );
 }
 
 void PageMarks::show( int index )
@@ -65,8 +75,9 @@ void PageMarks::flash( int index )
 
 void PageMarks::setVisible( bool visible )
 {
-    for ( int i = 0; i < m_count; ++i ) {
-        lv_obj_set_hidden( m_marks[i], !visible );
+    m_visible = visible;
+    for ( int i = 0; i < MaxCount; ++i ) {
+        lv_obj_set_hidden( m_marks[i], !visible || i >= m_count );
     }
 }
 
