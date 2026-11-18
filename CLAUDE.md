@@ -165,9 +165,14 @@ the first minute wake of a new local day computes the slots' events of today and
 again and moves the Hijri date on (`FaceTable::follow`). After a change, regenerate the
 file and compare both faces with `tools/screenshot.py` ("F <page>", "A <page>").
 
-The four screen corners are gauges on every page and on the always-on face (`main/Corners.*`
-computes them, `main/CornerView.*` draws them on LVGL's top layer, `AlwaysOn` with its own
-bitmaps): top left the day (yellow, sunrise to sunset) or the night (blue), top right the
+The four screen corners are gauges on every page and on the always-on face, each showing an item
+chosen in the portal, the same on every page (`FaceConfig::GaugeItem`, kept after the pages: the
+day or night, the battery, the Moon's pass or phase, the next prayer time, sunrise, sunset,
+moonrise or moonset from the previous one, the week, the month, the Hijri month, the year, a day
+counter (since it was saved, yearly, the last 30 or 100 days), the Sun's altitude, the hour, the
+minute or the second, which stays empty on the always-on face). `main/Corners.*` computes them
+(host-tested rules), `main/CornerView.*` draws them on LVGL's top layer, `AlwaysOn` with its own
+bitmaps. The defaults: top left the day (yellow, sunrise to sunset) or the night (blue), top right the
 battery (green, orange above 10 %, red at the power-off limit; while charging, the part above the
 value is white: in active mode it grows step by step to the full end and starts again, on the
 always-on face it is drawn solid from the next minute wake), bottom left the Moon above the

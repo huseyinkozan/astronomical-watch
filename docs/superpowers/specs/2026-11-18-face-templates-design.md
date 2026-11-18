@@ -242,6 +242,24 @@ upper side), so its bend changes side once a night as the centre crosses the mer
 galactic centre's place is within 0.1° of Skyfield. The defaults are the four pages above, then
 Large JetBrains Mono. Minute wake with Full arcs and a Classic dial: 225-238 ms of app time.
 
+### Phase 4 result (2026-11-18)
+
+The catalogue above as `FaceConfig::GaugeItem`, kept after the pages in the saved string ("/" and
+four items and four parameters; an older string gets today's four), chosen in the portal's Faces
+tab above the pages, with the counter and its fill or 12/24 hours beside the item. The rules are
+one host-tested function (`Corners::compute`): daily events fill from the previous occurrence to
+the next, looking a day back and ahead, and stay empty when none is found (no moonrise, polar day
+or night); the Hijri month counts 30 days from its first day; a counter whose date has passed is
+full in the 30- and 100-day fills, and one saved by an older version (saved day unknown) is empty
+in the since-saved fill until it is saved again; the second is empty on the always-on face. The
+counters keep the day they were saved (their own NVS key; a rename restarts it). Colours follow
+the item: yellow for the Sun's events and altitude, bluish white for the Moon's, amber for the
+prayers, light grey for the calendar, green for the Hijri month, blue for the counters, white for
+the clock (the always-on face uses the nearest of its idle-mode colours). The saved pages change
+size, so a watch updated to this version starts with the default pages once. Minute wake with
+four busy gauges (a yearly counter, the next prayer, the Hijri month, the next moonset) on the
+Full arcs page: 237-256 ms of app time.
+
 ## Left to the builder
 
 The exact pixel places within the mock-ups' layout, colours of new elements (following today's:

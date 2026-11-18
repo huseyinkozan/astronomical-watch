@@ -121,10 +121,11 @@
 <section class="tab">
 <fieldset>
   <legend data-tr="Yüzler">Faces</legend>
-  <small data-tr="Ön yüzün sayfaları; saatte ön yüzde yukarı veya aşağı kaydırarak geçilir. Bekleme ekranı, etkin mod bittiğinde görünen sayfayı gösterir: saatini ve &quot;beklemede&quot; işaretli bilgileri. Ekran köşeleri gündüzü ya da geceyi, pili, Ay'ın ufkun üstünde ya da altında geçen süresini ve evresini gösterir.">The pages of the watch face; on the watch, swipe up or down on the face for the next one.
+  <small data-tr="Ön yüzün sayfaları; saatte ön yüzde yukarı veya aşağı kaydırarak geçilir. Bekleme ekranı, etkin mod bittiğinde görünen sayfayı gösterir: saatini ve &quot;beklemede&quot; işaretli bilgileri. Ekranın dört köşesindeki göstergeler bütün sayfalarda aynıdır.">The pages of the watch face; on the watch, swipe up or down on the face for the next one.
   The always-on face shows the page shown when active mode ends: its clock and the items marked
-  "always-on". The screen corners show the day or night, the battery, the Moon's time above or
-  below the horizon and its phase.</small>
+  "always-on". The gauges in the four screen corners are the same on every page.</small>
+  <label data-tr="Köşe göstergeleri">Corner gauges</label>
+  <div id="gaugeEditor"></div>
   <div id="faceEditor"></div>
   <button type="button" id="faceDefaults" class="secondary" data-tr="Varsayılan yüzleri yükle">Load the default faces</button>
 </fieldset>
@@ -566,6 +567,49 @@ function labelOf(text) {
   label.textContent = text;
   return label;
 }
+// The corner gauges (FaceConfig::GaugeItem; the same on every page).
+const gaugeItems = [['Nothing', 'Boş'], ['Day or night', 'Gündüz ya da gece'], ['Battery', 'Pil'],
+  ['Moon above or below the horizon', 'Ay ufkun üstünde ya da altında'], ['Moon phase', 'Ay evresi'],
+  ['Next prayer time', 'Sonraki namaz vakti'], ['Next sunrise', 'Sonraki gün doğumu'], ['Next sunset', 'Sonraki gün batımı'],
+  ['Next moonrise', 'Sonraki Ay doğuşu'], ['Next moonset', 'Sonraki Ay batışı'], ['Week', 'Hafta'], ['Month', 'Ay (takvim)'],
+  ['Hijri month', 'Hicri ay'], ['Year', 'Yıl'], ['Day counter', 'Gün sayacı'], ['Sun altitude', 'Güneş yüksekliği'],
+  ['Hour', 'Saat'], ['Minute', 'Dakika'], ['Second (not on the always-on face)', 'Saniye (beklemede yok)']];
+const gaugeCounterFills = [['since it was saved', 'kaydedildiğinden beri'], ['yearly', 'yıllık'], ['the last 30 days', 'son 30 gün'],
+  ['the last 100 days', 'son 100 gün']];
+const DayCounterGauge = 14, HourGauge = 16;
+function drawGauges() {
+  const box = $('gaugeEditor');
+  box.innerHTML = '';
+  for (let corner = 0; corner < 4; corner++) {
+    box.appendChild(labelOf(slotNames[4 + corner][L]));
+    const row = document.createElement('div');
+    row.className = 'slot';
+    const item = gauges[corner];
+    row.appendChild(selectOf(gaugeItems, gaugeItems.length, item, (n) => { gauges[corner] = n; gauges[4 + corner] = 0; drawGauges(); }));
+    const p = gauges[4 + corner];
+    if (item === DayCounterGauge) {
+      // The counter in bits 0-1, the fill in bits 2-3.
+      const counter = document.createElement('select');
+      counter.className = 'param';
+      fill(counter, [0, 1, 2, 3].map((i) => [i, String(i + 1)]), p & 3);
+      counter.addEventListener('change', () => { gauges[4 + corner] = (gauges[4 + corner] & 12) | Number(counter.value); });
+      row.appendChild(counter);
+      const how = document.createElement('select');
+      how.className = 'param';
+      fill(how, gaugeCounterFills.map((names, i) => [i, names[L]]), (p >> 2) & 3);
+      how.addEventListener('change', () => { gauges[4 + corner] = (gauges[4 + corner] & 3) | (Number(how.value) << 2); });
+      row.appendChild(how);
+    } else if (item === HourGauge) {
+      const hours = document.createElement('select');
+      hours.className = 'param';
+      fill(hours, [[0, t('24 hours', '24 saat')], [1, t('12 hours', '12 saat')]], p & 1);
+      hours.addEventListener('change', () => { gauges[4 + corner] = Number(hours.value); });
+      row.appendChild(hours);
+    }
+    box.appendChild(row);
+  }
+}
+
 // The watch's default pages (FaceConfig::defaults), the same as on its first start.
 let defaultFaces = '';
 $('faceDefaults').addEventListener('click', () => {
@@ -574,6 +618,7 @@ $('faceDefaults').addEventListener('click', () => {
   faces = decodeFaces(defaultFaces);
   facePage = 0;
   drawFaces();
+  drawGauges();
 });
 
 // One page at a time: a list chooses the page, the fields below belong to it.
@@ -723,6 +768,7 @@ function setLanguage(language) {
   fillCities();
   drawOrders();
   drawFaces();
+  drawGauges();
   showZone();
 }
 $('language').addEventListener('change', () => setLanguage(Number($('language').value)));
@@ -740,6 +786,7 @@ fetch('/api/state').then((r) => r.json()).then((s) => {
   if (s.faceDefaults) defaultFaces = s.faceDefaults;
   faces = decodeFaces(s.faces);
   drawFaces();
+  drawGauges();
   if (s.zone && zoneValid(s.zone)) { homeZone = s.zone; showZone(); }
   $('placeName').value = s.place || '';
   const home = cities.find((c) => c[4] === s.zone && watchName(c[1]) === $('placeName').value);

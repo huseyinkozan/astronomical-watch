@@ -15,8 +15,10 @@ and the PWR key turns it on again.
 - Time and date
 - Sunrise, sunset, solar noon, civil/nautical/astronomical twilight, day length
 - Moon phase, illumination, age, moonrise and moonset
-- Battery level, the day or night, the Moon's time above or below the horizon and its phase as
-  gauges in the four screen corners; while charging, the battery gauge fills up in white
+- Gauges in the four screen corners, chosen in the setup portal: the battery, the day or night,
+  the Moon's time above or below the horizon, its phase, the time to the next prayer, sunrise,
+  sunset, moonrise or moonset, the week, month, Hijri month or year, a day counter, the Sun's
+  altitude, the hour, minute or second; while charging, the battery gauge fills up in white
 - Alarms at a clock time or relative to a sun or moon event (sunrise, twilights, solar noon,
   sunset, moonrise, moonset), with an offset; a countdown timer; signalled by vibration
 - PWR key opens the interactive mode (touch, pages); after a configurable timeout the watch
@@ -155,8 +157,8 @@ by day or by night. 10 s after the last touch
 dim form of the face page shown (its clock and the items marked for it), at a brightness of its
 own by day and by night (switched at sunrise and sunset), stays on the display
 while the processor deep-sleeps, redrawn once a minute. On every page and on the always-on face
-the four screen corners are gauges: the day or night, the battery, the Moon's time above or
-below the horizon and its phase. While the battery charges, a white part grows from its level to
+the four screen corners are gauges chosen in the portal (by default the day or night, the
+battery, the Moon's time above or below the horizon and its phase). While the battery charges, a white part grows from its level to
 the full end in active mode; the always-on face shows that part in white from its next minute.
 Every 10 min the accelerometer is read once; when the watch has not moved for 30 min it
 switches itself off through the power-management IC, and a PWR press of at least half a second
@@ -203,10 +205,11 @@ Each step is built, verified on the board and documented before the next one sta
     return to the previous version if the new one does not start; the event log and crash dump
     downloaded from the same page. First release: v0.0.1. v0.0.2: the charging indicator, and the
     PWR key on boards whose key line lacks its pull-up resistor.
-13. **Face templates** (phases 1 to 3 of 5 done, unreleased): face pages composed in the portal,
+13. **Face templates** (phases 1 to 4 of 5 done, unreleased): face pages composed in the portal,
     the Large, Full arcs and Half arcs templates with both digital clocks and five analog styles,
-    the Milky Way band, the slots, and the always-on face drawn from the page (minute wake
-    0.24 s of app time on average). Next: configurable corner gauges, then a release.
+    the Milky Way band, the slots, the corner gauges chosen from a catalogue, and the always-on
+    face drawn from the page (minute wake 0.25 s of app time on average). Next: clean-up and a
+    release.
 14. Vibration motor.
 15. Alarms (clock time and sun/moon events) and countdown timer, also set through the portal.
 
