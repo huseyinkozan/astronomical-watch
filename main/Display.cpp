@@ -486,9 +486,81 @@ void Display::ensureBuilt( int page )
     m_built[page] = true;
     if ( page == InfoPage ) {
         buildInfoPage();
+        if ( m_freedPart[page] >= 0 ) {
+            m_info.show( m_freedPart[page], 0 );
+        }
     } else if ( page == SettingsPage ) {
         buildSettingsPage();
+        if ( m_freedPart[page] >= 0 ) {
+            m_settingsPage.show( m_freedPart[page], 0 );
+        }
     }
+}
+
+int Display::activePage() const
+{
+    lv_obj_t *tile = lv_tileview_get_tile_active( m_pages );
+    for ( int i = 0; i < PageCount; ++i ) {
+        if ( m_tiles[i] == tile ) {
+            return i;
+        }
+    }
+    return FacePage;
+}
+
+void Display::keepPages( int shown )
+{
+    const int pages[2] = { InfoPage, SettingsPage };
+    for ( int i = 0; i < 2; ++i ) {
+        const int page = pages[i];
+        bool near = page >= shown - 1 && page <= shown + 1;
+        if ( page == InfoPage && m_setup.running && shown != InfoPage ) {
+            near = false;
+        }
+        if ( near ) {
+            ensureBuilt( page );
+        } else {
+            freePage( page );
+        }
+    }
+}
+
+void Display::freePage( int page )
+{
+    if ( ( page != InfoPage && page != SettingsPage ) || !m_built[page] ) {
+        return;
+    }
+    lv_obj_t *tile = m_tiles[page];
+    if ( page == InfoPage ) {
+        m_freedPart[page] = m_info.current();
+        m_info.forget();
+        m_sky.forget();
+        m_percentLabel = nullptr;
+        m_voltageLabel = nullptr;
+        m_chargeLabel = nullptr;
+        m_unpluggedLabel = nullptr;
+    } else {
+        m_freedPart[page] = m_settingsPage.current();
+        m_settingsPage.forget();
+#if CONFIG_WATCH_SETUP_PORTAL
+        lv_obj_remove_event_cb_with_user_data( tile, onSettingsPartChanged, this );
+#endif
+        for ( int i = 0; i < Settings::PageItemCount; ++i ) {
+            m_settingRows[i] = nullptr;
+            m_settingValues[i] = nullptr;
+        }
+        m_portalRow = nullptr;
+        m_portalValue = nullptr;
+        m_passwordRow = nullptr;
+        m_networkLabel = nullptr;
+        m_passwordLabel = nullptr;
+        m_setupInfo = nullptr;
+        m_joinCode = nullptr;
+        m_joinHint = nullptr;
+        m_setupTable.forget();
+    }
+    lv_obj_clean( tile );
+    m_built[page] = false;
 }
 
 // A full-width row with a name on the left; returns the value label on the right.
@@ -648,7 +720,11 @@ void Display::showSetup( const Setup &setup )
     if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
         return;
     }
+    const bool portalChanged = setup.running != m_setup.running;
     m_setup = setup;
+    if ( portalChanged ) {
+        keepPages( activePage() );
+    }
     applySetup();
     bsp_display_unlock();
 }
@@ -941,11 +1017,10 @@ void Display::onPageChanged( lv_event_t *event )
     lv_obj_t *tile = lv_tileview_get_tile_active( display->m_pages );
     display->updatePageSwipe();
     display->updateJoinCodeBrightness();
-    // The next page beyond this one, while this one is looked at.
+    // The next page beyond this one, while this one is looked at; the far ones freed.
     for ( int i = 0; i < PageCount; ++i ) {
         if ( display->m_tiles[i] == tile ) {
-            display->ensureBuilt( i - 1 );
-            display->ensureBuilt( i + 1 );
+            display->keepPages( i );
         }
     }
 }

@@ -23,6 +23,9 @@ public:
 
     void setVisible( bool visible );
 
+    // The marks were deleted with their page.
+    void forget();
+
 private:
     static void onHide( lv_timer_t *timer );
 

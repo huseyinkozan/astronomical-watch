@@ -31,6 +31,11 @@ void TablePart::refresh()
     }
 }
 
+void TablePart::forget()
+{
+    m_object = nullptr;
+}
+
 // One cell: a single line, clipped to its box (a longer text does not run into its neighbour).
 void TablePart::drawCell( lv_layer_t *layer, const lv_area_t &coords, int x, int y, int width, const char *text,
                           uint32_t colour, lv_text_align_t align ) const

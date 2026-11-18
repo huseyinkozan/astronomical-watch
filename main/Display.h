@@ -171,6 +171,12 @@ private:
     void updatePageSwipe();
     // Pages built on demand (the watch face and its neighbours at the start).
     void ensureBuilt( int page );
+    // The information and settings pages are built near the shown page and freed far from it
+    // (their objects hold internal heap the setup portal needs); while the portal runs, the
+    // information page only while it is shown.
+    void keepPages( int shown );
+    void freePage( int page );
+    int activePage() const;
     void buildInfoPage();
     void buildSettingsPage();
     void showBattery();
@@ -181,6 +187,7 @@ private:
     void showFacePage( int direction );
     lv_obj_t *m_tiles[4] = {};
     bool m_built[4] = {};
+    int m_freedPart[4] = { -1, -1, -1, -1 };  // the part a freed page showed, for its next build
     Setup m_setup = {};
     char m_setupTexts[SetupInfoRows][40] = {};
     // A long press on the watch face, then a drag: vertically the active brightness,

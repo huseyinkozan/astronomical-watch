@@ -41,6 +41,9 @@ public:
     // Draws the part again when a text or colour changed since the last refresh.
     void refresh();
 
+    // The object was deleted with its page; the texts stay for the next build.
+    void forget();
+
 private:
     static void onDraw( lv_event_t *event );
     void drawCell( lv_layer_t *layer, const lv_area_t &coords, int x, int y, int width, const char *text,

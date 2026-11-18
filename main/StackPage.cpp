@@ -183,3 +183,15 @@ void StackPage::onGesture( lv_event_t *event )
     const int step = direction == LV_DIR_TOP ? 1 : -1;
     self->show( PartOrder::step( self->m_order, self->m_shown, self->m_current, step ), step );
 }
+
+void StackPage::forget()
+{
+    if ( m_tile != nullptr ) {
+        lv_obj_remove_event_cb_with_user_data( m_tile, onGesture, this );
+    }
+    m_tile = nullptr;
+    for ( int i = 0; i < MaxParts; ++i ) {
+        m_parts[i] = nullptr;
+    }
+    m_marks.forget();
+}

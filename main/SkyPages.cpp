@@ -328,3 +328,16 @@ void SkyPages::show( const Sky::Day &day, const Sky::Now &now, int utcOffsetMinu
     lv_obj_set_style_opa( m_compassArrow, usable ? LV_OPA_COVER : LV_OPA_TRANSP, 0 );
     lv_obj_set_style_opa( m_compassNorth, usable ? LV_OPA_COVER : LV_OPA_TRANSP, 0 );
 }
+
+void SkyPages::forget()
+{
+    m_built = false;
+    m_sun.forget();
+    m_twilight.forget();
+    m_prayer.forget();
+    m_moon.forget();
+    m_time.forget();
+    m_compassArrow = nullptr;
+    m_compassNorth = nullptr;
+    m_compassText = nullptr;
+}

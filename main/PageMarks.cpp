@@ -85,3 +85,15 @@ void PageMarks::onHide( lv_timer_t *timer )
 {
     static_cast<PageMarks *>( lv_timer_get_user_data( timer ) )->setVisible( false );
 }
+
+void PageMarks::forget()
+{
+    if ( m_hideTimer != nullptr ) {
+        lv_timer_delete( m_hideTimer );
+        m_hideTimer = nullptr;
+    }
+    for ( int i = 0; i < MaxCount; ++i ) {
+        m_marks[i] = nullptr;
+    }
+    m_count = 0;
+}

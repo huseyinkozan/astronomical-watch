@@ -31,6 +31,10 @@ public:
 
     int current() const;
 
+    // The parts were deleted with the tile's contents (a page freed far from the shown one): the
+    // tile's swipe handler goes, the order and the part shown stay for the next build.
+    void forget();
+
 private:
     static void onGesture( lv_event_t *event );
     static void onDrawHeaderLine( lv_event_t *event );

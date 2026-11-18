@@ -22,6 +22,9 @@ public:
     // `day` is computed once for the local day, `now` every second.
     void show( const Sky::Day &day, const Sky::Now &now, int utcOffsetMinutes );
 
+    // The parts were deleted with their page; show() does nothing until the next build.
+    void forget();
+
 private:
     static const int SunRows = 6;
     static const int TwilightRows = 8;
