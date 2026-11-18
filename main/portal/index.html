@@ -620,7 +620,7 @@ function drawFaces() {
   page.appendChild(selectOf([['Large', 'Büyük'], ['Full arcs', 'Tam yay'], ['Half arcs', 'Yarım yay']], 3, v[0],
                             (n) => { v[0] = n; drawFaces(); }));
   // The Milky Way band over the half arcs' horizon (FaceConfig::MilkyWayFlag).
-  if (v[0] === 2) {
+  if (v[0] === 1 || v[0] === 2) {
     page.appendChild(checkOf(t('Milky Way', 'Samanyolu'), (v[4] & MilkyWay) !== 0,
                              (on) => { v[4] = on ? v[4] | MilkyWay : v[4] & ~MilkyWay; }));
   }

@@ -6,18 +6,18 @@ cd "$(dirname "$0")/.."
 mkdir -p build-host
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/AstronomyTest.cpp main/Astronomy.cpp main/Hijri.cpp -o build-host/astronomy_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/HijriTest.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/hijri_test
-g++ -std=c++17 -O2 -Wall -Wextra -I main tests/CornersTest.cpp main/Corners.cpp main/Sky.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/corners_test
+g++ -std=c++17 -O2 -Wall -Wextra -I main tests/CornersTest.cpp main/Corners.cpp main/Sky.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/corners_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/ZonesTest.cpp main/Zones.cpp -o build-host/zones_test
-g++ -std=c++17 -O2 -Wall -Wextra -I main tests/SkyTest.cpp main/Sky.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/sky_test
-g++ -std=c++17 -O2 -Wall -Wextra -I main tests/PrayerTest.cpp main/Sky.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/prayer_test
+g++ -std=c++17 -O2 -Wall -Wextra -I main tests/SkyTest.cpp main/Sky.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/sky_test
+g++ -std=c++17 -O2 -Wall -Wextra -I main tests/PrayerTest.cpp main/Sky.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/prayer_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/PartOrderTest.cpp main/PartOrder.cpp -o build-host/part_order_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/FaceConfigTest.cpp main/FaceConfig.cpp -o build-host/face_config_test
-g++ -std=c++17 -O2 -Wall -Wextra -I main tests/FaceTextTest.cpp main/FaceText.cpp main/FaceTable.cpp main/FaceConfig.cpp main/Language.cpp main/Zones.cpp main/Sky.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/face_text_test
-g++ -std=c++17 -O2 -Wall -Wextra -I main tests/AodSmallTest.cpp main/FaceText.cpp main/FaceTable.cpp main/FaceConfig.cpp main/Language.cpp main/Zones.cpp main/Sky.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/aod_small_test
+g++ -std=c++17 -O2 -Wall -Wextra -I main tests/FaceTextTest.cpp main/FaceText.cpp main/FaceTable.cpp main/FaceConfig.cpp main/Language.cpp main/Zones.cpp main/Sky.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/face_text_test
+g++ -std=c++17 -O2 -Wall -Wextra -I main tests/AodSmallTest.cpp main/FaceText.cpp main/FaceTable.cpp main/FaceConfig.cpp main/Language.cpp main/Zones.cpp main/Sky.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/aod_small_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/AnalogClockTest.cpp main/AnalogClock.cpp -o build-host/analog_clock_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/MilkyWayTest.cpp main/MilkyWay.cpp main/Astronomy.cpp -o build-host/milky_way_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/SevenSegmentTest.cpp main/SevenSegment.cpp -o build-host/seven_segment_test
-g++ -std=c++17 -O2 -Wall -Wextra -I main tools/make_corner_table.cpp main/Corners.cpp main/Sky.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/make_corner_table
+g++ -std=c++17 -O2 -Wall -Wextra -I main tools/make_corner_table.cpp main/Corners.cpp main/Sky.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/make_corner_table
 build-host/astronomy_test tests/astronomy_reference.csv
 build-host/hijri_test
 build-host/corners_test

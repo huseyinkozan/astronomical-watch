@@ -120,6 +120,62 @@ int main()
     check( "below the horizon: not drawn", !MilkyWay::drawn( band, ox + 10, oy + 5, ox, oy, 160 ) );
     check( "outside the half disc: not drawn", !MilkyWay::drawn( band, ox, oy - 170, ox, oy, 160 ) );
 
+    // The Full arcs band: a circle of r 200 through the dial's centre, its tangent there along
+    // the galactic centre's place on the 24 h dial (270 + its hour angle: the top at the transit).
+    // It fades towards the clock (nothing within 50 px, full from 110), ends inside the Sun's ring,
+    // shows only at night (the Sun below -12 degrees, full from -18), and the end towards the
+    // centre is bright while the centre is up, the other end and both while it is down dim.
+    {
+        const Astronomy::Observer istanbul = { 41.0082, 28.9784 };
+        int64_t transit = 0;
+        double highest = -90;
+        for ( int64_t t = 1782072000; t < 1782072000 + 86400; t += 60 ) {
+            const double altitude = Astronomy::starPosition( MilkyWay::CentreRaHours, MilkyWay::CentreDecDegrees, t, istanbul ).altitude;
+            if ( altitude > highest ) {
+                highest = altitude;
+                transit = t;
+            }
+        }
+        const float atTransit = MilkyWay::dialAngle( MilkyWay::hourAngle( transit, istanbul.longitude ) );
+        check( "dial: the transit at the top", std::fabs( atTransit - 270 ) < 1 );
+        const float later = MilkyWay::dialAngle( MilkyWay::hourAngle( transit + 6 * 3600, istanbul.longitude ) );
+        check( "dial: six hours later a quarter turn on", std::fabs( later - 0 ) < 2 || std::fabs( later - 360 ) < 2 );
+    }
+    const float dx = 205;
+    const float dy = 251;
+    MilkyWay::DialBand dial = MilkyWay::dialBand( 20, -25, 270, dx, dy );
+    check( "dial band: circle centre a quarter turn aside", std::fabs( dial.cx - ( dx + 200 ) ) < 0.5f && std::fabs( dial.cy - dy ) < 0.5f );
+    // Points on the circle at a given distance from the dial's centre, up (towards the centre's
+    // place) and down.
+    auto onCircle = [&]( float distance, bool up, float &x, float &y ) {
+        // The circle through the dial's centre: a chord of length `distance` from it.
+        const float half = std::asin( distance / ( 2 * dial.radius ) );
+        const float a = static_cast<float>( M_PI ) + ( up ? 2 : -2 ) * half;
+        x = dial.cx + dial.radius * cosf( a );
+        y = dial.cy + dial.radius * sinf( a );
+    };
+    float px = 0;
+    float py = 0;
+    onCircle( 30, true, px, py );
+    check( "dial band: nothing at the clock", MilkyWay::dialFade( dial, px, py, dx, dy ) == 0 );
+    onCircle( 130, true, px, py );
+    check( "dial band: our sky's end full", std::fabs( MilkyWay::dialFade( dial, px, py, dx, dy ) - 1 ) < 0.01f && py < dy );
+    onCircle( 130, false, px, py );
+    check( "dial band: the other end dim", std::fabs( MilkyWay::dialFade( dial, px, py, dx, dy ) - 0.35f ) < 0.01f && py > dy );
+    onCircle( 80, true, px, py );
+    check( "dial band: half way faded", std::fabs( MilkyWay::dialFade( dial, px, py, dx, dy ) - 0.5f ) < 0.02f );
+    onCircle( 149, true, px, py );
+    check( "dial band: ends inside the Sun's ring", MilkyWay::dialFade( dial, px, py, dx, dy ) == 0 );
+    check( "dial band: off the band", MilkyWay::dialFade( dial, dx + 60, dy - 120, dx, dy ) == 0 );
+    dial = MilkyWay::dialBand( -10, -25, 270, dx, dy );
+    onCircle( 130, true, px, py );
+    check( "dial band: the centre down, both ends dim", std::fabs( MilkyWay::dialFade( dial, px, py, dx, dy ) - 0.35f ) < 0.01f );
+    dial = MilkyWay::dialBand( 20, -15, 270, dx, dy );
+    onCircle( 130, true, px, py );
+    check( "dial band: half strength at -15 degrees", std::fabs( MilkyWay::dialFade( dial, px, py, dx, dy ) - 0.5f ) < 0.01f );
+    dial = MilkyWay::dialBand( 20, -5, 270, dx, dy );
+    check( "dial band: hidden by day", !dial.shown );
+
     printf( "Milky Way: %d checks, %d failures\n", s_checks, s_failures );
     return s_failures == 0 ? 0 : 1;
 }

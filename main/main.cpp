@@ -237,8 +237,8 @@ static bool pollHostCommands()
             if ( style >= 0 && style < s_facePages.count && item >= 0 && item < FaceConfig::TemplateCount ) {
                 FaceConfig::Page &page = s_facePages.pages[style];
                 page.layout = static_cast<uint8_t>( item );
-                page.flags = static_cast<uint8_t>( item == FaceConfig::HalfArcs ? page.flags | FaceConfig::MilkyWayFlag
-                                                                                : page.flags & ~FaceConfig::MilkyWayFlag );
+                page.flags = static_cast<uint8_t>( item != FaceConfig::Large ? page.flags | FaceConfig::MilkyWayFlag
+                                                                             : page.flags & ~FaceConfig::MilkyWayFlag );
                 s_display.setPages( s_facePages );
             }
             s_display.showFaceStyle( style );

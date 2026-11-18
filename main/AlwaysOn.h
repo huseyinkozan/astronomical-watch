@@ -73,7 +73,11 @@ public:
         DiscShape,
         RingShape,
         LineShape,
-        BandShape
+        BandShape,
+        // The Full arcs' Milky Way: the circle centred at (x0, y0) through the dial's centre,
+        // `width` its dial angle halved, `radius` its strength by the Sun (0 to 255), y1 1 while
+        // the galactic centre is up; dots as dense as MilkyWay::dialFade() says.
+        DialBandShape
     };
 
     struct Shape

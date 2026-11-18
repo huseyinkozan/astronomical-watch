@@ -89,6 +89,7 @@ public:
         // The galactic centre (the half arcs' Milky Way), and whether the observer is south of
         // the equator (the arcs mirror).
         Astronomy::Position galacticCentre;
+        double galacticHourAngle;  // degrees, 0 at its transit (the Full arcs' band)
         bool south;
     };
 

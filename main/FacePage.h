@@ -67,6 +67,7 @@ private:
     int64_t m_skyMinute = -1;
     Corners::ArcPlace m_bodies[2] = {};  // the Sun, the Moon
     MilkyWay::Band m_band = {};
+    MilkyWay::DialBand m_dialBand = {};  // the Full arcs' band
     bool m_bandShown = false;
     bool m_bandBright = false;
     int m_moonPercent = -1;

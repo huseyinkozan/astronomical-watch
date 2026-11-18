@@ -50,6 +50,7 @@ void FaceConfig::defaults( Pages &pages )
     full = segments;
     full.layout = FullArcs;
     full.items[TopRight] = NoCorner;
+    full.flags = MilkyWayFlag;
 
     // Page 2: the paths over the horizon with the Milky Way, JetBrains Mono digits below.
     Page &half = pages.pages[1];

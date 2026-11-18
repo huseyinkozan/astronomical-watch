@@ -302,6 +302,24 @@ static void addArcs( AlwaysOn::Face &face, const AlwaysOn::Look &look, int64_t u
                       static_cast<int>( band.radius ), band.bright ? 1 : 0 );
         }
     }
+    if ( orbits && look.skyValid && ( look.page.flags & FaceConfig::MilkyWayFlag ) != 0 ) {
+        double centreAltitude =
+            Astronomy::starPosition( MilkyWay::CentreRaHours, MilkyWay::CentreDecDegrees, utcNow, look.observer ).altitude;
+        double sunAltitude = Astronomy::sunPosition( utcNow, look.observer ).altitude;
+#if CONFIG_WATCH_DEV_LOGGING
+        if ( s_skyOverride ) {
+            centreAltitude = s_overrideSky[0];
+            sunAltitude = s_overrideSky[2];
+        }
+#endif
+        const float angle = MilkyWay::dialAngle( MilkyWay::hourAngle( utcNow, look.observer.longitude ) );
+        const MilkyWay::DialBand band = MilkyWay::dialBand( centreAltitude, sunAltitude, angle, cx, cy );
+        if ( band.shown ) {
+            addShape( face, AlwaysOn::DialBandShape, AlwaysOn::Blue, static_cast<int>( lroundf( band.cx ) ),
+                      static_cast<int>( lroundf( band.cy ) ), static_cast<int>( lroundf( band.strength * 255 ) ),
+                      static_cast<int>( angle / 2 ), 0, band.centreUp ? 1 : 0 );
+        }
+    }
     const AlwaysOn::Colour colours[2] = { AlwaysOn::Yellow, AlwaysOn::White };
     for ( int i = 0; i < 2; ++i ) {
         const Corners::ArcPlace &place = places[i];
@@ -596,6 +614,32 @@ static void drawShape( uint16_t *pixels, int bandTop, int rows, int left, int wi
                 if ( d >= inner && d <= outer && MilkyWay::drawn( band, static_cast<float>( x ), static_cast<float>( y ),
                                                                   static_cast<float>( clipX ), static_cast<float>( clipY ),
                                                                   static_cast<float>( r ) ) ) {
+                    putPixel( pixels, bandTop, rows, left, width, x, y, colour );
+                }
+            }
+        }
+        break;
+    }
+    case AlwaysOn::DialBandShape: {
+        const int dialX = shiftX + FaceConfig::CentreX;
+        const int dialY = shiftY + s_orbitY;
+        MilkyWay::DialBand band = {};
+        band.cx = static_cast<float>( x0 );
+        band.cy = static_cast<float>( y0 );
+        band.radius = MilkyWay::DialRadius;
+        band.angle = shape.width * 2.0f;
+        band.strength = shape.radius / 255.0f;
+        band.centreUp = shape.y1 != 0;
+        band.shown = true;
+        const int firstRow = ( dialY - 147 > bandTop ? dialY - 147 : bandTop );
+        const int endRow = ( dialY + 148 < bandTop + rows ? dialY + 148 : bandTop + rows );
+        // On the screen's even grid: every even pixel where the band is strong, every fourth in
+        // each direction where it fades, none near the clock.
+        for ( int y = firstRow + ( firstRow & 1 ); y < endRow; y += 2 ) {
+            for ( int x = ( dialX - 147 ) & ~1; x <= dialX + 147; x += 2 ) {
+                const float fade = MilkyWay::dialFade( band, static_cast<float>( x ), static_cast<float>( y ),
+                                                       static_cast<float>( dialX ), static_cast<float>( dialY ) );
+                if ( fade >= 0.66f || ( fade >= 0.3f && x % 4 == 0 && y % 4 == 0 ) ) {
                     putPixel( pixels, bandTop, rows, left, width, x, y, colour );
                 }
             }

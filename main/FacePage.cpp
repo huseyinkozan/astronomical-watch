@@ -347,6 +347,9 @@ void FacePage::placeSky()
     m_bandShown = milkyWay && band.shown;
     m_bandBright = band.bright;
     m_band = band;
+    m_dialBand = MilkyWay::dialBand( m_sky.galacticCentre.altitude, m_sky.sun.altitude,
+                                     MilkyWay::dialAngle( m_sky.galacticHourAngle ), FaceConfig::CentreX, s_orbitY );
+    m_dialBand.shown = m_dialBand.shown && orbits && m_located && ( m_page.flags & FaceConfig::MilkyWayFlag ) != 0;
     lv_obj_invalidate( m_arcs );
 }
 
@@ -601,6 +604,38 @@ static void drawBand( lv_layer_t *layer, int originX, int originY, const MilkyWa
     lv_draw_arc( layer, &arc );
 }
 
+// The Full arcs' Milky Way: short arcs along the band's circle, each as strong as
+// MilkyWay::dialFade() at its middle (faded towards the clock, one end dim).
+static void drawDialBand( lv_layer_t *layer, int originX, int originY, const MilkyWay::DialBand &band )
+{
+    const float dialX = FaceConfig::CentreX;
+    const float dialY = s_orbitY;
+    // The circle passes through the dial's centre; the band lies within 100 degrees of it.
+    const float through = std::atan2( dialY - band.cy, dialX - band.cx ) * 180.0f / static_cast<float>( M_PI );
+    lv_draw_arc_dsc_t arc;
+    lv_draw_arc_dsc_init( &arc );
+    arc.color = s_band;
+    arc.width = MilkyWay::DialWidth;
+    arc.center.x = originX + static_cast<int32_t>( lroundf( band.cx ) );
+    arc.center.y = originY + static_cast<int32_t>( lroundf( band.cy ) );
+    arc.radius = static_cast<uint16_t>( band.radius + MilkyWay::DialWidth / 2 );
+    for ( int step = -100; step < 100; step += 2 ) {
+        const float middle = ( through + step + 1 ) * static_cast<float>( M_PI ) / 180.0f;
+        const float x = band.cx + band.radius * cosf( middle );
+        const float y = band.cy + band.radius * sinf( middle );
+        const float fade = MilkyWay::dialFade( band, x, y, dialX, dialY );
+        const lv_area_t box = { originX + static_cast<int32_t>( x ) - MilkyWay::DialWidth, originY + static_cast<int32_t>( y ) - MilkyWay::DialWidth,
+                                originX + static_cast<int32_t>( x ) + MilkyWay::DialWidth, originY + static_cast<int32_t>( y ) + MilkyWay::DialWidth };
+        if ( fade < 0.02f || !inClip( layer, box ) ) {
+            continue;
+        }
+        arc.opa = static_cast<lv_opa_t>( 140 * fade );  // 55 % at full strength
+        arc.start_angle = static_cast<int32_t>( lroundf( std::fmod( through + step + 720, 360.0f ) ) );
+        arc.end_angle = static_cast<int32_t>( lroundf( std::fmod( through + step + 2 + 720, 360.0f ) ) );
+        lv_draw_arc( layer, &arc );
+    }
+}
+
 // The orbits (Full arcs) or the paths over the horizon (Half arcs), the Sun, and the Moon below
 // the horizon; the Moon above it is its own object (m_skyMoon).
 void FacePage::onDrawArcs( lv_event_t *event )
@@ -616,6 +651,9 @@ void FacePage::onDrawArcs( lv_event_t *event )
     if ( face->m_page.layout == FaceConfig::FullArcs ) {
         const float cx = x0 + FaceConfig::CentreX;
         const float cy = y0 + s_orbitY;
+        if ( face->m_dialBand.shown ) {
+            drawDialBand( layer, static_cast<int>( x0 ), static_cast<int>( y0 ), face->m_dialBand );
+        }
         for ( int i = 0; i < 2; ++i ) {
             const Corners::ArcPlace &body = face->m_bodies[i];
             const float r = s_orbitRadius[i];

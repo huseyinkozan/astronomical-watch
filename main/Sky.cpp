@@ -210,6 +210,7 @@ Sky::Now Sky::computeNow( int64_t time, const Day &day, const Astronomy::Observe
     now.sun = Astronomy::sunPosition( time, observer );
     now.moon = Astronomy::moonPosition( time, observer );
     now.galacticCentre = Astronomy::starPosition( MilkyWay::CentreRaHours, MilkyWay::CentreDecDegrees, time, observer );
+    now.galacticHourAngle = MilkyWay::hourAngle( time, observer.longitude );
     now.south = observer.latitude < 0;
     now.time = time;
     now.sunUp = now.sun.altitude > -0.833;
