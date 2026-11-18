@@ -144,11 +144,6 @@ public:
     };
     static ArcPlace arcPlace( const Events &events, int64_t now, bool orbit, bool south );
 
-    // The gauges at `now` (Unix time). `batteryPercent` < 0: unknown; `charging`: the charger is
-    // charging the battery.
-    static void compute( const Input &input, int64_t now, int batteryPercent, bool charging,
-                         Gauge gauges[CornerCount] );
-
     // Whether the Sun is down at `now` (the always-on face's night brightness), whatever the
     // corners show; false without the sky.
     static bool night( const Input &input, int64_t now );

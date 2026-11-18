@@ -34,6 +34,20 @@ static void check( const char *name, const Corners::Gauge &gauge, Corners::Kind 
     }
 }
 
+// The default four gauges at `now`: the day or night, the battery, the Moon's pass, its phase.
+static void defaultGauges( const Corners::Input &input, int64_t now, int batteryPercent, bool charging,
+                           Corners::Gauge gauges[Corners::CornerCount] )
+{
+    Corners::Context context = {};
+    context.now = now;
+    context.batteryPercent = batteryPercent;
+    context.charging = charging;
+    const uint8_t items[Corners::CornerCount] = { FaceConfig::DayNightGauge, FaceConfig::BatteryGauge,
+                                                  FaceConfig::MoonPassGauge, FaceConfig::MoonPhaseGauge };
+    const uint8_t parameters[Corners::CornerCount] = {};
+    Corners::compute( input, context, items, parameters, gauges );
+}
+
 int main()
 {
     const int offsetMinutes = 180;
@@ -45,7 +59,7 @@ int main()
     Sky::Day sky = Sky::computeDay( day, offsetMinutes, istanbul, Hijri::Diyanet );
     int64_t now = static_cast<int64_t>( day ) * 86400 + ( 19 * 60 + 19 - offsetMinutes ) * 60;
     Corners::Gauge gauges[Corners::CornerCount] = {};
-    Corners::compute( Corners::fromSky( sky ), now, 92, false, gauges );
+    defaultGauges( Corners::fromSky( sky ), now, 92, false, gauges );
     check( "day 19:19", gauges[Corners::TopLeft], Corners::Day, 0, 912 );
     check( "battery 92 %", gauges[Corners::TopRight], Corners::BatteryHigh, 0, 920 );
     check( "Moon up 19:19", gauges[Corners::BottomLeft], Corners::MoonUp, 0, 546 );
@@ -57,7 +71,7 @@ int main()
     day = dayNumber( 2026, 6, 22 );
     sky = Sky::computeDay( day, offsetMinutes, istanbul, Hijri::Diyanet );
     now = static_cast<int64_t>( day ) * 86400 + ( 3 * 60 - offsetMinutes ) * 60;
-    Corners::compute( Corners::fromSky( sky ), now, 8, true, gauges );
+    defaultGauges( Corners::fromSky( sky ), now, 8, true, gauges );
     check( "night 03:00", gauges[Corners::TopLeft], Corners::Night, 0, 712 );
     check( "battery 8 %", gauges[Corners::TopRight], Corners::BatteryLow, 0, 80 );
     check( "Moon down 03:00", gauges[Corners::BottomLeft], Corners::MoonDown, 0, 167 );
@@ -74,7 +88,7 @@ int main()
     input.valid = true;
     input.moonPercent = 30;
     input.waxing = false;
-    Corners::compute( input, now, -1, true, gauges );
+    defaultGauges( input, now, -1, true, gauges );
     check( "waning phase", gauges[Corners::BottomRight], Corners::MoonLit, 700, 1000 );
     check( "battery unknown", gauges[Corners::TopRight], Corners::Empty, 0, 0 );
     // An unknown battery is not drawn, so it does not charge either.
@@ -127,6 +141,33 @@ int main()
     if ( place.known || !place.alwaysUp ) {
         ++s_failures;
         printf( "FAIL polar day: known %d alwaysUp %d\n", place.known, place.alwaysUp );
+    }
+
+    // The next-sunset gauge around sunset on days whose sunsets differ from the day before
+    // (yesterday's sunset a day later must not stand for today's).
+    {
+        const int sunsetDays[2] = { dayNumber( 2026, 11, 18 ), dayNumber( 2026, 3, 20 ) };
+        for ( int d = 0; d < 2; ++d ) {
+            const Sky::Day sunsetSky = Sky::computeDay( sunsetDays[d], offsetMinutes, istanbul, Hijri::Diyanet );
+            const int64_t sunset = sunsetSky.sun.riseSet.setting.time;
+            const uint8_t items[4] = { FaceConfig::NextSunsetGauge, FaceConfig::NextSunriseGauge, 0, 0 };
+            const uint8_t parameters[4] = {};
+            Corners::Context context = {};
+            context.utcOffsetMinutes = offsetMinutes;
+            Corners::Gauge g[Corners::CornerCount] = {};
+            context.now = sunset - 60;
+            Corners::compute( Corners::fromSky( sunsetSky ), context, items, parameters, g );
+            check( d == 0 ? "next sunset a minute before it, 18 Nov" : "next sunset a minute before it, 20 Mar", g[0],
+                   Corners::SunEvent, 0, 999 );
+            context.now = sunset + 20;
+            Corners::compute( Corners::fromSky( sunsetSky ), context, items, parameters, g );
+            check( d == 0 ? "next sunset just after it, 18 Nov" : "next sunset just after it, 20 Mar", g[0],
+                   Corners::SunEvent, 0, 0 );
+            context.now = sunsetSky.sun.riseSet.rising.time - 60;
+            Corners::compute( Corners::fromSky( sunsetSky ), context, items, parameters, g );
+            check( d == 0 ? "next sunrise a minute before it, 18 Nov" : "next sunrise a minute before it, 20 Mar", g[1],
+                   Corners::SunEvent, 0, 999 );
+        }
     }
 
     // The chosen gauges (FaceConfig::GaugeItem) on 21 June 2026 in Istanbul (UTC+3).

@@ -2,7 +2,6 @@
 
 #include <cmath>
 
-#include "AlwaysOn.h"
 #include "Panel.h"
 
 static const uint32_t s_trackColour = 0x222222;
@@ -94,16 +93,24 @@ void CornerView::build()
     lv_timer_create( onChargeStep, s_chargeStepMs, this );
 }
 
-// Runs in the LVGL task, which holds the display lock. Only the battery corner is drawn again,
-// and only while it charges in the active look.
+// Runs in the LVGL task, which holds the display lock. Only the battery corners are drawn again,
+// and only while the battery charges.
 void CornerView::onChargeStep( lv_timer_t *timer )
 {
     CornerView *self = static_cast<CornerView *>( lv_timer_get_user_data( timer ) );
-    const bool animate = self->m_looks[Corners::TopRight].charging && !self->m_alwaysOn;
+    bool animate = false;
+    for ( int i = 0; i < Corners::CornerCount; ++i ) {
+        animate = animate || self->m_looks[i].charging;
+    }
     const int step = animate ? ( self->m_chargeStep + 1 ) % ( s_chargeSteps + 2 ) : 0;
-    if ( step != self->m_chargeStep ) {
-        self->m_chargeStep = step;
-        self->invalidate( Corners::TopRight );
+    if ( step == self->m_chargeStep ) {
+        return;
+    }
+    self->m_chargeStep = step;
+    for ( int i = 0; i < Corners::CornerCount; ++i ) {
+        if ( self->m_looks[i].charging ) {
+            self->invalidate( i );
+        }
     }
 }
 
@@ -123,25 +130,9 @@ void CornerView::show( const Corners::Gauge gauges[Corners::CornerCount] )
     }
 }
 
-void CornerView::setAlwaysOnLook( bool alwaysOn )
-{
-    if ( alwaysOn == m_alwaysOn ) {
-        return;
-    }
-    m_alwaysOn = alwaysOn;
-    for ( int i = 0; i < Corners::CornerCount && m_built; ++i ) {
-        invalidate( i );
-    }
-}
-
 // The colour of one ring pixel in LVGL's RGB565, 0 to leave LVGL's pixel.
-uint16_t CornerView::colour( int corner, const CornerPixel &pixel, int along, int x, int y ) const
+uint16_t CornerView::colour( int corner, const CornerPixel &pixel, int along ) const
 {
-    if ( m_alwaysOn ) {
-        // The always-on face's own pixels (panel byte order), LVGL's buffer the other way.
-        const uint16_t panel = AlwaysOn::cornerPixel( m_gauges, x, y );
-        return static_cast<uint16_t>( ( panel >> 8 ) | ( panel << 8 ) );
-    }
     const Look &look = m_looks[corner];
     const float radial = pixel.radial / 16.0f;
     const float fill = look.empty ? 0 : cover( along, look.start, look.end, radial );
@@ -196,7 +187,7 @@ void CornerView::paint( const lv_area_t &area, uint16_t *pixels ) const
                 }
                 // As in cornerTablePixel(): the bottom gauges run the other way.
                 const int along = bottom ? 1000 * CORNER_ALONG_SCALE - run[i].along : run[i].along;
-                const uint16_t value = colour( corner, run[i], along, x, y );
+                const uint16_t value = colour( corner, run[i], along );
                 if ( value != 0 ) {
                     line[x - area.x1] = value;
                 }

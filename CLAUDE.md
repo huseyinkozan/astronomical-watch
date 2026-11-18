@@ -190,7 +190,7 @@ tests fail when it is stale), which the always-on face reads too. The Moon's pha
 put it in the bottom-left corner, inside the Moon's gauge (the top-left corner stands for the Sun).
 
 Brightness: active mode has one level, the always-on face one by day and one by night, switched
-at sunrise and sunset (the day gauge; no light sensor on the board). A long press on the watch
+at sunrise and sunset (`Corners::night`; no light sensor on the board). A long press on the watch
 face shows both levels it can set, the active one with a vertical bar and the always-on one of
 the moment with a horizontal bar; the first 20 px of the drag choose one and hide the other. The
 portal sets all three. A PWR press while that drag is held (its direction chosen) mirrors the

@@ -53,11 +53,14 @@ Corners::Input Corners::fromSky( const Sky::Day &day )
     Input input = {};
     input.valid = true;
     const Astronomy::Crossings &sun = day.sun.riseSet;
+    // Yesterday's sunrise and tomorrow's sunrise and sunset as today's a day earlier or later:
+    // within a few minutes outside the polar regions, under 2 pixels on the gauge. Yesterday's
+    // sunset is its own, so that no event stands twice near today's.
+    addEvent( input.sun, sun.rising, true, -s_dayS );
     addEvent( input.sun, day.sunsetBefore, false );
     addCrossings( input.sun, sun );
-    // Tomorrow's sunrise as today's a day later: within a few minutes outside the polar regions,
-    // under 2 pixels on the gauge.
     addEvent( input.sun, sun.rising, true, s_dayS );
+    addEvent( input.sun, sun.setting, false, s_dayS );
     input.sun.alwaysUp = sun.alwaysAbove;
     input.sun.alwaysDown = sun.alwaysBelow;
     addCrossings( input.moon, day.moonBefore );
@@ -114,13 +117,13 @@ static bool between( const int64_t *times, const bool *use, int count, bool dail
 }
 
 // The next rise (`rising`) or set of `events`.
-static bool toEvent( const Corners::Events &events, bool rising, bool daily, int64_t now, int &passed )
+static bool toEvent( const Corners::Events &events, bool rising, int64_t now, int &passed )
 {
     bool use[Corners::MaxEvents] = {};
     for ( int i = 0; i < events.count; ++i ) {
         use[i] = events.rising[i] == rising;
     }
-    return between( events.times, use, events.count, daily, now, passed );
+    return between( events.times, use, events.count, false, now, passed );
 }
 
 static int share( double part, double whole )
@@ -261,14 +264,14 @@ static Corners::Gauge gaugeOf( int item, int parameter, const Corners::Input &in
         break;
     case FaceConfig::NextSunriseGauge:
     case FaceConfig::NextSunsetGauge:
-        if ( toEvent( input.sun, item == FaceConfig::NextSunriseGauge, true, now, passed ) ) {
+        if ( toEvent( input.sun, item == FaceConfig::NextSunriseGauge, now, passed ) ) {
             gauge = { 0, passed, Corners::SunEvent, false };
         }
         break;
     case FaceConfig::NextMoonriseGauge:
     case FaceConfig::NextMoonsetGauge:
         // The Moon's own events over three days: its day is longer than ours.
-        if ( toEvent( input.moon, item == FaceConfig::NextMoonriseGauge, false, now, passed ) ) {
+        if ( toEvent( input.moon, item == FaceConfig::NextMoonriseGauge, now, passed ) ) {
             gauge = { 0, passed, Corners::MoonEvent, false };
         }
         break;
@@ -309,19 +312,6 @@ void Corners::compute( const Input &input, const Context &context, const uint8_t
     for ( int i = 0; i < CornerCount; ++i ) {
         gauges[i] = gaugeOf( items[i], parameters[i], input, context );
     }
-}
-
-void Corners::compute( const Input &input, int64_t now, int batteryPercent, bool charging,
-                       Gauge gauges[CornerCount] )
-{
-    Context context = {};
-    context.now = now;
-    context.batteryPercent = batteryPercent;
-    context.charging = charging;
-    const uint8_t items[CornerCount] = { FaceConfig::DayNightGauge, FaceConfig::BatteryGauge, FaceConfig::MoonPassGauge,
-                                         FaceConfig::MoonPhaseGauge };
-    const uint8_t parameters[CornerCount] = {};
-    compute( input, context, items, parameters, gauges );
 }
 
 Corners::ArcPlace Corners::arcPlace( const Events &events, int64_t now, bool orbit, bool south )

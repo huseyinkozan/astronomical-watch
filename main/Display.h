@@ -206,7 +206,7 @@ private:
     SkyPages m_sky;
     ClockPages m_clock;
     CornerView m_corners;
-    bool m_night = false;  // the day gauge shows the night: the always-on night level applies
+    bool m_night = false;  // between sunset and sunrise (Corners::night): the always-on night level applies
     // Brightness control.
     lv_obj_t *m_brightnessShade = nullptr;
     lv_obj_t *m_brightnessBox = nullptr;

@@ -497,11 +497,6 @@ static uint16_t ringPixel( const Corners::Gauge *gauges, int x, int y )
     return ( gauge.charging && along > gauge.end * CORNER_ALONG_SCALE ) ? s_colours[AlwaysOn::White] : 0;
 }
 
-uint16_t AlwaysOn::cornerPixel( const Corners::Gauge gauges[Corners::CornerCount], int x, int y )
-{
-    return ringPixel( gauges, x, y );
-}
-
 // Draws the part of `glyph` (top-left corner at x, y on the screen) that falls into the band;
 // `halftone` lights only every second pixel (AlwaysOn::Grey).
 static void drawGlyph( uint16_t *pixels, int bandTop, int rows, int left, int width, const AodGlyph &glyph, int x,
@@ -831,9 +826,9 @@ uint64_t AlwaysOn::update( const Rtc::DateTime &time, int64_t utcNow, bool timeR
     Corners::Gauge gauges[Corners::CornerCount] = {};
     const int shownDay = Dates::dayNumber( shown.year, shown.month, shown.day );
     const int64_t shownLocal = static_cast<int64_t>( shownDay ) * 86400 + shown.hour * 3600 + shown.minute * 60;
-    computeGauges( look, utcNow, static_cast<int>( ( shownLocal - shownUtc ) / 60 ), batteryPercent, charging, gauges );
+    computeGauges( look, shownUtc, static_cast<int>( ( shownLocal - shownUtc ) / 60 ), batteryPercent, charging, gauges );
     // The day level from sunrise to sunset, else the night level (whatever the corners show).
-    const int brightness = Corners::night( look.corners, utcNow ) ? look.nightBrightness : look.dayBrightness;
+    const int brightness = Corners::night( look.corners, shownUtc ) ? look.nightBrightness : look.dayBrightness;
     if ( !s_screenCleared ) {
         // Dim first: the panel still runs at the active-mode brightness.
         panel.setBrightness( brightness );
