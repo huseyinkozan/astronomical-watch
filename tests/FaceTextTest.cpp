@@ -1,0 +1,162 @@
+// Host test of main/FaceText.cpp and main/FaceTable.cpp with the fixed scene of the published
+// screenshots: Istanbul, 2026-06-21 19:19:00 local time (UTC+3). Build and run:
+// sh tests/run_host_tests.sh
+
+#include <cstdio>
+#include <cstring>
+
+#include "Astronomy.h"
+#include "Dates.h"
+#include "FaceTable.h"
+#include "FaceText.h"
+#include "Language.h"
+#include "Sky.h"
+
+static int s_checks = 0;
+static int s_failures = 0;
+
+static void checkText( const char *name, const char *text, const char *expected )
+{
+    ++s_checks;
+    if ( strcmp( text, expected ) != 0 ) {
+        printf( "FAIL %s: \"%s\", expected \"%s\"\n", name, text, expected );
+        ++s_failures;
+    }
+}
+
+static void check( const char *name, bool condition )
+{
+    ++s_checks;
+    if ( !condition ) {
+        printf( "FAIL %s\n", name );
+        ++s_failures;
+    }
+}
+
+static int64_t localToUtc( int year, int month, int day, int hour, int minute, int offsetMinutes )
+{
+    return static_cast<int64_t>( Dates::dayNumber( year, month, day ) ) * 86400 + ( hour * 60 + minute - offsetMinutes ) * 60;
+}
+
+int main()
+{
+    const int offset = 180;
+    const Astronomy::Observer istanbul = { 41.0082, 28.9784 };
+    const int day = Dates::dayNumber( 2026, 6, 21 );
+    // The scene's Hijri method: local crescent visibility ("Hilal" on the setup-info part).
+    const Sky::Day sky = Sky::computeDay( day, offset, istanbul, Hijri::LocalCrescent, 17 );
+    FaceTable table = {};
+    table.build( sky, offset, istanbul, 17 );
+    table.setCounter( 0, "Ramazan", Dates::dayNumber( 2027, 2, 8 ) );
+    table.setCity( 0, "London", { 60, { 0, 0 }, { 0, 0 } } );
+
+    FaceText::Inputs in = {};
+    in.timeValid = true;
+    in.year = 2026;
+    in.month = 6;
+    in.day = 21;
+    in.hour = 19;
+    in.minute = 19;
+    in.second = 42;
+    in.weekday = Dates::weekday( day );
+    in.skyValid = true;
+    in.now = localToUtc( 2026, 6, 21, 19, 19, offset );
+    in.table = &table;
+    in.batteryPercent = 68;
+    in.sunAltitude = Astronomy::sunPosition( in.now, istanbul ).altitude;
+    in.moonAltitude = Astronomy::moonPosition( in.now, istanbul ).altitude;
+    in.altitudesValid = true;
+
+    char text[48];
+    Language::set( Language::Turkish );
+    FaceText::text( FaceConfig::LongDate, 0, in, text, sizeof( text ) );
+    checkText( "tr long date", text, "21 Haziran Pazar" );
+    FaceText::text( FaceConfig::ShortDate, 0, in, text, sizeof( text ) );
+    checkText( "tr short date", text, "21 Haz" );
+    FaceText::text( FaceConfig::HijriDate, 0, in, text, sizeof( text ) );
+    checkText( "tr Hijri date", text, "5 Muharrem 1448" );
+    FaceText::text( FaceConfig::NextSunEvent, 0, in, text, sizeof( text ) );
+    checkText( "tr next sun event", text, "Gün batımı 1:21" );
+    FaceText::text( FaceConfig::NextPrayer, 0, in, text, sizeof( text ) );
+    checkText( "tr next prayer", text, "Akşam 1:28" );
+    FaceText::text( FaceConfig::SunAltitude, 0, in, text, sizeof( text ) );
+    checkText( "tr sun altitude", text, "13°" );
+    FaceText::text( FaceConfig::Seconds, 0, in, text, sizeof( text ) );
+    checkText( "tr seconds", text, ":42" );
+    FaceText::text( FaceConfig::BatteryPercent, 0, in, text, sizeof( text ) );
+    checkText( "tr battery", text, "68 %" );
+    FaceText::text( FaceConfig::CityTime, 0, in, text, sizeof( text ) );
+    checkText( "tr city", text, "London 17:19" );
+    FaceText::text( FaceConfig::DayCounter, 0, in, text, sizeof( text ) );
+    checkText( "tr day counter", text, "Ramazan 232" );
+    FaceText::text( FaceConfig::CityTime, 1, in, text, sizeof( text ) );
+    checkText( "tr city not set", text, "" );
+    FaceText::corner( FaceConfig::WeekdayShort, in, text, sizeof( text ) );
+    checkText( "tr weekday corner", text, "Paz" );
+    FaceText::corner( FaceConfig::DayOfMonth, in, text, sizeof( text ) );
+    checkText( "tr day corner", text, "21" );
+    FaceText::corner( FaceConfig::HijriDayOfMonth, in, text, sizeof( text ) );
+    checkText( "tr Hijri day corner", text, "5" );
+    FaceText::corner( FaceConfig::MonthShort, in, text, sizeof( text ) );
+    checkText( "tr month corner", text, "Haz" );
+    FaceText::corner( FaceConfig::HijriMonthShort, in, text, sizeof( text ) );
+    checkText( "tr Hijri month corner", text, "Muh" );
+    FaceText::corner( FaceConfig::HourCorner, in, text, sizeof( text ) );
+    checkText( "tr hour corner", text, "19" );
+    FaceText::corner( FaceConfig::SecondCorner, in, text, sizeof( text ) );
+    checkText( "tr second corner", text, "42" );
+    FaceText::corner( FaceConfig::MoonIcon, in, text, sizeof( text ) );
+    checkText( "tr icon corner is drawn", text, "" );
+
+    Language::set( Language::English );
+    FaceText::text( FaceConfig::LongDate, 0, in, text, sizeof( text ) );
+    checkText( "en long date", text, "Sunday 21 June" );
+    FaceText::text( FaceConfig::NextSunEvent, 0, in, text, sizeof( text ) );
+    checkText( "en next sun event", text, "Sunset 1:21" );
+    FaceText::text( FaceConfig::ShortDate, 0, in, text, sizeof( text ) );
+    checkText( "en short date", text, "Jun 21" );
+
+    // No clock set yet: every slot stays empty.
+    FaceText::Inputs none = in;
+    none.timeValid = false;
+    bool allEmpty = true;
+    for ( int item = 1; item < FaceConfig::TextItemCount; ++item ) {
+        FaceText::text( static_cast<FaceConfig::TextItem>( item ), 0, none, text, sizeof( text ) );
+        allEmpty = allEmpty && text[0] == '\0';
+    }
+    for ( int item = 1; item < FaceConfig::CornerItemCount; ++item ) {
+        FaceText::corner( static_cast<FaceConfig::CornerItem>( item ), none, text, sizeof( text ) );
+        allEmpty = allEmpty && text[0] == '\0';
+    }
+    check( "no time: all empty", allEmpty );
+    // No location: the sky slots stay empty.
+    FaceText::Inputs noSky = in;
+    noSky.skyValid = false;
+    noSky.altitudesValid = false;
+    FaceText::text( FaceConfig::NextSunEvent, 0, noSky, text, sizeof( text ) );
+    checkText( "no sky: sun event empty", text, "" );
+    FaceText::text( FaceConfig::SunAltitude, 0, noSky, text, sizeof( text ) );
+    checkText( "no sky: altitude empty", text, "" );
+    FaceText::Inputs noBattery = in;
+    noBattery.batteryPercent = -1;
+    FaceText::text( FaceConfig::BatteryPercent, 0, noBattery, text, sizeof( text ) );
+    checkText( "no battery: empty", text, "" );
+
+    // The table: after the last prayer of the day comes tomorrow's Imsak; past the table, nothing.
+    FaceTable::Event event = {};
+    check( "table: next prayer at 23:59", table.next( localToUtc( 2026, 6, 21, 23, 59, offset ), true, event ) );
+    check( "table: tomorrow's imsak", event.kind == FaceTable::PrayerEvent + Sky::Imsak &&
+                                          event.time > localToUtc( 2026, 6, 22, 3, 0, offset ) &&
+                                          event.time < localToUtc( 2026, 6, 22, 4, 0, offset ) );
+    check( "table: tomorrow's sunrise after sunset", table.next( localToUtc( 2026, 6, 21, 21, 0, offset ), false, event ) &&
+                                                         event.kind == FaceTable::SunriseEvent );
+    check( "table: past its end", !table.next( localToUtc( 2026, 6, 23, 0, 1, offset ), true, event ) );
+
+    // Whole characters that fit a width (Review Focus 1).
+    check( "fit: ten characters", FaceText::fit( "21 Haziran Pazar", 16, 160 ) == 10 );
+    check( "fit: Turkish letters count once", FaceText::fit( "Gün batımı", 16, 64 ) == 5 );
+    check( "fit: all of a short text", FaceText::fit( "21 Haz", 16, 160 ) == 6 );
+
+    printf( "Face text: %d checks, %d failures\n", s_checks, s_failures );
+    return s_failures == 0 ? 0 : 1;
+}
