@@ -12,47 +12,26 @@ static const int s_compassCentreY = 230;
 static const int s_arrowLength = 110;
 
 
-static const int s_nameWidth = 160;
-static const int s_valueWidth = 105;
-static const lv_color_t s_grey = LV_COLOR_MAKE( 0xA0, 0xA0, 0xA0 );
+// The columns of today's label rows: a 160 px name and two 105 px values, centred.
+static const TablePart::Layout s_tableLayout = { nullptr, 0, {}, -1, 38, 38, 20, 160, 180, 105, 0 };
+static const uint32_t s_amberRgb = 0xFFB040;
 
-// A page of lines in a centred column: the title, then rows or full-width lines.
-static void preparePage( lv_obj_t *page, const char *title )
+static TablePart::Layout tableLayout( const char *title, int rowCount, const TablePart::RowKind *kinds )
 {
-    lv_obj_set_flex_flow( page, LV_FLEX_FLOW_COLUMN );
-    lv_obj_set_flex_align( page, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER );
-    lv_obj_set_style_pad_row( page, 6, 0 );
-    lv_obj_set_scrollbar_mode( page, LV_SCROLLBAR_MODE_OFF );
-    lv_obj_t *heading = lv_label_create( page );
-    lv_obj_set_style_text_font( heading, &jetbrains_mono_26, 0 );
-    lv_obj_set_style_text_color( heading, s_grey, 0 );
-    lv_label_set_text( heading, title );
-}
-
-static lv_obj_t *createCell( lv_obj_t *parent, int width, lv_color_t color, lv_text_align_t align, const char *text )
-{
-    lv_obj_t *label = lv_label_create( parent );
-    lv_obj_set_width( label, width );
-    lv_obj_set_style_text_font( label, &jetbrains_mono_26, 0 );
-    lv_obj_set_style_text_color( label, color, 0 );
-    lv_obj_set_style_text_align( label, align, 0 );
-    lv_label_set_long_mode( label, LV_LABEL_LONG_MODE_CLIP );
-    lv_label_set_text( label, text );
-    return label;
-}
-
-// A full-width centred line.
-static lv_obj_t *createLine( lv_obj_t *page )
-{
-    return createCell( page, s_nameWidth + 2 * s_valueWidth, lv_color_white(), LV_TEXT_ALIGN_CENTER, "" );
+    TablePart::Layout layout = s_tableLayout;
+    layout.title = title;
+    layout.rowCount = rowCount;
+    for ( int i = 0; i < rowCount && i < TableText::MaxRows; ++i ) {
+        layout.kinds[i] = kinds[i];
+    }
+    return layout;
 }
 
 void SkyPages::setPlace( const char *place )
 {
     snprintf( m_place, sizeof( m_place ), "%s", place );
-    if ( m_sunPlace != nullptr ) {
-        lv_label_set_text( m_sunPlace, m_place );
-    }
+    m_sun.text().set( SunRows, 0, m_place );
+    m_sun.refresh();
 }
 
 const char *SkyPages::hijriMonthName( int month )
@@ -61,7 +40,17 @@ const char *SkyPages::hijriMonthName( int month )
 }
 
 // LVGL's own printf has no floating point (LV_SPRINTF_USE_FLOAT): format with the C library.
-static void setText( lv_obj_t *label, const char *format, ... )
+static void setText( TablePart &table, int row, int cell, const char *format, ... )
+{
+    char text[TableText::CellSize * 2];
+    va_list arguments;
+    va_start( arguments, format );
+    vsnprintf( text, sizeof( text ), format, arguments );
+    va_end( arguments );
+    table.text().set( row, cell, text );
+}
+
+static void setLabelText( lv_obj_t *label, const char *format, ... )
 {
     char text[256];
     va_list arguments;
@@ -94,90 +83,81 @@ static void formatDuration( char *text, size_t size, int seconds )
     snprintf( text, size, "%d:%02d", minutes / 60, minutes % 60 );
 }
 
-SkyPages::Row SkyPages::createRow( lv_obj_t *page, const char *name, bool twoValues )
-{
-    lv_obj_t *row = lv_obj_create( page );
-    lv_obj_remove_style_all( row );
-    lv_obj_set_clickable( row, false );
-    lv_obj_set_scrollable( row, false );
-    lv_obj_set_size( row, s_nameWidth + 2 * s_valueWidth, LV_SIZE_CONTENT );
-    lv_obj_set_flex_flow( row, LV_FLEX_FLOW_ROW );
-    Row cells = {};
-    cells.name = createCell( row, s_nameWidth, s_grey, LV_TEXT_ALIGN_LEFT, name );
-    const int firstWidth = twoValues ? s_valueWidth : 2 * s_valueWidth;
-    cells.values[0] = createCell( row, firstWidth, lv_color_white(), LV_TEXT_ALIGN_RIGHT, "" );
-    if ( twoValues ) {
-        cells.values[1] = createCell( row, s_valueWidth, lv_color_white(), LV_TEXT_ALIGN_RIGHT, "" );
-    }
-    return cells;
-}
-
 static const char *prayerName( int prayer )
 {
     static const Language::Text s_names[Sky::PrayerCount] = { Language::Imsak, Language::PrayerSunrise, Language::Dhuhr,
                                                               Language::Asr,   Language::Maghrib,       Language::Isha };
     return Language::text( s_names[prayer] );
 }
-static const lv_color_t s_amber = LV_COLOR_MAKE( 0xFF, 0xB0, 0x40 );
 
 void SkyPages::build( lv_obj_t *sunPage, lv_obj_t *twilightPage, lv_obj_t *prayerPage, lv_obj_t *moonPage,
                       lv_obj_t *compassPage, lv_obj_t *timePage )
 {
-    preparePage( prayerPage, Language::text( Language::PrayerTimes ) );
+    // Prayer times: the six times, the next one with the time left, the method.
+    TablePart::RowKind kinds[TableText::MaxRows] = {};
     for ( int i = 0; i < Sky::PrayerCount; ++i ) {
-        m_prayer[i] = createRow( prayerPage, prayerName( i ), false );
+        kinds[i] = TablePart::OneValue;
+        m_prayer.text().set( i, 0, prayerName( i ) );
     }
-    m_nextPrayer = createLine( prayerPage );
-    lv_obj_set_style_text_color( m_nextPrayer, s_amber, 0 );
-    m_prayerMethod = createLine( prayerPage );
-    lv_obj_set_style_text_color( m_prayerMethod, s_grey, 0 );
+    kinds[Sky::PrayerCount] = TablePart::Line;
+    kinds[Sky::PrayerCount + 1] = TablePart::Line;
+    m_prayer.text().setColours( Sky::PrayerCount, TableText::Grey, s_amberRgb );
+    m_prayer.text().setColours( Sky::PrayerCount + 1, TableText::Grey, TableText::Grey );
+    m_prayer.build( prayerPage, tableLayout( Language::text( Language::PrayerTimes ), Sky::PrayerCount + 2, kinds ) );
 
     // Time: the clocks of this moment and the day's numbers.
-    preparePage( timePage, Language::text( Language::Time ) );
     const char *timeNames[TimeRows] = { Language::text( Language::Local ),      "UTC",
                                         Language::text( Language::Solar ),      Language::text( Language::EquationOfTime ),
                                         Language::text( Language::Ezani ),      Language::text( Language::Qibla ),
                                         Language::text( Language::Sidereal ),   Language::text( Language::WeekAndDay ) };
     for ( int i = 0; i < TimeRows; ++i ) {
-        m_time[i] = createRow( timePage, timeNames[i], i == 5 );
+        kinds[i] = i == 5 ? TablePart::TwoValues : TablePart::OneValue;
+        m_time.text().set( i, 0, timeNames[i] );
     }
+    m_time.build( timePage, tableLayout( Language::text( Language::Time ), TimeRows, kinds ) );
 
-    preparePage( sunPage, Language::text( Language::Sun ) );
     const char *sunNames[SunRows] = { Language::text( Language::Rise ), Language::text( Language::Set ),
                                       Language::text( Language::Noon ), Language::text( Language::Day ),
                                       "",                               Language::text( Language::Now ) };
     for ( int i = 0; i < SunRows; ++i ) {
-        m_sun[i] = createRow( sunPage, sunNames[i], true );
+        kinds[i] = TablePart::TwoValues;
+        m_sun.text().set( i, 0, sunNames[i] );
     }
     // Where these times hold: a place changed by travel shows here.
-    m_sunPlace = createLine( sunPage );
-    lv_obj_set_style_text_color( m_sunPlace, s_grey, 0 );
+    kinds[SunRows] = TablePart::Line;
+    m_sun.text().setColours( SunRows, TableText::Grey, TableText::Grey );
+    m_sun.text().set( SunRows, 0, m_place );
+    m_sun.build( sunPage, tableLayout( Language::text( Language::Sun ), SunRows + 1, kinds ) );
 
-    preparePage( twilightPage, Language::text( Language::Twilight ) );
-    const Row header = createRow( twilightPage, "", true );
-    lv_label_set_text( header.values[0], Language::text( Language::Dawn ) );
-    lv_label_set_text( header.values[1], Language::text( Language::Dusk ) );
-    lv_obj_set_style_text_color( header.values[0], s_grey, 0 );
-    lv_obj_set_style_text_color( header.values[1], s_grey, 0 );
+    // Twilight: a header row, then the limits at dawn and at dusk, then the next season.
     const char *twilightNames[TwilightRows] = { Language::text( Language::Astronomical ), Language::text( Language::Nautical ),
                                                 Language::text( Language::Civil ),        Language::text( Language::BlueHour ),
                                                 Language::text( Language::Until ),        Language::text( Language::GoldenHour ),
                                                 Language::text( Language::Until ),        "" };
+    kinds[0] = TablePart::TwoValues;
+    m_twilight.text().set( 0, 1, Language::text( Language::Dawn ) );
+    m_twilight.text().set( 0, 2, Language::text( Language::Dusk ) );
+    m_twilight.text().setColours( 0, TableText::Grey, TableText::Grey );
     for ( int i = 0; i < TwilightRows; ++i ) {
-        m_twilight[i] = createRow( twilightPage, twilightNames[i], i < TwilightRows - 1 );
+        kinds[1 + i] = i < TwilightRows - 1 ? TablePart::TwoValues : TablePart::OneValue;
+        m_twilight.text().set( 1 + i, 0, twilightNames[i] );
     }
+    m_twilight.build( twilightPage, tableLayout( Language::text( Language::Twilight ), TwilightRows + 1, kinds ) );
 
-    preparePage( moonPage, Language::text( Language::Moon ) );
-    m_moonPhase = createLine( moonPage );
+    // Moon: the phase, the rows, the Hijri date.
     const char *moonNames[MoonRows] = { Language::text( Language::Lit ),   Language::text( Language::Rise ),
                                         Language::text( Language::Set ),   Language::text( Language::Now ),
                                         Language::text( Language::Tides ), Language::text( Language::DarkSky ),
                                         Language::text( Language::CrescentRow ) };
     const bool moonTwoValues[MoonRows] = { true, true, true, true, false, true, false };
+    kinds[0] = TablePart::Line;
     for ( int i = 0; i < MoonRows; ++i ) {
-        m_moon[i] = createRow( moonPage, moonNames[i], moonTwoValues[i] );
+        kinds[1 + i] = moonTwoValues[i] ? TablePart::TwoValues : TablePart::OneValue;
+        m_moon.text().set( 1 + i, 0, moonNames[i] );
     }
-    m_hijri = createLine( moonPage );
+    kinds[1 + MoonRows] = TablePart::Line;
+    m_moon.build( moonPage, tableLayout( Language::text( Language::Moon ), MoonRows + 2, kinds ) );
+    m_built = true;
 
     lv_obj_set_scrollbar_mode( compassPage, LV_SCROLLBAR_MODE_OFF );
     lv_obj_t *heading = lv_label_create( compassPage );
@@ -201,75 +181,74 @@ void SkyPages::build( lv_obj_t *sunPage, lv_obj_t *twilightPage, lv_obj_t *praye
 }
 
 // An event's local time in a cell.
-static void setTime( lv_obj_t *label, const Astronomy::Event &event, int utcOffsetMinutes )
+static void setTime( TablePart &table, int row, int cell, const Astronomy::Event &event, int utcOffsetMinutes )
 {
     char text[8];
     formatTime( text, sizeof( text ), event.occurs, event.time, utcOffsetMinutes );
-    lv_label_set_text( label, text );
+    table.text().set( row, cell, text );
 }
 
 void SkyPages::show( const Sky::Day &day, const Sky::Now &now, int utcOffsetMinutes )
 {
-    if ( m_hijri == nullptr ) {
+    if ( !m_built ) {
         return;
     }
     const Astronomy::SunDay &sun = day.sun;
     char text[24];
     // Prayer times: the next one in amber.
     for ( int i = 0; i < Sky::PrayerCount; ++i ) {
-        setTime( m_prayer[i].values[0], { day.prayers.valid[i], day.prayers.times[i] }, utcOffsetMinutes );
-        const lv_color_t colour = i == now.nextPrayer ? s_amber : s_grey;
-        lv_obj_set_style_text_color( m_prayer[i].name, colour, 0 );
-        lv_obj_set_style_text_color( m_prayer[i].values[0], i == now.nextPrayer ? s_amber : lv_color_white(), 0 );
+        setTime( m_prayer, i, 1, { day.prayers.valid[i], day.prayers.times[i] }, utcOffsetMinutes );
+        const bool next = i == now.nextPrayer;
+        m_prayer.text().setColours( i, next ? s_amberRgb : TableText::Grey, next ? s_amberRgb : TableText::White );
     }
     if ( now.nextPrayer >= 0 ) {
         formatDuration( text, sizeof( text ), now.secondsToPrayer );
-        setText( m_nextPrayer, Language::text( Language::PrayerIn ), prayerName( now.nextPrayer ), text );
+        setText( m_prayer, Sky::PrayerCount, 0, Language::text( Language::PrayerIn ), prayerName( now.nextPrayer ), text );
     } else {
-        lv_label_set_text( m_nextPrayer, "" );
+        m_prayer.text().set( Sky::PrayerCount, 0, "" );
     }
-    setText( m_prayerMethod, Language::text( day.prayers.approximate ? Language::DiyanetApprox : Language::Diyanet ), m_place );
+    setText( m_prayer, Sky::PrayerCount + 1, 0, Language::text( day.prayers.approximate ? Language::DiyanetApprox : Language::Diyanet ),
+             m_place );
 
     // Time.
     const int64_t local = now.time + static_cast<int64_t>( utcOffsetMinutes ) * 60;
     const int localSeconds = static_cast<int>( ( local % 86400 + 86400 ) % 86400 );
     const int utcSeconds = static_cast<int>( ( now.time % 86400 + 86400 ) % 86400 );
-    setText( m_time[0].values[0], "%02d:%02d:%02d", localSeconds / 3600, localSeconds / 60 % 60, localSeconds % 60 );
-    setText( m_time[1].values[0], "%02d:%02d:%02d", utcSeconds / 3600, utcSeconds / 60 % 60, utcSeconds % 60 );
-    setText( m_time[2].values[0], "%02d:%02d:%02d", now.solarSeconds / 3600, now.solarSeconds / 60 % 60,
-             now.solarSeconds % 60 );
+    setText( m_time, 0, 1, "%02d:%02d:%02d", localSeconds / 3600, localSeconds / 60 % 60, localSeconds % 60 );
+    setText( m_time, 1, 1, "%02d:%02d:%02d", utcSeconds / 3600, utcSeconds / 60 % 60, utcSeconds % 60 );
+    setText( m_time, 2, 1, "%02d:%02d:%02d", now.solarSeconds / 3600, now.solarSeconds / 60 % 60, now.solarSeconds % 60 );
     const int equation = day.equationOfTime < 0 ? -day.equationOfTime : day.equationOfTime;
-    setText( m_time[3].values[0], "%c%d:%02d", day.equationOfTime < 0 ? '-' : '+', equation / 60, equation % 60 );
+    setText( m_time, 3, 1, "%c%d:%02d", day.equationOfTime < 0 ? '-' : '+', equation / 60, equation % 60 );
     if ( now.ezaniSeconds >= 0 ) {
         // Sunset is 12 o'clock.
         const int hours = now.ezaniSeconds / 3600;
-        setText( m_time[4].values[0], "%02d:%02d", hours == 0 ? 12 : hours, now.ezaniSeconds / 60 % 60 );
+        setText( m_time, 4, 1, "%02d:%02d", hours == 0 ? 12 : hours, now.ezaniSeconds / 60 % 60 );
     } else {
-        lv_label_set_text( m_time[4].values[0], "--:--" );
+        m_time.text().set( 4, 1, "--:--" );
     }
-    setTime( m_time[5].values[0], day.qibla, utcOffsetMinutes );
-    setText( m_time[5].values[1], "%.0f\xC2\xB0", day.qiblaBearing );
-    setText( m_time[6].values[0], "%02d:%02d", now.siderealSeconds / 3600, now.siderealSeconds / 60 % 60 );
-    setText( m_time[7].values[0], "%d / %d", day.isoWeek, day.dayOfYear );
+    setTime( m_time, 5, 1, day.qibla, utcOffsetMinutes );
+    setText( m_time, 5, 2, "%.0f\xC2\xB0", day.qiblaBearing );
+    setText( m_time, 6, 1, "%02d:%02d", now.siderealSeconds / 3600, now.siderealSeconds / 60 % 60 );
+    setText( m_time, 7, 1, "%d / %d", day.isoWeek, day.dayOfYear );
 
-    setTime( m_sun[0].values[0], sun.riseSet.rising, utcOffsetMinutes );
-    setTime( m_sun[1].values[0], sun.riseSet.setting, utcOffsetMinutes );
-    setTime( m_sun[2].values[0], sun.noon, utcOffsetMinutes );
-    setText( m_sun[2].values[1], "%.0f\xC2\xB0", sun.noonAltitude );
+    setTime( m_sun, 0, 1, sun.riseSet.rising, utcOffsetMinutes );
+    setTime( m_sun, 1, 1, sun.riseSet.setting, utcOffsetMinutes );
+    setTime( m_sun, 2, 1, sun.noon, utcOffsetMinutes );
+    setText( m_sun, 2, 2, "%.0f\xC2\xB0", sun.noonAltitude );
     formatDuration( text, sizeof( text ), sun.dayLengthSeconds );
-    lv_label_set_text( m_sun[3].values[0], text );
+    m_sun.text().set( 3, 1, text );
     const int change = day.dayLengthChangeSeconds;
     const int changeAbs = change < 0 ? -change : change;
-    setText( m_sun[3].values[1], "%c%d:%02d", change < 0 ? '-' : '+', changeAbs / 60, changeAbs % 60 );
-    lv_label_set_text( m_sun[4].name, Language::text( now.sunUp ? Language::SunsetIn : Language::SunriseIn ) );
+    setText( m_sun, 3, 2, "%c%d:%02d", change < 0 ? '-' : '+', changeAbs / 60, changeAbs % 60 );
+    m_sun.text().set( 4, 0, Language::text( now.sunUp ? Language::SunsetIn : Language::SunriseIn ) );
     formatDuration( text, sizeof( text ), now.secondsToSunEvent );
-    lv_label_set_text( m_sun[4].values[0], now.secondsToSunEvent > 0 ? text : "--" );
-    lv_label_set_text( m_sun[4].values[1], "" );
-    setText( m_sun[5].values[0], "%.0f\xC2\xB0", now.sun.altitude );
-    setText( m_sun[5].values[1], "%.0f\xC2\xB0", now.sun.azimuth );
+    m_sun.text().set( 4, 1, now.secondsToSunEvent > 0 ? text : "--" );
+    m_sun.text().set( 4, 2, "" );
+    setText( m_sun, 5, 1, "%.0f\xC2\xB0", now.sun.altitude );
+    setText( m_sun, 5, 2, "%.0f\xC2\xB0", now.sun.azimuth );
 
     // Twilight: when each limit is crossed at dawn and at dusk; the blue hour runs from -6 to -4
-    // degrees, the golden hour from -4 to +6.
+    // degrees, the golden hour from -4 to +6. Row 0 is the header.
     const Astronomy::Event *dawn[TwilightRows - 1] = { &sun.astronomical.rising, &sun.nautical.rising,
                                                           &sun.civil.rising,        &sun.civil.rising,
                                                           &sun.blueHour.rising,     &sun.blueHour.rising,
@@ -279,39 +258,45 @@ void SkyPages::show( const Sky::Day &day, const Sky::Now &now, int utcOffsetMinu
                                                           &sun.civil.setting,        &sun.goldenHour.setting,
                                                           &sun.blueHour.setting };
     for ( int i = 0; i < TwilightRows - 1; ++i ) {
-        setTime( m_twilight[i].values[0], *dawn[i], utcOffsetMinutes );
-        setTime( m_twilight[i].values[1], *dusk[i], utcOffsetMinutes );
+        setTime( m_twilight, 1 + i, 1, *dawn[i], utcOffsetMinutes );
+        setTime( m_twilight, 1 + i, 2, *dusk[i], utcOffsetMinutes );
     }
     const time_t season = static_cast<time_t>( day.nextSeason + static_cast<int64_t>( utcOffsetMinutes ) * 60 );
     tm seasonDate = {};
     gmtime_r( &season, &seasonDate );
-    lv_label_set_text( m_twilight[TwilightRows - 1].name, Language::text( day.season % 2 == 0 ? Language::Equinox : Language::Solstice ) );
+    m_twilight.text().set( TwilightRows, 0, Language::text( day.season % 2 == 0 ? Language::Equinox : Language::Solstice ) );
     if ( Language::current() == Language::Turkish ) {
-        setText( m_twilight[TwilightRows - 1].values[0], "%d %s", seasonDate.tm_mday, Language::shortMonth( seasonDate.tm_mon + 1 ) );
+        setText( m_twilight, TwilightRows, 1, "%d %s", seasonDate.tm_mday, Language::shortMonth( seasonDate.tm_mon + 1 ) );
     } else {
-        setText( m_twilight[TwilightRows - 1].values[0], "%s %d", Language::shortMonth( seasonDate.tm_mon + 1 ), seasonDate.tm_mday );
+        setText( m_twilight, TwilightRows, 1, "%s %d", Language::shortMonth( seasonDate.tm_mon + 1 ), seasonDate.tm_mday );
     }
 
-    // Moon.
-    lv_label_set_text( m_moonPhase, Language::text( static_cast<Language::Text>( Language::PhaseNew + Sky::phaseIndex( day.phase ) ) ) );
-    setText( m_moon[0].values[0], "%.0f %%", day.phase.illumination * 100 );
-    setText( m_moon[0].values[1], Language::text( Language::MoonAge ), day.phase.ageDays );
-    setTime( m_moon[1].values[0], day.moon.rising, utcOffsetMinutes );
-    setTime( m_moon[2].values[0], day.moon.setting, utcOffsetMinutes );
-    setText( m_moon[3].values[0], "%.0f\xC2\xB0", now.moon.altitude );
-    setText( m_moon[3].values[1], "%.0f\xC2\xB0", now.moon.azimuth );
+    // Moon: row 0 is the phase, rows 1 to 7 the table, row 8 the Hijri date.
+    m_moon.text().set( 0, 0, Language::text( static_cast<Language::Text>( Language::PhaseNew + Sky::phaseIndex( day.phase ) ) ) );
+    setText( m_moon, 1, 1, "%.0f %%", day.phase.illumination * 100 );
+    setText( m_moon, 1, 2, Language::text( Language::MoonAge ), day.phase.ageDays );
+    setTime( m_moon, 2, 1, day.moon.rising, utcOffsetMinutes );
+    setTime( m_moon, 3, 1, day.moon.setting, utcOffsetMinutes );
+    setText( m_moon, 4, 1, "%.0f\xC2\xB0", now.moon.altitude );
+    setText( m_moon, 4, 2, "%.0f\xC2\xB0", now.moon.azimuth );
     const Sky::Tide tide = Sky::tide( day.phase );
-    lv_label_set_text( m_moon[4].values[0], Language::text( tide == Sky::TideSpring ? Language::TideSpring
-                                                            : ( tide == Sky::TideNeap ? Language::TideNeap : Language::TideMiddle ) ) );
+    m_moon.text().set( 5, 1, Language::text( tide == Sky::TideSpring ? Language::TideSpring
+                                            : ( tide == Sky::TideNeap ? Language::TideNeap : Language::TideMiddle ) ) );
     if ( day.darkWindow ) {
-        setTime( m_moon[5].values[0], { true, day.darkStart }, utcOffsetMinutes );
-        setTime( m_moon[5].values[1], { true, day.darkEnd }, utcOffsetMinutes );
+        setTime( m_moon, 6, 1, { true, day.darkStart }, utcOffsetMinutes );
+        setTime( m_moon, 6, 2, { true, day.darkEnd }, utcOffsetMinutes );
     } else {
-        lv_label_set_text( m_moon[5].values[0], Language::text( Language::None ) );
-        lv_label_set_text( m_moon[5].values[1], "" );
+        m_moon.text().set( 6, 1, Language::text( Language::None ) );
+        m_moon.text().set( 6, 2, "" );
     }
-    lv_label_set_text( m_moon[6].values[0], Language::text( static_cast<Language::Text>( Language::CrescentNone + day.crescent.zone ) ) );
-    setText( m_hijri, "%d %s %d", day.hijri.day, Language::hijriMonth( day.hijri.month ), day.hijri.year );
+    m_moon.text().set( 7, 1, Language::text( static_cast<Language::Text>( Language::CrescentNone + day.crescent.zone ) ) );
+    setText( m_moon, 1 + MoonRows, 0, "%d %s %d", day.hijri.day, Language::hijriMonth( day.hijri.month ), day.hijri.year );
+
+    m_prayer.refresh();
+    m_time.refresh();
+    m_sun.refresh();
+    m_twilight.refresh();
+    m_moon.refresh();
 
     // Sun compass: with the top of the watch towards the Sun, north lies the Sun's azimuth
     // anticlockwise from the top.
@@ -338,7 +323,7 @@ void SkyPages::show( const Sky::Day &day, const Sky::Now &now, int utcOffsetMinu
         lv_line_set_points( m_compassArrow, m_arrowPoints, 5 );
         lv_obj_align( m_compassNorth, LV_ALIGN_TOP_LEFT, static_cast<int>( tipX + dx * 30 ) - 10,
                       static_cast<int>( tipY + dy * 30 ) - 16 );
-        setText( m_compassText, Language::text( Language::CompassHint ), now.sun.altitude, now.sun.azimuth );
+        setLabelText( m_compassText, Language::text( Language::CompassHint ), now.sun.altitude, now.sun.azimuth );
     } else {
         lv_label_set_text( m_compassText, Language::text( now.sun.altitude <= 0 ? Language::SunBelow : Language::SunTooHigh ) );
     }

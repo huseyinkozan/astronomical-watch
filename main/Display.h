@@ -14,6 +14,7 @@
 #include "PageMarks.h"
 #include "StackPage.h"
 #include "SkyPages.h"
+#include "TablePart.h"
 #include "lvgl.h"
 #include "sdkconfig.h"
 
@@ -287,7 +288,7 @@ private:
     lv_obj_t *m_joinHint = nullptr;
     char m_joinPayload[80] = {};
     uint8_t m_joinModules[qrcodegen_BUFFER_LEN_FOR_VERSION( 5 )] = {};
-    lv_obj_t *m_setupValues[SetupInfoRows] = {};
+    TablePart m_setupTable;
     std::atomic<int> m_requests { 0 };
     std::atomic<int> m_touches { 0 };
     bool m_touchStarted = false;

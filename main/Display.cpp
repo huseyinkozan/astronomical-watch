@@ -407,26 +407,15 @@ void Display::buildSettingsPage()
     static const Language::Text s_setupNames[SetupInfoRows] = { Language::Place, Language::LatLon, Language::Zone,
                                                                Language::Offset, Language::Change, Language::Hijri,
                                                                Language::ClockSet };
-    lv_obj_t *setupInfo = m_settingsPage.part( SetupInfoPart );
-    lv_obj_t *setupTitle = createLabel( setupInfo, &jetbrains_mono_26, LV_ALIGN_TOP_MID, 76 );
-    lv_label_set_text( setupTitle, Language::text( Language::SetupTitle ) );
-    lv_obj_set_style_text_color( setupTitle, lv_color_hex( 0xA0A0A0 ), 0 );
+    // Names from x 30, values right-aligned in 220 px ending 30 px from the edge; a long value
+    // ends in dots (13 letters of 16 px).
+    TablePart::Layout layout = { Language::text( Language::SetupTitle ), SetupInfoRows, {}, 76, 40, 36, 30, 350, 160, 110, 13 };
     for ( int i = 0; i < SetupInfoRows; ++i ) {
-        lv_obj_t *name = createLabel( setupInfo, &jetbrains_mono_26, LV_ALIGN_TOP_LEFT, 116 + i * 36 );
-        lv_obj_set_x( name, 30 );
-        lv_obj_set_style_text_color( name, lv_color_hex( 0xA0A0A0 ), 0 );
-        lv_label_set_text( name, Language::text( s_setupNames[i] ) );
-        m_setupValues[i] = createLabel( setupInfo, &jetbrains_mono_26, LV_ALIGN_TOP_RIGHT, 116 + i * 36 );
-        lv_obj_set_x( m_setupValues[i], -30 );
-        // One line each: a long value ends in dots.
-        lv_obj_set_size( m_setupValues[i], 220, 30 );
-        lv_obj_set_style_text_align( m_setupValues[i], LV_TEXT_ALIGN_RIGHT, 0 );
-        lv_label_set_long_mode( m_setupValues[i], LV_LABEL_LONG_MODE_DOTS );
+        layout.kinds[i] = TablePart::OneValue;
+        m_setupTable.text().set( i, 0, Language::text( s_setupNames[i] ) );
+        m_setupTable.text().set( i, 1, m_setupTexts[i] );
     }
-
-    for ( int i = 0; i < SetupInfoRows; ++i ) {
-        lv_label_set_text( m_setupValues[i], m_setupTexts[i] );
-    }
+    m_setupTable.build( m_settingsPage.part( SetupInfoPart ), layout );
 #if CONFIG_WATCH_SETUP_PORTAL
     applySetup();
 #endif
@@ -1134,10 +1123,9 @@ void Display::showSetupInfo( const char *const values[SetupInfoRows] )
     }
     for ( int i = 0; i < SetupInfoRows; ++i ) {
         snprintf( m_setupTexts[i], sizeof( m_setupTexts[i] ), "%s", values[i] );
-        if ( m_setupValues[i] != nullptr ) {
-            lv_label_set_text( m_setupValues[i], m_setupTexts[i] );
-        }
+        m_setupTable.text().set( i, 1, m_setupTexts[i] );
     }
+    m_setupTable.refresh();
     m_sky.setPlace( m_setupTexts[0] );
     bsp_display_unlock();
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Sky.h"
+#include "TablePart.h"
 #include "lvgl.h"
 
 // The astronomy pages of active mode (M10a, plain text; the designs follow in M10b): Sun,
@@ -22,32 +23,18 @@ public:
     void show( const Sky::Day &day, const Sky::Now &now, int utcOffsetMinutes );
 
 private:
-    // A table row: the name, then two values in columns (the second is null when the first
-    // spans both).
-    struct Row
-    {
-        lv_obj_t *name;
-        lv_obj_t *values[2];
-    };
-
     static const int SunRows = 6;
     static const int TwilightRows = 8;
     static const int MoonRows = 7;
     static const int TimeRows = 8;
 
-    static Row createRow( lv_obj_t *page, const char *name, bool twoValues );
-
-    Row m_sun[SunRows] = {};
-    Row m_twilight[TwilightRows] = {};
-    lv_obj_t *m_moonPhase = nullptr;
-    Row m_moon[MoonRows] = {};
-    Row m_time[TimeRows] = {};
-    Row m_prayer[Sky::PrayerCount] = {};
-    lv_obj_t *m_nextPrayer = nullptr;
-    lv_obj_t *m_prayerMethod = nullptr;
-    lv_obj_t *m_sunPlace = nullptr;
+    TablePart m_sun;
+    TablePart m_twilight;
+    TablePart m_prayer;
+    TablePart m_moon;
+    TablePart m_time;
+    bool m_built = false;
     char m_place[32] = {};
-    lv_obj_t *m_hijri = nullptr;
     lv_obj_t *m_compassArrow = nullptr;
     lv_obj_t *m_compassNorth = nullptr;
     lv_obj_t *m_compassText = nullptr;
