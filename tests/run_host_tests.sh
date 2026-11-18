@@ -14,6 +14,7 @@ g++ -std=c++17 -O2 -Wall -Wextra -I main tests/PartOrderTest.cpp main/PartOrder.
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/FaceConfigTest.cpp main/FaceConfig.cpp -o build-host/face_config_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/FaceTextTest.cpp main/FaceText.cpp main/FaceTable.cpp main/FaceConfig.cpp main/Language.cpp main/Zones.cpp main/Sky.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/face_text_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/AodSmallTest.cpp main/FaceText.cpp main/FaceTable.cpp main/FaceConfig.cpp main/Language.cpp main/Zones.cpp main/Sky.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/aod_small_test
+g++ -std=c++17 -O2 -Wall -Wextra -I main tests/AnalogClockTest.cpp main/AnalogClock.cpp -o build-host/analog_clock_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/SevenSegmentTest.cpp main/SevenSegment.cpp -o build-host/seven_segment_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tools/make_corner_table.cpp main/Corners.cpp main/Sky.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/make_corner_table
 build-host/astronomy_test tests/astronomy_reference.csv
@@ -27,6 +28,7 @@ build-host/face_config_test
 build-host/face_text_test
 build-host/seven_segment_test
 build-host/aod_small_test main/AodGlyphs.c
+build-host/analog_clock_test
 # main/CornerTable.c must be what the corner geometry gives today.
 build-host/make_corner_table > build-host/CornerTable.c
 if cmp -s build-host/CornerTable.c main/CornerTable.c; then

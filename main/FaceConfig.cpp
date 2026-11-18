@@ -27,7 +27,7 @@ static int parameterLimit( int slot, int item )
 void FaceConfig::defaults( Pages &pages )
 {
     pages = {};
-    pages.count = 2;
+    pages.count = 3;
 
     // As the owner's approved mock-up (docs/superpowers/specs/2026-11-18-face-templates/
     // templates.png, page 3): every default text fits its slot (tests/FaceTextTest.cpp).
@@ -53,6 +53,13 @@ void FaceConfig::defaults( Pages &pages )
     mono.items[TopInner] = LongDate;
     mono.items[BottomInner] = HijriDate;
     mono.alwaysOn = ( 1 << TopInner ) | ( 1 << BottomInner );
+
+    // The mock-up's page 4: the first page's slots around a Classic analog clock.
+    Page &analog = pages.pages[2];
+    analog = segments;
+    analog.clock = AnalogClock;
+    analog.analog = ClassicHands;
+    analog.flags = SecondsHandFlag;
 }
 
 static bool pageValid( const FaceConfig::Page &page )

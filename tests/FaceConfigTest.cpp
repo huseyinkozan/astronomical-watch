@@ -21,7 +21,14 @@ int main()
 {
     FaceConfig::Pages pages = {};
     FaceConfig::defaults( pages );
-    check( "defaults: two pages", pages.count == 2 );
+    check( "defaults: three pages", pages.count == 3 );
+    const FaceConfig::Page &analog = pages.pages[2];
+    check( "defaults: third page analog Classic", analog.clock == FaceConfig::AnalogClock &&
+                                                       analog.analog == FaceConfig::ClassicHands );
+    check( "defaults: Classic with the seconds hand", ( analog.flags & FaceConfig::SecondsHandFlag ) != 0 );
+    check( "defaults: analog page's slots as the first's",
+           memcmp( analog.items, pages.pages[0].items, sizeof( analog.items ) ) == 0 &&
+               analog.alwaysOn == pages.pages[0].alwaysOn );
     check( "defaults: valid", FaceConfig::valid( pages ) );
     const FaceConfig::Page &first = pages.pages[0];
     check( "defaults: large", first.layout == FaceConfig::Large );
