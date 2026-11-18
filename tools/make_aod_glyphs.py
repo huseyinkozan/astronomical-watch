@@ -4,7 +4,7 @@
 The always-on wakes draw without LVGL or fonts (main/AlwaysOn.cpp), and the panel's idle mode
 shows each colour channel on or off, so every glyph is stored with one bit per pixel. The digit
 sets of the face pages' digital clocks (FaceConfig::DigitalStyle), each as HH:MM at the size of
-the Large template:
+the Large template and at the arc templates' medium size (64 px, JetBrains Mono Light 64):
 
     Mono            JetBrains Mono Light 110, placed as the active face's label
     Seven segment   main/SevenSegment.cpp's geometry at 122 px, each segment filled with dots
@@ -29,6 +29,8 @@ SMALL_SIZE = 26
 # The watch font's characters (tools/make_fonts.sh): ASCII, the degree sign, the Turkish letters.
 SMALL_CHARACTERS = [chr(c) for c in range(0x20, 0x7F)] + list('°ÇÖÜçöüĞğİıŞş')
 LARGE_HEIGHT = 122
+# The arc templates' digits (FaceConfig::clockPlace).
+MEDIUM_HEIGHT = 64
 
 SEGMENTS = [0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F]
 
@@ -201,9 +203,12 @@ class Writer:
 
 
 def main():
+    # By FaceConfig::DigitalStyle within each size: Large, then Medium (the arc templates).
     styles = [
         ('Mono', monoStyle('Light', 110)),
         ('Seven segment', segmentStyle(LARGE_HEIGHT)),
+        ('Mono, medium', monoStyle('Light', MEDIUM_HEIGHT)),
+        ('Seven segment, medium', segmentStyle(MEDIUM_HEIGHT)),
     ]
 
     writer = Writer()

@@ -31,10 +31,13 @@ typedef struct
     int16_t height;
 } AodStyle;
 
-// aodStyles by FaceConfig::DigitalStyle: JetBrains Mono Light, seven segments filled with dots.
+// aodStyles[AOD_SIZE_* * 2 + FaceConfig::DigitalStyle]: JetBrains Mono Light, seven segments
+// filled with dots; Large (122 px), Medium (64 px, the arc templates).
 enum
 {
-    AOD_STYLE_COUNT = 2,
+    AOD_SIZE_LARGE = 0,
+    AOD_SIZE_MEDIUM = 1,
+    AOD_STYLE_COUNT = 4,
     AOD_SMALL_COUNT = 108
 };
 
