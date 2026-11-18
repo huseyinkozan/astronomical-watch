@@ -181,9 +181,10 @@ tests fail when it is stale), which the always-on face reads too. The Moon's pha
 put it in the bottom-left corner, inside the Moon's gauge (the top-left corner stands for the Sun).
 
 Brightness: active mode has one level, the always-on face one by day and one by night, switched
-at sunrise and sunset (the day gauge; no light sensor on the board). A long press and a drag on the
-watch face sets them: vertically the active level, sideways the always-on level of the moment
-(the first 20 px of movement choose the direction); the portal sets all three.
+at sunrise and sunset (the day gauge; no light sensor on the board). A long press on the watch
+face shows both levels it can set, the active one with a vertical bar and the always-on one of
+the moment with a horizontal bar; the first 20 px of the drag choose one and hide the other. The
+portal sets all three.
 
 Event log (`main/EventLog.*`, NVS): boots with their reset reason, the end of each active session
 (touches, touch controller state), the end of always-on and power-offs, with battery, smallest
@@ -236,7 +237,8 @@ in its flash partition. Read both over USB: `python tools/read_events.py`, then
   minute). Research notes on this and other topics live in `research/` (excluded from git).
 - Setup portal (M9, `main/Portal.*`, `main/portal/`): a row on the watch's Setup page starts it
   (not every charge); the same row stops it, and it stops by itself 5 min after the last browser
-  request or when the page saves. The watch opens a WPA2 soft AP with a captive portal (DNS
+  request or when the page saves (not after a face page's "show on the watch", which saves the
+  faces, shows that page and keeps the portal on for the next change). The watch opens a WPA2 soft AP with a captive portal (DNS
   answers every name with the watch's address, so phones and computers open the page by
   themselves; otherwise the IP address shown on the watch is typed in). The password is four
   random digits, each written twice (e.g. 33556688, easy to type), made on the watch, kept in
