@@ -86,6 +86,10 @@ public:
         // The next prayer time (Prayer; tomorrow's imsak after the night prayer), -1: none.
         int nextPrayer;
         int secondsToPrayer;
+        // The galactic centre (the half arcs' Milky Way), and whether the observer is south of
+        // the equator (the arcs mirror).
+        Astronomy::Position galacticCentre;
+        bool south;
     };
 
     // The prayer times of local day `day` (Diyanet's tables are in local civil time; the date is

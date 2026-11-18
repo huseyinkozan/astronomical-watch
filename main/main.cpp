@@ -125,9 +125,11 @@ static int s_hostLineLength = 0;
 // portal on or off and "N" makes a new portal password (so that a published screenshot does not
 // show the one in use). "D" shows a fixed scene until the next reset (s_sceneInputs); "F <page>"
 // shows that face page without changing the setting, "G <page> <slot> <item>" puts an item into
-// a slot of it, "H <page> <style>" makes it analog (neither saved); "O" ends active mode as a
+// a slot of it, "H <page> <style>" makes it analog, "J <page> <template>"
+// sets its template (none saved); "O" ends active mode as a
 // PWR press does; "U <0|1>" sets the PWR key's internal pull-up; "K" shows the brightness
-// control; "X <hex> <gap>" sets the panel's MADCTL and column gap (guided test "mirror"). Only
+// control; "X <hex> <gap>" sets the panel's MADCTL and column gap (guided test "mirror"); "V <altitude>
+// <azimuth> <sun altitude>" puts the galactic centre and the Sun there for the face. Only
 // "E" (the event log, read by tools/read_events.py) also works without CONFIG_WATCH_DEV_LOGGING.
 // Returns true when a command arrived: like a touch, it restarts the display timeout, so that
 // the watch stays in active mode while tools/screenshot.py works.
@@ -189,6 +191,13 @@ static bool pollHostCommands()
             s_display.showFaceStyle( style );
             continue;
         }
+        float galacticAltitude = 0;
+        float galacticAzimuth = 0;
+        float sunAltitude = 0;
+        if ( sscanf( s_hostLine, "V %f %f %f", &galacticAltitude, &galacticAzimuth, &sunAltitude ) == 3 ) {
+            s_display.overrideSky( galacticAltitude, galacticAzimuth, sunAltitude );
+            continue;
+        }
         unsigned addressMode = 0;
         int gap = 0;
         if ( sscanf( s_hostLine, "X %x %d", &addressMode, &gap ) == 2 ) {
@@ -218,6 +227,17 @@ static bool pollHostCommands()
                 // As the portal does: Classic with the seconds hand.
                 page.flags = static_cast<uint8_t>( item == FaceConfig::ClassicHands ? page.flags | FaceConfig::SecondsHandFlag
                                                                                     : page.flags & ~FaceConfig::SecondsHandFlag );
+                s_display.setPages( s_facePages );
+            }
+            s_display.showFaceStyle( style );
+            continue;
+        }
+        if ( sscanf( s_hostLine, "J %d %d", &style, &item ) == 2 ) {
+            if ( style >= 0 && style < s_facePages.count && item >= 0 && item < FaceConfig::TemplateCount ) {
+                FaceConfig::Page &page = s_facePages.pages[style];
+                page.layout = static_cast<uint8_t>( item );
+                page.flags = static_cast<uint8_t>( item == FaceConfig::HalfArcs ? page.flags | FaceConfig::MilkyWayFlag
+                                                                                : page.flags & ~FaceConfig::MilkyWayFlag );
                 s_display.setPages( s_facePages );
             }
             s_display.showFaceStyle( style );

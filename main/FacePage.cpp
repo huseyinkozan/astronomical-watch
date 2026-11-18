@@ -7,6 +7,7 @@
 #include "Fonts.h"
 #include "Language.h"
 #include "AnalogClock.h"
+#include "MilkyWay.h"
 #include "Panel.h"
 #include "SevenSegment.h"
 
@@ -17,10 +18,23 @@ static const lv_color_t s_moonDark = LV_COLOR_MAKE( 0x30, 0x30, 0x38 );
 static const lv_color_t s_moonLit = LV_COLOR_MAKE( 0xE6, 0xE8, 0xF0 );
 static const uint32_t s_slideMs = 250;
 
-// The Large template's clock.
-static const float s_segmentHeight = 122;
-static const float s_analogRadius = 140;
 static const lv_color_t s_minorMark = LV_COLOR_MAKE( 0x70, 0x70, 0x70 );
+
+// The arc templates (the mock-up's places, docs/superpowers/plans/2026-11-18-face-templates-phase3.md):
+// the orbits around the centre, the paths over the horizon.
+static const int s_orbitY = 251;
+static const float s_orbitRadius[2] = { 150, 122 };  // the Sun, the Moon
+static const int s_horizonY = 232;
+static const int s_horizonLeft = 40;
+static const int s_horizonRight = 370;
+static const float s_pathRadius[2] = { 150, 105 };
+static const float s_bandClip = 160;  // the band shows inside this half disc
+static const int s_bandWidth = 16;
+static const lv_color_t s_band = LV_COLOR_MAKE( 0x96, 0xAA, 0xFF );
+static const lv_color_t s_sunDim = LV_COLOR_MAKE( 0x60, 0x44, 0x1A );
+static const lv_color_t s_moonDim = LV_COLOR_MAKE( 0x50, 0x54, 0x60 );
+static const lv_color_t s_horizon = LV_COLOR_MAKE( 0x60, 0x60, 0x60 );
+static const int s_skyMoonSize = 25;
 
 static const int s_moonSize = 37;
 static const int s_weekdayRadius = 20;
@@ -57,16 +71,19 @@ void FacePage::build( lv_obj_t *tile )
     // Not clickable: presses and swipes go to the tile, which takes the vertical swipe.
     m_root = createBox( tile, Panel::WIDTH, Panel::HEIGHT );
 
+    // Under the clock: the arcs, and the Moon on them.
+    m_arcs = createBox( m_root, Panel::WIDTH, Panel::HEIGHT );
+    lv_obj_add_event_cb( m_arcs, onDrawArcs, LV_EVENT_DRAW_MAIN, this );
+    m_skyMoon = lv_canvas_create( m_root );
+    lv_canvas_set_draw_buf( m_skyMoon, lv_draw_buf_create( s_skyMoonSize, s_skyMoonSize, LV_COLOR_FORMAT_RGB565, 0 ) );
+    lv_canvas_fill_bg( m_skyMoon, lv_color_black(), LV_OPA_COVER );
+    lv_obj_set_hidden( m_skyMoon, true );
+
+    // The clock objects get their size and place from the template (apply()).
     m_mono = createLabel( m_root, &jetbrains_mono_light_110, lv_color_white() );
-    centreAt( m_mono, FaceConfig::CentreX, FaceConfig::ClockY );
-    const int segmentsWidth = static_cast<int>( std::ceil( SevenSegment::timeWidth( s_segmentHeight ) ) );
-    m_segments = createBox( m_root, segmentsWidth, static_cast<int>( s_segmentHeight ) );
-    centreAt( m_segments, FaceConfig::CentreX, FaceConfig::ClockY );
+    m_segments = createBox( m_root, 1, 1 );
     lv_obj_add_event_cb( m_segments, onDrawSegments, LV_EVENT_DRAW_MAIN, this );
-    // A margin for the hands' round ends.
-    const int analogSize = 2 * static_cast<int>( s_analogRadius ) + 16;
-    m_analog = createBox( m_root, analogSize, analogSize );
-    centreAt( m_analog, FaceConfig::CentreX, FaceConfig::ClockY );
+    m_analog = createBox( m_root, 1, 1 );
     lv_obj_add_event_cb( m_analog, onDrawAnalog, LV_EVENT_DRAW_MAIN, this );
 
     for ( int i = 0; i < FaceConfig::TextSlotCount; ++i ) {
@@ -121,6 +138,21 @@ void FacePage::apply()
     if ( m_root == nullptr ) {
         return;
     }
+    const FaceConfig::ClockPlace place = FaceConfig::clockPlace( m_page.layout );
+    m_digitHeight = place.digitHeight;
+    m_analogRadius = place.analogRadius;
+    m_clockY = place.centreY;
+    lv_obj_set_style_text_font( m_mono, m_digitHeight >= 100 ? &jetbrains_mono_light_110 : &jetbrains_mono_light_64, 0 );
+    centreAt( m_mono, FaceConfig::CentreX, m_clockY );
+    lv_obj_set_size( m_segments, static_cast<int32_t>( std::ceil( SevenSegment::timeWidth( static_cast<float>( m_digitHeight ) ) ) ),
+                     m_digitHeight );
+    centreAt( m_segments, FaceConfig::CentreX, m_clockY );
+    // A margin for the hands' round ends.
+    lv_obj_set_size( m_analog, 2 * m_analogRadius + 16, 2 * m_analogRadius + 16 );
+    centreAt( m_analog, FaceConfig::CentreX, m_clockY );
+    lv_obj_set_hidden( m_arcs, m_page.layout == FaceConfig::Large );
+    m_skyMinute = -1;
+    placeSky();
     const bool digital = m_page.clock == FaceConfig::DigitalClock;
     lv_obj_set_hidden( m_mono, !( digital && m_page.digital == FaceConfig::MonoDigits ) );
     lv_obj_set_hidden( m_segments, !( digital && m_page.digital == FaceConfig::SevenSegment ) );
@@ -226,19 +258,15 @@ void FacePage::setMoon( int percent, bool waxing )
     paintMoon();
 }
 
-// The lit part in pale white, the dark part dim, the terminator half an ellipse; 4 x 4 samples
-// per pixel smooth the edges.
-void FacePage::paintMoon()
+// A moon of `size` pixels into `canvas`: the lit part in pale white, the dark part dim, the
+// terminator half an ellipse; 4 x 4 samples per pixel smooth the edges.
+static void paintMoonCanvas( lv_obj_t *canvas, int size, int percent, bool waxing )
 {
-    if ( m_moon == nullptr || m_moonPercent < 0 ) {
-        return;
-    }
-    m_moonPainted = true;
-    const double radius = s_moonSize / 2.0 - 1;
-    const double centre = s_moonSize / 2.0;
-    const double fraction = m_moonPercent / 100.0;
-    for ( int y = 0; y < s_moonSize; ++y ) {
-        for ( int x = 0; x < s_moonSize; ++x ) {
+    const double radius = size / 2.0 - 1;
+    const double centre = size / 2.0;
+    const double fraction = percent / 100.0;
+    for ( int y = 0; y < size; ++y ) {
+        for ( int x = 0; x < size; ++x ) {
             int litSamples = 0;
             int darkSamples = 0;
             for ( int sy = 0; sy < 4; ++sy ) {
@@ -250,7 +278,7 @@ void FacePage::paintMoon()
                     }
                     const double half = std::sqrt( radius * radius - dy * dy );
                     const double terminator = half * ( 1 - 2 * fraction );
-                    if ( m_waxing ? dx >= terminator : -dx >= terminator ) {
+                    if ( waxing ? dx >= terminator : -dx >= terminator ) {
                         ++litSamples;
                     } else {
                         ++darkSamples;
@@ -258,11 +286,91 @@ void FacePage::paintMoon()
                 }
             }
             const lv_color_t colour = lv_color_mix( s_moonLit, lv_color_black(), static_cast<uint8_t>( litSamples * 255 / 16 ) );
-            lv_canvas_set_px( m_moon, x, y, lv_color_mix( s_moonDark, colour, static_cast<uint8_t>( darkSamples * 255 / 16 ) ),
+            lv_canvas_set_px( canvas, x, y, lv_color_mix( s_moonDark, colour, static_cast<uint8_t>( darkSamples * 255 / 16 ) ),
                               LV_OPA_COVER );
         }
     }
-    lv_obj_invalidate( m_moon );
+    lv_obj_invalidate( canvas );
+}
+
+void FacePage::paintMoon()
+{
+    if ( m_moon == nullptr || m_moonPercent < 0 ) {
+        return;
+    }
+    m_moonPainted = true;
+    paintMoonCanvas( m_moon, s_moonSize, m_moonPercent, m_waxing );
+    paintMoonCanvas( m_skyMoon, s_skyMoonSize, m_moonPercent, m_waxing );
+}
+
+void FacePage::setSky( const Corners::Input &corners, const Sky::Now &now, bool located )
+{
+    m_corners = corners;
+    m_sky = now;
+    if ( located != m_located || now.time / 60 != m_skyMinute ) {
+        m_located = located;
+        m_skyMinute = now.time / 60;
+        placeSky();
+    }
+}
+
+// The bodies' places (the old Dial and Sky arcs) and the band, once a minute; the Moon's object
+// moves here, outside the drawing.
+void FacePage::placeSky()
+{
+    if ( m_root == nullptr ) {
+        return;
+    }
+    const bool orbits = m_page.layout == FaceConfig::FullArcs;
+    const bool paths = m_page.layout == FaceConfig::HalfArcs;
+    const Corners::Events *events[2] = { &m_corners.sun, &m_corners.moon };
+    for ( int i = 0; i < 2; ++i ) {
+        Body &body = m_bodies[i];
+        body = {};
+        Corners::Pass pass = {};
+        body.alwaysUp = m_located && m_corners.valid && events[i]->alwaysUp;
+        body.known = m_located && m_corners.valid && Corners::pass( *events[i], m_sky.time, pass ) &&
+                     pass.upEnd > pass.upStart && pass.downEnd > pass.upEnd;
+        if ( !body.known ) {
+            continue;
+        }
+        body.up = pass.up;
+        const float upPart = static_cast<float>( m_sky.time - pass.upStart ) / static_cast<float>( pass.upEnd - pass.upStart );
+        if ( orbits ) {
+            // Clockwise, the pass centred at the top: the arc above the horizon as long as its
+            // share of the day.
+            const float span = 360.0f * static_cast<float>( pass.upEnd - pass.upStart ) /
+                               static_cast<float>( pass.downEnd - pass.upStart );
+            body.rise = 270 - span / 2;
+            body.set = 270 + span / 2;
+            body.angle = body.up ? body.rise + span * upPart
+                                 : body.set + ( 360 - span ) * static_cast<float>( m_sky.time - pass.upEnd ) /
+                                                  static_cast<float>( pass.downEnd - pass.upEnd );
+        } else {
+            // Over the horizon from east to west; south of the equator the other way round.
+            body.angle = m_sky.south ? 360 - 180 * upPart : 180 + 180 * upPart;
+        }
+    }
+    // The Moon's picture on its orbit or path while it is up.
+    const Body &moon = m_bodies[1];
+    const bool moonShown = ( orbits || paths ) && moon.known && moon.up;
+    lv_obj_set_hidden( m_skyMoon, !moonShown );
+    if ( moonShown ) {
+        const float radius = orbits ? s_orbitRadius[1] : s_pathRadius[1];
+        const int centreY = orbits ? s_orbitY : s_horizonY;
+        const float a = moon.angle * static_cast<float>( M_PI ) / 180.0f;
+        lv_obj_set_pos( m_skyMoon, static_cast<int32_t>( lroundf( FaceConfig::CentreX + radius * cosf( a ) ) ) - s_skyMoonSize / 2,
+                        static_cast<int32_t>( lroundf( centreY + radius * sinf( a ) ) ) - s_skyMoonSize / 2 );
+    }
+    const bool milkyWay = paths && m_located && ( m_page.flags & FaceConfig::MilkyWayFlag ) != 0;
+    const MilkyWay::Band band = MilkyWay::band( m_sky.galacticCentre.altitude, m_sky.galacticCentre.azimuth,
+                                                m_sky.sun.altitude, m_sky.south, FaceConfig::CentreX, s_horizonY );
+    m_bandShown = milkyWay && band.shown;
+    m_bandBright = band.bright;
+    m_band[0] = band.cx;
+    m_band[1] = band.cy;
+    m_band[2] = band.radius;
+    lv_obj_invalidate( m_arcs );
 }
 
 // A segment without seams: the box between its four shoulder points as a rectangle, the two
@@ -328,7 +436,7 @@ void FacePage::onDrawAnalog( lv_event_t *event )
     const float cy = ( area.y1 + area.y2 + 1 ) / 2.0f;
     const bool timeValid = face->m_hour >= 0;
     AnalogClock::Segment segments[AnalogClock::MaxSegments];
-    const int count = AnalogClock::segments( face->m_page.analog, s_analogRadius, timeValid ? face->m_hour : 0,
+    const int count = AnalogClock::segments( face->m_page.analog, static_cast<float>( face->m_analogRadius ), timeValid ? face->m_hour : 0,
                                              timeValid ? face->m_minute : 0, timeValid ? face->m_second : 0,
                                              timeValid && face->secondsHand(), segments, AnalogClock::MaxSegments );
     lv_draw_line_dsc_t line;
@@ -385,25 +493,26 @@ void FacePage::onDrawSegments( lv_event_t *event )
     lv_layer_t *layer = lv_event_get_layer( event );
     lv_area_t area;
     lv_obj_get_coords( face->m_segments, &area );
+    const float height = static_cast<float>( face->m_digitHeight );
     float digitX[4] = {};
     float colonX = 0;
-    SevenSegment::layout( s_segmentHeight, digitX, colonX );
+    SevenSegment::layout( height, digitX, colonX );
     const int digits[4] = { face->m_hour / 10, face->m_hour % 10, face->m_minute / 10, face->m_minute % 10 };
     for ( int d = 0; d < 4; ++d ) {
         SevenSegment::Hexagon hexagons[7];
-        const int count = SevenSegment::segments( digits[d], s_segmentHeight, hexagons );
+        const int count = SevenSegment::segments( digits[d], height, hexagons );
         for ( int s = 0; s < count; ++s ) {
             drawSegment( layer, hexagons[s], area.x1 + digitX[d], area.y1 );
         }
     }
     // The colon: two squares at 0.3 and 0.7 of the height.
-    const float side = SevenSegment::colonSize( s_segmentHeight );
+    const float side = SevenSegment::colonSize( height );
     lv_draw_rect_dsc_t square;
     lv_draw_rect_dsc_init( &square );
     square.bg_color = lv_color_white();
     square.bg_opa = LV_OPA_COVER;
     for ( int i = 0; i < 2; ++i ) {
-        const float centreY = s_segmentHeight * ( i == 0 ? 0.3f : 0.7f );
+        const float centreY = height * ( i == 0 ? 0.3f : 0.7f );
         lv_area_t dot;
         dot.x1 = area.x1 + static_cast<int32_t>( lroundf( colonX - side / 2 ) );
         dot.y1 = area.y1 + static_cast<int32_t>( lroundf( centreY - side / 2 ) );
@@ -437,5 +546,135 @@ void FacePage::onDrawWeekday( lv_event_t *event )
         arc.end_angle = 270 + ( i + 1 ) * step - s_notchGap / 2;
         arc.color = i <= face->m_weekdayShown ? s_amber : s_notchOff;
         lv_draw_arc( layer, &arc );
+    }
+}
+
+static void drawDot( lv_layer_t *layer, float x, float y, lv_color_t colour, int radius = 1 )
+{
+    lv_draw_rect_dsc_t dot;
+    lv_draw_rect_dsc_init( &dot );
+    dot.bg_color = colour;
+    dot.radius = LV_RADIUS_CIRCLE;
+    const int32_t cx = static_cast<int32_t>( lroundf( x ) );
+    const int32_t cy = static_cast<int32_t>( lroundf( y ) );
+    const lv_area_t box = { cx - radius, cy - radius, cx + radius, cy + radius };
+    lv_draw_rect( layer, &dot, &box );
+}
+
+// Dots every `step` pixels along the circle of `radius` around (cx, cy) from angle a0 to a1
+// (degrees, clockwise from 3 o'clock).
+static void drawDottedArc( lv_layer_t *layer, float cx, float cy, float radius, float a0, float a1, float step,
+                           lv_color_t colour )
+{
+    const int count = static_cast<int>( static_cast<float>( M_PI ) / 180.0f * ( a1 - a0 ) * radius / step );
+    for ( int k = 0; k <= count; ++k ) {
+        const float a = ( a0 + ( a1 - a0 ) * k / ( count > 0 ? count : 1 ) ) * static_cast<float>( M_PI ) / 180.0f;
+        drawDot( layer, cx + radius * cosf( a ), cy + radius * sinf( a ), colour );
+    }
+}
+
+// The Milky Way: the parts of the band's circle inside the half disc over the horizon, as arcs.
+static void drawBand( lv_layer_t *layer, int originX, int originY, const float band[3], bool bright )
+{
+    lv_draw_arc_dsc_t arc;
+    lv_draw_arc_dsc_init( &arc );
+    arc.color = s_band;
+    arc.opa = bright ? 115 : 51;  // 45 % or 20 %
+    arc.width = s_bandWidth;
+    arc.center.x = originX + static_cast<int32_t>( lroundf( band[0] ) );
+    arc.center.y = originY + static_cast<int32_t>( lroundf( band[1] ) );
+    arc.radius = static_cast<uint16_t>( band[2] + s_bandWidth / 2 );
+    int runStart = -1;
+    for ( int degree = 0; degree <= 360; ++degree ) {
+        const float a = degree * static_cast<float>( M_PI ) / 180.0f;
+        const float x = band[0] + band[2] * cosf( a ) - FaceConfig::CentreX;
+        const float y = band[1] + band[2] * sinf( a ) - s_horizonY;
+        const bool inside = degree < 360 && y < 0 && x * x + y * y < s_bandClip * s_bandClip;
+        if ( inside && runStart < 0 ) {
+            runStart = degree;
+        } else if ( !inside && runStart >= 0 ) {
+            arc.start_angle = runStart;
+            arc.end_angle = degree;
+            lv_draw_arc( layer, &arc );
+            runStart = -1;
+        }
+    }
+}
+
+// The orbits (Full arcs) or the paths over the horizon (Half arcs), the Sun, and the Moon below
+// the horizon; the Moon above it is its own object (m_skyMoon).
+void FacePage::onDrawArcs( lv_event_t *event )
+{
+    const FacePage *face = static_cast<FacePage *>( lv_event_get_user_data( event ) );
+    lv_layer_t *layer = lv_event_get_layer( event );
+    lv_area_t area;
+    lv_obj_get_coords( face->m_arcs, &area );
+    const float x0 = static_cast<float>( area.x1 );
+    const float y0 = static_cast<float>( area.y1 );
+    const lv_color_t colours[2] = { s_amber, s_moonLit };
+    const lv_color_t dimColours[2] = { s_sunDim, s_moonDim };
+    if ( face->m_page.layout == FaceConfig::FullArcs ) {
+        const float cx = x0 + FaceConfig::CentreX;
+        const float cy = y0 + s_orbitY;
+        for ( int i = 0; i < 2; ++i ) {
+            const Body &body = face->m_bodies[i];
+            const float r = s_orbitRadius[i];
+            if ( body.known ) {
+                // Dense above the horizon, sparse below, marks at rise and set.
+                drawDottedArc( layer, cx, cy, r, body.rise, body.set, 5, colours[i] );
+                drawDottedArc( layer, cx, cy, r, body.set, body.rise + 360, 15, dimColours[i] );
+                lv_draw_line_dsc_t mark;
+                lv_draw_line_dsc_init( &mark );
+                mark.color = colours[i];
+                mark.width = 2;
+                const float edges[2] = { body.rise, body.set };
+                for ( int k = 0; k < 2; ++k ) {
+                    const float a = edges[k] * static_cast<float>( M_PI ) / 180.0f;
+                    mark.p1.x = static_cast<int32_t>( lroundf( cx + ( r - 6 ) * cosf( a ) ) );
+                    mark.p1.y = static_cast<int32_t>( lroundf( cy + ( r - 6 ) * sinf( a ) ) );
+                    mark.p2.x = static_cast<int32_t>( lroundf( cx + ( r + 6 ) * cosf( a ) ) );
+                    mark.p2.y = static_cast<int32_t>( lroundf( cy + ( r + 6 ) * sinf( a ) ) );
+                    lv_draw_line( layer, &mark );
+                }
+            } else {
+                // No rise or set near now (no location, or the polar day or night).
+                drawDottedArc( layer, cx, cy, r, 0, 360, body.alwaysUp ? 5 : 15, body.alwaysUp ? colours[i] : dimColours[i] );
+            }
+        }
+        const Body &sun = face->m_bodies[0];
+        if ( sun.known ) {
+            const float a = sun.angle * static_cast<float>( M_PI ) / 180.0f;
+            drawDot( layer, cx + s_orbitRadius[0] * cosf( a ), cy + s_orbitRadius[0] * sinf( a ), sun.up ? s_amber : s_sunDim, 9 );
+        }
+        const Body &moon = face->m_bodies[1];
+        if ( moon.known && !moon.up ) {
+            const float a = moon.angle * static_cast<float>( M_PI ) / 180.0f;
+            drawDot( layer, cx + s_orbitRadius[1] * cosf( a ), cy + s_orbitRadius[1] * sinf( a ), s_moonDim, 8 );
+        }
+        return;
+    }
+    if ( face->m_page.layout != FaceConfig::HalfArcs ) {
+        return;
+    }
+    const float cx = x0 + FaceConfig::CentreX;
+    const float cy = y0 + s_horizonY;
+    if ( face->m_bandShown ) {
+        drawBand( layer, static_cast<int>( x0 ), static_cast<int>( y0 ), face->m_band, face->m_bandBright );
+    }
+    drawDottedArc( layer, cx, cy, s_pathRadius[0], 180, 360, 6, s_amber );
+    drawDottedArc( layer, cx, cy, s_pathRadius[1], 180, 360, 6, s_moonLit );
+    lv_draw_line_dsc_t horizon;
+    lv_draw_line_dsc_init( &horizon );
+    horizon.color = s_horizon;
+    horizon.width = 1;
+    horizon.p1.x = static_cast<int32_t>( x0 ) + s_horizonLeft;
+    horizon.p1.y = static_cast<int32_t>( cy );
+    horizon.p2.x = static_cast<int32_t>( x0 ) + s_horizonRight;
+    horizon.p2.y = static_cast<int32_t>( cy );
+    lv_draw_line( layer, &horizon );
+    const Body &sun = face->m_bodies[0];
+    if ( sun.known && sun.up ) {
+        const float a = sun.angle * static_cast<float>( M_PI ) / 180.0f;
+        drawDot( layer, cx + s_pathRadius[0] * cosf( a ), cy + s_pathRadius[0] * sinf( a ), s_amber, 8 );
     }
 }

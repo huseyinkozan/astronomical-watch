@@ -1,7 +1,9 @@
 #pragma once
 
+#include "Corners.h"
 #include "FaceConfig.h"
 #include "FaceText.h"
+#include "Sky.h"
 #include "lvgl.h"
 
 // The watch face of active mode: one face page (FaceConfig) on the face tile, its clock and
@@ -18,12 +20,19 @@ public:
     // Once a second. `inputs.table` must stay valid until the next call.
     void update( const FaceText::Inputs &inputs );
 
-    // The Moon's illuminated fraction in percent and whether it is waxing, for the moon icon.
+    // The Moon's illuminated fraction in percent and whether it is waxing, for the moon icons.
     void setMoon( int percent, bool waxing );
+
+    // The arc templates' data: the Sun's and the Moon's rises and sets, this moment's sky (the
+    // galactic centre, the Sun's altitude, the hemisphere); `located` false: no location set
+    // (no bodies, no band). Once a second; the arcs are placed again when the minute changes.
+    void setSky( const Corners::Input &corners, const Sky::Now &now, bool located );
 
 private:
     static void onDrawSegments( lv_event_t *event );
     static void onDrawAnalog( lv_event_t *event );
+    static void onDrawArcs( lv_event_t *event );
+    void placeSky();
     bool secondsHand() const;
     static void onDrawWeekday( lv_event_t *event );
     void apply();
@@ -33,6 +42,8 @@ private:
     lv_obj_t *m_mono = nullptr;      // HH:MM in JetBrains Mono
     lv_obj_t *m_segments = nullptr;  // HH:MM in seven segments (onDrawSegments)
     lv_obj_t *m_analog = nullptr;    // the analog clock (onDrawAnalog)
+    lv_obj_t *m_arcs = nullptr;      // the orbits or the paths and the Milky Way (onDrawArcs)
+    lv_obj_t *m_skyMoon = nullptr;   // the Moon on its orbit or path
     lv_obj_t *m_texts[FaceConfig::TextSlotCount] = {};
     lv_obj_t *m_cornerTexts[FaceConfig::SlotCount - FaceConfig::TextSlotCount] = {};
     lv_obj_t *m_moon = nullptr;
@@ -44,6 +55,29 @@ private:
     int m_minute = -1;
     int m_second = -1;
     int m_weekdayShown = -1;  // 0 Monday
+    int m_digitHeight = 122;  // the clock's size in this template (FaceConfig::clockPlace)
+    int m_analogRadius = 140;
+    int m_clockY = 251;
+    // The sky, and what placeSky() made of it: for the Sun and the Moon whether the pass is
+    // known, whether the body is up, its angle (degrees clockwise from 3 o'clock) and for the
+    // orbits the rise and set angles; the Milky Way band.
+    Corners::Input m_corners = {};
+    Sky::Now m_sky = {};
+    bool m_located = false;
+    int64_t m_skyMinute = -1;
+    struct Body
+    {
+        bool known;
+        bool up;
+        bool alwaysUp;
+        float angle;
+        float rise;
+        float set;
+    };
+    Body m_bodies[2] = {};  // the Sun, the Moon
+    float m_band[3] = {};   // the band's centre and radius
+    bool m_bandShown = false;
+    bool m_bandBright = false;
     int m_moonPercent = -1;
     bool m_waxing = true;
     bool m_moonPainted = false;

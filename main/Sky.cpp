@@ -1,5 +1,7 @@
 #include "Sky.h"
 
+#include "MilkyWay.h"
+
 #include <cmath>
 
 #include "Dates.h"
@@ -207,6 +209,8 @@ Sky::Now Sky::computeNow( int64_t time, const Day &day, const Astronomy::Observe
     Now now = {};
     now.sun = Astronomy::sunPosition( time, observer );
     now.moon = Astronomy::moonPosition( time, observer );
+    now.galacticCentre = Astronomy::starPosition( MilkyWay::CentreRaHours, MilkyWay::CentreDecDegrees, time, observer );
+    now.south = observer.latitude < 0;
     now.time = time;
     now.sunUp = now.sun.altitude > -0.833;
     const Astronomy::Crossings &sun = day.sun.riseSet;

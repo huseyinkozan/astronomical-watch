@@ -138,6 +138,9 @@ public:
     void setFaceSlot( int page, int slot, int item );
     // Shows the brightness control as a long press does (a screenshot of it).
     void showLevels();
+    // The galactic centre's altitude and azimuth and the Sun's altitude for the face from now on
+    // (a picture of the Milky Way band; development only).
+    void overrideSky( double altitude, double azimuth, double sunAltitude );
     // The mirror test (tools/guided_test.py mirror): MADCTL `value` and the column gap.
     void testAddressMode( int value, int gap );
 
@@ -247,6 +250,10 @@ private:
     FaceTable m_faceTable = {};
     Battery m_battery = {};
     bool m_timeValid = false;
+    bool m_skyOverride = false;
+    double m_overrideAltitude = 0;
+    double m_overrideAzimuth = 0;
+    double m_overrideSunAltitude = 0;
     // Battery page.
     lv_obj_t *m_percentLabel = nullptr;
     lv_obj_t *m_voltageLabel = nullptr;

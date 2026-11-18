@@ -53,25 +53,33 @@ int main()
                          ( r.altitude > 80 || angleDifference( p.azimuth, r.azimuth ) < 0.1 ) );
     }
 
-    // The band: a circle of radius 260 through the observer, its centre in the azimuth's direction
-    // (north: east left, south up, west right; south of the equator mirrored, north up).
+    // The band: a circle of radius 260 through the observer that leaves it like a clock hand
+    // towards the centre's azimuth (north: east left, south up, west right; south of the equator
+    // mirrored, north up), bending upwards: its centre a quarter turn aside, on the upper side
+    // (straight up: to the right).
     const float ox = 205;
     const float oy = 232;
     MilkyWay::Band band = MilkyWay::band( -5, 180, -30, false, ox, oy );
     check( "band hidden with the centre down", !band.shown );
     band = MilkyWay::band( 20, 180, -30, false, ox, oy );
     check( "band shown and bright in a dark sky", band.shown && band.bright );
-    check( "south: the band's centre straight up", std::fabs( band.cx - ox ) < 0.5f && std::fabs( band.cy - ( oy - 260 ) ) < 0.5f );
+    check( "south: the band leaves upwards, its centre to the right",
+           std::fabs( band.cx - ( ox + 260 ) ) < 0.5f && std::fabs( band.cy - oy ) < 0.5f );
     check( "band radius 260", band.radius == 260 );
     band = MilkyWay::band( 20, 90, -10, false, ox, oy );
     check( "band dim in a lighter sky", band.shown && !band.bright );
-    check( "east: the centre to the left", std::fabs( band.cx - ( ox - 260 ) ) < 0.5f && std::fabs( band.cy - oy ) < 0.5f );
+    check( "east: the band leaves to the left, its centre above",
+           std::fabs( band.cx - ox ) < 0.5f && std::fabs( band.cy - ( oy - 260 ) ) < 0.5f );
     band = MilkyWay::band( 20, 270, -30, false, ox, oy );
-    check( "west: the centre to the right", std::fabs( band.cx - ( ox + 260 ) ) < 0.5f && std::fabs( band.cy - oy ) < 0.5f );
+    check( "west: the band leaves to the right, its centre above",
+           std::fabs( band.cx - ox ) < 0.5f && std::fabs( band.cy - ( oy - 260 ) ) < 0.5f );
+    band = MilkyWay::band( 20, 210, -30, false, ox, oy );
+    check( "south-west: the centre up and to the left",
+           band.cx < ox && band.cy < oy && std::fabs( std::hypot( band.cx - ox, band.cy - oy ) - 260 ) < 0.5f );
     band = MilkyWay::band( 20, 0, -30, true, ox, oy );
-    check( "south of the equator, north up", std::fabs( band.cx - ox ) < 0.5f && std::fabs( band.cy - ( oy - 260 ) ) < 0.5f );
+    check( "south of the equator, north up", std::fabs( band.cx - ( ox + 260 ) ) < 0.5f && std::fabs( band.cy - oy ) < 0.5f );
     band = MilkyWay::band( 20, 90, -30, true, ox, oy );
-    check( "south of the equator, east to the right", std::fabs( band.cx - ( ox + 260 ) ) < 0.5f );
+    check( "south of the equator, east to the right", std::fabs( band.cx - ox ) < 0.5f && std::fabs( band.cy - ( oy - 260 ) ) < 0.5f );
     band = MilkyWay::band( 0, 180, -30, false, ox, oy );
     check( "centre exactly on the horizon: hidden", !band.shown );
 

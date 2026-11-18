@@ -718,6 +718,20 @@ void Display::showSky( const Sky::Day &day, const Sky::Now &now, int utcOffsetMi
     m_moonPercent = static_cast<int>( day.phase.illumination * 100 + 0.5 );
     m_waxing = day.phase.elongation < 180;
     m_face.setMoon( m_moonPercent, m_waxing );
+#if CONFIG_WATCH_DEV_LOGGING
+    if ( m_skyOverride ) {
+        // Development ("V"): the Milky Way's sky for a picture of the band.
+        Sky::Now shown = now;
+        shown.galacticCentre.altitude = m_overrideAltitude;
+        shown.galacticCentre.azimuth = m_overrideAzimuth;
+        shown.sun.altitude = m_overrideSunAltitude;
+        m_face.setSky( Corners::fromSky( day ), shown, located );
+    } else {
+        m_face.setSky( Corners::fromSky( day ), now, located );
+    }
+#else
+    m_face.setSky( Corners::fromSky( day ), now, located );
+#endif
     m_faceTable = table;
     FaceText::Inputs inputs = {};
     const Rtc::DateTime &time = m_localTime;
@@ -1235,6 +1249,14 @@ void Display::testAddressMode( int value, int gap )
     lv_obj_invalidate( lv_layer_top() );
     bsp_display_unlock();
     ESP_LOGI( TAG, "Address mode 0x%02X, column gap %d", parameter, gap );
+}
+
+void Display::overrideSky( double altitude, double azimuth, double sunAltitude )
+{
+    m_skyOverride = true;
+    m_overrideAltitude = altitude;
+    m_overrideAzimuth = azimuth;
+    m_overrideSunAltitude = sunAltitude;
 }
 
 void Display::showLevels()

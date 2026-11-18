@@ -1,9 +1,9 @@
 #pragma once
 
 // The Milky Way band of the half arcs (docs/superpowers/specs/2026-11-18-face-templates-design.md):
-// a circle of fixed size through the observer (the horizon's middle), its centre turned like a
-// clock hand by the galactic centre's azimuth. It does not follow the galactic plane's real
-// tilt. Plain C++ for the host tests.
+// a circle of fixed size through the observer (the horizon's middle) that leaves it like a clock
+// hand towards the galactic centre's azimuth and bends upwards. It does not follow the galactic
+// plane's real tilt. Plain C++ for the host tests.
 class MilkyWay
 {
 public:
