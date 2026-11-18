@@ -5,14 +5,18 @@
 
 // A page of the tileview whose parts lie one over the other: a vertical swipe steps between them
 // (up: the next one slides in from below; after the last comes the first), and marks along the
-// right edge show which one is shown. The information page and the settings page use it. A part
-// change sends LV_EVENT_VALUE_CHANGED to the tile. Called with the display lock held.
+// right edge show which one is shown. The clock, information and settings pages use it. Their
+// name stays at the top between the two upper corner gauges, over a line whose ends bend up to
+// the gauges, so that every part shows which page it belongs to. A part change sends
+// LV_EVENT_VALUE_CHANGED to the tile. Called with the display lock held.
 class StackPage
 {
 public:
     static const int MaxParts = PageMarks::MaxCount;
+    // The parts' contents start this much lower than without the page name (their top padding).
+    static const int HeaderPad = 12;
 
-    void build( lv_obj_t *tile, int count );
+    void build( lv_obj_t *tile, int count, const char *title );
 
     // The container of part `index`, full screen, for its contents.
     lv_obj_t *part( int index ) const;
@@ -29,6 +33,8 @@ public:
 
 private:
     static void onGesture( lv_event_t *event );
+    static void onDrawHeaderLine( lv_event_t *event );
+    void buildHeader( const char *title );
 
     lv_obj_t *m_tile = nullptr;
     lv_obj_t *m_parts[MaxParts] = {};

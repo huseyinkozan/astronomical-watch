@@ -65,6 +65,7 @@ enum SettingsPart
     SetupInfoPart,  // what the setup portal set, read only
 #if CONFIG_WATCH_SETUP_PORTAL
     SetupPart,
+    SetupCodePart,  // the network as a QR code
 #endif
     SettingsPartCount
 };
@@ -91,7 +92,12 @@ struct Shot
 #if CONFIG_WATCH_SETUP_PORTAL
     { "setup", SettingsPage, SetupPart },
 #endif
-    { "about", InfoPage, Display::InfoAbout } };
+    { "about", InfoPage, Display::InfoAbout },
+#if CONFIG_WATCH_SETUP_PORTAL
+    // Last, so that the numbers of the others stay those of the published pictures.
+    { "setup-code", SettingsPage, SetupCodePart },
+#endif
+};
 [[maybe_unused]] static const int s_shotCount = sizeof( s_shots ) / sizeof( s_shots[0] );
 
 
@@ -329,7 +335,7 @@ bool Display::start( Settings &settings )
 void Display::buildInfoPage()
 {
     lv_obj_t *tile = m_tiles[InfoPage];
-    m_info.build( tile, InfoCount );
+    m_info.build( tile, InfoCount, Language::text( Language::InfoPageName ) );
     m_sky.build( m_info.part( InfoSun ), m_info.part( InfoTwilight ), m_info.part( InfoPrayer ),
                  m_info.part( InfoMoon ), m_info.part( InfoCompass ), m_info.part( InfoTime ) );
     buildAboutPage( m_info.part( InfoAbout ) );
@@ -339,6 +345,7 @@ void Display::buildInfoPage()
     m_percentLabel = createLabel( batteryPage, &jetbrains_mono_48, -50 );
     m_voltageLabel = createLabel( batteryPage, &jetbrains_mono_26, 20 );
     m_chargeLabel = createLabel( batteryPage, &jetbrains_mono_26, 70 );
+    m_unpluggedLabel = createLabel( batteryPage, &jetbrains_mono_26, 120 );
     m_sky.setPlace( m_setupTexts[0] );
     if ( m_haveSky ) {
         m_sky.show( m_day, m_now, m_offsetMinutes );
@@ -351,10 +358,12 @@ void Display::buildInfoPage()
 void Display::buildSettingsPage()
 {
     lv_obj_t *tile = m_tiles[SettingsPage];
-    m_settingsPage.build( tile, SettingsPartCount );
+    m_settingsPage.build( tile, SettingsPartCount, Language::text( Language::SettingsPageName ) );
     lv_obj_t *settingsParts[2] = { m_settingsPage.part( SettingsRows ), m_settingsPage.part( SettingsMoreRows ) };
 #if CONFIG_WATCH_SETUP_PORTAL
     buildSetupPage( m_settingsPage.part( SetupPart ) );
+    buildSetupCodePage( m_settingsPage.part( SetupCodePart ) );
+    lv_obj_add_event_cb( tile, onSettingsPartChanged, LV_EVENT_VALUE_CHANGED, this );
 #endif
     for ( int i = 0; i < 2; ++i ) {
         lv_obj_set_flex_flow( settingsParts[i], LV_FLEX_FLOW_COLUMN );
@@ -363,8 +372,9 @@ void Display::buildSettingsPage()
         lv_obj_set_flex_align( settingsParts[i], i == 0 ? LV_FLEX_ALIGN_CENTER : LV_FLEX_ALIGN_START,
                                LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER );
         if ( i == 1 ) {
+            const int rows = s_rowsPerPart * s_rowHeight + ( s_rowsPerPart - 1 ) * s_rowGap;
             lv_obj_set_style_pad_top( settingsParts[i],
-                                      ( Panel::HEIGHT - s_rowsPerPart * s_rowHeight - ( s_rowsPerPart - 1 ) * s_rowGap ) / 2, 0 );
+                                      StackPage::HeaderPad + ( Panel::HEIGHT - StackPage::HeaderPad - rows ) / 2, 0 );
         }
         lv_obj_set_style_pad_hor( settingsParts[i], 16, 0 );
         lv_obj_set_style_pad_row( settingsParts[i], s_rowGap, 0 );
@@ -433,7 +443,8 @@ void Display::applyOrders()
 #else
         const int alwaysShown = -1;
 #endif
-        shown = PartOrder::decode( m_settings->value( Settings::SettingsOrder ), 0, SettingsPartCount, alwaysShown, parts );
+        shown = PartOrder::decode( m_settings->value( Settings::SettingsOrder ), m_settings->value( Settings::SettingsHidden ),
+                                   SettingsPartCount, alwaysShown, parts );
         m_settingsPage.setOrder( parts, shown );
     }
     // A style left out falls back to the first one shown.
@@ -546,6 +557,80 @@ void Display::onSetupClicked( lv_event_t *event )
     }
 }
 
+// The part below the setup part: the network as a Wi-Fi QR code, as large as the screen allows, for
+// a phone's camera (a 160 px code was too small for a phone to find). Dark modules on a light
+// ground with a quiet zone around them, as cameras expect, in a 320 px square that stays inside
+// the corner gauges.
+static const int s_joinCodeSize = 320;
+static const int s_joinQuietModules = 2;
+// Not full white: a large white area at the face's brightness glared in a phone camera, and the
+// Wi-Fi settings' QR reader could not read the code until the brightness was lowered.
+static const lv_color_t s_joinPaper = LV_COLOR_MAKE( 0x80, 0x80, 0x80 );
+// The panel brightness while the code shows, whatever the setting: tried with a phone's Wi-Fi QR
+// reader (2026-11-18), which needed the brightness lowered to about 40 %.
+static const int s_joinCodeBrightness = 40;
+
+void Display::buildSetupCodePage( lv_obj_t *page )
+{
+    m_joinCode = lv_obj_create( page );
+    lv_obj_remove_style_all( m_joinCode );
+    lv_obj_set_size( m_joinCode, s_joinCodeSize, s_joinCodeSize );
+    lv_obj_set_clickable( m_joinCode, false );
+    lv_obj_align( m_joinCode, LV_ALIGN_CENTER, 0, 0 );
+    lv_obj_set_hidden( m_joinCode, true );
+    lv_obj_add_event_cb( m_joinCode, onDrawJoinCode, LV_EVENT_DRAW_MAIN, this );
+    m_joinHint = lv_label_create( page );
+    lv_obj_set_style_text_font( m_joinHint, &jetbrains_mono_26, 0 );
+    lv_obj_set_style_text_color( m_joinHint, lv_color_hex( 0xA0A0A0 ), 0 );
+    lv_obj_set_style_text_align( m_joinHint, LV_TEXT_ALIGN_CENTER, 0 );
+    lv_label_set_text( m_joinHint, Language::text( Language::JoinCodeHint ) );
+    lv_obj_align( m_joinHint, LV_ALIGN_CENTER, 0, 0 );
+    lv_obj_set_clickable( m_joinHint, false );
+}
+
+void Display::onDrawJoinCode( lv_event_t *event )
+{
+    const Display *display = static_cast<const Display *>( lv_event_get_user_data( event ) );
+    const uint8_t *modules = display->m_joinModules;
+    const int size = qrcodegen_getSize( modules );
+    if ( size <= 0 ) {
+        return;
+    }
+    lv_layer_t *layer = lv_event_get_layer( event );
+    lv_area_t coords = {};
+    lv_obj_get_coords( static_cast<lv_obj_t *>( lv_event_get_current_target( event ) ), &coords );
+    // Whole pixels per module, the code centred in the square.
+    const int scale = s_joinCodeSize / ( size + 2 * s_joinQuietModules );
+    const int side = scale * ( size + 2 * s_joinQuietModules );
+    const int left = coords.x1 + ( s_joinCodeSize - side ) / 2;
+    const int top = coords.y1 + ( s_joinCodeSize - side ) / 2;
+    lv_draw_rect_dsc_t box;
+    lv_draw_rect_dsc_init( &box );
+    box.bg_color = s_joinPaper;
+    const lv_area_t paper = { left, top, left + side - 1, top + side - 1 };
+    lv_draw_rect( layer, &box, &paper );
+    // The dark modules of each row as runs: one rectangle per run.
+    box.bg_color = lv_color_black();
+    const int x0 = left + s_joinQuietModules * scale;
+    const int y0 = top + s_joinQuietModules * scale;
+    for ( int y = 0; y < size; ++y ) {
+        int x = 0;
+        while ( x < size ) {
+            if ( !qrcodegen_getModule( modules, x, y ) ) {
+                ++x;
+                continue;
+            }
+            int end = x;
+            while ( end < size && qrcodegen_getModule( modules, end, y ) ) {
+                ++end;
+            }
+            const lv_area_t run = { x0 + x * scale, y0 + y * scale, x0 + end * scale - 1, y0 + ( y + 1 ) * scale - 1 };
+            lv_draw_rect( layer, &box, &run );
+            x = end;
+        }
+    }
+}
+
 int Display::takeRequests()
 {
     return m_requests.exchange( 0 );
@@ -570,6 +655,21 @@ void Display::applySetup()
     lv_label_set_text( m_portalValue, Language::text( setup.running ? Language::On : Language::Off ) );
     lv_label_set_text( m_networkLabel, setup.ssid );
     lv_label_set_text( m_passwordLabel, setup.password );
+    // The standard Wi-Fi QR text; the network name and the digits of the password need no
+    // escaping. Encoded again only when it changes (this runs every second).
+    char payload[sizeof( m_joinPayload )];
+    snprintf( payload, sizeof( payload ), "WIFI:T:WPA;S:%s;P:%s;;", setup.ssid, setup.password );
+    if ( strcmp( payload, m_joinPayload ) != 0 ) {
+        strlcpy( m_joinPayload, payload, sizeof( m_joinPayload ) );
+        uint8_t work[sizeof( m_joinModules )];
+        if ( !qrcodegen_encodeText( m_joinPayload, work, m_joinModules, qrcodegen_Ecc_MEDIUM, 1, 5, qrcodegen_Mask_AUTO,
+                                    true ) ) {
+            m_joinModules[0] = 0;
+        }
+        lv_obj_invalidate( m_joinCode );
+    }
+    lv_obj_set_hidden( m_joinCode, !setup.running );
+    lv_obj_set_hidden( m_joinHint, setup.running );
     // A new password only while the access point is off; the button dims meanwhile.
     lv_obj_set_style_opa( m_passwordRow, setup.running ? LV_OPA_40 : LV_OPA_COVER, 0 );
     if ( setup.running ) {
@@ -734,12 +834,32 @@ void Display::onPageChanged( lv_event_t *event )
     lv_obj_t *tile = lv_tileview_get_tile_active( display->m_pages );
     display->m_corners.setAlwaysOnLook( tile == display->m_aodTile );
     display->updatePageSwipe();
+    display->updateJoinCodeBrightness();
     // The next page beyond this one, while this one is looked at.
     for ( int i = 0; i < PageCount; ++i ) {
         if ( display->m_tiles[i] == tile ) {
             display->ensureBuilt( i - 1 );
             display->ensureBuilt( i + 1 );
         }
+    }
+}
+
+void Display::onSettingsPartChanged( lv_event_t *event )
+{
+    static_cast<Display *>( lv_event_get_user_data( event ) )->updateJoinCodeBrightness();
+}
+
+void Display::updateJoinCodeBrightness()
+{
+#if CONFIG_WATCH_SETUP_PORTAL
+    const bool code = m_built[SettingsPage] && lv_tileview_get_tile_active( m_pages ) == m_tiles[SettingsPage] &&
+                      m_settingsPage.current() == SetupCodePart;
+#else
+    const bool code = false;
+#endif
+    if ( code != m_joinCodeDimmed ) {
+        m_joinCodeDimmed = code;
+        setBrightness( code ? s_joinCodeBrightness : m_settings->value( Settings::Brightness ) );
     }
 }
 
@@ -776,6 +896,9 @@ void Display::refreshSettings()
         showSetting( i );
     }
     setBrightness( m_settings->value( Settings::Brightness ) );
+    // A save from the portal while the code shows keeps it dim.
+    m_joinCodeDimmed = false;
+    updateJoinCodeBrightness();
     bsp_display_unlock();
 }
 
@@ -832,6 +955,20 @@ void Display::showBattery()
         }
     }
     lv_label_set_text( m_chargeLabel, state );
+    // How long the watch has run since it came off the charger.
+    const int minutes = m_battery.unpluggedMinutes;
+    char duration[24] = "";
+    if ( minutes >= 24 * 60 ) {
+        snprintf( duration, sizeof( duration ), Language::text( Language::DurationDayHours ), minutes / ( 24 * 60 ),
+                  minutes / 60 % 24 );
+    } else if ( minutes >= 0 ) {
+        snprintf( duration, sizeof( duration ), Language::text( Language::DurationHourMins ), minutes / 60, minutes % 60 );
+    }
+    if ( minutes >= 0 ) {
+        lv_label_set_text_fmt( m_unpluggedLabel, Language::text( Language::Unplugged ), duration );
+    } else {
+        lv_label_set_text( m_unpluggedLabel, "" );
+    }
 }
 
 void Display::showSetupInfo( const char *const values[SetupInfoRows] )

@@ -182,6 +182,15 @@ public:
         Sidereal,
         WeekAndDay,
         MoonAge,  // "%.1f d"
+        // Page names over the stacked pages (StackPage).
+        ClockPageName,
+        InfoPageName,
+        SettingsPageName,
+        // Battery part: the time since the charger was unplugged.
+        Unplugged,          // "Unplugged %s"
+        DurationDayHours,   // "%d d %d h"
+        DurationHourMins,   // "%d h %d min"
+        JoinCodeHint,       // the QR code part while the setup portal is off
         TextCount
     };
 

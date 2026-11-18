@@ -34,7 +34,8 @@ public:
         RtcOffset,       // the PCF85063 Offset register's correction steps (Rtc::applyCalibration)
         RtcSetMinute,    // when the setup portal last set the clock: minutes since 1970 UTC, 0: never
         // The order of the stacked pages' parts and of the styles, and the hidden ones (PartOrder;
-        // 0: the natural order, nothing hidden). The settings page hides nothing.
+        // 0: the natural order, nothing hidden); the settings page keeps its hidden parts in
+        // SettingsHidden, added later.
         ClockOrder,
         ClockHidden,
         InfoOrder,
@@ -46,6 +47,8 @@ public:
         AodHidden,
         PowerKeyPullUp,  // 1: the ESP32's pull-up on the PWR key line, set by the watch when the
                          // board's resistor is missing (runActiveMode, DeepSleep)
+        UnpluggedMinute, // when USB power last went away: minutes since 1970 UTC, 0 while present
+        SettingsHidden,  // the settings page's hidden parts (PartOrder); the setup part always shows
         ItemCount
     };
     // The items before this one are on the watch's settings page; FaceStyle and AodStyle are

@@ -11,7 +11,11 @@
 class WorldClock
 {
 public:
+    // Kept at four, so that the lists saved by earlier versions still load; the clock page and
+    // the setup portal show the first ShownCities of them (four left too little room under the
+    // page name).
     static const int MaxCities = 4;
+    static const int ShownCities = 3;
     static const int NameLength = 24;
     static const int ZoneNameLength = 36;
 

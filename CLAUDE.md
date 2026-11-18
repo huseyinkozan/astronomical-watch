@@ -199,10 +199,13 @@ in its flash partition. Read both over USB: `python tools/read_events.py`, then
   always-on preview, watch face, clock (world clock, stopwatch, countdown, Gregorian and Hijri
   calendars, day counters; `main/ClockPages.*`), information (sun, twilight, prayer times, moon,
   compass, time, battery, about) and settings (settings, more settings, what the portal set,
-  setup portal). A vertical swipe steps the style on the face and always-on pages and the part on
+  setup portal, its QR code). A vertical swipe steps the style on the face and always-on pages and the part on
   the stacked pages (`main/StackPage.*`); the pages keep `LV_EVENT_GESTURE` and do not scroll, and
-  the new style or part slides in. On a calendar a sideways swipe steps the month, so the page
-  swipe stops there ("<" ">" at the bottom say so). Only the watch face and its neighbours are
+  the new style or part slides in. The stacked pages show their name at the top between the
+  upper corner gauges, over a line bending up to them; their parts start `StackPage::HeaderPad`
+  lower. On a calendar a sideways swipe steps the month, so the page
+  swipe stops there ("<" ">" at the bottom say so); a tap chooses a day, marked on both calendars
+  until the next wake (the Hijri month of a day chosen on the Gregorian one is computed then). Only the watch face and its neighbours are
   built at a PWR wake; a page is built when its neighbour is shown (`Display::ensureBuilt`): a
   glance at the time built 1.6 s of pages before (now 0.5 s), and the built pages left too little
   heap for the portal's Wi-Fi. Marks along
@@ -227,10 +230,15 @@ in its flash partition. Read both over USB: `python tools/read_events.py`, then
   answers every name with the watch's address, so phones and computers open the page by
   themselves; otherwise the IP address shown on the watch is typed in). The password is four
   random digits, each written twice (e.g. 33556688, easy to type), made on the watch, kept in
-  NVS and shown on the Setup page; a "New password" button replaces it. The page sends the browser's UTC time (the shortest of five round trips
+  NVS and shown on the Setup page; a "New password" button replaces it. The part below it shows
+  the network as a Wi-Fi QR code (`WIFI:T:WPA;...`) while the portal runs, for a phone's camera:
+  297 px on a mid-grey ground with the panel at 40 % while it shows (a white ground at the
+  face's brightness glared, and a phone's Wi-Fi QR reader failed), drawn by one object from
+  qrcodegen's module table (LVGL's qrcode widget kept a 13 KB bitmap the portal's Wi-Fi needs). The page sends the browser's UTC time (the shortest of five round trips
   measured, the RTC started on the true second) and UTC offset (fixed; daylight saving time
-  changes are set again through the portal), a location (country/city list from GeoNames or
-  coordinates; no map; browsers give no geolocation to a plain HTTP page) and every setting.
+  changes are set again through the portal), a location (country/city list from GeoNames, or
+  coordinates pasted as map apps copy them; no map; browsers give no geolocation to a plain HTTP
+  page) with a name for it (shown on the Sun and prayer pages) and every setting; the world clock shows three of the up to four cities NVS keeps.
   The faces show local time. The page also takes a new application image (on USB or at least
   30 % battery; only this project's images): two application slots (`partitions.csv`; nvs and
   phy_init keep their offsets, so settings survive a change of the table), and the bootloader's

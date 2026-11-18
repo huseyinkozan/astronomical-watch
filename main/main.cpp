@@ -325,17 +325,53 @@ static void advanceZones( int64_t utcSeconds )
     s_worldClock.advance( utcSeconds );
 }
 
+// Whether Settings::UnpluggedMinute holds a time (1) or 0 (0), -1 before the first check; in RTC
+// memory, so that the minute wakes read the settings only when USB power came or went.
+RTC_DATA_ATTR static int s_unpluggedSaved = -1;
+
+// Keeps the time USB power went away (Settings::UnpluggedMinute): 0 while it is present, the
+// minute it was first seen gone otherwise. Writes NVS only when that changes, twice per charge.
+// A cable pulled while the watch was off is seen at the next start.
+static void trackUnplugged( bool vbusGood, int64_t utcSeconds, bool settingsLoaded )
+{
+    if ( s_unpluggedSaved == ( vbusGood ? 0 : 1 ) || utcSeconds <= 0 ) {
+        return;
+    }
+    if ( !settingsLoaded ) {
+        s_settings.load();
+    }
+    const int saved = s_settings.value( Settings::UnpluggedMinute );
+    if ( vbusGood && saved != 0 ) {
+        s_settings.setValue( Settings::UnpluggedMinute, 0 );
+        s_settings.save();
+    } else if ( !vbusGood && saved == 0 ) {
+        s_settings.setValue( Settings::UnpluggedMinute, static_cast<int>( utcSeconds / 60 ) );
+        s_settings.save();
+    }
+    s_unpluggedSaved = vbusGood ? 0 : 1;
+}
+
 static void updateDisplay()
 {
     Rtc::DateTime time = {};
     bool oscillatorStopped = false;
     Display::Battery battery = {};
     s_rtc.read( time, oscillatorStopped );
-    if ( !oscillatorStopped && time.month != 0 ) {
+    const bool timeValid = !oscillatorStopped && time.month != 0;
+    if ( timeValid ) {
         advanceZones( unixTime( time ) );
     }
     const bool batteryRead = s_pmu.readBattery( battery.millivolts, battery.percent, battery.vbusGood ) == ESP_OK;
     battery.chargeState = s_pmu.chargeState();
+    battery.unpluggedMinutes = -1;
+    if ( batteryRead && timeValid ) {
+        trackUnplugged( battery.vbusGood, unixTime( time ), true );
+        const int unplugged = s_settings.value( Settings::UnpluggedMinute );
+        const int64_t minutes = unixTime( time ) / 60 - unplugged;
+        if ( !battery.vbusGood && unplugged > 0 && minutes >= 0 ) {
+            battery.unpluggedMinutes = static_cast<int>( minutes );
+        }
+    }
     s_usbPower = batteryRead && battery.vbusGood;
     s_batteryPercent = batteryRead ? battery.percent : -1;
     int inputs[5] = { s_settings.value( Settings::Latitude ), s_settings.value( Settings::Longitude ),
@@ -774,6 +810,9 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
                 powerOff( pmuReady, EventLog::BatteryLimit );
             }
             charging = vbusGood && s_pmu.charging();
+            if ( timeRead ) {
+                trackUnplugged( vbusGood, unixTime( time ), false );
+            }
         }
     }
     const int offsetMinutes = Zones::offsetAt( s_alwaysOnZone, unixTime( time ) );

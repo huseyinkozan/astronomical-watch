@@ -1,9 +1,16 @@
 #include "StackPage.h"
 
+#include "Fonts.h"
 #include "Panel.h"
 #include "PartOrder.h"
 
 static const uint32_t s_slideMs = 250;
+// The line under the page name: straight at s_lineY between the upper ends of the two corner
+// gauges (about 122 px from the sides), bending up to them with this radius.
+static const int s_lineY = 36;
+static const int s_lineEnd = 122;
+static const int s_lineBend = 16;
+static const lv_color_t s_lineColour = LV_COLOR_MAKE( 0x5A, 0x5A, 0x60 );
 
 static void setTranslateY( void *object, int32_t y )
 {
@@ -34,7 +41,7 @@ static void slide( lv_obj_t *part, int from, int to, bool hide )
     lv_anim_start( &animation );
 }
 
-void StackPage::build( lv_obj_t *tile, int count )
+void StackPage::build( lv_obj_t *tile, int count, const char *title )
 {
     m_count = count > MaxParts ? MaxParts : count;
     m_tile = tile;
@@ -49,15 +56,72 @@ void StackPage::build( lv_obj_t *tile, int count )
         lv_obj_set_scrollable( part, false );
         // Not clickable: presses and swipes go to the tile (the rows in it still take taps).
         lv_obj_set_clickable( part, false );
+        lv_obj_set_style_pad_top( part, HeaderPad, 0 );
         m_parts[i] = part;
         m_order[i] = i;
     }
     m_shown = m_count;
+    // After the parts, so that it stays over them while they slide.
+    buildHeader( title );
     // A single part needs no marks.
     if ( m_count > 1 ) {
         m_marks.build( tile, m_count );
     }
     show( 0, 0 );
+}
+
+void StackPage::buildHeader( const char *title )
+{
+    lv_obj_t *line = lv_obj_create( m_tile );
+    lv_obj_remove_style_all( line );
+    lv_obj_set_size( line, Panel::WIDTH, s_lineY + 4 );
+    lv_obj_set_clickable( line, false );
+    lv_obj_add_event_cb( line, onDrawHeaderLine, LV_EVENT_DRAW_MAIN, nullptr );
+
+    lv_obj_t *name = lv_label_create( m_tile );
+    lv_obj_set_style_text_font( name, &jetbrains_mono_26, 0 );
+    lv_obj_set_style_text_color( name, lv_color_white(), 0 );
+    lv_label_set_text( name, title );
+    lv_obj_align( name, LV_ALIGN_TOP_MID, 0, 2 );
+    lv_obj_set_clickable( name, false );
+}
+
+void StackPage::onDrawHeaderLine( lv_event_t *event )
+{
+    lv_obj_t *object = static_cast<lv_obj_t *>( lv_event_get_current_target( event ) );
+    lv_layer_t *layer = lv_event_get_layer( event );
+    lv_area_t coords = {};
+    lv_obj_get_coords( object, &coords );
+    const int left = coords.x1 + s_lineEnd;
+    const int right = coords.x1 + Panel::WIDTH - s_lineEnd;
+    const int y = coords.y1 + s_lineY;
+
+    lv_draw_line_dsc_t straight;
+    lv_draw_line_dsc_init( &straight );
+    straight.color = s_lineColour;
+    straight.width = 3;
+    straight.p1.x = left + s_lineBend;
+    straight.p1.y = y;
+    straight.p2.x = right - s_lineBend;
+    straight.p2.y = y;
+    lv_draw_line( layer, &straight );
+
+    // The bends: quarter circles from the line up to the gauges' upper ends (LVGL's angles run
+    // clockwise from the right).
+    lv_draw_arc_dsc_t bend;
+    lv_draw_arc_dsc_init( &bend );
+    bend.color = s_lineColour;
+    bend.width = 3;
+    bend.radius = s_lineBend;
+    bend.center.x = left + s_lineBend;
+    bend.center.y = y - s_lineBend;
+    bend.start_angle = 90;
+    bend.end_angle = 180;
+    lv_draw_arc( layer, &bend );
+    bend.center.x = right - s_lineBend;
+    bend.start_angle = 0;
+    bend.end_angle = 90;
+    lv_draw_arc( layer, &bend );
 }
 
 lv_obj_t *StackPage::part( int index ) const

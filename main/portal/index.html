@@ -58,6 +58,18 @@
     <div><label for="lon" data-tr="Boylam">Longitude</label><input id="lon" type="number" step="0.0001" min="-180" max="180"></div>
   </div>
   <small data-tr="Derece; kuzey ve doğu artıdır. Şehir seçilince dolar.">Degrees; north and east are positive. A city fills them in.</small>
+  <label for="coords" data-tr="Ya da haritadan koordinat yapıştırın">Or paste coordinates from a map</label>
+  <input id="coords" autocomplete="off" placeholder="41.0082, 28.9784">
+  <div id="coordsNote"></div>
+  <small data-tr="Listede olmayan bir yer için (ilçe, köy, yayla): saatin ağına bağlanmadan önce, telefonda internet varken Google Haritalar'ı ya da Apple Haritalar'ı açın ve yere parmağınızı basılı tutun; oraya bir raptiye düşer ve altta bir kart açılır. Kartı yukarı kaydırın: koordinatlar bir satırda yazar (41.0082, 28.9784 gibi); o satıra dokununca kopyalanır. Üstteki arama kutusundaki koordinata dokunmayın, orada adrese dönüşür. Sonra saate bağlanıp buraya yapıştırın.">For a
+  place that is not in the list (a district, a village, a mountain): before you join the watch's
+  network, while the phone has internet, open Google Maps or Apple Maps and touch and hold the
+  place; a pin drops there and a card opens at the bottom. Swipe the card up: the coordinates
+  are on a line of their own (like 41.0082, 28.9784); tapping that line copies them. Do not tap
+  the coordinates in the search box at the top: there they turn into an address. Then join the
+  watch and paste them here.</small>
+  <label for="placeName" data-tr="Yerin adı (saatte görünür)">Name of the place (shown on the watch)</label>
+  <input id="placeName" autocomplete="off" maxlength="23" placeholder="e.g. Summer house" data-tr-ph="Örneğin: Yazlık">
 </fieldset>
 
 <fieldset>
@@ -93,11 +105,10 @@
 
 <fieldset>
   <legend data-tr="Dünya saati">World clock</legend>
-  <label for="w0" data-tr="Saat sayfasındaki şehirler (en çok dört; birkaç harf yazın)">Cities on the watch's clock page (up to four; type a few letters)</label>
+  <label for="w0" data-tr="Saat sayfasındaki şehirler (en çok üç; birkaç harf yazın)">Cities on the watch's clock page (up to three; type a few letters)</label>
   <input id="w0" autocomplete="off" placeholder="Search" data-tr-ph="Ara">
   <input id="w1" autocomplete="off" placeholder="Search" data-tr-ph="Ara">
   <input id="w2" autocomplete="off" placeholder="Search" data-tr-ph="Ara">
-  <input id="w3" autocomplete="off" placeholder="Search" data-tr-ph="Ara">
   <small data-tr="Saat, bu şehirlerin saat değişimlerini (yaz saati) bir yıl boyunca izler; bu sayfayı bir yıl içinde yeniden açın.">The watch follows their clock changes (daylight saving time) for a year from now; open
   this page again within a year.</small>
 </fieldset>
@@ -268,7 +279,6 @@ function zoneValid(zone) {
   try { zoneOffset(zone, Date.now()); return true; } catch (e) { return false; }
 }
 let homeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
-let place = '';
 function showZone() {
   if (!zoneValid(homeZone)) {
     $('zoneText').textContent = t('Set it when daylight saving time starts or ends.', 'Yaz saati başlayınca ya da bitince ayarlayın.');
@@ -306,7 +316,7 @@ const countryName = (code) => { try { return countryNames ? countryNames.of(code
 // browsers and match letters exactly, so "kirsehir" would not find Kırşehir.
 const cityText = (c) => c[1] + ', ' + countryName(c[0]);
 const cityIndex = new Map();
-const cityFields = ['city', 'w0', 'w1', 'w2', 'w3'];
+const cityFields = ['city', 'w0', 'w1', 'w2'];
 // Without case or accents, the Turkish dotless i included.
 const searchKey = (text) => text.toLocaleLowerCase('tr').replace(/ı/g, 'i').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 let cityKeys = [];
@@ -368,11 +378,58 @@ $('city').addEventListener('input', () => {
   $('lat').value = c[2];
   $('lon').value = c[3];
   homeZone = c[4];
-  place = watchName(c[1]);
+  $('placeName').value = watchName(c[1]);
   showZone();
 });
-// Typed coordinates have no place name.
-for (const id of ['lat', 'lon']) $(id).addEventListener('input', () => { place = ''; });
+
+// Coordinates as maps copy them: "41.0082, 28.9784" (Google), "41.00820° N, 28.97840° E"
+// (Apple; K/G/D/B in Turkish), "41°00'29.5"N 28°58'42.2"E" or "41,0082 28,9784"; failing those,
+// the first "latitude,longitude" pair with decimals anywhere in the text, as in map links
+// ("@41.0082,28.9784", "q=41.0082%2C28.9784"). Returns [latitude, longitude] or null.
+function parseCoordinates(text) {
+  let decoded = text;
+  try { decoded = decodeURIComponent(text); } catch (e) { /* not URL-encoded */ }
+  const s = decoded.toUpperCase().replace(/[′’´`]/g, "'").replace(/[″”“]/g, '"').replace(/''/g, '"').trim();
+  const number = (v) => parseFloat(v.replace(',', '.'));
+  let values = null;
+  const pair = s.match(/^([-+]?\d+(?:\.\d+)?)\s*[,;\s]\s*([-+]?\d+(?:\.\d+)?)$/) ||
+               s.match(/^([-+]?\d+,\d+)\s*[;\s]\s*([-+]?\d+,\d+)$/);
+  if (pair) {
+    values = [number(pair[1]), number(pair[2])];
+  } else {
+    // Each value in degrees (minutes and seconds optional) with a hemisphere letter.
+    const part = /([-+]?\d+(?:[.,]\d+)?)\s*°?\s*(?:(\d+(?:[.,]\d+)?)\s*'\s*)?(?:(\d+(?:[.,]\d+)?)\s*"\s*)?([NSEWKGDB])/g;
+    const found = [...s.matchAll(part)];
+    if (found.length !== 2) {
+      const inside = s.match(/([-+]?\d{1,2}\.\d{3,})\s*,\s*([-+]?\d{1,3}\.\d{3,})/);
+      if (!inside) return null;
+      found.length = 0;
+      values = [number(inside[1]), number(inside[2])];
+    }
+    if (values === null) values = [0, 0];
+    for (const m of found) {
+      let value = number(m[1]) + (m[2] ? number(m[2]) / 60 : 0) + (m[3] ? number(m[3]) / 3600 : 0);
+      if ('SWGB'.includes(m[4])) value = -value;
+      values['EWDB'.includes(m[4]) ? 1 : 0] = value;
+    }
+  }
+  const [lat, lon] = values;
+  return Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? [lat, lon] : null;
+}
+$('coords').addEventListener('input', () => {
+  const text = $('coords').value.trim();
+  const result = text === '' ? null : parseCoordinates(text);
+  if (result) {
+    $('lat').value = result[0].toFixed(4);
+    $('lon').value = result[1].toFixed(4);
+    // A new place: the name of the city chosen before does not fit it.
+    $('city').value = '';
+    $('placeName').value = '';
+  }
+  $('coordsNote').textContent = text === '' ? '' : result
+    ? t('Taken: ', 'Alındı: ') + result[0].toFixed(4) + ', ' + result[1].toFixed(4)
+    : t('Not understood; for example 41.0082, 28.9784', 'Anlaşılmadı; örnek: 41.0082, 28.9784');
+});
 showZone();
 
 
@@ -385,9 +442,9 @@ const orderLists = [
   { title: ['Information page', 'Bilgi sayfası'], order: 'infoOrder', hidden: 'infoHidden',
     names: [['Sun', 'Güneş'], ['Twilight', 'Alacakaranlık'], ['Prayer times', 'Namaz vakitleri'], ['Moon', 'Ay'],
             ['Sun compass', 'Güneş pusulası'], ['Time', 'Zaman'], ['Battery', 'Pil'], ['About', 'Hakkında']] },
-  { title: ['Settings page', 'Ayarlar sayfası'], order: 'settingsOrder', hidden: null,
+  { title: ['Settings page', 'Ayarlar sayfası'], order: 'settingsOrder', hidden: 'settingsHidden', fixed: 3,
     names: [['Settings', 'Ayarlar'], ['More settings', 'Diğer ayarlar'], ['What this page set', 'Bu sayfanın girdikleri'],
-            ['Wi-Fi setup', 'Wi-Fi kurulum']] },
+            ['Wi-Fi setup', 'Wi-Fi kurulum'], ['Wi-Fi QR code', 'Wi-Fi QR kodu']] },
   { title: ['Watch faces', 'Ön yüzler'], order: 'faceOrder', hidden: 'faceHidden',
     names: [['Classic', 'Klasik'], ['Day arc', 'Gün yayı'], ['Sky arcs', 'Gökyüzü yayları'], ['Dial', 'Kadran']] },
   { title: ['Always-on faces', 'Bekleme yüzleri'], order: 'aodOrder', hidden: 'aodHidden',
@@ -408,6 +465,8 @@ function drawOrder(list) {
       const check = document.createElement('input');
       check.type = 'checkbox';
       check.checked = !list.off.has(part);
+      // The Wi-Fi setup part always shows: without it the portal could not be started again.
+      check.disabled = part === list.fixed;
       check.addEventListener('change', () => {
         // At least one part stays shown.
         if (!check.checked && list.off.size + 1 >= list.parts.length) { check.checked = true; return; }
@@ -476,12 +535,12 @@ fetch('/api/state').then((r) => r.json()).then((s) => {
   setBits($('faceItems'), s.faceItems);
   setBits($('aodItems'), s.aodItems);
   if (s.zone && zoneValid(s.zone)) { homeZone = s.zone; showZone(); }
-  place = s.place || '';
-  const home = cities.find((c) => c[4] === s.zone && watchName(c[1]) === place);
+  $('placeName').value = s.place || '';
+  const home = cities.find((c) => c[4] === s.zone && watchName(c[1]) === $('placeName').value);
   if (home) $('city').value = cityText(home);
   (s.cities || []).forEach(([name, zone], w) => {
     const index = cities.findIndex((c) => c[4] === zone && watchName(c[1]) === name);
-    if (index >= 0 && w < 4) $('w' + w).value = cityText(cities[index]);
+    if (index >= 0 && w < 3) $('w' + w).value = cityText(cities[index]);
   });
   (s.days || []).forEach(([name, date], i) => {
     if (i < 4) { $('dn' + i).value = name; $('dd' + i).value = date; }
@@ -512,9 +571,9 @@ $('save').addEventListener('click', async () => {
     const home = zoneValid(homeZone) ? zoneInfo(homeZone) : null;
     const byZone = home !== null && String(home[0]) === $('offset').value;
     fields.set('zone', byZone ? homeZone : '');
-    fields.set('place', place);
+    fields.set('place', watchName($('placeName').value));
     ['chg1', 'aft1', 'chg2', 'aft2'].forEach((id, i) => fields.set(id, byZone ? String(home[1 + i]) : '0'));
-    const chosen = [0, 1, 2, 3].map((w) => chosenCity('w' + w)).filter((c) => c !== null);
+    const chosen = [0, 1, 2].map((w) => chosenCity('w' + w)).filter((c) => c !== null);
     fields.set('cities', String(chosen.length));
     chosen.forEach((c, i) => {
       fields.set('c' + i, [watchName(c[1]), c[4]].concat(zoneInfo(c[4])).join('|'));

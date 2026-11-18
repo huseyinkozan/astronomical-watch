@@ -76,8 +76,8 @@ private:
     void stepHijri( int step );
 
     // A calendar: title, footer, and one object that draws the weekday row, up to six weeks of
-    // days and a ring around today (labels for each day took 20 KB of the heap, which the
-    // portal's Wi-Fi needs).
+    // days, a ring around today and one around the chosen day (labels for each day took 20 KB of
+    // the heap, which the portal's Wi-Fi needs). A tap on a day chooses it on both calendars.
     struct Calendar
     {
         lv_obj_t *part;
@@ -87,12 +87,21 @@ private:
         int firstWeekday;  // 0 Monday
         int length;        // 0: nothing to draw yet
         int today;         // the day of the month to ring, 0 for none
+        int chosen;        // the chosen day of the month, 0 for none
     };
     static void onDrawCalendar( lv_event_t *event );
+    static void onCalendarTouch( lv_event_t *event );
     void buildCalendar( Calendar &calendar, lv_obj_t *part );
-    // `firstWeekday`: 0 Monday; `today`: the day of the month to ring, 0 for none.
-    void fillCalendar( Calendar &calendar, int firstWeekday, int length, int today );
+    // `firstWeekday`: 0 Monday; `today` and `chosen`: days of the month, 0 for none.
+    void fillCalendar( Calendar &calendar, int firstWeekday, int length, int today, int chosen );
+    // The day of the month at a point on the screen, 0 for none.
+    static int dayAt( const Calendar &calendar, const lv_point_t &point );
+    // Chooses `day` (days since 1970-01-01, local) on both calendars.
+    void choose( int day );
+    // The day whose month the calendars show when not stepped: the chosen one, else today.
+    int anchorDay() const;
     void showGregorian();
+    void showHijriMarks();
     void showStopwatch( int64_t nowMs );
     void showCountdown( int64_t nowMs );
     int64_t nowMs() const;
@@ -114,9 +123,9 @@ private:
     lv_obj_t *m_homeDate = nullptr;
     lv_obj_t *m_homeZone = nullptr;
     lv_obj_t *m_cityHint = nullptr;
-    lv_obj_t *m_cityNames[WorldClock::MaxCities] = {};
-    lv_obj_t *m_cityDiffs[WorldClock::MaxCities] = {};
-    lv_obj_t *m_cityTimes[WorldClock::MaxCities] = {};
+    lv_obj_t *m_cityNames[WorldClock::ShownCities] = {};
+    lv_obj_t *m_cityDiffs[WorldClock::ShownCities] = {};
+    lv_obj_t *m_cityTimes[WorldClock::ShownCities] = {};
     WorldClock::City m_cities[WorldClock::MaxCities] = {};
     int m_cityCount = 0;
 
@@ -141,11 +150,13 @@ private:
 
     Calendar m_gregorian = {};
     Calendar m_hijri = {};
-    int m_gregorianStep = 0;  // months from today's
-    int m_gregorianShown[3] = {};  // year, month, today's day: redraw when one changes
+    lv_point_t m_pressPoint = {};
+    int m_gregorianStep = 0;  // months from the anchor day's
+    int m_gregorianShown[4] = {};  // year, month, today, chosen day: redraw when one changes
     int m_hijriStep = 0;
-    int m_today = 0;      // today's local day number (days since 1970-01-01)
-    int m_hijriDay = -1;  // m_today when the Hijri month was asked for, -1: none yet
+    int m_today = 0;         // today's local day number (days since 1970-01-01)
+    int m_chosenDay = -1;    // the day chosen on a calendar, -1: none (each wake starts without)
+    int m_hijriAnchor = -1;  // the anchor day whose Hijri month was asked for, -1: none yet
     Hijri::Month m_hijriMonth = {};
     std::atomic<bool> m_hijriWanted { false };
     HijriRequest m_hijriRequest = {};

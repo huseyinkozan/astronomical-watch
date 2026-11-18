@@ -175,6 +175,15 @@ static const char *s_texts[][2] = {
     { "Sidereal", "Yıldız" },
     { "Week/day", "Hafta/gün" },
     { "%.1f d", "%.1f g" },
+    // Page names.
+    { "Clock", "Saat" },
+    { "Info", "Bilgi" },
+    { "Settings", "Ayarlar" },
+    // Battery part.
+    { "Unplugged %s", "Şarjsız %s" },
+    { "%d d %d h", "%d g %d sa" },
+    { "%d h %d min", "%d sa %d dk" },
+    { "Start Wi-Fi setup\nabove; its QR code\nshows here", "Kurulumu yukarıda\nbaşlatın; QR kodu\nburada görünür" },
 };
 // One pair per text: a missing one would shift every text after it.
 static_assert( sizeof( s_texts ) / sizeof( s_texts[0] ) == Language::TextCount, "a text pair per Language::Text" );

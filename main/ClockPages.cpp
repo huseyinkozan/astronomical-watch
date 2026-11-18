@@ -1,6 +1,7 @@
 #include "ClockPages.h"
 
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
 #include "Dates.h"
@@ -80,7 +81,7 @@ static void setText( lv_obj_t *object, const char *text )
 void ClockPages::build( lv_obj_t *tile )
 {
     m_timers.load();
-    m_stack.build( tile, PartCount );
+    m_stack.build( tile, PartCount, Language::text( Language::ClockPageName ) );
 
     lv_obj_t *world = m_stack.part( WorldPart );
     title( world, Language::text( Language::WorldClock ) );
@@ -96,8 +97,8 @@ void ClockPages::build( lv_obj_t *tile )
     lv_obj_set_style_bg_color( line, lv_color_hex( 0x303030 ), 0 );
     m_cityHint = label( world, &jetbrains_mono_26, s_dim, LV_ALIGN_TOP_MID, 0, 230, Language::text( Language::CitiesHint ) );
     lv_obj_set_style_text_align( m_cityHint, LV_TEXT_ALIGN_CENTER, 0 );
-    for ( int i = 0; i < WorldClock::MaxCities; ++i ) {
-        const int y = 178 + i * 64;
+    for ( int i = 0; i < WorldClock::ShownCities; ++i ) {
+        const int y = 180 + i * 72;
         m_cityNames[i] = label( world, &jetbrains_mono_26, s_grey, LV_ALIGN_TOP_LEFT, s_left, y, "" );
         // Left of the time: long names end in dots.
         lv_obj_set_width( m_cityNames[i], 150 );
@@ -161,9 +162,12 @@ void ClockPages::buildCalendar( Calendar &calendar, lv_obj_t *part )
     calendar.grid = lv_obj_create( part );
     lv_obj_remove_style_all( calendar.grid );
     lv_obj_set_size( calendar.grid, Panel::WIDTH, Panel::HEIGHT );
-    lv_obj_set_clickable( calendar.grid, false );
+    lv_obj_set_scrollable( calendar.grid, false );
     lv_obj_set_user_data( calendar.grid, &calendar );
     lv_obj_add_event_cb( calendar.grid, onDrawCalendar, LV_EVENT_DRAW_MAIN, this );
+    // Taps choose a day; swipes still reach the tile (the month and part steps).
+    lv_obj_add_event_cb( calendar.grid, onCalendarTouch, LV_EVENT_PRESSED, this );
+    lv_obj_add_event_cb( calendar.grid, onCalendarTouch, LV_EVENT_CLICKED, this );
     // At the bottom, where the page marks show while the pages are swiped: here a sideways swipe
     // moves the month.
     label( part, &jetbrains_mono_26, s_grey, LV_ALIGN_TOP_MID, -70, 458, "<" );
@@ -198,14 +202,22 @@ void ClockPages::onDrawCalendar( lv_event_t *event )
         const int column = cell % 7;
         const int x = coords.x1 + 61 + column * 48;
         const int y = coords.y1 + 128 + cell / 7 * 46;
+        lv_draw_rect_dsc_t ring;
+        lv_draw_rect_dsc_init( &ring );
+        ring.radius = LV_RADIUS_CIRCLE;
+        ring.bg_opa = LV_OPA_TRANSP;
+        ring.border_width = 2;
         if ( day == calendar.today ) {
-            lv_draw_rect_dsc_t ring;
-            lv_draw_rect_dsc_init( &ring );
-            ring.radius = LV_RADIUS_CIRCLE;
-            ring.bg_opa = LV_OPA_TRANSP;
-            ring.border_width = 2;
             ring.border_color = lv_color_white();
             const lv_area_t box = { x - 22, y - 7, x + 21, y + 36 };
+            lv_draw_rect( layer, &ring, &box );
+        }
+        if ( day == calendar.chosen ) {
+            // Around today's ring when both fall on the same day.
+            const int grow = day == calendar.today ? 3 : 0;
+            ring.border_color = s_amber;
+            ring.border_width = 3;
+            const lv_area_t box = { x - 22 - grow, y - 7 - grow, x + 21 + grow, y + 36 + grow };
             lv_draw_rect( layer, &ring, &box );
         }
         const lv_area_t area = { x - 24, y, x + 24, y + 30 };
@@ -215,18 +227,85 @@ void ClockPages::onDrawCalendar( lv_event_t *event )
     }
 }
 
-void ClockPages::fillCalendar( Calendar &calendar, int firstWeekday, int length, int today )
+void ClockPages::fillCalendar( Calendar &calendar, int firstWeekday, int length, int today, int chosen )
 {
     calendar.firstWeekday = firstWeekday;
     calendar.length = length;
     calendar.today = today;
+    calendar.chosen = chosen;
     lv_obj_invalidate( calendar.grid );
+}
+
+int ClockPages::dayAt( const Calendar &calendar, const lv_point_t &point )
+{
+    lv_area_t coords = {};
+    lv_obj_get_coords( calendar.grid, &coords );
+    // The cells of onDrawCalendar: 48 px columns centred from x 61, 46 px rows from y 121.
+    const int dx = point.x - coords.x1 - 61 + 24;
+    const int dy = point.y - coords.y1 - 121;
+    if ( dx < 0 || dy < 0 || dx >= 7 * 48 ) {
+        return 0;
+    }
+    const int day = dy / 46 * 7 + dx / 48 - calendar.firstWeekday + 1;
+    return day >= 1 && day <= calendar.length ? day : 0;
+}
+
+void ClockPages::onCalendarTouch( lv_event_t *event )
+{
+    ClockPages *self = static_cast<ClockPages *>( lv_event_get_user_data( event ) );
+    lv_obj_t *grid = static_cast<lv_obj_t *>( lv_event_get_current_target( event ) );
+    const Calendar &calendar = *static_cast<const Calendar *>( lv_obj_get_user_data( grid ) );
+    lv_point_t point = {};
+    lv_indev_get_point( lv_indev_active(), &point );
+    if ( lv_event_get_code( event ) == LV_EVENT_PRESSED ) {
+        self->m_pressPoint = point;
+        return;
+    }
+    // A finger that moved was a swipe (the month step), not a tap.
+    const int moved = abs( point.x - self->m_pressPoint.x ) + abs( point.y - self->m_pressPoint.y );
+    const int day = moved <= 30 ? dayAt( calendar, self->m_pressPoint ) : 0;
+    if ( day == 0 || calendar.length == 0 ) {
+        return;
+    }
+    if ( &calendar == &self->m_gregorian ) {
+        self->choose( Dates::dayNumber( self->m_gregorianShown[0], self->m_gregorianShown[1], day ) );
+    } else if ( !self->m_hijriWanted ) {
+        self->choose( self->m_hijriMonth.firstDay + day - 1 );
+    }
+}
+
+void ClockPages::choose( int day )
+{
+    m_chosenDay = day;
+    m_gregorianStep = 0;
+    showGregorian();
+    m_hijriStep = 0;
+    if ( day >= m_hijriMonth.firstDay && day < m_hijriMonth.firstDay + m_hijriMonth.length ) {
+        // Already in the Hijri month shown: only the marks change.
+        m_hijriAnchor = day;
+        showHijriMarks();
+    } else if ( !m_hijriWanted ) {
+        m_hijriRequest = { day, 0, 0 };
+        m_hijriWanted = true;
+        lv_label_set_text( m_hijri.title, "..." );
+    } else {
+        // update() asks for it once the month being computed has come.
+        m_hijriAnchor = -1;
+    }
+}
+
+int ClockPages::anchorDay() const
+{
+    return m_chosenDay >= 0 ? m_chosenDay : m_today;
 }
 
 void ClockPages::showGregorian()
 {
-    int year = m_local.year;
-    int month = m_local.month + m_gregorianStep;
+    int year = 0;
+    int month = 0;
+    int anchor = 0;
+    Dates::civil( anchorDay(), year, month, anchor );
+    month += m_gregorianStep;
     while ( month > 12 ) {
         month -= 12;
         ++year;
@@ -235,16 +314,29 @@ void ClockPages::showGregorian()
         month += 12;
         --year;
     }
-    const int shown[3] = { year, month, m_local.day };
+    const int first = Dates::dayNumber( year, month, 1 );
+    const int length = Dates::daysInMonth( year, month );
+    const int today = m_today >= first && m_today < first + length ? m_today - first + 1 : 0;
+    const int chosen = m_chosenDay >= first && m_chosenDay < first + length ? m_chosenDay - first + 1 : 0;
+    const int shown[4] = { year, month, today, chosen };
     if ( memcmp( shown, m_gregorianShown, sizeof( shown ) ) == 0 ) {
         return;
     }
     memcpy( m_gregorianShown, shown, sizeof( shown ) );
     lv_label_set_text_fmt( m_gregorian.title, "%s %d", Language::monthName( month ), year );
-    fillCalendar( m_gregorian, Dates::weekday( Dates::dayNumber( year, month, 1 ) ), Dates::daysInMonth( year, month ),
-                  m_gregorianStep == 0 ? m_local.day : 0 );
-    lv_label_set_text_fmt( m_gregorian.footer, Language::text( Language::WeekDay ), Dates::isoWeek( m_today ),
-                           m_today - Dates::dayNumber( m_local.year, 1, 1 ) + 1 );
+    fillCalendar( m_gregorian, Dates::weekday( first ), length, today, chosen );
+    // The week and the day of the year of the chosen day, else of today.
+    lv_label_set_text_fmt( m_gregorian.footer, Language::text( Language::WeekDay ), Dates::isoWeek( anchorDay() ),
+                           Dates::dayOfYear( anchorDay() ) );
+}
+
+void ClockPages::showHijriMarks()
+{
+    const Hijri::Month &month = m_hijriMonth;
+    const bool holdsToday = m_today >= month.firstDay && m_today < month.firstDay + month.length;
+    const bool holdsChosen = m_chosenDay >= month.firstDay && m_chosenDay < month.firstDay + month.length;
+    fillCalendar( m_hijri, Dates::weekday( month.firstDay ), month.length, holdsToday ? m_today - month.firstDay + 1 : 0,
+                  holdsChosen ? m_chosenDay - month.firstDay + 1 : 0 );
 }
 
 void ClockPages::update( int64_t utcSeconds, int utcOffsetMinutes, const Rtc::DateTime &localTime )
@@ -283,30 +375,30 @@ void ClockPages::update( int64_t utcSeconds, int utcOffsetMinutes, const Rtc::Da
     showCities( utcSeconds );
     showCounters();
 
-    // A calendar left alone returns to today's month.
+    // A calendar left alone returns to the month of the chosen day, else of today.
     if ( m_gregorianStep != 0 && !lv_obj_is_visible( m_gregorian.part ) ) {
         m_gregorianStep = 0;
     }
     showGregorian();
-    // The month is computed when the calendar is seen (the screenshots need it at once).
-    if ( ( m_scene || lv_obj_is_visible( m_hijri.part ) ) && m_hijriDay != m_today && !m_hijriWanted ) {
-        m_hijriRequest = { m_today, 0, 0 };
-        m_hijriWanted = true;
-    }
     if ( m_hijriStep != 0 && !lv_obj_is_visible( m_hijri.part ) ) {
         m_hijriStep = 0;
-        m_hijriDay = -1;
+        m_hijriAnchor = -1;
+    }
+    // The month is computed when the calendar is seen (the screenshots need it at once).
+    if ( ( m_scene || lv_obj_is_visible( m_hijri.part ) ) && m_hijriAnchor != anchorDay() && !m_hijriWanted ) {
+        m_hijriRequest = { anchorDay(), 0, 0 };
+        m_hijriWanted = true;
     }
 }
 
 void ClockPages::setCities( const WorldClock &worldClock )
 {
-    m_cityCount = worldClock.count();
+    m_cityCount = worldClock.count() < WorldClock::ShownCities ? worldClock.count() : WorldClock::ShownCities;
     for ( int i = 0; i < m_cityCount; ++i ) {
         m_cities[i] = worldClock.city( i );
     }
     lv_obj_set_hidden( m_cityHint, m_cityCount > 0 );
-    for ( int i = m_cityCount; i < WorldClock::MaxCities; ++i ) {
+    for ( int i = m_cityCount; i < WorldClock::ShownCities; ++i ) {
         setText( m_cityNames[i], "" );
         setText( m_cityDiffs[i], "" );
         setText( m_cityTimes[i], "" );
@@ -390,11 +482,11 @@ void ClockPages::showHijriMonth( const Hijri::Month &month, int today, int metho
     m_hijriWanted = false;
     m_hijriMonth = month;
     if ( m_hijriRequest.step == 0 ) {
-        m_hijriDay = today;
+        m_hijriAnchor = m_hijriRequest.fromDay;
     }
     lv_label_set_text_fmt( m_hijri.title, "%s %d", SkyPages::hijriMonthName( month.month ), month.year );
-    const bool holdsToday = today >= month.firstDay && today < month.firstDay + month.length;
-    fillCalendar( m_hijri, Dates::weekday( month.firstDay ), month.length, holdsToday ? today - month.firstDay + 1 : 0 );
+    m_today = today;
+    showHijriMarks();
     lv_label_set_text( m_hijri.footer, Language::text( method == Hijri::Diyanet ? Language::DiyanetMethod : Language::LocalCrescent ) );
 }
 
@@ -536,7 +628,7 @@ void ClockPages::stepGregorian( int step )
 void ClockPages::stepHijri( int step )
 {
     // One Hijri month at a time: a swipe while the main task computes one is dropped.
-    if ( m_hijriWanted || m_hijriDay < 0 ) {
+    if ( m_hijriWanted || m_hijriAnchor < 0 ) {
         return;
     }
     m_hijriStep += step;
@@ -563,7 +655,20 @@ void ClockPages::onGesture( lv_event_t *event )
 
 bool ClockPages::press( const char *name )
 {
-    // Development: the buttons and tap areas by name, as a finger would press them.
+    // Development: the buttons and tap areas by name, as a finger would press them; "gd<n>" and
+    // "hd<n>" choose day n of the Gregorian or Hijri month shown.
+    if ( ( name[0] == 'g' || name[0] == 'h' ) && name[1] == 'd' ) {
+        const int day = atoi( name + 2 );
+        if ( name[0] == 'g' && day >= 1 && day <= m_gregorian.length ) {
+            choose( Dates::dayNumber( m_gregorianShown[0], m_gregorianShown[1], day ) );
+            return true;
+        }
+        if ( name[0] == 'h' && !m_hijriWanted && day >= 1 && day <= m_hijriMonth.length ) {
+            choose( m_hijriMonth.firstDay + day - 1 );
+            return true;
+        }
+        return false;
+    }
     static const char *s_steps[4] = { "g<", "g>", "h<", "h>" };
     for ( int i = 0; i < 4; ++i ) {
         if ( strcmp( name, s_steps[i] ) == 0 ) {
@@ -597,10 +702,10 @@ void ClockPages::setScene( bool scene )
     }
     // Sample states for the screenshots; the saved timers and cities stay as they are. The
     // offsets are those of the scene's date (21 June: summer time in London and New York).
-    static const char *s_cityNames[4] = { "London", "New York", "Tokyo", "Mecca" };
-    static const int s_cityOffsets[4] = { 60, -240, 540, 180 };
-    m_cityCount = 4;
-    for ( int i = 0; i < 4; ++i ) {
+    static const char *s_cityNames[WorldClock::ShownCities] = { "London", "New York", "Tokyo" };
+    static const int s_cityOffsets[WorldClock::ShownCities] = { 60, -240, 540 };
+    m_cityCount = WorldClock::ShownCities;
+    for ( int i = 0; i < WorldClock::ShownCities; ++i ) {
         m_cities[i] = {};
         strlcpy( m_cities[i].name, s_cityNames[i], sizeof( m_cities[i].name ) );
         m_cities[i].zone.offset = s_cityOffsets[i];

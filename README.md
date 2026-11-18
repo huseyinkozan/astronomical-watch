@@ -25,8 +25,9 @@ and the PWR key turns it on again.
 - Switches off at 10 % battery, so that the clock keeps time for days; the PWR key still shows the
   watch until the display timeout
 - Setup page over the watch's own Wi-Fi, started with a button on the watch's Setup page and
-  stopped by the button, a save or a timeout (captive portal, password shown on the watch): time
-  and UTC offset from the browser, location from a country/city list or coordinates, and every
+  stopped by the button, a save or a timeout (captive portal; a phone joins by scanning a QR code
+  on the watch, or with the network name and password shown there): time and UTC offset from the
+  browser, location from a country/city list or coordinates pasted from a map app, and every
   other setting
 
 ## Screenshots
@@ -127,13 +128,16 @@ look, the watch face (classic or day arc, with the date, Hijri date, next sunris
 the Moon's phase in the bottom-left corner; or the Sun's and the Moon's paths as arcs over the
 horizon or as orbits around a dial with hands), the clock, the information and the settings; a
 vertical swipe steps the always-on style, the face layout, and the parts of the last three pages.
-The clock page holds a world clock (four cities that follow their daylight saving time), a
+The clock, information and settings pages show their name at the top between the corner gauges.
+The clock page holds a world clock (three cities that follow their daylight saving time), a
 stopwatch with laps and a countdown (both keep running while the watch sleeps), Gregorian and
-Hijri month calendars (a sideways swipe steps the month) and day counters. The information page
+Hijri month calendars (a sideways swipe steps the month; a tap chooses a day on both calendars)
+and day counters. The information page
 holds the Sun (rise, set, noon, day length, time left until sunset), the twilights with the
 golden and blue hours, the prayer times by Diyanet's method, the Moon (phase, rise and set, the
 dark part of the night, the new crescent, the Hijri date), a sun compass, the time (solar,
-equation of time, ezani, qibla time, sidereal, week and day), the battery details and an About
+equation of time, ezani, qibla time, sidereal, week and day), the battery details (with the
+time since the charger was unplugged) and an About
 page. The settings page holds the settings (display timeout, always-on, development mode,
 auto-off, screen on while on USB; one tap per value, kept in flash), what the portal set, and the
 setup portal, which opens the watch's own Wi-Fi for a phone or computer, whose browser sets the

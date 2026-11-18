@@ -8,6 +8,7 @@
 #include "AodPage.h"
 #include "ClockPages.h"
 #include "CornerView.h"
+#include "libs/qrcode/qrcodegen.h"
 #include "PageMarks.h"
 #include "StackPage.h"
 #include "WatchFace.h"
@@ -44,6 +45,7 @@ public:
         uint8_t percent;
         bool vbusGood;
         const char *chargeState;
+        int unpluggedMinutes;  // since USB power went away, -1 on USB or when not known
     };
 
     // What the setup page shows about the portal.
@@ -169,6 +171,7 @@ private:
     static void onSetupClicked( lv_event_t *event );
     lv_obj_t *createRow( lv_obj_t *parent, const char *name, lv_event_cb_t onClicked );
     void buildSetupPage( lv_obj_t *page );
+    void buildSetupCodePage( lv_obj_t *page );
     static void onFlushStart( lv_event_t *event );
 #if CONFIG_WATCH_DEV_LOGGING
     static void onRefreshReady( lv_event_t *event );
@@ -219,6 +222,7 @@ private:
     lv_obj_t *m_percentLabel = nullptr;
     lv_obj_t *m_voltageLabel = nullptr;
     lv_obj_t *m_chargeLabel = nullptr;
+    lv_obj_t *m_unpluggedLabel = nullptr;
     // Settings page: one row per Settings::Item on the page.
     lv_obj_t *m_settingRows[Settings::PageItemCount] = {};
     lv_obj_t *m_settingValues[Settings::PageItemCount] = {};
@@ -229,6 +233,18 @@ private:
     lv_obj_t *m_networkLabel = nullptr;
     lv_obj_t *m_passwordLabel = nullptr;
     lv_obj_t *m_setupInfo = nullptr;
+    // The network as a Wi-Fi QR code on its own part while the portal runs, a hint otherwise.
+    // One object draws the modules (qrcodegen's bit table, up to version 5); LVGL's qrcode widget
+    // kept a 13 KB bitmap, which the portal's Wi-Fi needs.
+    static void onDrawJoinCode( lv_event_t *event );
+    static void onSettingsPartChanged( lv_event_t *event );
+    // The panel at s_joinCodeBrightness while the QR code part shows, else at the setting.
+    void updateJoinCodeBrightness();
+    bool m_joinCodeDimmed = false;
+    lv_obj_t *m_joinCode = nullptr;
+    lv_obj_t *m_joinHint = nullptr;
+    char m_joinPayload[80] = {};
+    uint8_t m_joinModules[qrcodegen_BUFFER_LEN_FOR_VERSION( 5 )] = {};
     lv_obj_t *m_setupValues[SetupInfoRows] = {};
     std::atomic<int> m_requests { 0 };
     std::atomic<int> m_touches { 0 };

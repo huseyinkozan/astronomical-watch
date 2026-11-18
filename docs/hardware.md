@@ -449,6 +449,11 @@ Setup portal [HW] (M9, 2026-11-12; `main/Portal.*`):
 - Always-on minute wake with the portal linked: 228 ms from reset to `app_main` plus 138 ms in
   the app, the same as without it (230 + 137 ms, M5).
 - The access point closed 5 min after the last request (`CONFIG_WATCH_SETUP_PORTAL_TIMEOUT_S`).
+- Network slow to appear in a phone's list (2026-11-18, v0.0.2 development build, channel 1,
+  default beacon interval, no country set): "Portal on" came 0.2–0.3 s after the start command,
+  and a laptop scanning once a second (`nmcli dev wifi rescan`) listed the network after 3.0,
+  15.9 and 9.5 s. The watch beacons at once; the wait is the scanner's: NetworkManager and
+  phones scan at their own intervals and show cached lists in between.
 
 Always-on face [HW] (guided test `aod`, 2026-10-31; `main/Panel.*`, `main/AlwaysOn.*`):
 - **The CO5300 keeps its image while the ESP32 deep-sleeps**, with ALDO2 on and the panel pins
