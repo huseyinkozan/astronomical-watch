@@ -548,7 +548,8 @@ static void drawDot( lv_layer_t *layer, float x, float y, lv_color_t colour, int
     lv_draw_rect_dsc_t dot;
     lv_draw_rect_dsc_init( &dot );
     dot.bg_color = colour;
-    dot.radius = LV_RADIUS_CIRCLE;
+    // A 3 x 3 dot needs no round mask (each one costs a mask in LVGL's software renderer).
+    dot.radius = radius > 1 ? LV_RADIUS_CIRCLE : 0;
     lv_draw_rect( layer, &dot, &box );
 }
 
@@ -619,8 +620,11 @@ static void drawDialBand( lv_layer_t *layer, int originX, int originY, const Mil
     arc.center.x = originX + static_cast<int32_t>( lroundf( band.cx ) );
     arc.center.y = originY + static_cast<int32_t>( lroundf( band.cy ) );
     arc.radius = static_cast<uint16_t>( band.radius + MilkyWay::DialWidth / 2 );
-    for ( int step = -100; step < 100; step += 2 ) {
-        const float middle = ( through + step + 1 ) * static_cast<float>( M_PI ) / 180.0f;
+    // 2 degrees a piece (about 7 px along the band): 4 showed the steps of the fade, and the
+    // frame time while swiping did not change with the number of pieces.
+    const int piece = 2;
+    for ( int step = -100; step < 100; step += piece ) {
+        const float middle = ( through + step + piece / 2.0f ) * static_cast<float>( M_PI ) / 180.0f;
         const float x = band.cx + band.radius * cosf( middle );
         const float y = band.cy + band.radius * sinf( middle );
         const float fade = MilkyWay::dialFade( band, x, y, dialX, dialY );
@@ -631,7 +635,7 @@ static void drawDialBand( lv_layer_t *layer, int originX, int originY, const Mil
         }
         arc.opa = static_cast<lv_opa_t>( 140 * fade );  // 55 % at full strength
         arc.start_angle = static_cast<int32_t>( lroundf( std::fmod( through + step + 720, 360.0f ) ) );
-        arc.end_angle = static_cast<int32_t>( lroundf( std::fmod( through + step + 2 + 720, 360.0f ) ) );
+        arc.end_angle = static_cast<int32_t>( lroundf( std::fmod( through + step + piece + 720, 360.0f ) ) );
         lv_draw_arc( layer, &arc );
     }
 }
