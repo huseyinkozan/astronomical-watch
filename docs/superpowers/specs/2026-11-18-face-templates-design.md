@@ -260,6 +260,14 @@ size, so a watch updated to this version starts with the default pages once. Min
 four busy gauges (a yearly counter, the next prayer, the Hijri month, the next moonset) on the
 Full arcs page: 237-256 ms of app time.
 
+### Phase 5 result (2026-11-18)
+
+What the old faces left was removed (texts, a date format, the always-on look of the active
+corners, an old gauge function); the screenshots of both languages show the default face pages
+beside their always-on faces, and the portal's Faces tab. Not done from the text above: the drawn
+sun sign of the altitude corners (a colour instead), and the page limit is eight (the marks
+along the edge hold eight), not six.
+
 ## Left to the builder
 
 The exact pixel places within the mock-ups' layout, colours of new elements (following today's:

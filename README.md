@@ -205,11 +205,10 @@ Each step is built, verified on the board and documented before the next one sta
     return to the previous version if the new one does not start; the event log and crash dump
     downloaded from the same page. First release: v0.0.1. v0.0.2: the charging indicator, and the
     PWR key on boards whose key line lacks its pull-up resistor.
-13. **Face templates** (phases 1 to 4 of 5 done, unreleased): face pages composed in the portal,
-    the Large, Full arcs and Half arcs templates with both digital clocks and five analog styles,
-    the Milky Way band, the slots, the corner gauges chosen from a catalogue, and the always-on
-    face drawn from the page (minute wake 0.25 s of app time on average). Next: clean-up and a
-    release.
+13. **Face templates** (done): face pages composed in the portal, the Large, Full arcs and Half
+    arcs templates with both digital clocks and five analog styles, the Milky Way band, the
+    slots, the corner gauges chosen from a catalogue, and the always-on face drawn from the page
+    (minute wake 0.25 s of app time on average); the picture mirrored for the other wrist.
 14. Vibration motor.
 15. Alarms (clock time and sun/moon events) and countdown timer, also set through the portal.
 
