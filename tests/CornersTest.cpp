@@ -6,6 +6,7 @@
 #include <cstdlib>
 
 #include "Corners.h"
+#include "FaceConfig.h"
 
 // Days since 1970-01-01 of a Gregorian date (H. Hinnant's days_from_civil).
 static int dayNumber( int year, int month, int day )
@@ -126,6 +127,101 @@ int main()
     if ( place.known || !place.alwaysUp ) {
         ++s_failures;
         printf( "FAIL polar day: known %d alwaysUp %d\n", place.known, place.alwaysUp );
+    }
+
+    // The chosen gauges (FaceConfig::GaugeItem) on 21 June 2026 in Istanbul (UTC+3).
+    {
+        const int today = dayNumber( 2026, 6, 21 );  // a Sunday
+        auto at = [&]( int dayOffset, int hour, int minute ) {
+            return static_cast<int64_t>( today + dayOffset ) * 86400 + ( hour * 60 + minute - offsetMinutes ) * 60;
+        };
+        Corners::Input sky = {};
+        sky.valid = true;
+        const int prayerMinutes[6] = { 3 * 60 + 30, 5 * 60 + 20, 13 * 60 + 10, 17 * 60, 20 * 60 + 40, 22 * 60 + 20 };
+        for ( int i = 0; i < 6; ++i ) {
+            sky.prayers[i] = at( 0, 0, prayerMinutes[i] );
+            sky.prayerValid[i] = true;
+        }
+        const int sunTimes[4][2] = { { -1, 20 * 60 + 40 }, { 0, 5 * 60 + 32 }, { 0, 20 * 60 + 40 }, { 1, 5 * 60 + 32 } };
+        for ( int i = 0; i < 4; ++i ) {
+            sky.sun.times[i] = at( sunTimes[i][0], 0, sunTimes[i][1] );
+            sky.sun.rising[i] = i % 2 == 1;
+        }
+        sky.sun.count = 4;
+        const int moonTimes[4][2] = { { 0, 29 }, { 0, 12 * 60 + 40 }, { 1, 51 }, { 1, 13 * 60 + 45 } };
+        for ( int i = 0; i < 4; ++i ) {
+            sky.moon.times[i] = at( moonTimes[i][0], 0, moonTimes[i][1] );
+            sky.moon.rising[i] = i % 2 == 1;
+        }
+        sky.moon.count = 4;
+        Corners::Context context = {};
+        context.utcOffsetMinutes = offsetMinutes;
+        context.batteryPercent = 68;
+        context.sunAltitude = 45;
+        context.sunAltitudeValid = true;
+        context.hijriDay = 16;
+        context.counterDays[0] = today + 10;
+        context.counterSavedDays[0] = today - 10;
+        context.counterValid[0] = true;
+        context.counterDays[1] = dayNumber( 2027, 2, 8 );
+        context.counterValid[1] = true;  // saved by an older version: no saved day
+        context.counterDays[2] = today - 1;
+        context.counterSavedDays[2] = today - 40;
+        context.counterValid[2] = true;
+        context.counterDays[3] = dayNumber( 2024, 2, 29 );
+        context.counterSavedDays[3] = today - 400;
+        context.counterValid[3] = true;
+        Corners::Gauge g[Corners::CornerCount] = {};
+        auto one = [&]( int item, int parameter, int64_t now, bool alwaysOn = false ) {
+            const uint8_t items[4] = { static_cast<uint8_t>( item ), 0, 0, 0 };
+            const uint8_t parameters[4] = { static_cast<uint8_t>( parameter ), 0, 0, 0 };
+            context.now = now;
+            context.alwaysOn = alwaysOn;
+            Corners::compute( sky, context, items, parameters, g );
+            return g[0];
+        };
+        check( "prayer gauge after the night prayer", one( FaceConfig::NextPrayerGauge, 0, at( 0, 23, 20 ) ), Corners::PrayerEvent, 0, 193 );
+        check( "prayer gauge before the first prayer", one( FaceConfig::NextPrayerGauge, 0, at( 0, 2, 0 ) ), Corners::PrayerEvent, 0, 709 );
+        check( "week, Sunday noon", one( FaceConfig::WeekGauge, 0, at( 0, 12, 0 ) ), Corners::Calendar, 0, 928 );
+        check( "month, 21 June noon", one( FaceConfig::MonthGauge, 0, at( 0, 12, 0 ) ), Corners::Calendar, 0, 683 );
+        check( "Hijri month, day 16 noon", one( FaceConfig::HijriMonthGauge, 0, at( 0, 12, 0 ) ), Corners::HijriCalendar, 0, 516 );
+        check( "year, 21 June noon", one( FaceConfig::YearGauge, 0, at( 0, 12, 0 ) ), Corners::Calendar, 0, 469 );
+        check( "hour, 24 h at noon", one( FaceConfig::HourGauge, 0, at( 0, 12, 0 ) ), Corners::Clock, 0, 500 );
+        check( "hour, 12 h at noon", one( FaceConfig::HourGauge, 1, at( 0, 12, 0 ) ), Corners::Clock, 0, 0 );
+        check( "hour, 12 h at 18:00", one( FaceConfig::HourGauge, 1, at( 0, 18, 0 ) ), Corners::Clock, 0, 500 );
+        check( "minute at 19:15", one( FaceConfig::MinuteGauge, 0, at( 0, 19, 15 ) ), Corners::Clock, 0, 250 );
+        check( "second on the always-on face: empty", one( FaceConfig::SecondGauge, 0, at( 0, 19, 15 ) + 30, true ), Corners::Empty, 0, 0 );
+        check( "second on the active face", one( FaceConfig::SecondGauge, 0, at( 0, 19, 15 ) + 30 ), Corners::Clock, 0, 500 );
+        check( "sun altitude 45", one( FaceConfig::SunAltitudeGauge, 0, at( 0, 12, 0 ) ), Corners::Altitude, 0, 500 );
+        context.sunAltitude = -5;
+        check( "sun altitude at night: empty", one( FaceConfig::SunAltitudeGauge, 0, at( 0, 23, 0 ) ), Corners::Empty, 0, 0 );
+        check( "counter since saved", one( FaceConfig::DayCounterGauge, 0 | ( FaceConfig::SinceSaved << 2 ), at( 0, 12, 0 ) ), Corners::Counter, 0, 525 );
+        check( "counter, saved day unknown: empty", one( FaceConfig::DayCounterGauge, 1 | ( FaceConfig::SinceSaved << 2 ), at( 0, 12, 0 ) ), Corners::Empty, 0, 0 );
+        // 8 February 2026 to 8 February 2027: 133.5 of 365 days.
+        check( "counter yearly", one( FaceConfig::DayCounterGauge, 1 | ( FaceConfig::Yearly << 2 ), at( 0, 12, 0 ) ), Corners::Counter, 0, 365 );
+        check( "counter, last 30 days", one( FaceConfig::DayCounterGauge, 0 | ( FaceConfig::Last30Days << 2 ), at( 0, 12, 0 ) ), Corners::Counter, 0, 683 );
+        check( "counter, date passed: full", one( FaceConfig::DayCounterGauge, 2 | ( FaceConfig::Last100Days << 2 ), at( 0, 12, 0 ) ), Corners::Counter, 0, 1000 );
+        const Corners::Gauge leap = one( FaceConfig::DayCounterGauge, 3 | ( FaceConfig::Yearly << 2 ), at( 0, 12, 0 ) );
+        ++s_checks;
+        if ( leap.kind != Corners::Counter || leap.end < 0 || leap.end > 1000 ) {
+            ++s_failures;
+            printf( "FAIL counter yearly on 29 February: kind %d end %d\n", leap.kind, leap.end );
+        }
+        // 05:32 today to 05:32 tomorrow: 6 h 28 min of 24 h at noon.
+        check( "next sunrise at noon", one( FaceConfig::NextSunriseGauge, 0, at( 0, 12, 0 ) ), Corners::SunEvent, 0, 269 );
+        check( "next sunset at noon", one( FaceConfig::NextSunsetGauge, 0, at( 0, 12, 0 ) ), Corners::SunEvent, 0, 638 );
+        // 12:40 today to 13:45 tomorrow (25 h 5 min) at 19:00.
+        check( "next moonrise at 19:00", one( FaceConfig::NextMoonriseGauge, 0, at( 0, 19, 0 ) ), Corners::MoonEvent, 0, 252 );
+        Corners::Input polar = sky;
+        polar.sun.count = 0;
+        polar.sun.alwaysUp = true;
+        const uint8_t items[4] = { FaceConfig::NextSunriseGauge, FaceConfig::DayNightGauge, FaceConfig::BatteryGauge, 0 };
+        const uint8_t parameters[4] = {};
+        context.now = at( 0, 12, 0 );
+        Corners::compute( polar, context, items, parameters, g );
+        check( "next sunrise in the polar day: empty", g[0], Corners::Empty, 0, 0 );
+        check( "day gauge in the polar day: full", g[1], Corners::Day, 0, 1000 );
+        check( "battery in any corner", g[2], Corners::BatteryHigh, 0, 680 );
     }
 
     printf( "Corners: %d checks, %d failures\n", s_checks, s_failures );

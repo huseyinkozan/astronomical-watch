@@ -465,7 +465,9 @@ const AlwaysOn::Face &AlwaysOn::layout( const Look &look, const Rtc::DateTime &t
 int AlwaysOn::gaugeColour( Corners::Kind kind )
 {
     // By Corners::Kind; orange and the Moon's dark grey have no idle-mode colour.
-    static const int colours[] = { -1, Yellow, Blue, Green, Yellow, Red, White, White, White };
+    static const int colours[] = { -1,     Yellow, Blue,  Green, Yellow, Red,   White, White, White,
+                                   Yellow, White,  Yellow, White, Green,  Blue,  Yellow, White };
+    static_assert( sizeof( colours ) / sizeof( colours[0] ) == Corners::KindCount, "an idle colour per kind" );
     return colours[kind];
 }
 

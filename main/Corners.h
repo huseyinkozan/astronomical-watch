@@ -36,7 +36,17 @@ public:
         BatteryLow,     // the power-off limit
         MoonUp,
         MoonDown,
-        MoonLit
+        MoonLit,
+        // The chosen gauges (FaceConfig::GaugeItem).
+        SunEvent,       // to the next sunrise or sunset
+        MoonEvent,      // to the next moonrise or moonset
+        PrayerEvent,    // to the next prayer time
+        Calendar,       // the week, the month, the year
+        HijriCalendar,  // the Hijri month
+        Counter,        // a day counter
+        Altitude,       // the Sun's altitude
+        Clock,          // the hour, the minute, the second
+        KindCount
     };
 
     // The lit part of a gauge in thousandths of its length, from its lower end.
@@ -68,6 +78,26 @@ public:
         Events moon;
         int moonPercent;  // illuminated fraction
         bool waxing;
+        int64_t prayers[6];  // today's prayer times (Sky::Prayer)
+        bool prayerValid[6];
+    };
+
+    // What the chosen gauges take beyond the sky: the moment, the clock's offset, the battery, the
+    // Sun's altitude, the Hijri day of the month (0: unknown), the four day counters' dates and the
+    // days they were saved (0: unknown), and whether it is the always-on face (no second gauge).
+    struct Context
+    {
+        int64_t now;
+        int utcOffsetMinutes;
+        int batteryPercent;  // < 0: unknown
+        bool charging;
+        double sunAltitude;
+        bool sunAltitudeValid;
+        int hijriDay;
+        int counterDays[4];
+        int counterSavedDays[4];
+        bool counterValid[4];
+        bool alwaysOn;
     };
 
     // Each gauge lies on the quarter circle that cuts the panel's corner (120 px, docs/hardware.md,
@@ -118,4 +148,8 @@ public:
     // charging the battery.
     static void compute( const Input &input, int64_t now, int batteryPercent, bool charging,
                          Gauge gauges[CornerCount] );
+
+    // The gauges of `items` (FaceConfig::GaugeItem by corner) with their `parameters`.
+    static void compute( const Input &input, const Context &context, const uint8_t items[CornerCount],
+                         const uint8_t parameters[CornerCount], Gauge gauges[CornerCount] );
 };

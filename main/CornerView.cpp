@@ -21,7 +21,14 @@ static const float s_pixelsPerAlong =
 
 // Colours by Corners::Kind in active mode.
 static const uint32_t s_activeColours[] = { 0x000000, 0xFFD040, 0x5078FF, 0x40D060, 0xFF8020,
-                                            0xFF4030, 0xB8C4DC, 0x5C5C60, 0xB8C4DC };
+                                            0xFF4030, 0xB8C4DC, 0x5C5C60, 0xB8C4DC,
+                                            // The chosen gauges: the Sun's and the Moon's events,
+                                            // prayers amber, calendars light grey, the Hijri month
+                                            // green, counters blue, the altitude as the Sun, clocks
+                                            // white.
+                                            0xFFD040, 0xB8C4DC, 0xFFB040, 0xD0D0D0, 0x40C080,
+                                            0x6090FF, 0xFFD040, 0xFFFFFF };
+static_assert( sizeof( s_activeColours ) / sizeof( s_activeColours[0] ) == Corners::KindCount, "a colour per kind" );
 
 static float clamp01( float value )
 {
