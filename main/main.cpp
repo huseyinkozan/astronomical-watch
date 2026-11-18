@@ -196,6 +196,7 @@ static bool pollHostCommands()
         float sunAltitude = 0;
         if ( sscanf( s_hostLine, "V %f %f %f", &galacticAltitude, &galacticAzimuth, &sunAltitude ) == 3 ) {
             s_display.overrideSky( galacticAltitude, galacticAzimuth, sunAltitude );
+            AlwaysOn::overrideSky( galacticAltitude, galacticAzimuth, sunAltitude );
             continue;
         }
         unsigned addressMode = 0;

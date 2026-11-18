@@ -8,6 +8,7 @@
 
 #include "AnalogClock.h"
 #include "CornerTable.h"
+#include "MilkyWay.h"
 #include "Dates.h"
 #include "FaceText.h"
 #include "Language.h"
@@ -34,8 +35,14 @@ static const float s_notchGap = 18;  // degrees between two notches
 // Burn-in: the face moves within +-s_shift pixels, one step per minute; its box keeps that far
 // from the screen's edges.
 static const int s_shift = 8;
-// The Large template's analog clock, as on the active face.
-static const float s_analogRadius = 140;
+// The arc templates, as on the active face (FacePage.cpp).
+static const int s_orbitY = 251;
+static const float s_orbitRadius[2] = { 150, 122 };  // the Sun, the Moon
+static const int s_horizonY = 232;
+static const float s_pathRadius[2] = { 150, 105 };
+static const int s_bandClip = 160;
+static const int s_bandWidth = 16;
+static const int s_skyMoonRadius = 10;
 
 // The face of the last layout() (too large for the main task's stack).
 static AlwaysOn::Face s_face;
@@ -66,6 +73,8 @@ static const int s_maxFailedMinutes = 30;
 
 static uint8_t s_moonBits[( s_moonSize * s_moonSize + 7 ) / 8];
 static AodGlyph s_moon;
+static uint8_t s_skyMoonBits[( ( 2 * s_skyMoonRadius + 1 ) * ( 2 * s_skyMoonRadius + 1 ) + 7 ) / 8];
+static AodGlyph s_skyMoon;
 
 static void addSprite( AlwaysOn::Face &face, int x, int y, const AodGlyph *glyph, AlwaysOn::Colour colour )
 {
@@ -86,17 +95,18 @@ static void addShape( AlwaysOn::Face &face, AlwaysOn::ShapeKind kind, AlwaysOn::
 }
 
 // The lit part of the Moon and its rim, from the illuminated fraction: the terminator is half an
-// ellipse, on the right while the Moon waxes (as seen from the northern hemisphere).
-static const AodGlyph *moonGlyph( int percent, bool waxing )
+// ellipse, on the right while the Moon waxes (as seen from the northern hemisphere). Into `bits`
+// (room for a side of 2 radius + 1) and `glyph`.
+static const AodGlyph *moonGlyph( int radius, int percent, bool waxing, uint8_t *bits, AodGlyph &glyph )
 {
-    memset( s_moonBits, 0, sizeof( s_moonBits ) );
-    const int radius = s_moonRadius;
+    const int size = 2 * radius + 1;
+    memset( bits, 0, ( size * size + 7 ) / 8 );
     const double lit = percent / 100.0;
-    for ( int y = 0; y < s_moonSize; ++y ) {
+    for ( int y = 0; y < size; ++y ) {
         const double dy = y - radius;
         const double half = std::sqrt( std::fmax( 0.0, radius * radius - dy * dy ) );
         const double terminator = half * ( 1 - 2 * lit );
-        for ( int x = 0; x < s_moonSize; ++x ) {
+        for ( int x = 0; x < size; ++x ) {
             const double dx = x - radius;
             const double distance = std::sqrt( dx * dx + dy * dy );
             if ( distance > radius + 0.5 ) {
@@ -105,13 +115,13 @@ static const AodGlyph *moonGlyph( int percent, bool waxing )
             const bool rim = distance > radius - 1.5;
             const bool litSide = waxing ? dx >= terminator : -dx >= terminator;
             if ( rim || litSide ) {
-                const int bit = y * s_moonSize + x;
-                s_moonBits[bit / 8] |= static_cast<uint8_t>( 0x80 >> ( bit % 8 ) );
+                const int bit = y * size + x;
+                bits[bit / 8] |= static_cast<uint8_t>( 0x80 >> ( bit % 8 ) );
             }
         }
     }
-    s_moon = { static_cast<int16_t>( s_moonSize ), static_cast<int16_t>( s_moonSize ), s_moonBits };
-    return &s_moon;
+    glyph = { static_cast<int16_t>( size ), static_cast<int16_t>( size ), bits };
+    return &glyph;
 }
 
 // The small glyph of a code point; null when there is none.
@@ -165,12 +175,12 @@ static void addSmallText( AlwaysOn::Face &face, const char *text, int centreX, i
     }
 }
 
-// HH:MM of the page's digit style, centred on the Large template's clock line.
-static void addClock( AlwaysOn::Face &face, const AodStyle &style, const Rtc::DateTime &time )
+// HH:MM of the page's digit style, centred on the template's clock line `centreY`.
+static void addClock( AlwaysOn::Face &face, const AodStyle &style, int centreY, const Rtc::DateTime &time )
 {
     // Even, so that the dots of the seven segments fall on the same grid in every minute.
     const int left = ( FaceConfig::CentreX - style.width / 2 ) & ~1;
-    const int top = ( FaceConfig::ClockY - style.height / 2 ) & ~1;
+    const int top = ( centreY - style.height / 2 ) & ~1;
     const int digits[4] = { time.hour / 10, time.hour % 10, time.minute / 10, time.minute % 10 };
     const int places[4] = { 0, 1, 3, 4 };
     for ( int i = 0; i < 4; ++i ) {
@@ -201,13 +211,13 @@ static void addWeekday( AlwaysOn::Face &face, int cx, int cy, int weekday )
 }
 
 // The analog clock of the page's style without the seconds hand (one bit per colour: all white).
-static void addAnalog( AlwaysOn::Face &face, int style, const Rtc::DateTime &time )
+static void addAnalog( AlwaysOn::Face &face, int style, const FaceConfig::ClockPlace &place, const Rtc::DateTime &time )
 {
     AnalogClock::Segment segments[AnalogClock::MaxSegments];
-    const int count = AnalogClock::segments( style, s_analogRadius, time.hour, time.minute, 0, false, segments,
-                                             AnalogClock::MaxSegments );
+    const int count = AnalogClock::segments( style, static_cast<float>( place.analogRadius ), time.hour, time.minute, 0,
+                                             false, segments, AnalogClock::MaxSegments );
     const int cx = FaceConfig::CentreX;
-    const int cy = FaceConfig::ClockY;
+    const int cy = place.centreY;
     for ( int i = 0; i < count; ++i ) {
         const AnalogClock::Segment &segment = segments[i];
         addShape( face, AlwaysOn::LineShape, AlwaysOn::White, cx + static_cast<int>( lroundf( segment.x0 ) ),
@@ -215,6 +225,126 @@ static void addAnalog( AlwaysOn::Face &face, int style, const Rtc::DateTime &tim
                   cx + static_cast<int>( lroundf( segment.x1 ) ), cy + static_cast<int>( lroundf( segment.y1 ) ) );
     }
     addShape( face, AlwaysOn::DiscShape, AlwaysOn::White, cx, cy, 6 );
+}
+
+// Dots every `step` pixels along the circle of `radius` around (cx, cy) from angle a0 to a1
+// (degrees, clockwise from 3 o'clock), leaving out those within 14 px of `keepOut` (a body).
+static void addDottedArc( AlwaysOn::Face &face, AlwaysOn::Colour colour, float cx, float cy, float radius, float a0,
+                          float a1, float step, const float keepOut[2][2], int keepOutCount )
+{
+    const float length = static_cast<float>( M_PI ) / 180.0f * ( a1 - a0 ) * radius;
+    const int count = static_cast<int>( length / step );
+    for ( int k = 0; k <= count; ++k ) {
+        const float angle = ( a0 + ( a1 - a0 ) * k / ( count > 0 ? count : 1 ) ) * static_cast<float>( M_PI ) / 180.0f;
+        const float x = cx + radius * cosf( angle );
+        const float y = cy + radius * sinf( angle );
+        bool free = true;
+        for ( int i = 0; i < keepOutCount; ++i ) {
+            const float dx = x - keepOut[i][0];
+            const float dy = y - keepOut[i][1];
+            free = free && dx * dx + dy * dy > 14 * 14;
+        }
+        if ( free ) {
+            addShape( face, AlwaysOn::DotShape, colour, static_cast<int>( lroundf( x ) ), static_cast<int>( lroundf( y ) ) );
+        }
+    }
+}
+
+#if CONFIG_WATCH_DEV_LOGGING
+static bool s_skyOverride = false;
+static double s_overrideSky[3] = {};
+
+void AlwaysOn::overrideSky( double altitude, double azimuth, double sunAltitude )
+{
+    s_skyOverride = true;
+    s_overrideSky[0] = altitude;
+    s_overrideSky[1] = azimuth;
+    s_overrideSky[2] = sunAltitude;
+}
+#endif
+
+// The arc templates: the orbits (Full arcs: dense dots above the horizon, sparse below, marks at
+// rise and set) or the paths over the horizon (Half arcs, with the Milky Way), the Sun as a disc
+// (a ring below the horizon on the orbits) and the Moon's picture, or a ring below the horizon.
+static void addArcs( AlwaysOn::Face &face, const AlwaysOn::Look &look, int64_t utcNow )
+{
+    const bool orbits = look.page.layout == FaceConfig::FullArcs;
+    const float cx = FaceConfig::CentreX;
+    const float cy = orbits ? s_orbitY : s_horizonY;
+    const bool south = look.observer.latitude < 0;
+    Corners::ArcPlace places[2] = {};
+    const Corners::Events *events[2] = { &look.corners.sun, &look.corners.moon };
+    float bodies[2][2] = {};
+    for ( int i = 0; i < 2; ++i ) {
+        if ( look.skyValid && look.corners.valid ) {
+            places[i] = Corners::arcPlace( *events[i], utcNow, orbits, south );
+        }
+        const float r = orbits ? s_orbitRadius[i] : s_pathRadius[i];
+        const float a = places[i].angle * static_cast<float>( M_PI ) / 180.0f;
+        bodies[i][0] = cx + r * cosf( a );
+        bodies[i][1] = cy + r * sinf( a );
+    }
+    if ( !orbits && look.skyValid && ( look.page.flags & FaceConfig::MilkyWayFlag ) != 0 ) {
+        Astronomy::Position centre =
+            Astronomy::starPosition( MilkyWay::CentreRaHours, MilkyWay::CentreDecDegrees, utcNow, look.observer );
+        double sunAltitude = Astronomy::sunPosition( utcNow, look.observer ).altitude;
+#if CONFIG_WATCH_DEV_LOGGING
+        if ( s_skyOverride ) {
+            centre.altitude = s_overrideSky[0];
+            centre.azimuth = s_overrideSky[1];
+            sunAltitude = s_overrideSky[2];
+        }
+#endif
+        const MilkyWay::Band band = MilkyWay::band( centre.altitude, centre.azimuth, sunAltitude, south, cx, cy );
+        if ( band.shown ) {
+            addShape( face, AlwaysOn::BandShape, AlwaysOn::Blue, static_cast<int>( lroundf( band.cx ) ),
+                      static_cast<int>( lroundf( band.cy ) ), s_bandClip, s_bandWidth, static_cast<int>( band.radius ),
+                      band.bright ? 1 : 0 );
+        }
+    }
+    const AlwaysOn::Colour colours[2] = { AlwaysOn::Yellow, AlwaysOn::White };
+    for ( int i = 0; i < 2; ++i ) {
+        const Corners::ArcPlace &place = places[i];
+        const float r = orbits ? s_orbitRadius[i] : s_pathRadius[i];
+        const bool drawn = place.known && ( orbits || place.up );
+        const int keepOut = drawn ? 1 : 0;
+        const float keep[2][2] = { { bodies[i][0], bodies[i][1] }, { 0, 0 } };
+        if ( !orbits ) {
+            addDottedArc( face, colours[i], cx, cy, r, 180, 360, 6, keep, keepOut );
+        } else if ( place.known ) {
+            addDottedArc( face, colours[i], cx, cy, r, place.rise, place.set, 5, keep, keepOut );
+            addDottedArc( face, colours[i], cx, cy, r, place.set, place.rise + 360, 15, keep, keepOut );
+            const float edges[2] = { place.rise, place.set };
+            for ( int k = 0; k < 2; ++k ) {
+                const float a = edges[k] * static_cast<float>( M_PI ) / 180.0f;
+                addShape( face, AlwaysOn::LineShape, colours[i], static_cast<int>( lroundf( cx + ( r - 6 ) * cosf( a ) ) ),
+                          static_cast<int>( lroundf( cy + ( r - 6 ) * sinf( a ) ) ), 0, 2,
+                          static_cast<int>( lroundf( cx + ( r + 6 ) * cosf( a ) ) ),
+                          static_cast<int>( lroundf( cy + ( r + 6 ) * sinf( a ) ) ) );
+            }
+        } else {
+            // No rise or set near now: the whole orbit, dense in the polar day.
+            addDottedArc( face, colours[i], cx, cy, r, 0, 360, place.alwaysUp ? 5 : 15, keep, 0 );
+        }
+        if ( !drawn ) {
+            continue;
+        }
+        const int x = static_cast<int>( lroundf( bodies[i][0] ) );
+        const int y = static_cast<int>( lroundf( bodies[i][1] ) );
+        if ( i == 0 ) {
+            addShape( face, place.up ? AlwaysOn::DiscShape : AlwaysOn::RingShape, AlwaysOn::Yellow, x, y, 9, 2 );
+        } else if ( place.up ) {
+            addSprite( face, x - s_skyMoonRadius, y - s_skyMoonRadius,
+                       moonGlyph( s_skyMoonRadius, look.moonPercent, look.waxing, s_skyMoonBits, s_skyMoon ), AlwaysOn::White );
+        } else {
+            addShape( face, AlwaysOn::RingShape, AlwaysOn::White, x, y, s_skyMoonRadius, 2 );
+        }
+    }
+    if ( !orbits ) {
+        for ( int x = 40; x <= 370; x += 6 ) {
+            addShape( face, AlwaysOn::DotShape, AlwaysOn::White, x, s_horizonY );
+        }
+    }
 }
 
 static bool usesItem( const FaceConfig::Page &page, int textItem, int cornerItem )
@@ -239,10 +369,16 @@ const AlwaysOn::Face &AlwaysOn::layout( const Look &look, const Rtc::DateTime &t
     face.width = Panel::WIDTH - 2 * s_shift;
     face.height = Panel::HEIGHT - 2 * s_shift;
     const FaceConfig::Page &page = look.page;
-    if ( page.clock == FaceConfig::DigitalClock && page.digital < AOD_STYLE_COUNT ) {
-        addClock( face, aodStyles[page.digital], time );
+    const FaceConfig::ClockPlace place = FaceConfig::clockPlace( page.layout );
+    // The arcs first: the clock and the slots are drawn over them.
+    if ( page.layout == FaceConfig::FullArcs || page.layout == FaceConfig::HalfArcs ) {
+        addArcs( face, look, utcNow );
+    }
+    const int size = page.layout == FaceConfig::Large ? AOD_SIZE_LARGE : AOD_SIZE_MEDIUM;
+    if ( page.clock == FaceConfig::DigitalClock && page.digital < 2 ) {
+        addClock( face, aodStyles[size * 2 + page.digital], place.centreY, time );
     } else if ( page.clock == FaceConfig::AnalogClock ) {
-        addAnalog( face, page.analog, time );
+        addAnalog( face, page.analog, place, time );
     }
 
     FaceText::Inputs in = {};
@@ -294,7 +430,7 @@ const AlwaysOn::Face &AlwaysOn::layout( const Look &look, const Rtc::DateTime &t
         if ( item == FaceConfig::MoonIcon ) {
             if ( look.skyValid ) {
                 // White: yellow read as the Sun's state.
-                addSprite( face, x - s_moonRadius, y - s_moonRadius, moonGlyph( look.moonPercent, look.waxing ), White );
+                addSprite( face, x - s_moonRadius, y - s_moonRadius, moonGlyph( s_moonRadius, look.moonPercent, look.waxing, s_moonBits, s_moon ), White );
             }
         } else if ( item == FaceConfig::WeekdayIcon ) {
             if ( in.timeValid ) {
@@ -429,6 +565,38 @@ static void drawShape( uint16_t *pixels, int bandTop, int rows, int left, int wi
             for ( int dy = 0; dy < shape.width; ++dy ) {
                 for ( int dx = 0; dx < shape.width; ++dx ) {
                     putPixel( pixels, bandTop, rows, left, width, x + dx, y + dy, colour );
+                }
+            }
+        }
+        break;
+    }
+    case AlwaysOn::BandShape: {
+        // The ring's pixels inside the half disc over the horizon, on the dot grid of the
+        // screen (not of the shifted face, so that the dots stay still).
+        const int clipX = shiftX + FaceConfig::CentreX;
+        const int clipY = shiftY + s_horizonY;
+        const int r = shape.radius;
+        const int bandRadius = shape.x1;
+        const int half = shape.width / 2;
+        const int grid = shape.y1 != 0 ? 2 : 4;
+        const int firstRow = ( clipY - r > bandTop ? clipY - r : bandTop );
+        const int endRow = ( clipY < bandTop + rows ? clipY : bandTop + rows );
+        for ( int y = firstRow; y < endRow; ++y ) {
+            if ( y % grid != 0 ) {
+                continue;
+            }
+            for ( int x = clipX - r; x <= clipX + r; x += 1 ) {
+                if ( x % grid != 0 ) {
+                    continue;
+                }
+                const int ex = x - clipX;
+                const int ey = y - clipY;
+                if ( ex * ex + ey * ey > r * r ) {
+                    continue;
+                }
+                const float d = std::sqrt( static_cast<float>( ( x - x0 ) * ( x - x0 ) + ( y - y0 ) * ( y - y0 ) ) );
+                if ( d >= bandRadius - half && d <= bandRadius + half ) {
+                    putPixel( pixels, bandTop, rows, left, width, x, y, colour );
                 }
             }
         }

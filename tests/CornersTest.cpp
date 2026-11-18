@@ -84,6 +84,50 @@ int main()
     }
     check( "no events", gauges[Corners::TopLeft], Corners::Empty, 0, 0 );
 
+    // The arc templates' places: a pass from 06:00 to 18:00, down until 06:00 the next day.
+    Corners::Events pass = {};
+    pass.times[0] = 6 * 3600;
+    pass.rising[0] = true;
+    pass.times[1] = 18 * 3600;
+    pass.rising[1] = false;
+    pass.times[2] = 30 * 3600;
+    pass.rising[2] = true;
+    pass.count = 3;
+    auto near = []( float a, float b ) { return a - b < 0.01f && b - a < 0.01f; };
+    Corners::ArcPlace place = Corners::arcPlace( pass, 12 * 3600, true, false );
+    ++s_checks;
+    if ( !( place.known && place.up && near( place.angle, 270 ) && near( place.rise, 180 ) && near( place.set, 360 ) ) ) {
+        ++s_failures;
+        printf( "FAIL orbit at noon: angle %.1f rise %.1f set %.1f\n", place.angle, place.rise, place.set );
+    }
+    place = Corners::arcPlace( pass, 24 * 3600, true, false );
+    ++s_checks;
+    if ( !( place.known && !place.up && near( place.angle, 90 ) ) ) {
+        ++s_failures;
+        printf( "FAIL orbit at midnight: angle %.1f\n", place.angle );
+    }
+    place = Corners::arcPlace( pass, 9 * 3600, false, false );
+    ++s_checks;
+    if ( !( place.known && place.up && near( place.angle, 225 ) ) ) {
+        ++s_failures;
+        printf( "FAIL path at 09:00, north: angle %.1f\n", place.angle );
+    }
+    place = Corners::arcPlace( pass, 9 * 3600, false, true );
+    ++s_checks;
+    if ( !( place.known && near( place.angle, 315 ) ) ) {
+        ++s_failures;
+        printf( "FAIL path at 09:00, south: angle %.1f\n", place.angle );
+    }
+    // The polar day: no rise or set, never a division by zero.
+    Corners::Events polar = {};
+    polar.alwaysUp = true;
+    place = Corners::arcPlace( polar, 12 * 3600, true, false );
+    ++s_checks;
+    if ( place.known || !place.alwaysUp ) {
+        ++s_failures;
+        printf( "FAIL polar day: known %d alwaysUp %d\n", place.known, place.alwaysUp );
+    }
+
     printf( "Corners: %d checks, %d failures\n", s_checks, s_failures );
     return s_failures == 0 ? 0 : 1;
 }

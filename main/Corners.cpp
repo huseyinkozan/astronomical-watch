@@ -1,5 +1,7 @@
 #include "Corners.h"
 
+#include <cmath>
+
 static const int64_t s_dayS = 86400;
 
 void Corners::geometry( Corner corner, int width, int height, int &centreX, int &centreY, int &lowerAngle,
@@ -111,6 +113,31 @@ void Corners::compute( const Input &input, int64_t now, int batteryPercent, bool
     } else {
         gauges[BottomRight] = { 1000 - lit, 1000, MoonLit, false };
     }
+}
+
+Corners::ArcPlace Corners::arcPlace( const Events &events, int64_t now, bool orbit, bool south )
+{
+    ArcPlace place = {};
+    place.alwaysUp = events.alwaysUp;
+    Pass p = {};
+    place.known = Corners::pass( events, now, p ) && p.upEnd > p.upStart && p.downEnd > p.upEnd;
+    if ( !place.known ) {
+        return place;
+    }
+    place.up = p.up;
+    const float upPart = static_cast<float>( now - p.upStart ) / static_cast<float>( p.upEnd - p.upStart );
+    if ( orbit ) {
+        const float span = 360.0f * static_cast<float>( p.upEnd - p.upStart ) / static_cast<float>( p.downEnd - p.upStart );
+        place.rise = 270 - span / 2;
+        place.set = 270 + span / 2;
+        place.angle = place.up ? place.rise + span * upPart
+                               : place.set + ( 360 - span ) * static_cast<float>( now - p.upEnd ) /
+                                                 static_cast<float>( p.downEnd - p.upEnd );
+        place.angle = std::fmod( place.angle, 360.0f );
+    } else {
+        place.angle = south ? 360 - 180 * upPart : 180 + 180 * upPart;
+    }
+    return place;
 }
 
 bool Corners::pass( const Events &events, int64_t now, Pass &result )

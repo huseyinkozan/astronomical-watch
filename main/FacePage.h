@@ -58,23 +58,13 @@ private:
     int m_digitHeight = 122;  // the clock's size in this template (FaceConfig::clockPlace)
     int m_analogRadius = 140;
     int m_clockY = 251;
-    // The sky, and what placeSky() made of it: for the Sun and the Moon whether the pass is
-    // known, whether the body is up, its angle (degrees clockwise from 3 o'clock) and for the
-    // orbits the rise and set angles; the Milky Way band.
+    // The sky, and what placeSky() made of it: the Sun's and the Moon's places on the arcs
+    // (Corners::arcPlace) and the Milky Way band.
     Corners::Input m_corners = {};
     Sky::Now m_sky = {};
     bool m_located = false;
     int64_t m_skyMinute = -1;
-    struct Body
-    {
-        bool known;
-        bool up;
-        bool alwaysUp;
-        float angle;
-        float rise;
-        float set;
-    };
-    Body m_bodies[2] = {};  // the Sun, the Moon
+    Corners::ArcPlace m_bodies[2] = {};  // the Sun, the Moon
     float m_band[3] = {};   // the band's centre and radius
     bool m_bandShown = false;
     bool m_bandBright = false;

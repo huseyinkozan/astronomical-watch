@@ -63,13 +63,17 @@ public:
     static const int MaxSprites = 104;
 
     // A drawn shape, on the screen before the burn-in shift: a 2 x 2 dot at (x0, y0), a disc or a
-    // ring (`width` wide) of `radius` around it, or a line to (x1, y1) `width` wide.
+    // ring (`width` wide) of `radius` around it, a line to (x1, y1) `width` wide, or the Milky
+    // Way: the ring of radius x1 and `width` around (x0, y0) on the dot grid (y1 1: every second
+    // pixel, 0: every fourth, a lighter sky), inside the half disc of `radius` over the half
+    // arcs' horizon.
     enum ShapeKind : uint8_t
     {
         DotShape,
         DiscShape,
         RingShape,
-        LineShape
+        LineShape,
+        BandShape
     };
 
     struct Shape
@@ -84,8 +88,8 @@ public:
         int16_t y1;
     };
 
-    // Sixty marks, two hands, the centre and a weekday ring.
-    static const int MaxShapes = 80;
+    // The dots of both orbits (up to about 350), sixty marks, two hands, the centre, a weekday ring.
+    static const int MaxShapes = 440;
 
     // The sprites and shapes, and the box on the screen that holds them before the burn-in shift.
     struct Face
@@ -141,5 +145,9 @@ public:
     // 21 June, with the corner gauges of that moment in Istanbul and the battery at 92 %, written
     // to the console instead of drawn. A fixed scene keeps the published picture unchanged.
     static void capture( const Look &look, int page );
+
+    // The galactic centre's altitude and azimuth and the Sun's altitude for the Milky Way from
+    // now on (a picture of the band; the fixed scene's centre is below the horizon).
+    static void overrideSky( double altitude, double azimuth, double sunAltitude );
 #endif
 };

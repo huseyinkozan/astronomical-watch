@@ -325,34 +325,13 @@ void FacePage::placeSky()
     const bool paths = m_page.layout == FaceConfig::HalfArcs;
     const Corners::Events *events[2] = { &m_corners.sun, &m_corners.moon };
     for ( int i = 0; i < 2; ++i ) {
-        Body &body = m_bodies[i];
-        body = {};
-        Corners::Pass pass = {};
-        body.alwaysUp = m_located && m_corners.valid && events[i]->alwaysUp;
-        body.known = m_located && m_corners.valid && Corners::pass( *events[i], m_sky.time, pass ) &&
-                     pass.upEnd > pass.upStart && pass.downEnd > pass.upEnd;
-        if ( !body.known ) {
-            continue;
-        }
-        body.up = pass.up;
-        const float upPart = static_cast<float>( m_sky.time - pass.upStart ) / static_cast<float>( pass.upEnd - pass.upStart );
-        if ( orbits ) {
-            // Clockwise, the pass centred at the top: the arc above the horizon as long as its
-            // share of the day.
-            const float span = 360.0f * static_cast<float>( pass.upEnd - pass.upStart ) /
-                               static_cast<float>( pass.downEnd - pass.upStart );
-            body.rise = 270 - span / 2;
-            body.set = 270 + span / 2;
-            body.angle = body.up ? body.rise + span * upPart
-                                 : body.set + ( 360 - span ) * static_cast<float>( m_sky.time - pass.upEnd ) /
-                                                  static_cast<float>( pass.downEnd - pass.upEnd );
-        } else {
-            // Over the horizon from east to west; south of the equator the other way round.
-            body.angle = m_sky.south ? 360 - 180 * upPart : 180 + 180 * upPart;
+        m_bodies[i] = {};
+        if ( m_located && m_corners.valid ) {
+            m_bodies[i] = Corners::arcPlace( *events[i], m_sky.time, orbits, m_sky.south );
         }
     }
     // The Moon's picture on its orbit or path while it is up.
-    const Body &moon = m_bodies[1];
+    const Corners::ArcPlace &moon = m_bodies[1];
     const bool moonShown = ( orbits || paths ) && moon.known && moon.up;
     lv_obj_set_hidden( m_skyMoon, !moonShown );
     if ( moonShown ) {
@@ -617,7 +596,7 @@ void FacePage::onDrawArcs( lv_event_t *event )
         const float cx = x0 + FaceConfig::CentreX;
         const float cy = y0 + s_orbitY;
         for ( int i = 0; i < 2; ++i ) {
-            const Body &body = face->m_bodies[i];
+            const Corners::ArcPlace &body = face->m_bodies[i];
             const float r = s_orbitRadius[i];
             if ( body.known ) {
                 // Dense above the horizon, sparse below, marks at rise and set.
@@ -641,12 +620,12 @@ void FacePage::onDrawArcs( lv_event_t *event )
                 drawDottedArc( layer, cx, cy, r, 0, 360, body.alwaysUp ? 5 : 15, body.alwaysUp ? colours[i] : dimColours[i] );
             }
         }
-        const Body &sun = face->m_bodies[0];
+        const Corners::ArcPlace &sun = face->m_bodies[0];
         if ( sun.known ) {
             const float a = sun.angle * static_cast<float>( M_PI ) / 180.0f;
             drawDot( layer, cx + s_orbitRadius[0] * cosf( a ), cy + s_orbitRadius[0] * sinf( a ), sun.up ? s_amber : s_sunDim, 9 );
         }
-        const Body &moon = face->m_bodies[1];
+        const Corners::ArcPlace &moon = face->m_bodies[1];
         if ( moon.known && !moon.up ) {
             const float a = moon.angle * static_cast<float>( M_PI ) / 180.0f;
             drawDot( layer, cx + s_orbitRadius[1] * cosf( a ), cy + s_orbitRadius[1] * sinf( a ), s_moonDim, 8 );
@@ -672,7 +651,7 @@ void FacePage::onDrawArcs( lv_event_t *event )
     horizon.p2.x = static_cast<int32_t>( x0 ) + s_horizonRight;
     horizon.p2.y = static_cast<int32_t>( cy );
     lv_draw_line( layer, &horizon );
-    const Body &sun = face->m_bodies[0];
+    const Corners::ArcPlace &sun = face->m_bodies[0];
     if ( sun.known && sun.up ) {
         const float a = sun.angle * static_cast<float>( M_PI ) / 180.0f;
         drawDot( layer, cx + s_pathRadius[0] * cosf( a ), cy + s_pathRadius[0] * sinf( a ), s_amber, 8 );

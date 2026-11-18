@@ -97,6 +97,23 @@ public:
     };
     static bool pass( const Events &events, int64_t now, Pass &result );
 
+    // A body on the arc templates (FaceConfig::FullArcs, HalfArcs): whether its pass around `now`
+    // is known, whether it is up, its angle on the screen (degrees clockwise from 3 o'clock) and,
+    // on the orbits, the rise and set angles. `orbit`: around the circle, the part above the
+    // horizon centred at the top and as long as its share of the pass; otherwise over the
+    // horizon from left to right, right to left `south` of the equator. `alwaysUp` without a
+    // rise or set (the polar day).
+    struct ArcPlace
+    {
+        bool known;
+        bool up;
+        bool alwaysUp;
+        float angle;
+        float rise;
+        float set;
+    };
+    static ArcPlace arcPlace( const Events &events, int64_t now, bool orbit, bool south );
+
     // The gauges at `now` (Unix time). `batteryPercent` < 0: unknown; `charging`: the charger is
     // charging the battery.
     static void compute( const Input &input, int64_t now, int batteryPercent, bool charging,
