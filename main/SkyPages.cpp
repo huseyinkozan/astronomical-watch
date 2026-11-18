@@ -1,4 +1,5 @@
 #include "SkyPages.h"
+#include "Styles.h"
 #include "Fonts.h"
 #include "Language.h"
 
@@ -161,8 +162,7 @@ void SkyPages::build( lv_obj_t *sunPage, lv_obj_t *twilightPage, lv_obj_t *praye
 
     lv_obj_set_scrollbar_mode( compassPage, LV_SCROLLBAR_MODE_OFF );
     lv_obj_t *heading = lv_label_create( compassPage );
-    lv_obj_set_style_text_font( heading, &jetbrains_mono_26, 0 );
-    lv_obj_set_style_text_color( heading, lv_color_hex( 0xA0A0A0 ), 0 );
+    Styles::text( heading, &jetbrains_mono_26, lv_color_hex( 0xA0A0A0 ) );
     lv_label_set_text( heading, Language::text( Language::SunCompass ) );
     lv_obj_align( heading, LV_ALIGN_TOP_MID, 0, 40 );
     m_compassArrow = lv_line_create( compassPage );
@@ -170,13 +170,11 @@ void SkyPages::build( lv_obj_t *sunPage, lv_obj_t *twilightPage, lv_obj_t *praye
     lv_obj_set_style_line_color( m_compassArrow, lv_color_white(), 0 );
     lv_obj_set_style_line_rounded( m_compassArrow, true, 0 );
     m_compassNorth = lv_label_create( compassPage );
-    lv_obj_set_style_text_font( m_compassNorth, &jetbrains_mono_26, 0 );
-    lv_obj_set_style_text_color( m_compassNorth, lv_color_white(), 0 );
+    Styles::text( m_compassNorth, &jetbrains_mono_26, lv_color_white() );
     lv_label_set_text( m_compassNorth, Language::text( Language::North ) );
     m_compassText = lv_label_create( compassPage );
-    lv_obj_set_style_text_font( m_compassText, &jetbrains_mono_26, 0 );
-    lv_obj_set_style_text_color( m_compassText, lv_color_hex( 0xA0A0A0 ), 0 );
-    lv_obj_set_style_text_align( m_compassText, LV_TEXT_ALIGN_CENTER, 0 );
+    Styles::text( m_compassText, &jetbrains_mono_26, lv_color_hex( 0xA0A0A0 ) );
+    Styles::centred( m_compassText );
     lv_obj_align( m_compassText, LV_ALIGN_BOTTOM_MID, 0, -40 );
 }
 

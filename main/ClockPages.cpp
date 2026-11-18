@@ -5,6 +5,7 @@
 #include <cstring>
 
 #include "Dates.h"
+#include "Styles.h"
 #include "Fonts.h"
 #include "Language.h"
 #include "Panel.h"
@@ -24,8 +25,7 @@ static lv_obj_t *label( lv_obj_t *parent, const lv_font_t *font, lv_color_t colo
                         const char *text )
 {
     lv_obj_t *object = lv_label_create( parent );
-    lv_obj_set_style_text_font( object, font, 0 );
-    lv_obj_set_style_text_color( object, colour, 0 );
+    Styles::text( object, font, colour );
     lv_label_set_text( object, text );
     lv_obj_align( object, align, x, y );
     lv_obj_set_clickable( object, false );
@@ -47,12 +47,7 @@ static lv_obj_t *button( lv_obj_t *part, int x1, int y1, int x2, int y2, const c
     lv_obj_set_size( box, x2 - x1, y2 - y1 );
     lv_obj_set_scrollable( box, false );
     lv_obj_set_press_lock( box, false );
-    lv_obj_set_style_border_width( box, 2, 0 );
-    lv_obj_set_style_border_color( box, lv_color_hex( 0x808080 ), 0 );
-    lv_obj_set_style_radius( box, 18, 0 );
-    lv_obj_set_style_pad_all( box, 0, 0 );
-    lv_obj_set_style_bg_color( box, lv_color_black(), 0 );
-    lv_obj_set_style_bg_color( box, lv_color_hex( 0x606060 ), LV_STATE_PRESSED );
+    Styles::button( box );
     lv_obj_add_event_cb( box, onClicked, LV_EVENT_CLICKED, user );
     return label( box, &jetbrains_mono_26, lv_color_white(), LV_ALIGN_CENTER, 0, 0, text );
 }

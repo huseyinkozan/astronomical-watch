@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include "Styles.h"
 #include "Fonts.h"
 #include "Panel.h"
 #include "Language.h"
@@ -113,10 +114,9 @@ static void buildAboutPage( lv_obj_t *page )
                              "gitlab.com/huseyinkozan/\nastronomical-watch", Language::text( Language::License ) };
     for ( int i = 0; i < 4; ++i ) {
         lv_obj_t *label = lv_label_create( page );
-        lv_obj_set_style_text_font( label, &jetbrains_mono_26, 0 );
         // Grey for the details, white for the name.
-        lv_obj_set_style_text_color( label, i == 0 ? lv_color_white() : lv_color_hex( 0xA0A0A0 ), 0 );
-        lv_obj_set_style_text_align( label, LV_TEXT_ALIGN_CENTER, 0 );
+        Styles::text( label, &jetbrains_mono_26, i == 0 ? lv_color_white() : lv_color_hex( 0xA0A0A0 ) );
+        Styles::centred( label );
         lv_obj_set_width( label, lv_pct( 100 ) );
         lv_label_set_long_mode( label, LV_LABEL_LONG_MODE_WRAP );
         lv_label_set_text( label, lines[i] );
@@ -126,8 +126,7 @@ static void buildAboutPage( lv_obj_t *page )
 static lv_obj_t *createLabel( lv_obj_t *parent, const lv_font_t *font, lv_align_t align, int yOffset )
 {
     lv_obj_t *label = lv_label_create( parent );
-    lv_obj_set_style_text_font( label, font, 0 );
-    lv_obj_set_style_text_color( label, lv_color_white(), 0 );
+    Styles::text( label, font, lv_color_white() );
     lv_label_set_text( label, "" );
     lv_obj_align( label, align, 0, yOffset );
     // A press on the text belongs to the row around it.
@@ -500,15 +499,7 @@ lv_obj_t *Display::createRow( lv_obj_t *parent, const char *name, lv_event_cb_t 
     lv_obj_set_scrollable( row, false );
     // A finger that slides off the row cancels the tap: no row changes on release.
     lv_obj_set_press_lock( row, false );
-    // A black row with a mid-grey outline: large areas of dark grey shimmer on this AMOLED
-    // panel (seen on the board), and black pixels draw no current.
-    lv_obj_set_style_border_width( row, 2, 0 );
-    lv_obj_set_style_border_color( row, lv_color_hex( 0x808080 ), 0 );
-    lv_obj_set_style_radius( row, 24, 0 );
-    lv_obj_set_style_pad_hor( row, 24, 0 );
-    lv_obj_set_style_bg_color( row, lv_color_black(), 0 );
-    // The row lights up while pressed, so the finger sees that the tap arrived.
-    lv_obj_set_style_bg_color( row, lv_color_hex( 0x606060 ), LV_STATE_PRESSED );
+    Styles::row( row );
     lv_obj_add_event_cb( row, onClicked, LV_EVENT_CLICKED, this );
     lv_obj_t *nameLabel = createLabel( row, &jetbrains_mono_26, LV_ALIGN_LEFT_MID, 0 );
     lv_label_set_text( nameLabel, name );
@@ -518,8 +509,7 @@ lv_obj_t *Display::createRow( lv_obj_t *parent, const char *name, lv_event_cb_t 
 static lv_obj_t *createInfoLabel( lv_obj_t *parent, const lv_font_t *font, lv_color_t colour, const char *text )
 {
     lv_obj_t *label = lv_label_create( parent );
-    lv_obj_set_style_text_font( label, font, 0 );
-    lv_obj_set_style_text_color( label, colour, 0 );
+    Styles::text( label, font, colour );
     lv_label_set_text( label, text );
     return label;
 }

@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstring>
 
+#include "Styles.h"
 #include "Fonts.h"
 #include "Language.h"
 #include "AnalogClock.h"
@@ -49,9 +50,8 @@ static void centreAt( lv_obj_t *object, int x, int y )
 static lv_obj_t *createLabel( lv_obj_t *parent, const lv_font_t *font, lv_color_t colour )
 {
     lv_obj_t *label = lv_label_create( parent );
-    lv_obj_set_style_text_font( label, font, 0 );
-    lv_obj_set_style_text_color( label, colour, 0 );
-    lv_obj_set_style_text_align( label, LV_TEXT_ALIGN_CENTER, 0 );
+    Styles::text( label, font, colour );
+    Styles::centred( label );
     lv_label_set_text( label, "" );
     return label;
 }

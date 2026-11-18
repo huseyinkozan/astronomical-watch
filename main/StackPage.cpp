@@ -1,5 +1,6 @@
 #include "StackPage.h"
 
+#include "Styles.h"
 #include "Fonts.h"
 #include "Panel.h"
 #include "PartOrder.h"
@@ -79,8 +80,7 @@ void StackPage::buildHeader( const char *title )
     lv_obj_add_event_cb( line, onDrawHeaderLine, LV_EVENT_DRAW_MAIN, nullptr );
 
     lv_obj_t *name = lv_label_create( m_tile );
-    lv_obj_set_style_text_font( name, &jetbrains_mono_26, 0 );
-    lv_obj_set_style_text_color( name, lv_color_white(), 0 );
+    Styles::text( name, &jetbrains_mono_26, lv_color_white() );
     lv_label_set_text( name, title );
     lv_obj_align( name, LV_ALIGN_TOP_MID, 0, 2 );
     lv_obj_set_clickable( name, false );
