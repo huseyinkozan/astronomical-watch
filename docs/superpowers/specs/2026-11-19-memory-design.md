@@ -95,6 +95,15 @@ one object (a colour that follows a state) may stay local.
 - LVGL is used only in its own task, with the display lock (as today).
 - Screenshots (`tools/screenshot.py`, fixed scene) of every page before step 1 are the reference.
 
+## Result (2026-11-19)
+
+Built on branch `memory` (not pushed): the table template (information page 43 → 8 KB), shared
+styles (about 1 KB), far pages freed. With the portal on and the settings page shown 86 KB of
+internal heap stay free (49 KB before; the goal of about 90 KB was not quite reached: the next
+large item is the LVGL draw buffers, 2 × 33 KB). Every page's screenshot equals the reference
+except the setup-info part's "y", whose descender the old label cut. Waiting for the owner: the
+pressed look of rows and buttons, swipes across all pages, the portal under load from a phone.
+
 ## Decided by the builder (2026-11-19, to be checked by the owner)
 
 - **The heap goal's measure:** with the portal on and idle (right after it starts), at least about

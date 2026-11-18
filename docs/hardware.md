@@ -588,6 +588,18 @@ PSRAM is not enabled; LVGL and Wi-Fi share the internal heap.
   for the portal's requests (one at a time in the server task) and the corner table in flash:
   44.8 KB free with the portal on, largest block 31.7 KB (2026-11-15, host commands `W 2`..`W 4`,
   then `P`).
+- 2026-11-19 (development build, 9 KB LVGL and 8 KB main stacks): where the heap goes in active
+  mode, from 281 KB free before LVGL: LVGL with the panel and touch 92 KB (the two 40-line draw
+  buffers of 33 KB are most of it), the tiles, corner gauges and brightness control 3.4 KB, the
+  clock page 20 KB, the watch face 8.5 KB; 155 KB free with the face shown. The information page
+  cost 43 KB as about 150 labels; drawn by one object per table part (`main/TablePart.*`) 8 KB.
+  The settings page 12.5 KB, 11.7 KB with shared styles (`main/Styles.*`; LVGL's per-object
+  styles turned out cheap: about 1 KB in all). The setup portal's Wi-Fi takes 57 KB.
+- The information and settings pages are freed when neither they nor a neighbour is shown, and
+  the information page also while the portal runs and it is not shown: **86 KB free with the
+  portal on** (49 KB before these changes), the lowest of a session 75 KB. After the portal has
+  run once, the largest free block stays at 37–43 KB (94 KB before); a free-and-build round of
+  the pages without the portal leaves it unchanged, so the Wi-Fi start and stop cause it.
 
 ### Astronomy computation time [HW] (M10, 2026-11-12; `main/Astronomy.*`, `main/Hijri.*`)
 The ESP32-S3 has a single-precision FPU only; the astronomy code uses `double`, done in software.

@@ -231,7 +231,10 @@ in its flash partition. Read both over USB: `python tools/read_events.py`, then
   until the next wake (the Hijri month of a day chosen on the Gregorian one is computed then). Only the watch face and its neighbours are
   built at a PWR wake; a page is built when its neighbour is shown (`Display::ensureBuilt`): a
   glance at the time built 1.6 s of pages before (now 0.5 s), and the built pages left too little
-  heap for the portal's Wi-Fi. Marks along
+  heap for the portal's Wi-Fi. The information and settings pages are freed again far from the
+  shown page, and the information page while the portal runs (`Display::keepPages`); their
+  tables are one object per part (`main/TablePart.*`) and repeated looks share their styles
+  (`main/Styles.*`), so that the internal heap stays free (docs/hardware.md). Marks along
   the right edge, in line with the corner gauges, show the position (`main/PageMarks.*`; on the
   face only for a moment after a step); marks along the bottom edge show the page while the
   pages are swiped sideways. Large dark-grey areas shimmer on
