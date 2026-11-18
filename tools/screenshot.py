@@ -36,10 +36,10 @@ import serial
 
 
 # The always-on face of each default face page (FaceConfig::defaults): "A <page>" draws one.
-ALWAYS_ON_STYLES = 2
+ALWAYS_ON_STYLES = 3
 # The watch face page and its default face pages (FaceConfig::defaults): "F <page>" shows one.
 FACE_PAGE = 0
-FACE_STYLES = 2
+FACE_STYLES = 3
 
 
 def writePng(path, width, height, rows):

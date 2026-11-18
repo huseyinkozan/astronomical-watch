@@ -23,6 +23,8 @@ public:
 
 private:
     static void onDrawSegments( lv_event_t *event );
+    static void onDrawAnalog( lv_event_t *event );
+    bool secondsHand() const;
     static void onDrawWeekday( lv_event_t *event );
     void apply();
     void paintMoon();
@@ -30,6 +32,7 @@ private:
     lv_obj_t *m_root = nullptr;
     lv_obj_t *m_mono = nullptr;      // HH:MM in JetBrains Mono
     lv_obj_t *m_segments = nullptr;  // HH:MM in seven segments (onDrawSegments)
+    lv_obj_t *m_analog = nullptr;    // the analog clock (onDrawAnalog)
     lv_obj_t *m_texts[FaceConfig::TextSlotCount] = {};
     lv_obj_t *m_cornerTexts[FaceConfig::SlotCount - FaceConfig::TextSlotCount] = {};
     lv_obj_t *m_moon = nullptr;
@@ -39,6 +42,7 @@ private:
     FaceText::Inputs m_inputs = {};
     int m_hour = -1;  // the time the clock objects show
     int m_minute = -1;
+    int m_second = -1;
     int m_weekdayShown = -1;  // 0 Monday
     int m_moonPercent = -1;
     bool m_waxing = true;

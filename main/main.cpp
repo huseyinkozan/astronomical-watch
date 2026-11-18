@@ -125,7 +125,7 @@ static int s_hostLineLength = 0;
 // portal on or off and "N" makes a new portal password (so that a published screenshot does not
 // show the one in use). "D" shows a fixed scene until the next reset (s_sceneInputs); "F <page>"
 // shows that face page without changing the setting, "G <page> <slot> <item>" puts an item into
-// a slot of it (not saved); "O" ends active mode as a PWR press does. Only "E" (the event log,
+// a slot of it, "H <page> <style>" makes it analog (neither saved); "O" ends active mode as a PWR press does. Only "E" (the event log,
 // read by tools/read_events.py) also works without CONFIG_WATCH_DEV_LOGGING.
 // Returns true when a command arrived: like a touch, it restarts the display timeout, so that
 // the watch stays in active mode while tools/screenshot.py works.
@@ -193,6 +193,10 @@ static bool pollHostCommands()
         }
         int slot = 0;
         int item = 0;
+        if ( sscanf( s_hostLine, "H %d %d", &style, &item ) == 2 ) {
+            s_display.setFaceAnalog( style, item );
+            continue;
+        }
         if ( sscanf( s_hostLine, "G %d %d %d", &style, &slot, &item ) == 3 ) {
             s_display.setFaceSlot( style, slot, item );
             continue;

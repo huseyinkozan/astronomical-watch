@@ -6,6 +6,7 @@
 
 #include "Fonts.h"
 #include "Language.h"
+#include "AnalogClock.h"
 #include "Panel.h"
 #include "SevenSegment.h"
 
@@ -18,6 +19,8 @@ static const uint32_t s_slideMs = 250;
 
 // The Large template's clock.
 static const float s_segmentHeight = 122;
+static const float s_analogRadius = 140;
+static const lv_color_t s_minorMark = LV_COLOR_MAKE( 0x70, 0x70, 0x70 );
 
 static const int s_moonSize = 37;
 static const int s_weekdayRadius = 20;
@@ -60,6 +63,11 @@ void FacePage::build( lv_obj_t *tile )
     m_segments = createBox( m_root, segmentsWidth, static_cast<int>( s_segmentHeight ) );
     centreAt( m_segments, FaceConfig::CentreX, FaceConfig::ClockY );
     lv_obj_add_event_cb( m_segments, onDrawSegments, LV_EVENT_DRAW_MAIN, this );
+    // A margin for the hands' round ends.
+    const int analogSize = 2 * static_cast<int>( s_analogRadius ) + 16;
+    m_analog = createBox( m_root, analogSize, analogSize );
+    centreAt( m_analog, FaceConfig::CentreX, FaceConfig::ClockY );
+    lv_obj_add_event_cb( m_analog, onDrawAnalog, LV_EVENT_DRAW_MAIN, this );
 
     for ( int i = 0; i < FaceConfig::TextSlotCount; ++i ) {
         m_texts[i] = createLabel( m_root, &jetbrains_mono_26, i == FaceConfig::TopEdge || i == FaceConfig::BottomEdge
@@ -116,6 +124,7 @@ void FacePage::apply()
     const bool digital = m_page.clock == FaceConfig::DigitalClock;
     lv_obj_set_hidden( m_mono, !( digital && m_page.digital == FaceConfig::MonoDigits ) );
     lv_obj_set_hidden( m_segments, !( digital && m_page.digital == FaceConfig::SevenSegment ) );
+    lv_obj_set_hidden( m_analog, m_page.clock != FaceConfig::AnalogClock );
     bool moon = false;
     bool weekday = false;
     for ( int i = 0; i < 4; ++i ) {
@@ -159,9 +168,13 @@ void FacePage::update( const FaceText::Inputs &inputs )
     }
     if ( timeValid != ( m_hour >= 0 ) || inputs.hour != m_hour || inputs.minute != m_minute ) {
         lv_obj_invalidate( m_segments );
+        lv_obj_invalidate( m_analog );
+    } else if ( secondsHand() && inputs.second != m_second ) {
+        lv_obj_invalidate( m_analog );
     }
     m_hour = timeValid ? inputs.hour : -1;
     m_minute = timeValid ? inputs.minute : -1;
+    m_second = timeValid ? inputs.second : -1;
 
     char text[64];
     const int advance = lv_font_get_glyph_width( &jetbrains_mono_26, 'M', 0 );
@@ -296,6 +309,67 @@ static void drawSegment( lv_layer_t *layer, const SevenSegment::Hexagon &hexagon
             end.p[c].y = p[index].y + ( base ? inward * dy : 0 );
         }
         lv_draw_triangle( layer, &end );
+    }
+}
+
+bool FacePage::secondsHand() const
+{
+    return m_page.clock == FaceConfig::AnalogClock && ( m_page.flags & FaceConfig::SecondsHandFlag ) != 0;
+}
+
+// The analog clock of the page's style: the marks always, the hands with a valid time.
+void FacePage::onDrawAnalog( lv_event_t *event )
+{
+    const FacePage *face = static_cast<FacePage *>( lv_event_get_user_data( event ) );
+    lv_layer_t *layer = lv_event_get_layer( event );
+    lv_area_t area;
+    lv_obj_get_coords( face->m_analog, &area );
+    const float cx = ( area.x1 + area.x2 + 1 ) / 2.0f;
+    const float cy = ( area.y1 + area.y2 + 1 ) / 2.0f;
+    const bool timeValid = face->m_hour >= 0;
+    AnalogClock::Segment segments[AnalogClock::MaxSegments];
+    const int count = AnalogClock::segments( face->m_page.analog, s_analogRadius, timeValid ? face->m_hour : 0,
+                                             timeValid ? face->m_minute : 0, timeValid ? face->m_second : 0,
+                                             timeValid && face->secondsHand(), segments, AnalogClock::MaxSegments );
+    lv_draw_line_dsc_t line;
+    lv_draw_line_dsc_init( &line );
+    for ( int i = 0; i < count; ++i ) {
+        const AnalogClock::Segment &segment = segments[i];
+        const bool mark = segment.role == AnalogClock::MajorMark || segment.role == AnalogClock::MinorMark;
+        if ( !mark && !timeValid ) {
+            continue;
+        }
+        line.color = lv_color_white();
+        if ( segment.role == AnalogClock::MinorMark ) {
+            line.color = s_minorMark;
+        } else if ( segment.role == AnalogClock::SecondHand || segment.role == AnalogClock::OneHand ) {
+            line.color = s_amber;
+        }
+        line.width = static_cast<int32_t>( segment.width );
+        line.round_start = mark ? 0 : 1;
+        line.round_end = mark ? 0 : 1;
+        line.p1.x = cx + segment.x0;
+        line.p1.y = cy + segment.y0;
+        line.p2.x = cx + segment.x1;
+        line.p2.y = cy + segment.y1;
+        lv_draw_line( layer, &line );
+    }
+    if ( !timeValid ) {
+        return;
+    }
+    // The centre: white, amber in the middle under a seconds hand.
+    lv_draw_rect_dsc_t disc;
+    lv_draw_rect_dsc_init( &disc );
+    disc.bg_color = lv_color_white();
+    disc.radius = LV_RADIUS_CIRCLE;
+    const int x = static_cast<int>( cx );
+    const int y = static_cast<int>( cy );
+    const lv_area_t outer = { x - 6, y - 6, x + 6, y + 6 };
+    lv_draw_rect( layer, &disc, &outer );
+    if ( face->secondsHand() ) {
+        disc.bg_color = s_amber;
+        const lv_area_t inner = { x - 3, y - 3, x + 3, y + 3 };
+        lv_draw_rect( layer, &disc, &inner );
     }
 }
 

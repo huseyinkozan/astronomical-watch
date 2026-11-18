@@ -131,6 +131,8 @@ public:
     void showFaceStyle( int page );
     // Puts `item` into `slot` of face page `page` (not saved) and shows the page.
     void setFaceSlot( int page, int slot, int item );
+    // Makes face page `page` analog in `style` (not saved) and shows it.
+    void setFaceAnalog( int page, int style );
     // Shows the brightness control as a long press does (a screenshot of it).
     void showLevels();
 
