@@ -8,7 +8,9 @@
 #include "Sky.h"
 #include "Axp2101.h"
 #include "BatteryLog.h"
+#include "ClockPages.h"
 #include "Corners.h"
+#include "Dates.h"
 #include "EventLog.h"
 #include "esp_core_dump.h"
 #include "esp_ota_ops.h"
@@ -202,6 +204,7 @@ static bool pollHostCommands()
         }
         if ( s_hostLine[0] == 'D' && s_hostLine[1] == '\0' ) {
             s_scene = true;
+            s_faceTableStale = true;
             s_display.setScene( true );
             // Never the real place in a published picture.
             char sceneDate[24];
@@ -309,6 +312,18 @@ static void buildFaceTable( const Astronomy::Observer &observer, int offsetMinut
     for ( int i = 0; i < s_worldClock.count() && i < FaceTable::CityCount; ++i ) {
         s_faceTable.setCity( i, s_worldClock.city( i ).name, s_worldClock.city( i ).zone );
     }
+#if CONFIG_WATCH_DEV_LOGGING
+    if ( s_scene ) {
+        // The published pictures show the scene's counters and cities, not the owner's.
+        for ( int i = 0; i < FaceTable::CounterCount; ++i ) {
+            s_faceTable.setCounter( i, ClockPages::SceneCounterNames[Language::current()][i],
+                                    Dates::dayNumber( 2026, 6, 21 ) + ClockPages::SceneCounterDays[i] );
+        }
+        for ( int i = 0; i < FaceTable::CityCount; ++i ) {
+            s_faceTable.setCity( i, ClockPages::SceneCityNames[i], { ClockPages::SceneCityOffsets[i], { 0, 0 }, { 0, 0 } } );
+        }
+    }
+#endif
     s_faceTableStale = false;
 }
 

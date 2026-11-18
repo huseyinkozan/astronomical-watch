@@ -62,6 +62,13 @@ public:
     // The fixed scene of the screenshots: sample stopwatch and countdown states.
     void setScene( bool scene );
 
+    // The scene's world clock cities (offsets on its 21 June) and day counters (days from 21 June
+    // 2026, names by Language::Id), also for the face slots.
+    static const char *const SceneCityNames[WorldClock::ShownCities];
+    static const int SceneCityOffsets[WorldClock::ShownCities];
+    static const char *const SceneCounterNames[2][4];
+    static const int SceneCounterDays[4];
+
     // Development (host command "B <name>"): presses a button or tap area as a finger would:
     // lap, start (stopwatch), +1, +5, +10, reset, go (countdown); g<, g>, h<, h> step the
     // calendars as a sideways swipe does.

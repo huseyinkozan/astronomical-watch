@@ -694,6 +694,12 @@ bool ClockPages::press( const char *name )
     return false;
 }
 
+const char *const ClockPages::SceneCityNames[WorldClock::ShownCities] = { "London", "New York", "Tokyo" };
+const int ClockPages::SceneCityOffsets[WorldClock::ShownCities] = { 60, -240, 540 };
+const char *const ClockPages::SceneCounterNames[2][4] = { { "Trip home", "Ramadan", "Birthday", "Wedding" },
+                                                          { "Eve dönüş", "Ramazan", "Doğum günü", "Düğün" } };
+const int ClockPages::SceneCounterDays[4] = { 12, 232, 143, -4212 };
+
 void ClockPages::setScene( bool scene )
 {
     m_scene = scene;
@@ -702,23 +708,18 @@ void ClockPages::setScene( bool scene )
     }
     // Sample states for the screenshots; the saved timers and cities stay as they are. The
     // offsets are those of the scene's date (21 June: summer time in London and New York).
-    static const char *s_cityNames[WorldClock::ShownCities] = { "London", "New York", "Tokyo" };
-    static const int s_cityOffsets[WorldClock::ShownCities] = { 60, -240, 540 };
     m_cityCount = WorldClock::ShownCities;
     for ( int i = 0; i < WorldClock::ShownCities; ++i ) {
         m_cities[i] = {};
-        strlcpy( m_cities[i].name, s_cityNames[i], sizeof( m_cities[i].name ) );
-        m_cities[i].zone.offset = s_cityOffsets[i];
+        strlcpy( m_cities[i].name, SceneCityNames[i], sizeof( m_cities[i].name ) );
+        m_cities[i].zone.offset = SceneCityOffsets[i];
     }
     lv_obj_set_hidden( m_cityHint, true );
     // Day counters relative to the scene's 21 June 2026.
-    static const char *s_counterNames[2][4] = { { "Trip home", "Ramadan", "Birthday", "Wedding" },
-                                                { "Eve dönüş", "Ramazan", "Doğum günü", "Düğün" } };
-    static const int s_counterDays[4] = { 12, 232, 143, -4212 };
     m_counterCount = 4;
     for ( int i = 0; i < 4; ++i ) {
-        strlcpy( m_counters[i].name, s_counterNames[Language::current()][i], sizeof( m_counters[i].name ) );
-        m_counters[i].day = Dates::dayNumber( 2026, 6, 21 ) + s_counterDays[i];
+        strlcpy( m_counters[i].name, SceneCounterNames[Language::current()][i], sizeof( m_counters[i].name ) );
+        m_counters[i].day = Dates::dayNumber( 2026, 6, 21 ) + SceneCounterDays[i];
     }
     lv_obj_set_hidden( m_counterHint, true );
     setText( m_stopwatchTime, "12:34.56" );

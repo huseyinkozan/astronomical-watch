@@ -166,11 +166,12 @@ void FacePage::update( const FaceText::Inputs &inputs )
     char text[64];
     const int advance = lv_font_get_glyph_width( &jetbrains_mono_26, 'M', 0 );
     for ( int i = 0; i < FaceConfig::TextSlotCount; ++i ) {
+        const int width = FaceConfig::textWidth( m_page, i );
         FaceText::text( static_cast<FaceConfig::TextItem>( m_page.items[i] ), m_page.parameters[i], inputs, text,
-                        sizeof( text ) );
+                        sizeof( text ), width / advance );
         // Cut to whole characters: a slot text never runs into the corner gauges. A space left
         // at the end would move the centred text aside.
-        int bytes = FaceText::fit( text, advance, FaceConfig::textWidth( m_page, i ) );
+        int bytes = FaceText::fit( text, advance, width );
         while ( bytes > 0 && text[bytes - 1] == ' ' ) {
             --bytes;
         }

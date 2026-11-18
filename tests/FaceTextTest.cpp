@@ -183,6 +183,22 @@ int main()
         }
     }
 
+    // A text cut to its slot loses letters of its name, never digits of its number: "Eve dönüş 1"
+    // would tell a wrong count.
+    FaceTable trip = table;
+    trip.setCounter( 0, "Eve dönüş", day + 12 );
+    trip.setCity( 0, "Rio de Janeiro", { -180, { 0, 0 }, { 0, 0 } } );
+    FaceText::Inputs tripIn = in;
+    tripIn.table = &trip;
+    FaceText::text( FaceConfig::DayCounter, 0, tripIn, text, sizeof( text ), 11 );
+    checkText( "counter cut keeps the number", text, "Eve dönü 12" );
+    FaceText::text( FaceConfig::CityTime, 0, tripIn, text, sizeof( text ), 11 );
+    checkText( "city cut keeps the time", text, "Rio d 13:19" );
+    FaceText::text( FaceConfig::NextSunEvent, 0, tripIn, text, sizeof( text ), 11 );
+    checkText( "event cut keeps the time left", text, "Gün ba 1:21" );
+    FaceText::text( FaceConfig::DayCounter, 0, tripIn, text, sizeof( text ), 20 );
+    checkText( "counter that fits stays whole", text, "Eve dönüş 12" );
+
     // Whole characters that fit a width (Review Focus 1).
     check( "fit: ten characters", FaceText::fit( "21 Haziran Pazar", 16, 160 ) == 10 );
     check( "fit: Turkish letters count once", FaceText::fit( "Gün batımı", 16, 64 ) == 5 );

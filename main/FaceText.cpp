@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 
 #include "Dates.h"
 #include "FaceTable.h"
@@ -39,11 +40,25 @@ int FaceText::fit( const char *text, int advance, int maxWidth )
     return bytes;
 }
 
+// "name value" in at most `maxCharacters`: the name loses letters (and a space they leave at its
+// end), the value none.
+static void nameAndValue( const char *name, const char *value, int maxCharacters, char *out, int size )
+{
+    const int valueLength = static_cast<int>( strlen( value ) );  // digits and signs: one byte each
+    int bytes = FaceText::fit( name, 1, maxCharacters - valueLength - 1 );
+    while ( bytes > 0 && name[bytes - 1] == ' ' ) {
+        --bytes;
+    }
+    snprintf( out, size, "%.*s %s", bytes, name, value );
+}
+
 // "Name h:mm": the event's name and the time left, rounded to the minute as the faces did.
-static void timeLeft( const char *name, int64_t seconds, char *out, int size )
+static void timeLeft( const char *name, int64_t seconds, int maxCharacters, char *out, int size )
 {
     const int minutes = static_cast<int>( ( seconds + 30 ) / 60 );
-    snprintf( out, size, "%s %d:%02d", name, minutes / 60, minutes % 60 );
+    char value[16];
+    snprintf( value, sizeof( value ), "%d:%02d", minutes / 60, minutes % 60 );
+    nameAndValue( name, value, maxCharacters, out, size );
 }
 
 // Today's Hijri date from the table; after midnight the next day while the month certainly
@@ -74,7 +89,8 @@ static void altitude( bool valid, double degrees, char *out, int size )
     }
 }
 
-void FaceText::text( FaceConfig::TextItem item, int parameter, const Inputs &in, char *out, int size )
+void FaceText::text( FaceConfig::TextItem item, int parameter, const Inputs &in, char *out, int size,
+                     int maxCharacters )
 {
     out[0] = '\0';
     if ( !in.timeValid ) {
@@ -103,12 +119,14 @@ void FaceText::text( FaceConfig::TextItem item, int parameter, const Inputs &in,
     case FaceConfig::NextSunEvent:
         if ( in.skyValid && in.table != nullptr && in.table->next( in.now, false, event ) ) {
             const bool sunset = event.kind == FaceTable::SunsetEvent;
-            timeLeft( Language::text( sunset ? Language::Sunset : Language::Sunrise ), event.time - in.now, out, size );
+            timeLeft( Language::text( sunset ? Language::Sunset : Language::Sunrise ), event.time - in.now,
+                      maxCharacters, out, size );
         }
         break;
     case FaceConfig::NextPrayer:
         if ( in.skyValid && in.table != nullptr && in.table->next( in.now, true, event ) ) {
-            timeLeft( Language::text( s_prayerNames[event.kind - FaceTable::PrayerEvent] ), event.time - in.now, out, size );
+            timeLeft( Language::text( s_prayerNames[event.kind - FaceTable::PrayerEvent] ), event.time - in.now,
+                      maxCharacters, out, size );
         }
         break;
     case FaceConfig::Seconds:
@@ -124,14 +142,18 @@ void FaceText::text( FaceConfig::TextItem item, int parameter, const Inputs &in,
              in.table->cityNames[parameter][0] != '\0' ) {
             const int64_t local = in.now + Zones::offsetAt( in.table->cityZones[parameter], in.now ) * 60;
             const int minuteOfDay = static_cast<int>( ( ( local % 86400 ) + 86400 ) % 86400 / 60 );
-            snprintf( out, size, "%s %02d:%02d", in.table->cityNames[parameter], minuteOfDay / 60, minuteOfDay % 60 );
+            char value[8];
+            snprintf( value, sizeof( value ), "%02d:%02d", minuteOfDay / 60, minuteOfDay % 60 );
+            nameAndValue( in.table->cityNames[parameter], value, maxCharacters, out, size );
         }
         break;
     case FaceConfig::DayCounter:
         if ( in.table != nullptr && parameter >= 0 && parameter < FaceTable::CounterCount &&
              in.table->counterNames[parameter][0] != '\0' ) {
             const int today = Dates::dayNumber( in.year, in.month, in.day );
-            snprintf( out, size, "%s %d", in.table->counterNames[parameter], in.table->counterDays[parameter] - today );
+            char value[12];
+            snprintf( value, sizeof( value ), "%d", in.table->counterDays[parameter] - today );
+            nameAndValue( in.table->counterNames[parameter], value, maxCharacters, out, size );
         }
         break;
     case FaceConfig::SunAltitude:

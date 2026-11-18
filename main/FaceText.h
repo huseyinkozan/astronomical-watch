@@ -32,8 +32,11 @@ public:
         bool altitudesValid;
     };
 
-    // `parameter`: the city or day counter of a CityTime or DayCounter slot.
-    static void text( FaceConfig::TextItem item, int parameter, const Inputs &in, char *out, int size );
+    // `parameter`: the city or day counter of a CityTime or DayCounter slot. A text of a name and
+    // a number (an event and the time left, a city and its time, a counter) longer than
+    // `maxCharacters` loses letters of the name, never of the number; others are left to fit().
+    static void text( FaceConfig::TextItem item, int parameter, const Inputs &in, char *out, int size,
+                      int maxCharacters = 64 );
 
     // Empty for the corners drawn as icons (MoonIcon, WeekdayIcon).
     static void corner( FaceConfig::CornerItem item, const Inputs &in, char *out, int size );

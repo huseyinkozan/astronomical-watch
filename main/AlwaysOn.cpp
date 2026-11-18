@@ -250,10 +250,11 @@ const AlwaysOn::Face &AlwaysOn::layout( const Look &look, const Rtc::DateTime &t
         if ( !FaceConfig::alwaysOnSlot( page, slot ) ) {
             continue;
         }
+        const int width = FaceConfig::textWidth( page, slot );
         FaceText::text( static_cast<FaceConfig::TextItem>( page.items[slot] ), page.parameters[slot], in, text,
-                        sizeof( text ) );
+                        sizeof( text ), width / aodSmallAdvance );
         // Cut as on the active face; a space left at the end would move the text aside.
-        int bytes = FaceText::fit( text, aodSmallAdvance, FaceConfig::textWidth( page, slot ) );
+        int bytes = FaceText::fit( text, aodSmallAdvance, width );
         while ( bytes > 0 && text[bytes - 1] == ' ' ) {
             --bytes;
         }
