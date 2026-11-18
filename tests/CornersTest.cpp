@@ -222,6 +222,13 @@ int main()
         check( "next sunrise in the polar day: empty", g[0], Corners::Empty, 0, 0 );
         check( "day gauge in the polar day: full", g[1], Corners::Day, 0, 1000 );
         check( "battery in any corner", g[2], Corners::BatteryHigh, 0, 680 );
+        // Day or night for the always-on brightness, whatever the corners show.
+        ++s_checks;
+        if ( Corners::night( sky, at( 0, 12, 0 ) ) || !Corners::night( sky, at( 0, 23, 0 ) ) || Corners::night( polar, at( 0, 23, 0 ) ) ) {
+            ++s_failures;
+            printf( "FAIL night: noon %d, 23:00 %d, polar day %d\n", Corners::night( sky, at( 0, 12, 0 ) ),
+                    Corners::night( sky, at( 0, 23, 0 ) ), Corners::night( polar, at( 0, 23, 0 ) ) );
+        }
     }
 
     printf( "Corners: %d checks, %d failures\n", s_checks, s_failures );

@@ -42,6 +42,7 @@ public:
     int hijriYear;
     int counterDays[CounterCount];
     char counterNames[CounterCount][NameLength];  // empty: no counter
+    int counterSavedDays[CounterCount];            // the day each was saved, 0: unknown
     Zone cityZones[CityCount];
     char cityNames[CityCount][NameLength];        // empty: no city
 
@@ -54,7 +55,7 @@ public:
     // days), else unknown. The counters and the cities stay.
     void follow( int day, int utcOffsetMinutes, const Astronomy::Observer &observer, int ishaAngle );
 
-    void setCounter( int index, const char *name, int day );
+    void setCounter( int index, const char *name, int day, int savedDay = 0 );
     void setCity( int index, const char *name, const Zone &zone );
 
     // The first sunrise or sunset (`prayer` false), or prayer time (true), after `now`; false when

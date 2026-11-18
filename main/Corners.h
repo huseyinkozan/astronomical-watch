@@ -149,6 +149,10 @@ public:
     static void compute( const Input &input, int64_t now, int batteryPercent, bool charging,
                          Gauge gauges[CornerCount] );
 
+    // Whether the Sun is down at `now` (the always-on face's night brightness), whatever the
+    // corners show; false without the sky.
+    static bool night( const Input &input, int64_t now );
+
     // The gauges of `items` (FaceConfig::GaugeItem by corner) with their `parameters`.
     static void compute( const Input &input, const Context &context, const uint8_t items[CornerCount],
                          const uint8_t parameters[CornerCount], Gauge gauges[CornerCount] );

@@ -290,6 +290,19 @@ static Corners::Gauge gaugeOf( int item, int parameter, const Corners::Input &in
     return gauge;
 }
 
+bool Corners::night( const Input &input, int64_t now )
+{
+    bool up = false;
+    int passed = 0;
+    if ( !input.valid ) {
+        return false;
+    }
+    if ( progress( input.sun, now, up, passed ) ) {
+        return !up;
+    }
+    return input.sun.alwaysDown;
+}
+
 void Corners::compute( const Input &input, const Context &context, const uint8_t items[CornerCount],
                        const uint8_t parameters[CornerCount], Gauge gauges[CornerCount] )
 {

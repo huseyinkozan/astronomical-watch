@@ -95,7 +95,8 @@ public:
                   bool located );
 
     // The corner gauges, on every page.
-    void showCorners( const Corners::Gauge gauges[Corners::CornerCount] );
+    // `night`: the Sun is down (the brightness control names the night level).
+    void showCorners( const Corners::Gauge gauges[Corners::CornerCount], bool night );
 
     // The clock page's Hijri calendar: a month it asked for (ClockPages::takeHijriRequest), and
     // the month computed by the main task.

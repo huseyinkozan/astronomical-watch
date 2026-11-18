@@ -126,7 +126,7 @@ static int s_hostLineLength = 0;
 // show the one in use). "D" shows a fixed scene until the next reset (s_sceneInputs); "F <page>"
 // shows that face page without changing the setting, "G <page> <slot> <item>" puts an item into
 // a slot of it, "H <page> <style>" makes it analog, "J <page> <template>"
-// sets its template (none saved); "O" ends active mode as a
+// sets its template, "C <corner> <item> <parameter>" a corner gauge (none saved); "O" ends active mode as a
 // PWR press does; "U <0|1>" sets the PWR key's internal pull-up; "K" shows the brightness
 // control; "X <hex> <gap>" sets the panel's MADCTL and column gap (guided test "mirror"); "V <altitude>
 // <azimuth> <sun altitude>" puts the galactic centre and the Sun there for the face. Only
@@ -242,6 +242,14 @@ static bool pollHostCommands()
                 s_display.setPages( s_facePages );
             }
             s_display.showFaceStyle( style );
+            continue;
+        }
+        int gaugeParameter = 0;
+        if ( sscanf( s_hostLine, "C %d %d %d", &slot, &item, &gaugeParameter ) == 3 ) {
+            if ( slot >= 0 && slot < 4 && item >= 0 && item < FaceConfig::GaugeItemCount ) {
+                s_facePages.gauges[slot] = static_cast<uint8_t>( item );
+                s_facePages.gaugeParameters[slot] = static_cast<uint8_t>( gaugeParameter );
+            }
             continue;
         }
         if ( sscanf( s_hostLine, "G %d %d %d", &style, &slot, &item ) == 3 ) {
@@ -362,7 +370,8 @@ static void buildFaceTable( const Astronomy::Observer &observer, int offsetMinut
     s_faceTable = {};
     s_faceTable.build( s_skyDay, offsetMinutes, observer, ishaAngle );
     for ( int i = 0; i < s_dayCounters.count() && i < FaceTable::CounterCount; ++i ) {
-        s_faceTable.setCounter( i, s_dayCounters.counter( i ).name, s_dayCounters.counter( i ).day );
+        s_faceTable.setCounter( i, s_dayCounters.counter( i ).name, s_dayCounters.counter( i ).day,
+                                s_dayCounters.savedDay( i ) );
     }
     for ( int i = 0; i < s_worldClock.count() && i < FaceTable::CityCount; ++i ) {
         s_faceTable.setCity( i, s_worldClock.city( i ).name, s_worldClock.city( i ).zone );
@@ -422,6 +431,10 @@ static void fillLook( int page )
     }
     s_look = {};
     s_look.page = s_facePages.pages[page >= 0 && page < s_facePages.count ? page : 0];
+    for ( int i = 0; i < 4; ++i ) {
+        s_look.gauges[i] = s_facePages.gauges[i];
+        s_look.gaugeParameters[i] = s_facePages.gaugeParameters[i];
+    }
     s_look.dayBrightness = s_settings.value( Settings::AodDayBrightness );
     s_look.nightBrightness = s_settings.value( Settings::AodNightBrightness );
     s_look.language = s_settings.value( Settings::Language );
@@ -542,9 +555,24 @@ static void updateDisplay()
     updateSky( unixTime( time ), inputs );
     Corners::Gauge gauges[Corners::CornerCount] = {};
     const Corners::Input corners = s_skyValid ? Corners::fromSky( s_skyDay ) : Corners::Input {};
-    const bool charging = s_usbPower && s_pmu.charging();
-    Corners::compute( corners, unixTime( time ), batteryRead ? battery.percent : -1, charging, gauges );
-    s_display.showCorners( gauges );
+    Corners::Context context = {};
+    context.now = unixTime( time );
+    context.utcOffsetMinutes = inputs[2];
+    context.batteryPercent = batteryRead ? battery.percent : -1;
+    context.charging = s_usbPower && s_pmu.charging();
+    context.hijriDay = s_skyValid ? s_skyDay.hijri.day : 0;
+    const bool located = inputs[0] != 0 || inputs[1] != 0;
+    for ( int i = 0; i < Corners::CornerCount; ++i ) {
+        if ( s_facePages.gauges[i] == FaceConfig::SunAltitudeGauge && located && !context.sunAltitudeValid ) {
+            context.sunAltitude = Astronomy::sunPosition( context.now, { inputs[0] / 1e6, inputs[1] / 1e6 } ).altitude;
+            context.sunAltitudeValid = true;
+        }
+        context.counterDays[i] = s_faceTable.counterDays[i];
+        context.counterSavedDays[i] = s_faceTable.counterSavedDays[i];
+        context.counterValid[i] = s_faceTable.counterNames[i][0] != '\0';
+    }
+    Corners::compute( corners, context, s_facePages.gauges, s_facePages.gaugeParameters, gauges );
+    s_display.showCorners( gauges, Corners::night( corners, context.now ) );
 }
 
 #if CONFIG_WATCH_SETUP_PORTAL
@@ -644,6 +672,23 @@ static void correctRtcRate( const Portal::Received &received )
 // has stopped, so that every page is built in it.
 static bool s_languageChanged = false;
 
+// Today's local day (days since 1970-01-01) for a counter's saved day: the browser's time when
+// the page sent it, else the RTC's; 0 when neither is known.
+static int localDayNow( const Portal::Received &received )
+{
+    int64_t utc = 0;
+    if ( received.timeValid ) {
+        utc = received.unixMs / 1000;
+    } else {
+        Rtc::DateTime time = {};
+        bool stopped = false;
+        if ( s_rtc.read( time, stopped ) == ESP_OK && !stopped && time.month != 0 ) {
+            utc = unixTime( time );
+        }
+    }
+    return utc > 0 ? static_cast<int>( ( utc + s_settings.value( Settings::UtcOffset ) * 60 ) / 86400 ) : 0;
+}
+
 static void applyPortalData( const Portal::Received &received )
 {
     const int language = s_settings.value( Settings::Language );
@@ -657,7 +702,7 @@ static void applyPortalData( const Portal::Received &received )
     s_display.refreshSettings();
     s_languageChanged = s_settings.value( Settings::Language ) != language;
     if ( received.countersValid ) {
-        s_dayCounters.set( received.counters, received.counterCount );
+        s_dayCounters.set( received.counters, received.counterCount, localDayNow( received ) );
         s_display.setCounters( s_dayCounters );
         s_faceTableStale = true;
     }

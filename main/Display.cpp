@@ -754,13 +754,13 @@ void Display::showSky( const Sky::Day &day, const Sky::Now &now, int utcOffsetMi
     bsp_display_unlock();
 }
 
-void Display::showCorners( const Corners::Gauge gauges[Corners::CornerCount] )
+void Display::showCorners( const Corners::Gauge gauges[Corners::CornerCount], bool night )
 {
     if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
         return;
     }
     m_corners.show( gauges );
-    m_night = gauges[Corners::TopLeft].kind == Corners::Night;
+    m_night = night;
     bsp_display_unlock();
 }
 

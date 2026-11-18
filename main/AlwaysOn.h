@@ -26,6 +26,8 @@ public:
     struct Look
     {
         FaceConfig::Page page;
+        uint8_t gauges[4];  // the corner gauges (FaceConfig::Pages)
+        uint8_t gaugeParameters[4];
         FaceTable table;
         bool skyValid;  // a location is set: the sky texts can be shown
         Astronomy::Observer observer;

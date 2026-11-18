@@ -710,17 +710,39 @@ int AlwaysOn::cycleStyle( uint32_t seconds )
 }
 #endif
 
+// The chosen corner gauges at `utcNow` (local time `offsetMinutes` ahead); the second gauge stays
+// empty on this face.
+static void computeGauges( const AlwaysOn::Look &look, int64_t utcNow, int offsetMinutes, int batteryPercent,
+                           bool charging, Corners::Gauge gauges[Corners::CornerCount] )
+{
+    Corners::Context context = {};
+    context.now = utcNow;
+    context.utcOffsetMinutes = offsetMinutes;
+    context.batteryPercent = batteryPercent;
+    context.charging = charging;
+    context.alwaysOn = true;
+    context.hijriDay = look.skyValid ? look.table.hijriDay : 0;
+    for ( int i = 0; i < Corners::CornerCount; ++i ) {
+        if ( look.gauges[i] == FaceConfig::SunAltitudeGauge && look.skyValid && !context.sunAltitudeValid ) {
+            context.sunAltitude = Astronomy::sunPosition( utcNow, look.observer ).altitude;
+            context.sunAltitudeValid = true;
+        }
+        context.counterDays[i] = look.table.counterDays[i];
+        context.counterSavedDays[i] = look.table.counterSavedDays[i];
+        context.counterValid[i] = look.table.counterNames[i][0] != '\0';
+    }
+    Corners::compute( look.corners, context, look.gauges, look.gaugeParameters, gauges );
+}
+
 #if CONFIG_WATCH_DEV_LOGGING
 void AlwaysOn::capture( const Look &look, int page )
 {
     const Rtc::DateTime time = { 2026, 6, 21, 19, 19, 0 };
     const int64_t utcNow = static_cast<int64_t>( Dates::dayNumber( 2026, 6, 21 ) ) * 86400 + ( 19 * 60 + 19 - 180 ) * 60;
     const Face &face = layout( look, time, utcNow, 92 );
-    // The scene's gauges: 91 % of the day, the battery at 92 %, the Moon 55 % through its pass
-    // and 45 % lit, waxing.
-    const Corners::Gauge gauges[Corners::CornerCount] = {
-        { 0, 910, Corners::Day, false }, { 0, 920, Corners::BatteryHigh, false }, { 0, 546, Corners::MoonUp, false },
-        { 0, 450, Corners::MoonLit, false } };
+    // The chosen gauges at the scene's moment, the battery at 92 %.
+    Corners::Gauge gauges[Corners::CornerCount] = {};
+    computeGauges( look, utcNow, 180, 92, false, gauges );
     Panel panel;
     panel.record();
     printf( "SHOT BEGIN -1 %d %d always-on-%d\n", Panel::WIDTH, Panel::HEIGHT, page );
@@ -807,9 +829,11 @@ uint64_t AlwaysOn::update( const Rtc::DateTime &time, int64_t utcNow, bool timeR
     }
     const Look &look = s_look;
     Corners::Gauge gauges[Corners::CornerCount] = {};
-    Corners::compute( look.corners, utcNow, batteryPercent, charging, gauges );
-    // The day level from sunrise to sunset (the day gauge), else the night level.
-    const int brightness = gauges[Corners::TopLeft].kind == Corners::Night ? look.nightBrightness : look.dayBrightness;
+    const int shownDay = Dates::dayNumber( shown.year, shown.month, shown.day );
+    const int64_t shownLocal = static_cast<int64_t>( shownDay ) * 86400 + shown.hour * 3600 + shown.minute * 60;
+    computeGauges( look, utcNow, static_cast<int>( ( shownLocal - shownUtc ) / 60 ), batteryPercent, charging, gauges );
+    // The day level from sunrise to sunset, else the night level (whatever the corners show).
+    const int brightness = Corners::night( look.corners, utcNow ) ? look.nightBrightness : look.dayBrightness;
     if ( !s_screenCleared ) {
         // Dim first: the panel still runs at the active-mode brightness.
         panel.setBrightness( brightness );

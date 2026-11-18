@@ -72,13 +72,14 @@ void FaceTable::follow( int day, int utcOffsetMinutes, const Astronomy::Observer
     localDay = day;
 }
 
-void FaceTable::setCounter( int index, const char *name, int day )
+void FaceTable::setCounter( int index, const char *name, int day, int savedDay )
 {
     if ( index < 0 || index >= CounterCount ) {
         return;
     }
     snprintf( counterNames[index], NameLength, "%s", name );
     counterDays[index] = day;
+    counterSavedDays[index] = savedDay;
 }
 
 void FaceTable::setCity( int index, const char *name, const Zone &zone )
