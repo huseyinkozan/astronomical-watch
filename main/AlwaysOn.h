@@ -64,9 +64,9 @@ public:
 
     // A drawn shape, on the screen before the burn-in shift: a 2 x 2 dot at (x0, y0), a disc or a
     // ring (`width` wide) of `radius` around it, a line to (x1, y1) `width` wide, or the Milky
-    // Way: the ring of radius x1 and `width` around (x0, y0) on the dot grid (y1 1: every second
-    // pixel, 0: every fourth, a lighter sky), inside the half disc of `radius` over the half
-    // arcs' horizon.
+    // Way: the ring of radius x1 around (x0, y0) on the dot grid (y1 1: every second pixel, 0:
+    // every fourth, a lighter sky) where MilkyWay::drawn() keeps it (the half disc of `radius`
+    // over the half arcs' horizon; `width` the hand's direction less 180 degrees).
     enum ShapeKind : uint8_t
     {
         DotShape,

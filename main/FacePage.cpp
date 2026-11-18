@@ -346,9 +346,7 @@ void FacePage::placeSky()
                                                 m_sky.sun.altitude, m_sky.south, FaceConfig::CentreX, s_horizonY );
     m_bandShown = milkyWay && band.shown;
     m_bandBright = band.bright;
-    m_band[0] = band.cx;
-    m_band[1] = band.cy;
-    m_band[2] = band.radius;
+    m_band = band;
     lv_obj_invalidate( m_arcs );
 }
 
@@ -528,15 +526,26 @@ void FacePage::onDrawWeekday( lv_event_t *event )
     }
 }
 
+// Whether `box` meets the part of the screen being drawn: LVGL draws the arcs object band by band,
+// and every rectangle it is given costs a draw task, also outside the band.
+static bool inClip( const lv_layer_t *layer, const lv_area_t &box )
+{
+    const lv_area_t &clip = layer->_clip_area;
+    return box.x2 >= clip.x1 && box.x1 <= clip.x2 && box.y2 >= clip.y1 && box.y1 <= clip.y2;
+}
+
 static void drawDot( lv_layer_t *layer, float x, float y, lv_color_t colour, int radius = 1 )
 {
+    const int32_t cx = static_cast<int32_t>( lroundf( x ) );
+    const int32_t cy = static_cast<int32_t>( lroundf( y ) );
+    const lv_area_t box = { cx - radius, cy - radius, cx + radius, cy + radius };
+    if ( !inClip( layer, box ) ) {
+        return;
+    }
     lv_draw_rect_dsc_t dot;
     lv_draw_rect_dsc_init( &dot );
     dot.bg_color = colour;
     dot.radius = LV_RADIUS_CIRCLE;
-    const int32_t cx = static_cast<int32_t>( lroundf( x ) );
-    const int32_t cy = static_cast<int32_t>( lroundf( y ) );
-    const lv_area_t box = { cx - radius, cy - radius, cx + radius, cy + radius };
     lv_draw_rect( layer, &dot, &box );
 }
 
@@ -552,32 +561,44 @@ static void drawDottedArc( lv_layer_t *layer, float cx, float cy, float radius, 
     }
 }
 
-// The Milky Way: the parts of the band's circle inside the half disc over the horizon, as arcs.
-static void drawBand( lv_layer_t *layer, int originX, int originY, const float band[3], bool bright )
+// The Milky Way: the part of the band's circle that MilkyWay::drawn() keeps, as one arc.
+static void drawBand( lv_layer_t *layer, int originX, int originY, const MilkyWay::Band &band, bool bright )
 {
+    // Around the observer's own angle on the circle: the kept part lies within 60 degrees of it
+    // and may pass 0 degrees.
+    const float observer = std::atan2( s_horizonY - band.cy, FaceConfig::CentreX - band.cx ) * 180.0f / static_cast<float>( M_PI );
+    int first = 1000;
+    int last = -1000;
+    lv_area_t box = { 10000, 10000, -10000, -10000 };
+    for ( int step = -60; step <= 60; ++step ) {
+        const float a = ( observer + step ) * static_cast<float>( M_PI ) / 180.0f;
+        const float x = band.cx + band.radius * cosf( a );
+        const float y = band.cy + band.radius * sinf( a );
+        if ( !MilkyWay::drawn( band, x, y, FaceConfig::CentreX, s_horizonY, s_bandClip ) ) {
+            continue;
+        }
+        first = LV_MIN( first, step );
+        last = LV_MAX( last, step );
+        box.x1 = LV_MIN( box.x1, originX + static_cast<int32_t>( x ) - s_bandWidth );
+        box.y1 = LV_MIN( box.y1, originY + static_cast<int32_t>( y ) - s_bandWidth );
+        box.x2 = LV_MAX( box.x2, originX + static_cast<int32_t>( x ) + s_bandWidth );
+        box.y2 = LV_MAX( box.y2, originY + static_cast<int32_t>( y ) + s_bandWidth );
+    }
+    if ( first > last || !inClip( layer, box ) ) {
+        return;
+    }
     lv_draw_arc_dsc_t arc;
     lv_draw_arc_dsc_init( &arc );
     arc.color = s_band;
     arc.opa = bright ? 115 : 51;  // 45 % or 20 %
     arc.width = s_bandWidth;
-    arc.center.x = originX + static_cast<int32_t>( lroundf( band[0] ) );
-    arc.center.y = originY + static_cast<int32_t>( lroundf( band[1] ) );
-    arc.radius = static_cast<uint16_t>( band[2] + s_bandWidth / 2 );
-    int runStart = -1;
-    for ( int degree = 0; degree <= 360; ++degree ) {
-        const float a = degree * static_cast<float>( M_PI ) / 180.0f;
-        const float x = band[0] + band[2] * cosf( a ) - FaceConfig::CentreX;
-        const float y = band[1] + band[2] * sinf( a ) - s_horizonY;
-        const bool inside = degree < 360 && y < 0 && x * x + y * y < s_bandClip * s_bandClip;
-        if ( inside && runStart < 0 ) {
-            runStart = degree;
-        } else if ( !inside && runStart >= 0 ) {
-            arc.start_angle = runStart;
-            arc.end_angle = degree;
-            lv_draw_arc( layer, &arc );
-            runStart = -1;
-        }
-    }
+    arc.center.x = originX + static_cast<int32_t>( lroundf( band.cx ) );
+    arc.center.y = originY + static_cast<int32_t>( lroundf( band.cy ) );
+    arc.radius = static_cast<uint16_t>( band.radius + s_bandWidth / 2 );
+    // LVGL takes an end below the start as an arc through 360.
+    arc.start_angle = static_cast<int32_t>( lroundf( std::fmod( observer + first + 720, 360.0f ) ) );
+    arc.end_angle = static_cast<int32_t>( lroundf( std::fmod( observer + last + 1 + 720, 360.0f ) ) );
+    lv_draw_arc( layer, &arc );
 }
 
 // The orbits (Full arcs) or the paths over the horizon (Half arcs), the Sun, and the Moon below

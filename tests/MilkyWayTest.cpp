@@ -83,6 +83,43 @@ int main()
     band = MilkyWay::band( 0, 180, -30, false, ox, oy );
     check( "centre exactly on the horizon: hidden", !band.shown );
 
+    // The hand stays over the horizon: a centre in the half of the sky behind the screen (south of
+    // the equator the screen faces north) is folded up, east and west kept on their sides.
+    band = MilkyWay::band( 40, 180, -30, false, ox, oy );
+    check( "north, due south: the hand straight up", std::fabs( band.hand - 270 ) < 0.01f );
+    band = MilkyWay::band( 40, 110, -30, true, ox, oy );
+    check( "south of the equator, south-east: the hand up and to the right (east)",
+           band.hand > 270 && band.hand < 360 );
+    band = MilkyWay::band( 40, 246, -30, true, ox, oy );
+    check( "south of the equator, west: the hand up and to the left", band.hand > 180 && band.hand < 270 );
+    // Only the part that leaves the observer along the hand: a nearly flat hand's circle comes
+    // back over the horizon on the other side, which is not drawn.
+    for ( int i = 0; i < 2; ++i ) {
+        const double azimuth = i == 0 ? 92.2 : 279.8;
+        band = MilkyWay::band( 30, azimuth, -30, true, ox, oy );
+        int ahead = 0;
+        int behind = 0;
+        for ( int degree = 0; degree < 360; ++degree ) {
+            const float a = degree * static_cast<float>( M_PI ) / 180.0f;
+            const float x = band.cx + band.radius * cosf( a );
+            const float y = band.cy + band.radius * sinf( a );
+            if ( !MilkyWay::drawn( band, x, y, ox, oy, 160 ) ) {
+                continue;
+            }
+            const float h = band.hand * static_cast<float>( M_PI ) / 180.0f;
+            if ( ( x - ox ) * cosf( h ) + ( y - oy ) * sinf( h ) > 0 ) {
+                ++ahead;
+            } else {
+                ++behind;
+            }
+        }
+        char name[64];
+        snprintf( name, sizeof( name ), "south of the equator, azimuth %.1f: one piece along the hand", azimuth );
+        check( name, ahead > 10 && behind == 0 );
+    }
+    check( "below the horizon: not drawn", !MilkyWay::drawn( band, ox + 10, oy + 5, ox, oy, 160 ) );
+    check( "outside the half disc: not drawn", !MilkyWay::drawn( band, ox, oy - 170, ox, oy, 160 ) );
+
     printf( "Milky Way: %d checks, %d failures\n", s_checks, s_failures );
     return s_failures == 0 ? 0 : 1;
 }

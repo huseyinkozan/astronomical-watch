@@ -3,6 +3,7 @@
 #include "Corners.h"
 #include "FaceConfig.h"
 #include "FaceText.h"
+#include "MilkyWay.h"
 #include "Sky.h"
 #include "lvgl.h"
 
@@ -65,7 +66,7 @@ private:
     bool m_located = false;
     int64_t m_skyMinute = -1;
     Corners::ArcPlace m_bodies[2] = {};  // the Sun, the Moon
-    float m_band[3] = {};   // the band's centre and radius
+    MilkyWay::Band m_band = {};
     bool m_bandShown = false;
     bool m_bandBright = false;
     int m_moonPercent = -1;

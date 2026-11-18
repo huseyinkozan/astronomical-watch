@@ -298,8 +298,8 @@ static void addArcs( AlwaysOn::Face &face, const AlwaysOn::Look &look, int64_t u
         const MilkyWay::Band band = MilkyWay::band( centre.altitude, centre.azimuth, sunAltitude, south, cx, cy );
         if ( band.shown ) {
             addShape( face, AlwaysOn::BandShape, AlwaysOn::Blue, static_cast<int>( lroundf( band.cx ) ),
-                      static_cast<int>( lroundf( band.cy ) ), s_bandClip, s_bandWidth, static_cast<int>( band.radius ),
-                      band.bright ? 1 : 0 );
+                      static_cast<int>( lroundf( band.cy ) ), s_bandClip, static_cast<int>( lroundf( band.hand - 180 ) ),
+                      static_cast<int>( band.radius ), band.bright ? 1 : 0 );
         }
     }
     const AlwaysOn::Colour colours[2] = { AlwaysOn::Yellow, AlwaysOn::White };
@@ -370,7 +370,7 @@ const AlwaysOn::Face &AlwaysOn::layout( const Look &look, const Rtc::DateTime &t
     face.height = Panel::HEIGHT - 2 * s_shift;
     const FaceConfig::Page &page = look.page;
     const FaceConfig::ClockPlace place = FaceConfig::clockPlace( page.layout );
-    // The arcs first: the clock and the slots are drawn over them.
+    // The arcs' shapes are drawn after every sprite (render()); they stay clear of the slots.
     if ( page.layout == FaceConfig::FullArcs || page.layout == FaceConfig::HalfArcs ) {
         addArcs( face, look, utcNow );
     }
@@ -576,8 +576,13 @@ static void drawShape( uint16_t *pixels, int bandTop, int rows, int left, int wi
         const int clipX = shiftX + FaceConfig::CentreX;
         const int clipY = shiftY + s_horizonY;
         const int r = shape.radius;
-        const int bandRadius = shape.x1;
-        const int half = shape.width / 2;
+        MilkyWay::Band band = {};
+        band.cx = static_cast<float>( x0 );
+        band.cy = static_cast<float>( y0 );
+        band.radius = static_cast<float>( shape.x1 );
+        band.hand = static_cast<float>( shape.width + 180 );
+        const int inner = ( shape.x1 - s_bandWidth / 2 ) * ( shape.x1 - s_bandWidth / 2 );
+        const int outer = ( shape.x1 + s_bandWidth / 2 ) * ( shape.x1 + s_bandWidth / 2 );
         const int grid = shape.y1 != 0 ? 2 : 4;
         const int firstRow = ( clipY - r > bandTop ? clipY - r : bandTop );
         const int endRow = ( clipY < bandTop + rows ? clipY : bandTop + rows );
@@ -585,17 +590,12 @@ static void drawShape( uint16_t *pixels, int bandTop, int rows, int left, int wi
             if ( y % grid != 0 ) {
                 continue;
             }
-            for ( int x = clipX - r; x <= clipX + r; x += 1 ) {
-                if ( x % grid != 0 ) {
-                    continue;
-                }
-                const int ex = x - clipX;
-                const int ey = y - clipY;
-                if ( ex * ex + ey * ey > r * r ) {
-                    continue;
-                }
-                const float d = std::sqrt( static_cast<float>( ( x - x0 ) * ( x - x0 ) + ( y - y0 ) * ( y - y0 ) ) );
-                if ( d >= bandRadius - half && d <= bandRadius + half ) {
+            // The screen's grid (x a multiple of `grid`), so that the dots stay still.
+            for ( int x = ( clipX - r ) / grid * grid; x <= clipX + r; x += grid ) {
+                const int d = ( x - x0 ) * ( x - x0 ) + ( y - y0 ) * ( y - y0 );
+                if ( d >= inner && d <= outer && MilkyWay::drawn( band, static_cast<float>( x ), static_cast<float>( y ),
+                                                                  static_cast<float>( clipX ), static_cast<float>( clipY ),
+                                                                  static_cast<float>( r ) ) ) {
                     putPixel( pixels, bandTop, rows, left, width, x, y, colour );
                 }
             }
