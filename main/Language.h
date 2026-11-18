@@ -27,17 +27,15 @@ public:
     static const char *shortMonth( int month );      // Jun, Haz
     static const char *hijriMonth( int month );      // Muharram, Muharrem
 
-    // Dates in the order of the language: "Sunday 21 June" / "21 Haziran Pazar"
-    // (weekday < 0: none), "21 June" / "21 Haziran" and "Sun 21 Jun 2026" / "21 Haz 2026 Paz".
+    // A date in the order of the language: "Sunday 21 June" / "21 Haziran Pazar" (weekday < 0:
+    // none), "21 June" / "21 Haziran".
     static void longDate( char *text, size_t size, int weekday, int day, int month );
-    static void shortDate( char *text, size_t size, int weekday, int day, int month, int year );
 
     enum Text
     {
         // Watch face.
         Sunset,
         Sunrise,
-        InTime,  // "in %d:%02d"
         // Settings page.
         ScreenOff,
         AlwaysOnRow,
@@ -52,7 +50,6 @@ public:
         Never,
         Seconds,  // "%d s"
         Minutes,  // "%d min"
-        LanguageName,
         // Setup page.
         WifiSetup,
         Network,

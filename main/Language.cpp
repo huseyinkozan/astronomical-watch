@@ -30,7 +30,6 @@ static const char *s_texts[][2] = {
     // Watch face.
     { "Sunset", "Gün batımı" },
     { "Sunrise", "Gün doğumu" },
-    { "in %d:%02d", "%d:%02d sonra" },
     // Settings page.
     { "Screen off", "Ekran" },
     { "Always-on", "Bekleme" },
@@ -45,7 +44,6 @@ static const char *s_texts[][2] = {
     { "Never", "Asla" },
     { "%d s", "%d sn" },
     { "%d min", "%d dk" },
-    { "English", "Türkçe" },
     // Setup page.
     { "Wi-Fi setup", "Kurulum" },
     { "Network", "Ağ" },
@@ -241,15 +239,6 @@ void Language::longDate( char *text, size_t size, int weekday, int day, int mont
         snprintf( text, size, "%d %s %s", day, monthName( month ), dayName( weekday ) );
     } else {
         snprintf( text, size, "%s %d %s", dayName( weekday ), day, monthName( month ) );
-    }
-}
-
-void Language::shortDate( char *text, size_t size, int weekday, int day, int month, int year )
-{
-    if ( s_language == Turkish ) {
-        snprintf( text, size, "%d %s %d %s", day, shortMonth( month ), year, shortDay( weekday ) );
-    } else {
-        snprintf( text, size, "%s %d %s %d", shortDay( weekday ), day, shortMonth( month ), year );
     }
 }
 
