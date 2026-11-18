@@ -43,14 +43,13 @@ extern const char s_updateEnd[] asm( "_binary_update_html_gz_end" );
 // Field names of the save request, one per Settings::Item.
 static const char *s_fieldNames[] = { "timeout", "alwaysOn", "devMode",    "autoOff", "usbStayOn", "language",
                                                          "offset",  "lat",      "lon",        "hijri", "isha",
-                                                         "face",    "aod",      "faceItems",  "aodItems",
+                                                         "face",
                                                          "brightness", "aodDay", "aodNight",
                                                          "chg1",    "aft1",     "chg2",       "aft2",
                                                          // Set by the watch itself; the page never sends them.
                                                          "rtcOffset", "rtcSet",
                                                          "clockOrder", "clockHidden", "infoOrder", "infoHidden",
-                                                         "settingsOrder", "faceOrder", "faceHidden", "aodOrder",
-                                                         "aodHidden",
+                                                         "settingsOrder",
                                                          // Set by the watch itself.
                                                          "pwrPullUp", "unplugged",
                                                          "settingsHidden" };
@@ -347,27 +346,25 @@ esp_err_t Portal::onState( httpd_req_t *request )
     char *json = s_buffer;
     const size_t jsonSize = sizeof( s_buffer );
     snprintf( json, jsonSize,
-              "{\"timeout\":%d,\"alwaysOn\":%d,\"brightness\":%d,\"autoOff\":%d,\"face\":%d,\"aod\":%d,"
-              "\"offset\":%d,\"lat\":%.6f,\"lon\":%.6f,\"hijri\":%d,\"faceItems\":%d,\"aodItems\":%d,"
+              "{\"timeout\":%d,\"alwaysOn\":%d,\"brightness\":%d,\"autoOff\":%d,\"face\":%d,"
+              "\"offset\":%d,\"lat\":%.6f,\"lon\":%.6f,\"hijri\":%d,"
               "\"aodDay\":%d,\"aodNight\":%d,\"devMode\":%d,\"usbStayOn\":%d,\"isha\":%d,\"language\":%d,"
               "\"clockOrder\":%d,\"clockHidden\":%d,\"infoOrder\":%d,\"infoHidden\":%d,"
-              "\"settingsOrder\":%d,\"faceOrder\":%d,\"faceHidden\":%d,\"aodOrder\":%d,\"aodHidden\":%d,"
+              "\"settingsOrder\":%d,\"settingsHidden\":%d,"
               "\"version\":\"%s\",\"battery\":%d,\"usb\":%d,\"updateMin\":%d,\"coreDump\":%d,"
               "\"zone\":\"%s\",\"place\":\"%s\",\"cities\":[",
               settings.value( Settings::DisplayTimeout ), settings.value( Settings::AlwaysOnFace ),
               settings.value( Settings::Brightness ), settings.value( Settings::AutoOff ),
-              settings.value( Settings::FaceStyle ), settings.value( Settings::AodStyle ),
+              settings.value( Settings::FaceStyle ),
               settings.value( Settings::UtcOffset ), settings.value( Settings::Latitude ) / 1e6,
               settings.value( Settings::Longitude ) / 1e6, settings.value( Settings::HijriMethod ),
-              settings.value( Settings::FaceItems ), settings.value( Settings::AodItems ),
               settings.value( Settings::AodDayBrightness ), settings.value( Settings::AodNightBrightness ),
               settings.value( Settings::DevMode ), settings.value( Settings::UsbStayOn ),
               settings.value( Settings::IshaAngle ), settings.value( Settings::Language ),
               settings.value( Settings::ClockOrder ),
               settings.value( Settings::ClockHidden ), settings.value( Settings::InfoOrder ),
               settings.value( Settings::InfoHidden ), settings.value( Settings::SettingsOrder ),
-              settings.value( Settings::FaceOrder ), settings.value( Settings::FaceHidden ),
-              settings.value( Settings::AodOrder ), settings.value( Settings::AodHidden ),
+              settings.value( Settings::SettingsHidden ),
               esp_app_get_description()->version, portal->m_batteryPercent, portal->m_usb ? 1 : 0, UpdateMinPercent,
               portal->m_hasCoreDump ? 1 : 0,
               world.homeZoneName(),

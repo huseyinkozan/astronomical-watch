@@ -14,6 +14,7 @@
 #include "esp_ota_ops.h"
 #include "DeepSleep.h"
 #include "Display.h"
+#include "FaceStore.h"
 #include "Motion.h"
 #include "Panel.h"
 #include "Peripherals.h"
@@ -860,8 +861,14 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
     }
     s_peripherals.sleepTouch( bus );
     AlwaysOn::Look look = {};
-    look.style = s_settings.value( Settings::AodStyle );
-    look.items = s_settings.value( Settings::AodItems );
+    // Until the always-on face draws the face page itself: the digit set nearest to its clock.
+    {
+        FaceConfig::Pages pages = {};
+        FaceStore::load( pages );
+        const int page = s_settings.value( Settings::FaceStyle ) < pages.count ? s_settings.value( Settings::FaceStyle ) : 0;
+        look.style = pages.pages[page].digital == FaceConfig::SevenSegment ? 2 : 1;
+        look.items = AlwaysOn::MoonItem | AlwaysOn::DateItem;
+    }
     look.dayBrightness = s_settings.value( Settings::AodDayBrightness );
     look.nightBrightness = s_settings.value( Settings::AodNightBrightness );
     look.language = s_settings.value( Settings::Language );
@@ -1008,6 +1015,9 @@ extern "C" void app_main( void )
         // preparation, as in runs A to D: nothing switches the panel off before deep sleep.
 #else
         s_pmu.setPanelPower( true );
+        FaceConfig::Pages pages = {};
+        FaceStore::load( pages );
+        s_display.setPages( pages );
         s_displayOn = s_display.start( s_settings );
         // A new image from the portal is kept once it has drawn its pages; a reset before this
         // returns to the previous one.

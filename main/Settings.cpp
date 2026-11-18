@@ -41,10 +41,7 @@ static const ItemInfo s_items[Settings::ItemCount] = {
     { "longitude_ud", 0, 0, {}, -180000000, 180000000 },
     { "hijri_method", 0, 2, { 0, 1 }, 0, 0 },
     { "isha_angle", 17, 2, { 17, 16 }, 0, 0 },
-    { "face_style", 0, 0, {}, 0, 3 },
-    { "aod_style", 0, 0, {}, 0, 4 },
-    { "face_items", 7, 0, {}, 0, 7 },
-    { "aod_items", 3, 0, {}, 0, 3 },
+    { "face_style", 0, 0, {}, 0, 7 },
     { "brightness", CONFIG_WATCH_DISPLAY_BRIGHTNESS, 0, {}, 5, 100 },
     { "aod_day_pct", CONFIG_WATCH_AOD_DAY_BRIGHTNESS, 0, {}, 1, 100 },
     { "aod_night_pct", CONFIG_WATCH_AOD_NIGHT_BRIGHTNESS, 0, {}, 1, 100 },
@@ -60,10 +57,6 @@ static const ItemInfo s_items[Settings::ItemCount] = {
     { "info_order", 0, 0, {}, 0, 16777215 },
     { "info_hidden", 0, 0, {}, 0, 255 },
     { "set_order", 0, 0, {}, 0, 16777215 },
-    { "face_order", 0, 0, {}, 0, 16777215 },
-    { "face_hidden", 0, 0, {}, 0, 255 },
-    { "aod_order", 0, 0, {}, 0, 16777215 },
-    { "aod_hidden", 0, 0, {}, 0, 255 },
     { "pwr_pullup", 0, 2, { 0, 1 }, 0, 0 },
     { "unplug_min", 0, 0, {}, 0, 70000000 },
     { "set_hidden", 0, 0, {}, 0, 255 },
@@ -120,13 +113,13 @@ void Settings::load()
     for ( int i = 0; i < ItemCount; ++i ) {
         m_savedValues[i] = m_values[i];
     }
-    ESP_LOGI( TAG, "Settings: timeout %d s, always-on %d, brightness %d %%, auto off %d min, face %d, always-on "
-              "style %d, UTC offset %d min, location %d, %d (micro-degrees), Hijri method %d, face items %d, "
-              "always-on items %d, always-on brightness %d %% by day, %d %% by night, development mode %d",
+    ESP_LOGI( TAG, "Settings: timeout %d s, always-on %d, brightness %d %%, auto off %d min, face page %d, UTC "
+              "offset %d min, location %d, %d (micro-degrees), Hijri method %d, always-on brightness %d %% by "
+              "day, %d %% by night, development mode %d",
               m_values[DisplayTimeout], m_values[AlwaysOnFace], m_values[Brightness],
-              m_values[AutoOff], m_values[FaceStyle], m_values[AodStyle], m_values[UtcOffset], m_values[Latitude],
-              m_values[Longitude], m_values[HijriMethod], m_values[FaceItems], m_values[AodItems],
-              m_values[AodDayBrightness], m_values[AodNightBrightness], m_values[DevMode] );
+              m_values[AutoOff], m_values[FaceStyle], m_values[UtcOffset], m_values[Latitude],
+              m_values[Longitude], m_values[HijriMethod], m_values[AodDayBrightness], m_values[AodNightBrightness],
+              m_values[DevMode] );
 }
 
 void Settings::save()

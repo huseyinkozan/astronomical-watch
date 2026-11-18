@@ -20,10 +20,7 @@ public:
         Longitude,       // micro-degrees, east positive
         HijriMethod,     // Hijri::Method: 0 local crescent visibility, 1 Diyanet
         IshaAngle,       // the night prayer's Sun depression: 17 (Turkey) or 16 degrees
-        FaceStyle,       // active face layout: 0 classic, 1 day arc, 2 sky arcs, 3 dial
-        AodStyle,        // always-on style, an index of aodStyles (AodGlyphs.h)
-        FaceItems,       // bits of WatchFace::Item shown on the active face
-        AodItems,        // bits of AlwaysOn::Item shown on the always-on face
+        FaceStyle,       // the face page shown, an index of the pages (FaceConfig, FaceStore)
         Brightness,      // active-mode panel brightness, percent (a long press and a drag)
         AodDayBrightness,    // always-on panel brightness from sunrise to sunset, percent
         AodNightBrightness,  // and from sunset to sunrise
@@ -41,19 +38,14 @@ public:
         InfoOrder,
         InfoHidden,
         SettingsOrder,
-        FaceOrder,
-        FaceHidden,
-        AodOrder,
-        AodHidden,
         PowerKeyPullUp,  // 1: the ESP32's pull-up on the PWR key line, set by the watch when the
                          // board's resistor is missing (runActiveMode, DeepSleep)
         UnpluggedMinute, // when USB power last went away: minutes since 1970 UTC, 0 while present
         SettingsHidden,  // the settings page's hidden parts (PartOrder); the setup part always shows
         ItemCount
     };
-    // The items before this one are on the watch's settings page; FaceStyle and AodStyle are
-    // chosen by a vertical swipe on the face and the always-on page; all come from the setup
-    // portal too.
+    // The items before this one are on the watch's settings page; FaceStyle is chosen by a
+    // vertical swipe on the face; all come from the setup portal too.
     static const int PageItemCount = UtcOffset;
 
     // Reads the saved values. A missing value, or one that is not in the item's list, keeps the

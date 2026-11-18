@@ -1,5 +1,6 @@
 #include "Display.h"
 
+#include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include "Fonts.h"
@@ -49,14 +50,13 @@ static const int s_rowsPerPart = 4;
 // Page order, left to right.
 enum Page
 {
-    AlwaysOnPage,
     FacePage,
     ClockPage,     // world clock, timers and calendars, one over the other (ClockPages)
     InfoPage,      // the information parts, one over the other (InfoPart)
     SettingsPage,  // the settings, and under them the setup portal
     PageCount
 };
-static_assert( PageCount == 5, "Display.h sizes m_tiles and m_built for five pages" );
+static_assert( PageCount == 4, "Display.h sizes m_tiles and m_built for four pages" );
 
 enum SettingsPart
 {
@@ -79,7 +79,7 @@ struct Shot
     int part;
 };
 [[maybe_unused]] static const Shot s_shots[] = {
-    { "always-on", AlwaysOnPage, -1 }, { "face", FacePage, -1 },
+    { "face", FacePage, -1 },
     { "world", ClockPage, ClockPages::WorldPart }, { "stopwatch", ClockPage, ClockPages::StopwatchPart },
     { "timer", ClockPage, ClockPages::TimerPart }, { "gregorian", ClockPage, ClockPages::GregorianPart },
     { "hijri", ClockPage, ClockPages::HijriPart }, { "days", ClockPage, ClockPages::DaysPart },
@@ -260,44 +260,33 @@ bool Display::start( Settings &settings )
     }
     // The watch face and its neighbours now; the other pages when a neighbour is shown, so that
     // a glance at the time builds no more than it shows (ensureBuilt).
-    m_built[AlwaysOnPage] = true;
     m_built[FacePage] = true;
     m_built[ClockPage] = true;
     lv_obj_t *facePage = tiles[FacePage];
-    m_aodTile = tiles[AlwaysOnPage];
     m_faceTile = facePage;
-    m_aodPage.build( m_aodTile );
-    // A vertical swipe on these two pages steps the style; the pages themselves only swipe sideways.
-    // LVGL sends a gesture to the first ancestor that does not pass it on, so these keep it.
-    lv_obj_set_gesture_bubble( m_aodTile, false );
+    // A vertical swipe on the face steps the face page; the pages themselves only swipe sideways.
+    // LVGL sends a gesture to the first ancestor that does not pass it on, so the face keeps it.
     lv_obj_set_gesture_bubble( m_faceTile, false );
     // Content sliding past the edges must not make the pages scroll.
-    lv_obj_set_scrollable( m_aodTile, false );
     lv_obj_set_scrollable( m_faceTile, false );
-    lv_obj_add_event_cb( m_aodTile, onGesture, LV_EVENT_GESTURE, this );
     lv_obj_add_event_cb( m_faceTile, onGesture, LV_EVENT_GESTURE, this );
     lv_tileview_set_tile_by_index( pages, FacePage, 0, LV_ANIM_OFF );
     lv_obj_add_event_cb( pages, onPageChanged, LV_EVENT_VALUE_CHANGED, this );
     m_corners.build();
     buildBrightnessControl();
-    for ( int i = 0; i < 2; ++i ) {
-        lv_obj_t *tile = i == 0 ? m_aodTile : m_faceTile;
-        lv_obj_add_event_cb( tile, onBrightnessDrag, LV_EVENT_LONG_PRESSED, this );
-        lv_obj_add_event_cb( tile, onBrightnessDrag, LV_EVENT_PRESSING, this );
-        lv_obj_add_event_cb( tile, onBrightnessDrag, LV_EVENT_RELEASED, this );
-        lv_obj_add_event_cb( tile, onBrightnessDrag, LV_EVENT_PRESS_LOST, this );
-    }
+    lv_obj_add_event_cb( m_faceTile, onBrightnessDrag, LV_EVENT_LONG_PRESSED, this );
+    lv_obj_add_event_cb( m_faceTile, onBrightnessDrag, LV_EVENT_PRESSING, this );
+    lv_obj_add_event_cb( m_faceTile, onBrightnessDrag, LV_EVENT_RELEASED, this );
+    lv_obj_add_event_cb( m_faceTile, onBrightnessDrag, LV_EVENT_PRESS_LOST, this );
     m_clock.build( tiles[ClockPage] );
     m_clockTile = tiles[ClockPage];
     lv_obj_add_event_cb( m_clockTile, onClockPartChanged, LV_EVENT_VALUE_CHANGED, this );
 
     m_face.build( facePage );
-    m_face.setStyle( m_settings->value( Settings::FaceStyle ), m_settings->value( Settings::FaceItems ) );
-    // Over the page contents: the always-on page shows its marks, the face only after a step.
-    m_aodMarks.build( m_aodTile, AlwaysOn::StyleCount );
-    m_aodMarks.show( m_settings->value( Settings::AodStyle ) );
-    m_faceMarks.build( facePage, WatchFace::StyleCount );
+    // Over the page contents, shown only for a moment after a step.
+    m_faceMarks.build( facePage, FaceConfig::MaxPages );
     m_faceMarks.setVisible( false );
+    showFacePage( 0 );
     applyOrders();
     // On the top layer, so that they stay in place while the pages move.
     m_pageMarks.build( lv_layer_top(), PageCount, true );
@@ -416,14 +405,28 @@ void Display::buildSettingsPage()
     applyOrders();
 }
 
-int Display::shownStyles( bool alwaysOn, int parts[8] ) const
+void Display::setPages( const FaceConfig::Pages &pages )
 {
-    if ( alwaysOn ) {
-        return PartOrder::decode( m_settings->value( Settings::AodOrder ), m_settings->value( Settings::AodHidden ),
-                                  AlwaysOn::StyleCount, -1, parts );
+    const bool locked = m_started && bsp_display_lock( s_lockTimeoutMs );
+    m_facePages = pages;
+    if ( locked ) {
+        showFacePage( 0 );
+        bsp_display_unlock();
     }
-    return PartOrder::decode( m_settings->value( Settings::FaceOrder ), m_settings->value( Settings::FaceHidden ),
-                              WatchFace::StyleCount, -1, parts );
+}
+
+void Display::showFacePage( int direction )
+{
+    int list[FaceConfig::MaxPages] = {};
+    const int shown = FaceConfig::shown( m_facePages, list );
+    // A page left out (hidden, or removed in the portal) falls back to the first one shown.
+    if ( PartOrder::position( list, shown, m_settings->value( Settings::FaceStyle ) ) < 0 ) {
+        m_settings->setValue( Settings::FaceStyle, list[0] );
+    }
+    const int page = m_settings->value( Settings::FaceStyle );
+    m_faceMarks.setCount( shown );
+    m_faceMarks.show( PartOrder::position( list, shown, page ) );
+    m_face.show( m_facePages.pages[page], direction );
 }
 
 void Display::applyOrders()
@@ -446,18 +449,6 @@ void Display::applyOrders()
         shown = PartOrder::decode( m_settings->value( Settings::SettingsOrder ), m_settings->value( Settings::SettingsHidden ),
                                    SettingsPartCount, alwaysShown, parts );
         m_settingsPage.setOrder( parts, shown );
-    }
-    // A style left out falls back to the first one shown.
-    for ( int i = 0; i < 2; ++i ) {
-        const bool alwaysOn = i == 0;
-        const Settings::Item item = alwaysOn ? Settings::AodStyle : Settings::FaceStyle;
-        shown = shownStyles( alwaysOn, parts );
-        if ( PartOrder::position( parts, shown, m_settings->value( item ) ) < 0 ) {
-            m_settings->setValue( item, parts[0] );
-        }
-        PageMarks &marks = alwaysOn ? m_aodMarks : m_faceMarks;
-        marks.setCount( shown );
-        marks.show( PartOrder::position( parts, shown, m_settings->value( item ) ) );
     }
 }
 
@@ -686,14 +677,13 @@ void Display::showSky( const Sky::Day &day, const Sky::Now &now, int utcOffsetMi
         return;
     }
     m_sky.show( day, now, utcOffsetMinutes );
-    m_face.showSky( day, now, utcOffsetMinutes );
     m_day = day;
     m_now = now;
     m_offsetMinutes = utcOffsetMinutes;
     m_haveSky = true;
     m_moonPercent = static_cast<int>( day.phase.illumination * 100 + 0.5 );
     m_waxing = day.phase.elongation < 180;
-    refreshAlwaysOnPage( false );
+    m_face.setMoon( m_moonPercent, m_waxing );
     bsp_display_unlock();
 }
 
@@ -767,6 +757,9 @@ void Display::showBrightness( int percent )
     setBrightness( percent );
 }
 
+// After the long press the finger must move this far before the drag's direction counts.
+static const int s_axisPx = 20;
+
 void Display::onBrightnessDrag( lv_event_t *event )
 {
     Display *self = static_cast<Display *>( lv_event_get_user_data( event ) );
@@ -776,28 +769,21 @@ void Display::onBrightnessDrag( lv_event_t *event )
     if ( indev != nullptr ) {
         lv_indev_get_point( indev, &point );
     }
-    const bool alwaysOn = lv_event_get_current_target( event ) == self->m_aodTile;
     if ( code == LV_EVENT_LONG_PRESSED ) {
         self->m_adjusting = true;
-        self->m_adjustItem = !alwaysOn ? Settings::Brightness
-                                       : ( self->m_night ? Settings::AodNightBrightness : Settings::AodDayBrightness );
+        self->m_adjustAxisChosen = false;
+        self->m_adjustItem = Settings::Brightness;
         self->m_adjustStart = self->m_settings->value( self->m_adjustItem );
         self->m_adjustPercent = self->m_adjustStart;
+        self->m_adjustX = point.x;
         self->m_adjustY = point.y;
         // The finger may drift sideways: the pages must not swipe while the value is set.
         lv_obj_set_scrollable( self->m_pages, false );
-        // The always-on page stays undimmed, so that its brightness can be judged; the box goes
-        // to the bottom there.
-        lv_obj_set_style_bg_opa( self->m_brightnessShade, alwaysOn ? LV_OPA_TRANSP : LV_OPA_80, 0 );
-        lv_obj_align( self->m_brightnessBox, LV_ALIGN_TOP_MID, -10, alwaysOn ? 330 : 176 );
+        lv_obj_set_style_bg_opa( self->m_brightnessShade, LV_OPA_80, 0 );
+        lv_obj_align( self->m_brightnessBox, LV_ALIGN_TOP_MID, -10, 176 );
         // The active level is one for day and night; the period is shown for information.
-        const char *title = nullptr;
-        if ( alwaysOn ) {
-            title = Language::text( self->m_night ? Language::AodNight : Language::AodDay );
-        } else {
-            title = Language::text( self->m_night ? Language::BrightnessNight : Language::BrightnessDay );
-        }
-        lv_label_set_text( self->m_brightnessTitle, title );
+        lv_label_set_text( self->m_brightnessTitle,
+                           Language::text( self->m_night ? Language::BrightnessNight : Language::BrightnessDay ) );
         lv_obj_set_hidden( self->m_brightnessShade, false );
         lv_obj_set_hidden( self->m_brightnessBox, false );
         lv_obj_set_hidden( self->m_brightnessBar, false );
@@ -807,9 +793,28 @@ void Display::onBrightnessDrag( lv_event_t *event )
     if ( !self->m_adjusting ) {
         return;
     }
+    const int dx = point.x - self->m_adjustX;
+    const int dy = self->m_adjustY - point.y;
     if ( code == LV_EVENT_PRESSING ) {
+        if ( !self->m_adjustAxisChosen ) {
+            if ( abs( dx ) < s_axisPx && abs( dy ) < s_axisPx ) {
+                return;
+            }
+            self->m_adjustAxisChosen = true;
+            if ( abs( dx ) > abs( dy ) ) {
+                // Sideways: the always-on level of the moment, the face shown at that level (no
+                // shade), the box at the bottom.
+                self->m_adjustItem = self->m_night ? Settings::AodNightBrightness : Settings::AodDayBrightness;
+                self->m_adjustStart = self->m_settings->value( self->m_adjustItem );
+                lv_obj_set_style_bg_opa( self->m_brightnessShade, LV_OPA_TRANSP, 0 );
+                lv_obj_align( self->m_brightnessBox, LV_ALIGN_TOP_MID, -10, 330 );
+                lv_label_set_text( self->m_brightnessTitle,
+                                   Language::text( self->m_night ? Language::AodNight : Language::AodDay ) );
+            }
+        }
+        const bool alwaysOn = self->m_adjustItem != Settings::Brightness;
         const int minimum = alwaysOn ? 1 : 5;
-        int percent = self->m_adjustStart + ( self->m_adjustY - point.y ) * 100 / s_barHeight;
+        int percent = self->m_adjustStart + ( alwaysOn ? dx : dy ) * 100 / s_barHeight;
         percent = percent < minimum ? minimum : ( percent > 100 ? 100 : percent );
         if ( percent != self->m_adjustPercent ) {
             self->m_adjustPercent = percent;
@@ -832,7 +837,6 @@ void Display::onPageChanged( lv_event_t *event )
 {
     Display *display = static_cast<Display *>( lv_event_get_user_data( event ) );
     lv_obj_t *tile = lv_tileview_get_tile_active( display->m_pages );
-    display->m_corners.setAlwaysOnLook( tile == display->m_aodTile );
     display->updatePageSwipe();
     display->updateJoinCodeBrightness();
     // The next page beyond this one, while this one is looked at.
@@ -889,9 +893,8 @@ void Display::refreshSettings()
     if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
         return;
     }
-    m_aodShown[1] = -1;
     applyOrders();
-    m_face.setStyle( m_settings->value( Settings::FaceStyle ), m_settings->value( Settings::FaceItems ) );
+    showFacePage( 0 );
     for ( int i = 0; i < Settings::PageItemCount; ++i ) {
         showSetting( i );
     }
@@ -917,7 +920,6 @@ void Display::update( const Rtc::DateTime &time, int utcOffsetMinutes, const Bat
     if ( !bsp_display_lock( s_lockTimeoutMs ) ) {
         return;
     }
-    m_face.showTime( time );
     m_battery = battery;
     // The firmware never sets TZ, so mktime() works in UTC.
     tm fields = {};
@@ -931,7 +933,6 @@ void Display::update( const Rtc::DateTime &time, int utcOffsetMinutes, const Bat
 
     showBattery();
     m_localTime = time;
-    refreshAlwaysOnPage( false );
     bsp_display_unlock();
 }
 
@@ -1023,61 +1024,27 @@ void Display::showHijriMonth( const Hijri::Month &month, int today, int method )
     bsp_display_unlock();
 }
 
-void Display::refreshAlwaysOnPage( bool force, int direction )
-{
-    // Before the first update (or after a skipped one) the local time is still all zero.
-    if ( m_localTime.month == 0 ) {
-        return;
-    }
-    AlwaysOn::Look look = { m_settings->value( Settings::AodStyle ), m_settings->value( Settings::AodItems ),
-                            m_moonPercent, m_waxing, {}, 0, 0, m_settings->value( Settings::Language ) };
-    if ( m_haveSky ) {
-        look.corners = Corners::fromSky( m_day );
-    }
-    const int shown[4] = { m_localTime.hour * 60 + m_localTime.minute, look.style, look.items, look.moonPercent };
-    bool same = !force;
-    for ( int i = 0; i < 4; ++i ) {
-        same = same && m_aodShown[i] == shown[i];
-        m_aodShown[i] = shown[i];
-    }
-    if ( !same ) {
-        m_aodPage.show( look, m_localTime, m_now.time, direction );
-    }
-}
-
 void Display::onGesture( lv_event_t *event )
 {
     Display *display = static_cast<Display *>( lv_event_get_user_data( event ) );
     const lv_dir_t direction = lv_indev_get_gesture_dir( lv_indev_active() );
-    // A drag that sets the brightness is no style swipe.
+    // A drag that sets the brightness is no page swipe.
     if ( display->m_adjusting || ( direction != LV_DIR_TOP && direction != LV_DIR_BOTTOM ) ) {
         return;
     }
-    const bool alwaysOn = lv_event_get_current_target( event ) == display->m_aodTile;
-    const Settings::Item item = alwaysOn ? Settings::AodStyle : Settings::FaceStyle;
-    // Up: the next style shown; down: the one before. The choice is saved with the other
-    // settings when active mode ends.
-    int parts[PartOrder::MaxParts] = {};
-    const int shown = display->shownStyles( alwaysOn, parts );
+    // Up: the next page shown; down: the one before. The choice is saved with the other settings
+    // when active mode ends.
+    int list[FaceConfig::MaxPages] = {};
+    const int shown = FaceConfig::shown( display->m_facePages, list );
     if ( shown < 2 ) {
         return;
     }
     const int slide = direction == LV_DIR_TOP ? 1 : -1;
-    display->m_settings->setValue( item, PartOrder::step( parts, shown, display->m_settings->value( item ), slide ) );
-    const int position = PartOrder::position( parts, shown, display->m_settings->value( item ) );
-    ESP_LOGI( TAG, "%s style %d", alwaysOn ? "Always-on" : "Face", display->m_settings->value( item ) );
-    if ( alwaysOn ) {
-        display->refreshAlwaysOnPage( true, slide );
-        display->m_aodMarks.show( position );
-        return;
-    }
-    display->m_faceMarks.flash( position );
-    display->m_face.setStyle( display->m_settings->value( Settings::FaceStyle ),
-                              display->m_settings->value( Settings::FaceItems ), slide );
-    display->m_face.showTime( display->m_localTime );
-    if ( display->m_haveSky ) {
-        display->m_face.showSky( display->m_day, display->m_now, display->m_offsetMinutes );
-    }
+    const int page = PartOrder::step( list, shown, display->m_settings->value( Settings::FaceStyle ), slide );
+    display->m_settings->setValue( Settings::FaceStyle, page );
+    ESP_LOGI( TAG, "Face page %d", page );
+    display->m_faceMarks.flash( PartOrder::position( list, shown, page ) );
+    display->showFacePage( slide );
 }
 
 // Before each band goes to the panel: the corner gauges are written into it (CornerView), then
@@ -1120,16 +1087,12 @@ void Display::onFlushStart( lv_event_t *event )
 }
 
 #if CONFIG_WATCH_DEV_LOGGING
-void Display::showFaceStyle( int style )
+void Display::showFaceStyle( int page )
 {
-    if ( !m_started || !bsp_display_lock( 1000 ) ) {
+    if ( !m_started || page < 0 || page >= m_facePages.count || !bsp_display_lock( 1000 ) ) {
         return;
     }
-    m_face.setStyle( style, m_settings->value( Settings::FaceItems ) );
-    m_face.showTime( m_localTime );
-    if ( m_haveSky ) {
-        m_face.showSky( m_day, m_now, m_offsetMinutes );
-    }
+    m_face.show( m_facePages.pages[page] );
     bsp_display_unlock();
 }
 

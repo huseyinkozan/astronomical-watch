@@ -5,13 +5,13 @@
 
 #include "Rtc.h"
 #include "Settings.h"
-#include "AodPage.h"
 #include "ClockPages.h"
 #include "CornerView.h"
+#include "FaceConfig.h"
+#include "FacePage.h"
 #include "libs/qrcode/qrcodegen.h"
 #include "PageMarks.h"
 #include "StackPage.h"
-#include "WatchFace.h"
 #include "SkyPages.h"
 #include "lvgl.h"
 #include "sdkconfig.h"
@@ -72,6 +72,9 @@ public:
     // a settings row steps `settings` to the next value, in the LVGL task.
     bool start( Settings &settings );
 
+    // The face pages (FaceStore), before start() and after the setup portal saved them.
+    void setPages( const FaceConfig::Pages &pages );
+
     // Local time, its UTC offset in minutes, and the battery state.
     void update( const Rtc::DateTime &localTime, int utcOffsetMinutes, const Battery &battery );
 
@@ -116,8 +119,8 @@ public:
     void stop();
 
 #if CONFIG_WATCH_DEV_LOGGING
-    // Shows the watch face in `style` without changing the setting (tools/screenshot.py).
-    void showFaceStyle( int style );
+    // Shows face page `page` without changing the setting (tools/screenshot.py).
+    void showFaceStyle( int page );
 
     // The fixed scene of the screenshots: sample states on the clock page.
     void setScene( bool scene );
@@ -149,25 +152,22 @@ private:
     void buildSettingsPage();
     void showBattery();
     void applySetup();
-    // The orders and hidden parts set in the portal (PartOrder), on the stacked pages built so far
-    // and on the face and always-on styles.
+    // The orders and hidden parts set in the portal (PartOrder), on the stacked pages built so far.
     void applyOrders();
-    // The styles shown on the face (or always-on) page, in order; returns how many.
-    int shownStyles( bool alwaysOn, int parts[8] ) const;
-    lv_obj_t *m_tiles[5] = {};
-    bool m_built[5] = {};
+    // The face page of Settings::FaceStyle, one of those shown (FaceConfig::shown).
+    void showFacePage( int direction );
+    lv_obj_t *m_tiles[4] = {};
+    bool m_built[4] = {};
     Setup m_setup = {};
     char m_setupTexts[SetupInfoRows][40] = {};
-    // A long press and a vertical drag on the watch face sets the brightness; on the always-on
-    // page, the always-on brightness of the moment (day or night), shown at that level while
-    // dragging. Release saves the value (with the other settings when active mode ends).
+    // A long press on the watch face, then a drag: vertically the active brightness,
+    // sideways the always-on brightness of the moment (day or night), the panel at that level
+    // while dragging. The first movement decides which. Release saves the value (with the other
+    // settings when active mode ends).
     static void onBrightnessDrag( lv_event_t *event );
     void buildBrightnessControl();
 
     void showBrightness( int percent );
-    // Redraws the always-on page when the minute, the style, the items or the moon changed.
-    // `direction` as in AodPage::show (a swipe).
-    void refreshAlwaysOnPage( bool force, int direction = 0 );
     static void onSetupClicked( lv_event_t *event );
     lv_obj_t *createRow( lv_obj_t *parent, const char *name, lv_event_cb_t onClicked );
     void buildSetupPage( lv_obj_t *page );
@@ -180,7 +180,6 @@ private:
     lv_obj_t *m_pages = nullptr;
     SkyPages m_sky;
     ClockPages m_clock;
-    AodPage m_aodPage;
     CornerView m_corners;
     bool m_night = false;  // the day gauge shows the night: the always-on night level applies
     // Brightness control.
@@ -193,25 +192,25 @@ private:
     Settings::Item m_adjustItem = Settings::Brightness;
     int m_adjustStart = 0;
     int m_adjustPercent = 0;
+    int m_adjustX = 0;
     int m_adjustY = 0;
-    lv_obj_t *m_aodTile = nullptr;
+    bool m_adjustAxisChosen = false;
     lv_obj_t *m_faceTile = nullptr;
     lv_obj_t *m_clockTile = nullptr;
     StackPage m_info;
     StackPage m_settingsPage;
-    PageMarks m_aodMarks;
     PageMarks m_faceMarks;
     PageMarks m_pageMarks;  // the four pages, shown while they are swiped
     Rtc::DateTime m_localTime = {};
     int m_moonPercent = 0;
     bool m_waxing = true;
-    int m_aodShown[4] = { -1, -1, -1, -1 };  // minute of the day, style, items, moon percent
     void showSetting( int item );
 
     Settings *m_settings = nullptr;
     // Watch face page.
     bool m_started = false;
-    WatchFace m_face;
+    FacePage m_face;
+    FaceConfig::Pages m_facePages = {};
     // The last values shown, for a redraw after a face style change.
     Sky::Day m_day = {};
     Sky::Now m_now = {};
