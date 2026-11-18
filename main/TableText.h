@@ -23,6 +23,10 @@ public:
     bool set( int row, int cell, const char *text );
     const char *text( int row, int cell ) const;
 
+    // A full-width line in the room of the row's three cells (read back as cell 0); the same
+    // rules as set().
+    bool setLine( int row, const char *text );
+
     // The row's name and value colours (0xRRGGBB); false when they are the same.
     bool setColours( int row, uint32_t name, uint32_t value );
     uint32_t nameColour( int row ) const;
@@ -30,6 +34,11 @@ public:
 
     // Whether anything changed since the last call.
     bool takeChanged();
+
+    // The tops of a centred column, as LVGL's flex layout places it: the title (`titleHeight`),
+    // then `count` rows of `heights`, `gap` between any two, in an area `areaHeight` high.
+    // Returns the title's top and writes each row's top to `tops`.
+    static int columnTops( int titleHeight, const int *heights, int count, int gap, int areaHeight, int *tops );
 
     // `text` cut to `maxLetters` letters with "..." at the end when it is longer, as LVGL's dots
     // mode shows it.

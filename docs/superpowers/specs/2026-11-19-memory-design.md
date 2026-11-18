@@ -101,7 +101,9 @@ Built on branch `memory` (not pushed): the table template (information page 43 â
 styles (about 1 KB), far pages freed. With the portal on and the settings page shown 86 KB of
 internal heap stay free (49 KB before; the goal of about 90 KB was not quite reached: the next
 large item is the LVGL draw buffers, 2 Ã— 33 KB). Every page's screenshot equals the reference
-except the setup-info part's "y", whose descender the old label cut. Waiting for the owner: the
+except the setup-info part's "y", whose descender the old label cut. A text wider than its cell
+(a long place in the method line) now wraps onto a second line and the column is centred again;
+the old labels cut it at both ends instead (seen on the board with a 31-byte place). Waiting for the owner: the
 pressed look of rows and buttons, swipes across all pages, the portal under load from a phone.
 
 ## Decided by the builder (2026-11-19, to be checked by the owner)

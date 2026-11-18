@@ -48,6 +48,9 @@ int main()
     check( "step wraps", PartOrder::step( shown, 3, 3, 1 ), 2 );
     check( "step back wraps", PartOrder::step( shown, 3, 2, -1 ), 3 );
     check( "step from a hidden part", PartOrder::step( shown, 3, 1, 1 ), 2 );
-    printf( "Part order: 18 checks, %d failures\n", failures );
+    // A page built again comes back on its part only while that part is still shown.
+    check( "keep a shown part", PartOrder::keep( shown, 3, 3 ), 3 );
+    check( "a hidden part gives the first shown", PartOrder::keep( shown, 3, 1 ), 2 );
+    printf( "Part order: 20 checks, %d failures\n", failures );
     return failures == 0 ? 0 : 1;
 }

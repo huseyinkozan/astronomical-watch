@@ -19,4 +19,8 @@ public:
 
     // The position of `part` in `parts`, -1 when it is not shown.
     static int position( const int *parts, int shown, int part );
+
+    // `part` while it is shown, else the first part shown (a page built again after its parts
+    // were hidden in the portal).
+    static int keep( const int *parts, int shown, int part );
 };

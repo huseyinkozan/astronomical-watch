@@ -487,12 +487,12 @@ void Display::ensureBuilt( int page )
     if ( page == InfoPage ) {
         buildInfoPage();
         if ( m_freedPart[page] >= 0 ) {
-            m_info.show( m_freedPart[page], 0 );
+            m_info.restore( m_freedPart[page] );
         }
     } else if ( page == SettingsPage ) {
         buildSettingsPage();
         if ( m_freedPart[page] >= 0 ) {
-            m_settingsPage.show( m_freedPart[page], 0 );
+            m_settingsPage.restore( m_freedPart[page] );
         }
     }
 }

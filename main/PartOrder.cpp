@@ -44,3 +44,8 @@ int PartOrder::step( const int *parts, int shown, int current, int steps )
     }
     return parts[( ( at + steps ) % shown + shown ) % shown];
 }
+
+int PartOrder::keep( const int *parts, int shown, int part )
+{
+    return position( parts, shown, part ) >= 0 || shown < 1 ? part : parts[0];
+}

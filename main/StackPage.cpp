@@ -195,3 +195,8 @@ void StackPage::forget()
     }
     m_marks.forget();
 }
+
+void StackPage::restore( int part )
+{
+    show( PartOrder::keep( m_order, m_shown, part ), 0 );
+}

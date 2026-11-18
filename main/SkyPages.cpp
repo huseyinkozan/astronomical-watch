@@ -31,7 +31,7 @@ static TablePart::Layout tableLayout( const char *title, int rowCount, const Tab
 void SkyPages::setPlace( const char *place )
 {
     snprintf( m_place, sizeof( m_place ), "%s", place );
-    m_sun.text().set( SunRows, 0, m_place );
+    m_sun.text().setLine( SunRows, m_place );
     m_sun.refresh();
 }
 
@@ -49,6 +49,17 @@ static void setText( TablePart &table, int row, int cell, const char *format, ..
     vsnprintf( text, sizeof( text ), format, arguments );
     va_end( arguments );
     table.text().set( row, cell, text );
+}
+
+// A full-width line of a table, formatted.
+static void setLineText( TablePart &table, int row, const char *format, ... )
+{
+    char text[TableText::Cells * TableText::CellSize];
+    va_list arguments;
+    va_start( arguments, format );
+    vsnprintf( text, sizeof( text ), format, arguments );
+    va_end( arguments );
+    table.text().setLine( row, text );
 }
 
 static void setLabelText( lv_obj_t *label, const char *format, ... )
@@ -127,7 +138,7 @@ void SkyPages::build( lv_obj_t *sunPage, lv_obj_t *twilightPage, lv_obj_t *praye
     // Where these times hold: a place changed by travel shows here.
     kinds[SunRows] = TablePart::Line;
     m_sun.text().setColours( SunRows, TableText::Grey, TableText::Grey );
-    m_sun.text().set( SunRows, 0, m_place );
+    m_sun.text().setLine( SunRows, m_place );
     m_sun.build( sunPage, tableLayout( Language::text( Language::Sun ), SunRows + 1, kinds ) );
 
     // Twilight: a header row, then the limits at dawn and at dusk, then the next season.
@@ -201,11 +212,11 @@ void SkyPages::show( const Sky::Day &day, const Sky::Now &now, int utcOffsetMinu
     }
     if ( now.nextPrayer >= 0 ) {
         formatDuration( text, sizeof( text ), now.secondsToPrayer );
-        setText( m_prayer, Sky::PrayerCount, 0, Language::text( Language::PrayerIn ), prayerName( now.nextPrayer ), text );
+        setLineText( m_prayer, Sky::PrayerCount, Language::text( Language::PrayerIn ), prayerName( now.nextPrayer ), text );
     } else {
-        m_prayer.text().set( Sky::PrayerCount, 0, "" );
+        m_prayer.text().setLine( Sky::PrayerCount, "" );
     }
-    setText( m_prayer, Sky::PrayerCount + 1, 0, Language::text( day.prayers.approximate ? Language::DiyanetApprox : Language::Diyanet ),
+    setLineText( m_prayer, Sky::PrayerCount + 1, Language::text( day.prayers.approximate ? Language::DiyanetApprox : Language::Diyanet ),
              m_place );
 
     // Time.
@@ -270,7 +281,7 @@ void SkyPages::show( const Sky::Day &day, const Sky::Now &now, int utcOffsetMinu
     }
 
     // Moon: row 0 is the phase, rows 1 to 7 the table, row 8 the Hijri date.
-    m_moon.text().set( 0, 0, Language::text( static_cast<Language::Text>( Language::PhaseNew + Sky::phaseIndex( day.phase ) ) ) );
+    m_moon.text().setLine( 0, Language::text( static_cast<Language::Text>( Language::PhaseNew + Sky::phaseIndex( day.phase ) ) ) );
     setText( m_moon, 1, 1, "%.0f %%", day.phase.illumination * 100 );
     setText( m_moon, 1, 2, Language::text( Language::MoonAge ), day.phase.ageDays );
     setTime( m_moon, 2, 1, day.moon.rising, utcOffsetMinutes );
@@ -288,7 +299,7 @@ void SkyPages::show( const Sky::Day &day, const Sky::Now &now, int utcOffsetMinu
         m_moon.text().set( 6, 2, "" );
     }
     m_moon.text().set( 7, 1, Language::text( static_cast<Language::Text>( Language::CrescentNone + day.crescent.zone ) ) );
-    setText( m_moon, 1 + MoonRows, 0, "%d %s %d", day.hijri.day, Language::hijriMonth( day.hijri.month ), day.hijri.year );
+    setLineText( m_moon, 1 + MoonRows, "%d %s %d", day.hijri.day, Language::hijriMonth( day.hijri.month ), day.hijri.year );
 
     m_prayer.refresh();
     m_time.refresh();

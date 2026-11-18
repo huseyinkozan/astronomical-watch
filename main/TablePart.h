@@ -22,10 +22,12 @@ public:
         const char *title;
         int rowCount;
         RowKind kinds[TableText::MaxRows];
-        // The title's top in the part; -1: the title and rows centred vertically, as a column.
+        // The title's top in the part, rows one line high at `pitch`; -1: the title and rows
+        // centred vertically as a column, a text wrapping onto more lines as wide as its cell
+        // (the earlier labels), `pitch` minus a line between them.
         int top;
-        int titleGap;  // from the title's top to the first row's top
-        int pitch;     // from one row's top to the next
+        int titleGap;  // from the title's top to the first row's top (fixed rows)
+        int pitch;     // from one row's top to the next (fixed rows)
         int nameX;
         int nameWidth;
         int valueX;
@@ -46,8 +48,9 @@ public:
 
 private:
     static void onDraw( lv_event_t *event );
-    void drawCell( lv_layer_t *layer, const lv_area_t &coords, int x, int y, int width, const char *text,
-                   uint32_t colour, lv_text_align_t align ) const;
+    void drawCell( lv_layer_t *layer, const lv_area_t &coords, int x, int y, int width, int height, const char *text,
+                   uint32_t colour, lv_text_align_t align, lv_text_flag_t flag ) const;
+    int rowHeight( int row ) const;
 
     lv_obj_t *m_object = nullptr;
     Layout m_layout = {};

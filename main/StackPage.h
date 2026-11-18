@@ -31,6 +31,10 @@ public:
 
     int current() const;
 
+    // Shows `part` again after the page was built anew, or the first part shown when `part` has
+    // been hidden meanwhile.
+    void restore( int part );
+
     // The parts were deleted with the tile's contents (a page freed far from the shown one): the
     // tile's swipe handler goes, the order and the part shown stay for the next build.
     void forget();

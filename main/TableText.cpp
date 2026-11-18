@@ -31,21 +31,36 @@ static size_t cutLength( const char *text, size_t room )
     return length;
 }
 
-bool TableText::set( int row, int cell, const char *text )
+// Writes `text` cut to `room` - 1 bytes to `target`; false when it was there already.
+static bool store( char *target, size_t room, const char *text )
 {
-    if ( !inRange( row, cell ) ) {
-        return false;
-    }
     if ( text == nullptr ) {
         text = "";
     }
-    const size_t length = cutLength( text, CellSize - 1 );
-    char *target = m_texts[row][cell];
+    const size_t length = cutLength( text, room - 1 );
     if ( std::strlen( target ) == length && std::strncmp( target, text, length ) == 0 ) {
         return false;
     }
     std::memcpy( target, text, length );
     target[length] = '\0';
+    return true;
+}
+
+bool TableText::set( int row, int cell, const char *text )
+{
+    if ( !inRange( row, cell ) || !store( m_texts[row][cell], CellSize, text ) ) {
+        return false;
+    }
+    m_changed = true;
+    return true;
+}
+
+bool TableText::setLine( int row, const char *text )
+{
+    // The row's cells lie one after the other.
+    if ( !inRange( row, 0 ) || !store( m_texts[row][0], Cells * CellSize, text ) ) {
+        return false;
+    }
     m_changed = true;
     return true;
 }
@@ -120,4 +135,20 @@ void TableText::fitWithDots( const char *text, int maxLetters, char *out, size_t
     if ( tooLong ) {
         std::strcat( out, "..." );
     }
+}
+
+int TableText::columnTops( int titleHeight, const int *heights, int count, int gap, int areaHeight, int *tops )
+{
+    int total = titleHeight;
+    for ( int i = 0; i < count; ++i ) {
+        total += gap + heights[i];
+    }
+    const int top = ( areaHeight - total ) / 2;
+    int y = top + titleHeight;
+    for ( int i = 0; i < count; ++i ) {
+        y += gap;
+        tops[i] = y;
+        y += heights[i];
+    }
+    return top;
 }

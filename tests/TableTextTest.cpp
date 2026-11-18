@@ -59,6 +59,25 @@ int main()
     TableText::fitWithDots( "\xC4\xB0stanbul, T\xC3\xBCrkiye", 13, shown, sizeof( shown ) );
     check( "dots count letters, not bytes", std::strcmp( shown, "\xC4\xB0stanbul, ..." ) == 0 );
 
+    // A full-width line takes the room of the row's three cells.
+    const char *method = "Diyanet (yakla\xC5\x9F\xC4\xB1k), Kuzey K\xC4\xB1" "br\xC4\xB1s, Lefko\xC5\x9F" "a";
+    check( "a long line is kept whole", table.setLine( 4, method ) && std::strcmp( table.text( 4, 0 ), method ) == 0 );
+    check( "the same line changes nothing", !table.setLine( 4, method ) );
+    char longLine[TableText::Cells * TableText::CellSize + 8] = {};
+    std::memset( longLine, 'y', sizeof( longLine ) - 1 );
+    table.setLine( 5, longLine );
+    check( "a line longer than the row is cut", std::strlen( table.text( 5, 0 ) ) == TableText::Cells * TableText::CellSize - 1 );
+
+    // A centred column like LVGL's flex layout: the title, then rows, 6 px apart, in 490 px.
+    int heights[8] = { 32, 32, 32, 32, 32, 32, 32, 32 };
+    int tops[8] = {};
+    check( "equal rows: the title's top", TableText::columnTops( 32, heights, 8, 6, 490, tops ) == 77 );
+    check( "equal rows: the rows follow at 38 px", tops[0] == 115 && tops[7] == 381 );
+    // A line that wraps to two lines takes 64 px: the column grows and is centred again.
+    heights[6] = 64;
+    check( "a wrapped line: the title moves up", TableText::columnTops( 32, heights, 8, 6, 490, tops ) == 61 );
+    check( "a wrapped line: the next row moves down", tops[6] == 327 && tops[7] == 397 );
+
     printf( "Table text: %d checks, %d failures\n", s_checks, s_failures );
     return s_failures == 0 ? 0 : 1;
 }
