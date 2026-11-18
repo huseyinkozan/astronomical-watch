@@ -190,6 +190,23 @@ Astronomy::Position Astronomy::sunPosition( int64_t time, const Observer &observ
     return toHorizontal( toEquatorial( sunEcliptic( t ), t ), time, observer );
 }
 
+Astronomy::Position Astronomy::starPosition( double raHours, double decDegrees, int64_t time, const Observer &observer )
+{
+    const double t = centuriesTt( time );
+    const double zeta = toRadians( ( 2306.2181 * t + 0.30188 * t * t + 0.017998 * t * t * t ) / 3600.0 );
+    const double z = toRadians( ( 2306.2181 * t + 1.09468 * t * t + 0.018203 * t * t * t ) / 3600.0 );
+    const double theta = toRadians( ( 2004.3109 * t - 0.42665 * t * t - 0.041833 * t * t * t ) / 3600.0 );
+    const double alpha0 = toRadians( raHours * 15.0 );
+    const double delta0 = toRadians( decDegrees );
+    const double a = std::cos( delta0 ) * std::sin( alpha0 + zeta );
+    const double b = std::cos( theta ) * std::cos( delta0 ) * std::cos( alpha0 + zeta ) - std::sin( theta ) * std::sin( delta0 );
+    const double c = std::sin( theta ) * std::cos( delta0 ) * std::cos( alpha0 + zeta ) + std::cos( theta ) * std::sin( delta0 );
+    Equatorial equatorial = {};
+    equatorial.rightAscension = normalised( toDegrees( std::atan2( a, b ) + z ) );
+    equatorial.declination = toDegrees( std::asin( c ) );
+    return toHorizontal( equatorial, time, observer );
+}
+
 Astronomy::Position Astronomy::moonPosition( int64_t time, const Observer &observer )
 {
     const double t = centuriesTt( time );

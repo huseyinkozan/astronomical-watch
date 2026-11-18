@@ -21,20 +21,38 @@ int main()
 {
     FaceConfig::Pages pages = {};
     FaceConfig::defaults( pages );
-    check( "defaults: three pages", pages.count == 3 );
-    const FaceConfig::Page &analog = pages.pages[2];
-    check( "defaults: third page analog Classic", analog.clock == FaceConfig::AnalogClock &&
-                                                       analog.analog == FaceConfig::ClassicHands );
-    check( "defaults: Classic with the seconds hand", ( analog.flags & FaceConfig::SecondsHandFlag ) != 0 );
-    check( "defaults: analog page's slots as the first's",
-           memcmp( analog.items, pages.pages[0].items, sizeof( analog.items ) ) == 0 &&
-               analog.alwaysOn == pages.pages[0].alwaysOn );
+    // The spec's four pages first (Full arcs, Half arcs with the Milky Way, Large seven segment,
+    // Large analog Classic), then Large JetBrains Mono.
+    check( "defaults: five pages", pages.count == 5 );
     check( "defaults: valid", FaceConfig::valid( pages ) );
-    const FaceConfig::Page &first = pages.pages[0];
+    const FaceConfig::Page &full = pages.pages[0];
+    check( "defaults: full arcs, seven segment", full.layout == FaceConfig::FullArcs && full.clock == FaceConfig::DigitalClock &&
+                                                     full.digital == FaceConfig::SevenSegment );
+    const FaceConfig::Page &half = pages.pages[1];
+    check( "defaults: half arcs, Mono, Milky Way", half.layout == FaceConfig::HalfArcs && half.digital == FaceConfig::MonoDigits &&
+                                                       ( half.flags & FaceConfig::MilkyWayFlag ) != 0 );
+    const FaceConfig::Page &first = pages.pages[2];
     check( "defaults: large", first.layout == FaceConfig::Large );
     check( "defaults: digital", first.clock == FaceConfig::DigitalClock );
     check( "defaults: seven segment", first.digital == FaceConfig::SevenSegment );
     check( "defaults: weekday icon top left", first.items[FaceConfig::TopLeft] == FaceConfig::WeekdayIcon );
+    const FaceConfig::Page &analog = pages.pages[3];
+    check( "defaults: large analog Classic", analog.layout == FaceConfig::Large && analog.clock == FaceConfig::AnalogClock &&
+                                                 analog.analog == FaceConfig::ClassicHands );
+    check( "defaults: Classic with the seconds hand", ( analog.flags & FaceConfig::SecondsHandFlag ) != 0 );
+    check( "defaults: analog page's slots as the seven segment page's",
+           memcmp( analog.items, first.items, sizeof( analog.items ) ) == 0 && analog.alwaysOn == first.alwaysOn );
+    check( "defaults: full arcs without the top right corner", full.items[FaceConfig::TopRight] == FaceConfig::NoCorner );
+    check( "defaults: Mono last", pages.pages[4].layout == FaceConfig::Large && pages.pages[4].digital == FaceConfig::MonoDigits );
+
+    // The clock's place and size by template.
+    const FaceConfig::ClockPlace large = FaceConfig::clockPlace( FaceConfig::Large );
+    check( "clock: large", large.centreY == 251 && large.digitHeight == 122 && large.analogRadius == 140 );
+    const FaceConfig::ClockPlace fullPlace = FaceConfig::clockPlace( FaceConfig::FullArcs );
+    check( "clock: full arcs", fullPlace.centreY == 251 && fullPlace.digitHeight == 64 && fullPlace.analogRadius == 100 );
+    const FaceConfig::ClockPlace halfPlace = FaceConfig::clockPlace( FaceConfig::HalfArcs );
+    check( "clock: half arcs", halfPlace.centreY == 310 && halfPlace.digitHeight == 64 && halfPlace.analogRadius == 70 );
+    check( "clock: unknown template as large", FaceConfig::clockPlace( 9 ).centreY == 251 );
 
     // Slot widths: the edges between the gauges' ends; an inner slot narrows when a corner of its
     // row is in use (the corners share its row).

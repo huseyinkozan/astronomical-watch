@@ -68,6 +68,10 @@ public:
     static Position sunPosition( int64_t time, const Observer &observer );
     static Position moonPosition( int64_t time, const Observer &observer );
 
+    // A star of the J2000 catalogue at `time` (precessed to the date, Meeus 21.2; nutation and
+    // aberration, about 0.01 degrees, left out).
+    static Position starPosition( double raHours, double decDegrees, int64_t time, const Observer &observer );
+
     static SunDay sunDay( int64_t localMidnight, const Observer &observer );
 
     // Moonrise and moonset: the upper limb on the horizon, with refraction and parallax.

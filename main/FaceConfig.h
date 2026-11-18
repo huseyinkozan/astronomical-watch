@@ -15,7 +15,9 @@ public:
 
     enum Template : uint8_t
     {
-        Large,
+        Large,     // the clock alone in the middle
+        FullArcs,  // the Sun's and the Moon's orbits around a small clock
+        HalfArcs,  // their paths over the horizon, a small clock below (the Milky Way optional)
         TemplateCount
     };
 
@@ -158,4 +160,14 @@ public:
     // The width in pixels a text slot's text may take (0 for a corner slot): the edge slots
     // between the gauges' ends, an inner slot narrower when a corner of its row is in use.
     static int textWidth( const Page &page, int slot );
+
+    // Where a template's clock goes: the centre line, the digits' height (seven segment; the
+    // JetBrains Mono font of that size) and the analog dial's radius.
+    struct ClockPlace
+    {
+        int centreY;
+        int digitHeight;
+        int analogRadius;
+    };
+    static ClockPlace clockPlace( int layout );
 };

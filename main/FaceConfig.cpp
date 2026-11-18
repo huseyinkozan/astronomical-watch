@@ -27,11 +27,12 @@ static int parameterLimit( int slot, int item )
 void FaceConfig::defaults( Pages &pages )
 {
     pages = {};
-    pages.count = 3;
+    pages.count = 5;
 
     // As the owner's approved mock-up (docs/superpowers/specs/2026-11-18-face-templates/
-    // templates.png, page 3): every default text fits its slot (tests/FaceTextTest.cpp).
-    Page &segments = pages.pages[0];
+    // templates.png, pages 1 to 4, then the classic face): every default text fits its slot
+    // (tests/FaceTextTest.cpp).
+    Page segments = {};
     segments.layout = Large;
     segments.clock = DigitalClock;
     segments.digital = SevenSegment;
@@ -44,22 +45,50 @@ void FaceConfig::defaults( Pages &pages )
     segments.items[BottomRight] = DayOfMonth;
     segments.alwaysOn = ( 1 << TopEdge ) | ( 1 << TopLeft ) | ( 1 << BottomLeft ) | ( 1 << BottomRight );
 
+    // Page 1: the orbits around small seven-segment digits; the top right corner left free.
+    Page &full = pages.pages[0];
+    full = segments;
+    full.layout = FullArcs;
+    full.items[TopRight] = NoCorner;
+
+    // Page 2: the paths over the horizon with the Milky Way, JetBrains Mono digits below.
+    Page &half = pages.pages[1];
+    half = segments;
+    half.layout = HalfArcs;
+    half.digital = MonoDigits;
+    half.flags = MilkyWayFlag;
+
+    pages.pages[2] = segments;
+
+    // Page 4: the same slots around a Classic analog clock with the seconds hand.
+    Page &analog = pages.pages[3];
+    analog = segments;
+    analog.clock = AnalogClock;
+    analog.analog = ClassicHands;
+    analog.flags = SecondsHandFlag;
+
     // Like the classic face of earlier versions; no corners, so that the inner slots take the
     // long dates.
-    Page &mono = pages.pages[1];
+    Page &mono = pages.pages[4];
     mono.layout = Large;
     mono.clock = DigitalClock;
     mono.digital = MonoDigits;
     mono.items[TopInner] = LongDate;
     mono.items[BottomInner] = HijriDate;
     mono.alwaysOn = ( 1 << TopInner ) | ( 1 << BottomInner );
+}
 
-    // The mock-up's page 4: the first page's slots around a Classic analog clock.
-    Page &analog = pages.pages[2];
-    analog = segments;
-    analog.clock = AnalogClock;
-    analog.analog = ClassicHands;
-    analog.flags = SecondsHandFlag;
+FaceConfig::ClockPlace FaceConfig::clockPlace( int layout )
+{
+    // The mock-up's places: Full arcs inside the Moon's orbit (r 122), Half arcs below the
+    // horizon (y 232) and above the bottom slots.
+    if ( layout == FullArcs ) {
+        return { 251, 64, 100 };
+    }
+    if ( layout == HalfArcs ) {
+        return { 310, 64, 70 };
+    }
+    return { 251, 122, 140 };
 }
 
 static bool pageValid( const FaceConfig::Page &page )
