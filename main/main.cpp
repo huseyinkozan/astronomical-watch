@@ -187,6 +187,10 @@ static bool pollHostCommands()
             s_display.showFaceStyle( style );
             continue;
         }
+        if ( s_hostLine[0] == 'K' && s_hostLine[1] == '\0' ) {
+            s_display.showLevels();
+            continue;
+        }
         int slot = 0;
         int item = 0;
         if ( sscanf( s_hostLine, "G %d %d %d", &style, &slot, &item ) == 3 ) {
@@ -612,7 +616,14 @@ static void applyPortalData( const Portal::Received &received )
     if ( received.facesValid ) {
         s_facePages = received.faces;
         FaceStore::save( s_facePages );
+        // "Show on the watch": that page, on the face tile (setPages shows the page set here).
+        if ( received.faceShow >= 0 && received.faceShow < s_facePages.count ) {
+            s_settings.setValue( Settings::FaceStyle, received.faceShow );
+        }
         s_display.setPages( s_facePages );
+        if ( received.faceShow >= 0 ) {
+            s_display.showFaceTile();
+        }
     }
     if ( received.placeValid ) {
         s_worldClock.setHomePlace( received.place );
@@ -656,9 +667,12 @@ static bool servicePortal( bool everySecond )
     Portal::Received received = {};
     if ( s_portal.takeReceived( received ) ) {
         applyPortalData( received );
-        // Let the browser receive its answer before the access point goes.
-        vTaskDelay( pdMS_TO_TICKS( 500 ) );
-        s_portal.stop();
+        // "Show on the watch" keeps the portal on for the next change.
+        if ( !received.keepRunning ) {
+            // Let the browser receive its answer before the access point goes.
+            vTaskDelay( pdMS_TO_TICKS( 500 ) );
+            s_portal.stop();
+        }
         if ( s_languageChanged ) {
             ESP_LOGI( TAG, "Language changed: restart" );
             esp_restart();

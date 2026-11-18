@@ -39,6 +39,7 @@
   .slot label { margin: 0; white-space: nowrap; }
   .slot input { width: auto; }
   #addFace { margin-top: 12px; background: #333; }
+  .face .showOnWatch { margin-top: 8px; font-size: 1em; padding: 8px; background: #2d4f73; }
   .suggest button { display: block; text-align: left; margin: 2px 0; padding: 10px; font-size: 1em;
                     background: #2a2a2a; }
 </style>
@@ -566,7 +567,7 @@ function drawFaces() {
     styles.className = 'row';
     const digital = document.createElement('div');
     digital.appendChild(labelOf(t('Digits', 'Rakamlar')));
-    digital.appendChild(selectOf([['JetBrains Mono', 'JetBrains Mono'], ['Seven segment', 'Yedi segment']], 2, v[2], (n) => { v[2] = n; }));
+    digital.appendChild(selectOf([['JetBrains Mono', 'JetBrains Mono'], ['Seven segment', 'Yedi parça']], 2, v[2], (n) => { v[2] = n; }));
     const analog = document.createElement('div');
     analog.appendChild(labelOf(t('Hands', 'Akrep ve yelkovan')));
     analog.appendChild(selectOf([['Classic', 'Klasik'], ['Bold', 'Kalın'], ['Fine scale', 'İnce ölçek'], ['One hand', 'Tek kol'],
@@ -599,9 +600,36 @@ function drawFaces() {
                               (on) => { v[21] = on ? v[21] | (1 << slot) : v[21] & ~(1 << slot); }));
       page.appendChild(row);
     }
+    const show = document.createElement('button');
+    show.type = 'button';
+    show.className = 'showOnWatch';
+    show.textContent = t('Save the faces and show this page on the watch', 'Yüzleri kaydet, bu sayfayı saatte göster');
+    show.addEventListener('click', () => showOnWatch(p, show));
+    page.appendChild(show);
     box.appendChild(page);
   });
   $('addFace').disabled = faces.length >= MaxFaces;
+}
+// Saves only the face pages and shows one of them; the watch keeps its Wi-Fi on, so that the next
+// change can follow (the main Save button closes it).
+async function showOnWatch(p, button) {
+  // The answer shows on the button: the page's status line is far below.
+  const say = (text) => {
+    button.textContent = text;
+    setTimeout(() => { button.textContent = t('Save the faces and show this page on the watch', 'Yüzleri kaydet, bu sayfayı saatte göster'); }, 3000);
+  };
+  button.textContent = t('Sending…', 'Gönderiliyor…');
+  try {
+    const fields = new URLSearchParams();
+    fields.set('faces', faces.map((v) => v.join(',')).join(';'));
+    fields.set('show', String(p));
+    fields.set('keep', '1');
+    const response = await fetch('/api/save', { method: 'POST', body: fields });
+    say(response.ok ? t('Page ', 'Sayfa ') + (p + 1) + t(' is on the watch', ' saatte gösteriliyor')
+                     : t('The watch refused the data', 'Saat verileri kabul etmedi'));
+  } catch (e) {
+    say(t('Could not reach the watch', 'Saate ulaşılamadı'));
+  }
 }
 $('addFace').addEventListener('click', () => {
   if (faces.length < MaxFaces) faces.push(faces[faces.length - 1].slice());

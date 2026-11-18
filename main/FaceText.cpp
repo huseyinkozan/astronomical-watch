@@ -62,24 +62,38 @@ static void timeLeft( const char *name, int64_t seconds, int maxCharacters, char
 }
 
 // Today's Hijri date from the table; after midnight the next day while the month certainly
-// lasts (the length of a month is not in the table).
+// lasts (every month has at least 29 days). Past the 29th the day is the 30th or the 1st, which
+// only the next sky day tells: `day` 0, shown as an "O" like the new Moon, with the old month.
 static bool hijriDate( const FaceText::Inputs &in, int &day, int &month, int &year )
 {
-    if ( in.table == nullptr || !in.skyValid || in.table->hijriDay <= 0 ) {
+    if ( in.table == nullptr || !in.skyValid || in.table->hijriMonth <= 0 ) {
         return false;
     }
     const int today = Dates::dayNumber( in.year, in.month, in.day );
     const FaceTable &table = *in.table;
+    if ( today < table.localDay ) {
+        return false;
+    }
     if ( today == table.localDay ) {
         day = table.hijriDay;
-    } else if ( today == table.localDay + 1 && table.hijriDay < 29 ) {
+    } else if ( today == table.localDay + 1 && table.hijriDay > 0 && table.hijriDay < 29 ) {
         day = table.hijriDay + 1;
     } else {
-        return false;
+        day = 0;
     }
     month = table.hijriMonth;
     year = table.hijriYear;
     return true;
+}
+
+// The Hijri day, "O" when it is not known.
+static void hijriDay( int day, char *out, int size )
+{
+    if ( day > 0 ) {
+        snprintf( out, size, "%d", day );
+    } else {
+        snprintf( out, size, "O" );
+    }
 }
 
 static void altitude( bool valid, double degrees, char *out, int size )
@@ -96,7 +110,7 @@ void FaceText::text( FaceConfig::TextItem item, int parameter, const Inputs &in,
     if ( !in.timeValid ) {
         return;
     }
-    int hijriDay = 0;
+    int hijriDayNumber = 0;
     int hijriMonth = 0;
     int hijriYear = 0;
     FaceTable::Event event = {};
@@ -112,8 +126,10 @@ void FaceText::text( FaceConfig::TextItem item, int parameter, const Inputs &in,
         }
         break;
     case FaceConfig::HijriDate:
-        if ( hijriDate( in, hijriDay, hijriMonth, hijriYear ) ) {
-            snprintf( out, size, "%d %s %d", hijriDay, Language::hijriMonth( hijriMonth ), hijriYear );
+        if ( hijriDate( in, hijriDayNumber, hijriMonth, hijriYear ) ) {
+            char dayText[12];
+            hijriDay( hijriDayNumber, dayText, sizeof( dayText ) );
+            snprintf( out, size, "%s %s %d", dayText, Language::hijriMonth( hijriMonth ), hijriYear );
         }
         break;
     case FaceConfig::NextSunEvent:
@@ -183,7 +199,7 @@ void FaceText::corner( FaceConfig::CornerItem item, const Inputs &in, char *out,
     if ( !in.timeValid ) {
         return;
     }
-    int hijriDay = 0;
+    int hijriDayNumber = 0;
     int hijriMonth = 0;
     int hijriYear = 0;
     switch ( item ) {
@@ -194,15 +210,15 @@ void FaceText::corner( FaceConfig::CornerItem item, const Inputs &in, char *out,
         snprintf( out, size, "%d", in.day );
         break;
     case FaceConfig::HijriDayOfMonth:
-        if ( hijriDate( in, hijriDay, hijriMonth, hijriYear ) ) {
-            snprintf( out, size, "%d", hijriDay );
+        if ( hijriDate( in, hijriDayNumber, hijriMonth, hijriYear ) ) {
+            hijriDay( hijriDayNumber, out, size );
         }
         break;
     case FaceConfig::MonthShort:
         snprintf( out, size, "%s", Language::shortMonth( in.month ) );
         break;
     case FaceConfig::HijriMonthShort:
-        if ( hijriDate( in, hijriDay, hijriMonth, hijriYear ) ) {
+        if ( hijriDate( in, hijriDayNumber, hijriMonth, hijriYear ) ) {
             shortName( Language::hijriMonth( hijriMonth ), out, size );
         }
         break;

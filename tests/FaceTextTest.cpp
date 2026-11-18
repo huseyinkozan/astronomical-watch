@@ -180,7 +180,17 @@ int main()
     monthEndIn.table = &monthEnd;
     monthEndIn.day = 22;
     FaceText::text( FaceConfig::HijriDate, 0, monthEndIn, text, sizeof( text ) );
-    checkText( "follow: after day 29 the Hijri date is unknown", text, "" );
+    // The day after the 29th is the 30th or the 1st: an "O", like the new Moon, keeps the month.
+    checkText( "follow: after day 29 the Hijri day is an O", text, "O Muharram 1448" );
+    FaceText::corner( FaceConfig::HijriDayOfMonth, monthEndIn, text, sizeof( text ) );
+    checkText( "follow: Hijri day corner after day 29", text, "O" );
+    FaceTable lastDay = table;
+    lastDay.hijriDay = 29;
+    FaceText::Inputs lastDayIn = in;
+    lastDayIn.table = &lastDay;
+    lastDayIn.day = 22;
+    FaceText::text( FaceConfig::HijriDate, 0, lastDayIn, text, sizeof( text ) );
+    checkText( "after midnight past day 29: an O", text, "O Muharram 1448" );
 
     // The default pages' texts fit their slots in both languages: a cut text is for pages the
     // owner composes, not for the defaults.

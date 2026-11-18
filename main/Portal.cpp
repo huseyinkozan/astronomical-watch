@@ -573,6 +573,7 @@ esp_err_t Portal::onSave( httpd_req_t *request )
 
     static Received received;
     received = {};
+    received.faceShow = -1;
     char value[24];
     if ( httpd_query_key_value( body, "time", value, sizeof( value ) ) == ESP_OK ) {
         char rtt[12] = "0";
@@ -677,6 +678,10 @@ esp_err_t Portal::onSave( httpd_req_t *request )
             ESP_LOGW( TAG, "Setup page: face pages refused: %s", s_faces );
         }
     }
+    if ( httpd_query_key_value( body, "show", value, sizeof( value ) ) == ESP_OK ) {
+        received.faceShow = static_cast<int>( strtol( value, nullptr, 10 ) );
+    }
+    received.keepRunning = httpd_query_key_value( body, "keep", value, sizeof( value ) ) == ESP_OK;
     ESP_LOGI( TAG, "Setup page saved: %s", body );
     taskENTER_CRITICAL( &portal->m_lock );
     portal->m_received = received;

@@ -76,6 +76,9 @@ public:
     // The face pages (FaceStore), before start() and after the setup portal saved them.
     void setPages( const FaceConfig::Pages &pages );
 
+    // Moves to the watch face, as a swipe would (a face page sent from the portal).
+    void showFaceTile();
+
     // Local time, its UTC offset in minutes, and the battery state; `timeValid` false: the clock
     // was never set or could not be read (the face's slots stay empty).
     void update( const Rtc::DateTime &localTime, int utcOffsetMinutes, const Battery &battery, bool timeValid );
@@ -128,6 +131,8 @@ public:
     void showFaceStyle( int page );
     // Puts `item` into `slot` of face page `page` (not saved) and shows the page.
     void setFaceSlot( int page, int slot, int item );
+    // Shows the brightness control as a long press does (a screenshot of it).
+    void showLevels();
 
     // The fixed scene of the screenshots: sample states on the clock page.
     void setScene( bool scene );
@@ -173,6 +178,9 @@ private:
     // settings when active mode ends).
     static void onBrightnessDrag( lv_event_t *event );
     void buildBrightnessControl();
+    void startAdjust( int x, int y );
+    static lv_obj_t *createLevelBox( lv_obj_t *layer, int y, lv_obj_t *&value, lv_obj_t *&title );
+    static lv_obj_t *createLevelBar( lv_obj_t *layer, int x, int y, int width, int height );
 
     void showBrightness( int percent );
     static void onSetupClicked( lv_event_t *event );
@@ -195,6 +203,11 @@ private:
     lv_obj_t *m_brightnessValue = nullptr;
     lv_obj_t *m_brightnessTitle = nullptr;
     lv_obj_t *m_brightnessBar = nullptr;
+    // The always-on level, shown beside the face's until the drag's direction is chosen.
+    lv_obj_t *m_aodBox = nullptr;
+    lv_obj_t *m_aodValue = nullptr;
+    lv_obj_t *m_aodTitle = nullptr;
+    lv_obj_t *m_aodBar = nullptr;
     bool m_adjusting = false;
     Settings::Item m_adjustItem = Settings::Brightness;
     int m_adjustStart = 0;

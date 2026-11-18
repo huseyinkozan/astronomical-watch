@@ -40,6 +40,9 @@ public:
         // The face pages; facesValid: the page sent them and they decoded.
         bool facesValid;
         FaceConfig::Pages faces;
+        // "Show on the watch": the face page to show now (-1: none), and the portal stays on.
+        int faceShow;
+        bool keepRunning;
     };
 
     // Reads the stored password, or creates one. NVS must be initialised (Settings::load()).
