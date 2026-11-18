@@ -354,7 +354,8 @@ static void updateSky( int64_t now, const int inputs[5] )
     if ( s_faceTableStale || s_faceTable.localDay != s_skyDay.day ) {
         buildFaceTable( observer, offsetMinutes, inputs[4] );
     }
-    s_display.showSky( s_skyDay, Sky::computeNow( now, s_skyDay, observer ), offsetMinutes, s_faceTable );
+    s_display.showSky( s_skyDay, Sky::computeNow( now, s_skyDay, observer ), offsetMinutes, s_faceTable,
+                       inputs[0] != 0 || inputs[1] != 0 );
 }
 
 // The always-on face of face page `page` (Settings::FaceStyle when active mode ends) into s_look.
@@ -372,7 +373,8 @@ static void fillLook( int page )
         s_look.waxing = s_skyDay.phase.elongation < 180;
         s_look.corners = Corners::fromSky( s_skyDay );
         // The place and the table of the sky day shown (the fixed scene's in a screenshot).
-        s_look.skyValid = !s_faceTableStale;
+        // Without a location (0, 0 until the portal sets one) the sky slots stay empty.
+        s_look.skyValid = !s_faceTableStale && ( s_skyInputs[0] != 0 || s_skyInputs[1] != 0 );
         s_look.table = s_faceTable;
         s_look.observer = { s_skyInputs[0] / 1e6, s_skyInputs[1] / 1e6 };
         s_look.ishaAngle = s_skyInputs[4];
@@ -469,7 +471,7 @@ static void updateDisplay()
     }
 #endif
     const Rtc::DateTime local = Rtc::addMinutes( time, inputs[2] );
-    s_display.update( local, inputs[2], battery );
+    s_display.update( local, inputs[2], battery, timeValid || s_scene );
     // The clock page's Hijri calendar asks for a month now and then (up to 1 s of computation).
     ClockPages::HijriRequest request = {};
     if ( local.month != 0 && s_display.takeHijriRequest( request ) ) {

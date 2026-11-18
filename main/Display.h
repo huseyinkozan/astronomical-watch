@@ -76,8 +76,9 @@ public:
     // The face pages (FaceStore), before start() and after the setup portal saved them.
     void setPages( const FaceConfig::Pages &pages );
 
-    // Local time, its UTC offset in minutes, and the battery state.
-    void update( const Rtc::DateTime &localTime, int utcOffsetMinutes, const Battery &battery );
+    // Local time, its UTC offset in minutes, and the battery state; `timeValid` false: the clock
+    // was never set or could not be read (the face's slots stay empty).
+    void update( const Rtc::DateTime &localTime, int utcOffsetMinutes, const Battery &battery, bool timeValid );
 
     // After the setup portal changed the settings: shows them and applies the brightness.
     void refreshSettings();
@@ -85,8 +86,10 @@ public:
     void showSetup( const Setup &setup );
 
     // The astronomy pages: values of the local day and of this moment; the face's events,
-    // counters and cities. Also updates the face with the time of the last update().
-    void showSky( const Sky::Day &day, const Sky::Now &now, int utcOffsetMinutes, const FaceTable &table );
+    // counters and cities. Also updates the face with the time of the last update(); `located`
+    // false: no location set yet (the face's sky slots stay empty).
+    void showSky( const Sky::Day &day, const Sky::Now &now, int utcOffsetMinutes, const FaceTable &table,
+                  bool located );
 
     // The corner gauges, on every page.
     void showCorners( const Corners::Gauge gauges[Corners::CornerCount] );
@@ -222,6 +225,7 @@ private:
     bool m_haveSky = false;
     FaceTable m_faceTable = {};
     Battery m_battery = {};
+    bool m_timeValid = false;
     // Battery page.
     lv_obj_t *m_percentLabel = nullptr;
     lv_obj_t *m_voltageLabel = nullptr;

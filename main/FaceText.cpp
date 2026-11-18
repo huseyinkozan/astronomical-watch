@@ -65,7 +65,7 @@ static void timeLeft( const char *name, int64_t seconds, int maxCharacters, char
 // lasts (the length of a month is not in the table).
 static bool hijriDate( const FaceText::Inputs &in, int &day, int &month, int &year )
 {
-    if ( in.table == nullptr || !in.skyValid ) {
+    if ( in.table == nullptr || !in.skyValid || in.table->hijriDay <= 0 ) {
         return false;
     }
     const int today = Dates::dayNumber( in.year, in.month, in.day );

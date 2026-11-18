@@ -151,17 +151,36 @@ int main()
     check( "table: tomorrow's sunrise after sunset", table.next( localToUtc( 2026, 6, 21, 21, 0, offset ), false, event ) &&
                                                          event.kind == FaceTable::SunriseEvent );
     check( "table: past its end", !table.next( localToUtc( 2026, 6, 23, 0, 1, offset ), true, event ) );
-    // A minute wake past the table's end builds the events again without the sky day; the Hijri
-    // date stays that of the day the table was built for.
+    // The always-on face keeps the table on today and tomorrow: a minute wake on a new local day
+    // computes the events again (without the sky day) and moves the Hijri date on while the month
+    // certainly lasts (Review Focus 5).
     FaceTable later = table;
-    later.rebuild( day + 2, offset, istanbul, 17 );
-    check( "rebuild: next prayer two days on", later.next( localToUtc( 2026, 6, 23, 23, 59, offset ), true, event ) &&
-                                                   event.kind == FaceTable::PrayerEvent + Sky::Imsak &&
-                                                   event.time > localToUtc( 2026, 6, 24, 3, 0, offset ) &&
-                                                   event.time < localToUtc( 2026, 6, 24, 4, 0, offset ) );
-    check( "rebuild: valid to the end of the next day", !later.next( localToUtc( 2026, 6, 25, 0, 1, offset ), true, event ) );
-    check( "rebuild: keeps the Hijri day", later.localDay == table.localDay && later.hijriDay == table.hijriDay );
-    check( "rebuild: keeps the counters", strcmp( later.counterNames[0], "Ramazan" ) == 0 );
+    later.follow( day, offset, istanbul, 17 );
+    check( "follow: same day keeps the events", later.count == table.count && later.validUntil == table.validUntil );
+    later.follow( day + 1, offset, istanbul, 17 );
+    check( "follow: next evening still has a sunrise",
+           later.next( localToUtc( 2026, 6, 22, 21, 30, offset ), false, event ) && event.kind == FaceTable::SunriseEvent );
+    check( "follow: next late evening still has a prayer",
+           later.next( localToUtc( 2026, 6, 22, 23, 30, offset ), true, event ) &&
+               event.kind == FaceTable::PrayerEvent + Sky::Imsak );
+    later.follow( day + 2, offset, istanbul, 17 );
+    check( "follow: two days on, the next imsak", later.next( localToUtc( 2026, 6, 23, 23, 59, offset ), true, event ) &&
+                                                     event.time > localToUtc( 2026, 6, 24, 3, 0, offset ) &&
+                                                     event.time < localToUtc( 2026, 6, 24, 4, 0, offset ) );
+    check( "follow: keeps the counters", strcmp( later.counterNames[0], "Ramazan" ) == 0 );
+    FaceText::Inputs laterIn = in;
+    laterIn.table = &later;
+    laterIn.day = 23;
+    FaceText::text( FaceConfig::HijriDate, 0, laterIn, text, sizeof( text ) );
+    checkText( "follow: Hijri date two days on", text, "7 Muharram 1448" );
+    FaceTable monthEnd = table;
+    monthEnd.hijriDay = 29;
+    monthEnd.follow( day + 1, offset, istanbul, 17 );
+    FaceText::Inputs monthEndIn = in;
+    monthEndIn.table = &monthEnd;
+    monthEndIn.day = 22;
+    FaceText::text( FaceConfig::HijriDate, 0, monthEndIn, text, sizeof( text ) );
+    checkText( "follow: after day 29 the Hijri date is unknown", text, "" );
 
     // The default pages' texts fit their slots in both languages: a cut text is for pages the
     // owner composes, not for the defaults.

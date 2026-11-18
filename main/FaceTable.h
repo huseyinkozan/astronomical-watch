@@ -35,8 +35,9 @@ public:
     Event events[MaxEvents];
     int count;
     int64_t validUntil;  // the end of tomorrow: later events are not in the table
-    int localDay;        // the day the table was built for (days since 1970-01-01, local)
-    int hijriDay;
+    int eventsDay;       // the first day of the events (days since 1970-01-01, local)
+    int localDay;        // the day of the Hijri date (days since 1970-01-01, local)
+    int hijriDay;        // 0: unknown
     int hijriMonth;
     int hijriYear;
     int counterDays[CounterCount];
@@ -48,9 +49,10 @@ public:
     // not with a whole Sky::computeDay.
     void build( const Sky::Day &today, int utcOffsetMinutes, const Astronomy::Observer &observer, int ishaAngle );
 
-    // The events of local day `day` and the next again, computed (the always-on face's minute
-    // wake past validUntil); the Hijri date, the counters and the cities stay.
-    void rebuild( int day, int utcOffsetMinutes, const Astronomy::Observer &observer, int ishaAngle );
+    // On a local day other than the events' first (the always-on face's minute wake): the events
+    // of `day` and the next, computed; the Hijri day moved on while the month certainly lasts (29
+    // days), else unknown. The counters and the cities stay.
+    void follow( int day, int utcOffsetMinutes, const Astronomy::Observer &observer, int ishaAngle );
 
     void setCounter( int index, const char *name, int day );
     void setCity( int index, const char *name, const Zone &zone );

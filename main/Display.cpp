@@ -673,7 +673,8 @@ void Display::applySetup()
     }
 }
 
-void Display::showSky( const Sky::Day &day, const Sky::Now &now, int utcOffsetMinutes, const FaceTable &table )
+void Display::showSky( const Sky::Day &day, const Sky::Now &now, int utcOffsetMinutes, const FaceTable &table,
+                       bool located )
 {
     if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
         return;
@@ -689,7 +690,7 @@ void Display::showSky( const Sky::Day &day, const Sky::Now &now, int utcOffsetMi
     m_faceTable = table;
     FaceText::Inputs inputs = {};
     const Rtc::DateTime &time = m_localTime;
-    inputs.timeValid = time.month >= 1 && time.month <= 12 && time.day >= 1 && time.day <= 31;
+    inputs.timeValid = m_timeValid && time.month >= 1 && time.month <= 12 && time.day >= 1 && time.day <= 31;
     inputs.year = time.year;
     inputs.month = time.month;
     inputs.day = time.day;
@@ -697,13 +698,13 @@ void Display::showSky( const Sky::Day &day, const Sky::Now &now, int utcOffsetMi
     inputs.minute = time.minute;
     inputs.second = time.second;
     inputs.weekday = inputs.timeValid ? Dates::weekday( Dates::dayNumber( time.year, time.month, time.day ) ) : 0;
-    inputs.skyValid = true;
+    inputs.skyValid = located;
     inputs.now = now.time;
     inputs.table = &m_faceTable;
     inputs.batteryPercent = m_battery.chargeState != nullptr ? m_battery.percent : -1;
     inputs.sunAltitude = now.sun.altitude;
     inputs.moonAltitude = now.moon.altitude;
-    inputs.altitudesValid = true;
+    inputs.altitudesValid = located;
     m_face.update( inputs );
     bsp_display_unlock();
 }
@@ -933,7 +934,7 @@ void Display::stop()
     }
 }
 
-void Display::update( const Rtc::DateTime &time, int utcOffsetMinutes, const Battery &battery )
+void Display::update( const Rtc::DateTime &time, int utcOffsetMinutes, const Battery &battery, bool timeValid )
 {
     if ( !m_started ) {
         return;
@@ -954,6 +955,7 @@ void Display::update( const Rtc::DateTime &time, int utcOffsetMinutes, const Bat
 
     showBattery();
     m_localTime = time;
+    m_timeValid = timeValid;
     bsp_display_unlock();
 }
 

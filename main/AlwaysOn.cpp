@@ -543,25 +543,31 @@ uint64_t AlwaysOn::update( const Rtc::DateTime &time, int64_t utcNow, bool timeR
     }
     s_failedMinutes = 0;
 
-    // A wake up to 2 s early (RC timer drift) already shows the coming minute.
-    int minuteOfDay = time.hour * 60 + time.minute;
+    // A wake up to 2 s early (RC timer drift) already shows the coming minute, with its date
+    // (just before midnight, the next day's).
+    Rtc::DateTime shown = time;
+    int64_t shownUtc = utcNow;
     int secondsToNext = 60 - time.second;
     if ( time.second >= 58 ) {
-        minuteOfDay = ( minuteOfDay + 1 ) % ( 24 * 60 );
+        shown = Rtc::addMinutes( time, 1 );
+        shown.second = 0;
+        shownUtc = utcNow + secondsToNext;
         secondsToNext += 60;
     }
+    const int minuteOfDay = shown.hour * 60 + shown.minute;
 
     Panel panel;
     if ( !panel.open() ) {
         s_active = false;
         return 0;
     }
-    // Past the end of the slots' events (no active mode for a day or more): today's and
-    // tomorrow's again, without the sky day.
-    if ( s_look.skyValid && utcNow >= s_look.table.validUntil ) {
-        const int day = Dates::dayNumber( time.year, time.month, time.day );
-        const int64_t localSeconds = static_cast<int64_t>( day ) * 86400 + time.hour * 3600 + time.minute * 60 + time.second;
-        s_look.table.rebuild( day, static_cast<int>( ( localSeconds - utcNow ) / 60 ), s_look.observer, s_look.ishaAngle );
+    // A new local day (always-on past midnight): the slots' events of today and tomorrow, without
+    // the sky day.
+    if ( s_look.skyValid ) {
+        const int day = Dates::dayNumber( shown.year, shown.month, shown.day );
+        const int64_t localSeconds = static_cast<int64_t>( day ) * 86400 + shown.hour * 3600 + shown.minute * 60;
+        s_look.table.follow( day, static_cast<int>( ( localSeconds - shownUtc ) / 60 ), s_look.observer,
+                             s_look.ishaAngle );
     }
     const Look &look = s_look;
     Corners::Gauge gauges[Corners::CornerCount] = {};
@@ -578,10 +584,7 @@ uint64_t AlwaysOn::update( const Rtc::DateTime &time, int64_t utcNow, bool timeR
         s_screenCleared = true;
     }
 
-    Rtc::DateTime shown = time;
-    shown.hour = static_cast<uint8_t>( minuteOfDay / 60 );
-    shown.minute = static_cast<uint8_t>( minuteOfDay % 60 );
-    const Face &face = layout( look, shown, utcNow, batteryPercent );
+    const Face &face = layout( look, shown, shownUtc, batteryPercent );
 #if CONFIG_WATCH_AOD_CYCLE_MIN > 0
     // System time runs from power-on through deep sleep, as in the battery samples.
     timeval now = {};
