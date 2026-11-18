@@ -93,8 +93,18 @@ static void logPowerKeyIrq()
     }
 }
 
+// The face slots' events, day counters and cities; built again with the sky day and when the
+// portal changes the counters or the cities.
+static FaceTable s_faceTable;
+static bool s_faceTableStale = true;
+// What the always-on face shows (filled by fillLook; too large for the main task's stack).
+static AlwaysOn::Look s_look;
+static void fillLook( int page );
+
 // Set by the host commands "P" and "N": the same as a tap on the setup page's rows.
 [[maybe_unused]] static int s_hostRequests = 0;
+// Set by the host command "O": active mode ends.
+[[maybe_unused]] static bool s_hostEndActive = false;
 static char s_hostLine[32];
 // The scene of the published screenshots, so that they stay the same and do not show the
 // watch's location: Istanbul on 2026-06-21 at 19:19 local time (UTC+3), the local Hijri method.
@@ -106,12 +116,13 @@ static int s_hostLineLength = 0;
 
 // Development commands from the host: the guided test sends the UTC time as
 // "T YYYY-MM-DD HH:MM:SS", timed so that the RTC's next second matches the host's;
-// tools/screenshot.py sends "S <page>" for a screenshot of that page and "A <style>" for one of
-// the always-on face in that style (at 19:19); "P" switches the setup
+// tools/screenshot.py sends "S <page>" for a screenshot of that page and "A <page>" for one of
+// the always-on face of that face page (at 19:19); "P" switches the setup
 // portal on or off and "N" makes a new portal password (so that a published screenshot does not
-// show the one in use). "D" shows a fixed scene until the next reset (s_sceneInputs); "F <style>"
-// shows the watch face in that style without changing the setting. Only "E" (the event log, read
-// by tools/read_events.py) also works without CONFIG_WATCH_DEV_LOGGING.
+// show the one in use). "D" shows a fixed scene until the next reset (s_sceneInputs); "F <page>"
+// shows that face page without changing the setting, "G <page> <slot> <item>" puts an item into
+// a slot of it (not saved); "O" ends active mode as a PWR press does. Only "E" (the event log,
+// read by tools/read_events.py) also works without CONFIG_WATCH_DEV_LOGGING.
 // Returns true when a command arrived: like a touch, it restarts the display timeout, so that
 // the watch stays in active mode while tools/screenshot.py works.
 static bool pollHostCommands()
@@ -164,7 +175,8 @@ static bool pollHostCommands()
         }
         int style = 0;
         if ( sscanf( s_hostLine, "A %d", &style ) == 1 ) {
-            AlwaysOn::capture( style );
+            fillLook( style );
+            AlwaysOn::capture( s_look, style );
             continue;
         }
         if ( sscanf( s_hostLine, "F %d", &style ) == 1 ) {
@@ -179,6 +191,11 @@ static bool pollHostCommands()
         }
         if ( s_hostLine[0] == 'N' && s_hostLine[1] == '\0' ) {
             s_hostRequests |= Display::NewPassword;
+            continue;
+        }
+        if ( s_hostLine[0] == 'O' && s_hostLine[1] == '\0' ) {
+            // As a PWR press: active mode ends (a measurement of the minute wakes on USB).
+            s_hostEndActive = true;
             continue;
         }
         if ( s_hostLine[0] == 'D' && s_hostLine[1] == '\0' ) {
@@ -279,10 +296,6 @@ static void logEvent( EventLog::Entry entry, bool pmuReady )
     EventLog::add( entry, timeRead ? static_cast<uint32_t>( unixTime( time ) ) : 0 );
 }
 
-// The face slots' events, day counters and cities; built again with the sky day and when the
-// portal changes the counters or the cities.
-static FaceTable s_faceTable;
-static bool s_faceTableStale = true;
 
 static void buildFaceTable( const Astronomy::Observer &observer, int offsetMinutes, int ishaAngle )
 {
@@ -325,6 +338,28 @@ static void updateSky( int64_t now, const int inputs[5] )
         buildFaceTable( observer, offsetMinutes, inputs[4] );
     }
     s_display.showSky( s_skyDay, Sky::computeNow( now, s_skyDay, observer ), offsetMinutes, s_faceTable );
+}
+
+// The always-on face of face page `page` (Settings::FaceStyle when active mode ends) into s_look.
+static void fillLook( int page )
+{
+    FaceConfig::Pages pages = {};
+    FaceStore::load( pages );
+    s_look = {};
+    s_look.page = pages.pages[page >= 0 && page < pages.count ? page : 0];
+    s_look.dayBrightness = s_settings.value( Settings::AodDayBrightness );
+    s_look.nightBrightness = s_settings.value( Settings::AodNightBrightness );
+    s_look.language = s_settings.value( Settings::Language );
+    if ( s_skyValid ) {
+        s_look.moonPercent = static_cast<int>( s_skyDay.phase.illumination * 100 + 0.5 );
+        s_look.waxing = s_skyDay.phase.elongation < 180;
+        s_look.corners = Corners::fromSky( s_skyDay );
+        // The place and the table of the sky day shown (the fixed scene's in a screenshot).
+        s_look.skyValid = !s_faceTableStale;
+        s_look.table = s_faceTable;
+        s_look.observer = { s_skyInputs[0] / 1e6, s_skyInputs[1] / 1e6 };
+        s_look.ishaAngle = s_skyInputs[4];
+    }
 }
 
 // USB power and the battery at the last display update (the "On USB: stay on" setting, the
@@ -705,6 +740,13 @@ static int runActiveMode()
             ESP_LOGI( TAG, "Display timeout: active mode ends" );
             return 1;
         }
+#if CONFIG_WATCH_DEV_LOGGING
+        if ( s_hostEndActive ) {
+            s_hostEndActive = false;
+            ESP_LOGI( TAG, "Host command: active mode ends" );
+            return 1;
+        }
+#endif
         if ( pollHostCommands() || ( s_usbPower && s_settings.value( Settings::UsbStayOn ) != 0 ) ) {
             activeMs = 0;
         }
@@ -892,24 +934,8 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
         }
     }
     s_peripherals.sleepTouch( bus );
-    AlwaysOn::Look look = {};
-    // Until the always-on face draws the face page itself: the digit set nearest to its clock.
-    {
-        FaceConfig::Pages pages = {};
-        FaceStore::load( pages );
-        const int page = s_settings.value( Settings::FaceStyle ) < pages.count ? s_settings.value( Settings::FaceStyle ) : 0;
-        look.style = pages.pages[page].digital == FaceConfig::SevenSegment ? 2 : 1;
-        look.items = AlwaysOn::MoonItem | AlwaysOn::DateItem;
-    }
-    look.dayBrightness = s_settings.value( Settings::AodDayBrightness );
-    look.nightBrightness = s_settings.value( Settings::AodNightBrightness );
-    look.language = s_settings.value( Settings::Language );
-    if ( s_skyValid ) {
-        look.moonPercent = static_cast<int>( s_skyDay.phase.illumination * 100 + 0.5 );
-        look.waxing = s_skyDay.phase.elongation < 180;
-        look.corners = Corners::fromSky( s_skyDay );
-    }
-    s_alwaysOn.begin( look );
+    fillLook( s_settings.value( Settings::FaceStyle ) );
+    s_alwaysOn.begin( s_look );
     s_deepSleep.clearLongestTimerWake();
     s_alwaysOnDevMode = s_settings.value( Settings::DevMode ) != 0;
     s_motion.restart( s_settings.value( Settings::AutoOff ) );

@@ -1,19 +1,16 @@
 #pragma once
 
-// The always-on face's bitmaps, made by tools/make_aod_glyphs.py (main/AodGlyphs.c, C so that
-// the LVGL font structures can use designated initializers). One bit per pixel: the panel's idle
-// mode shows each colour channel only on or off, so no grey levels are kept.
+// The always-on face's bitmaps, made by tools/make_aod_glyphs.py (main/AodGlyphs.c). One bit per
+// pixel: the panel's idle mode shows each colour channel only on or off, so no grey levels are
+// kept.
 
-#include <stdbool.h>
 #include <stdint.h>
-
-#include "lvgl.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// Rows one after another without padding, most significant bit first (LVGL's 1-bpp glyphs).
+// Rows one after another without padding, most significant bit first.
 typedef struct
 {
     int16_t width;
@@ -21,11 +18,9 @@ typedef struct
     const uint8_t *bits;
 } AodGlyph;
 
+// The digits and the colon of a digital clock at the Large template's size.
 typedef struct
 {
-    // The same digits and colon as an LVGL font (codes '0' to ':'), for the always-on page of
-    // active mode; each glyph hangs from the top of the line.
-    const lv_font_t *font;
     AodGlyph digits[10];
     AodGlyph colon;
     // Top-left corners of the two hour digits, the colon and the two minute digits in the time
@@ -34,27 +29,23 @@ typedef struct
     int16_t y[5];
     int16_t width;
     int16_t height;
-    // Seven-segment style: the moon and the date are dotted too.
-    bool dottedItems;
 } AodStyle;
 
+// aodStyles by FaceConfig::DigitalStyle: JetBrains Mono Light, seven segments filled with dots.
 enum
 {
-    AOD_STYLE_COUNT = 4,
-    AOD_SMALL_COUNT = 53
+    AOD_STYLE_COUNT = 2,
+    AOD_SMALL_COUNT = 108
 };
 
 extern const AodStyle aodStyles[AOD_STYLE_COUNT];
 
-// The date's characters (a space, digits and the letters of the day names),
-// solid and dotted (every second pixel of every second row). The characters advance by
-// aodSmallAdvance; aodSmallCodes holds their code points.
+// The slot texts' characters: the watch font's set at 26 px, each aodSmallAdvance wide and the
+// line aodSmallHeight high (the glyphs share its top); aodSmallCodes holds their code points.
 extern const uint16_t aodSmallCodes[AOD_SMALL_COUNT];
 extern const AodGlyph aodSmall[AOD_SMALL_COUNT];
-extern const AodGlyph aodSmallDotted[AOD_SMALL_COUNT];
 extern const int aodSmallAdvance;
-extern const lv_font_t aodSmallFont;
-extern const lv_font_t aodSmallDottedFont;
+extern const int aodSmallHeight;
 
 #ifdef __cplusplus
 }

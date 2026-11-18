@@ -16,15 +16,7 @@ static const lv_color_t s_moonDark = LV_COLOR_MAKE( 0x30, 0x30, 0x38 );
 static const lv_color_t s_moonLit = LV_COLOR_MAKE( 0xE6, 0xE8, 0xF0 );
 static const uint32_t s_slideMs = 250;
 
-// The places of the slots (docs/superpowers/specs/2026-11-18-face-templates-design.md): the text
-// slots' centre lines (their widths: FaceConfig::textWidth), the corners' centres.
-static const int s_centreX = 205;
-static const int s_textY[FaceConfig::TextSlotCount] = { 25, 60, 442, 478 };
-static const int s_cornerX[4] = { 66, 344, 66, 344 };
-static const int s_cornerY[4] = { 70, 70, 432, 432 };
-
-// The clock of the Large template.
-static const int s_clockY = 251;
+// The Large template's clock.
 static const float s_segmentHeight = 122;
 
 static const int s_moonSize = 37;
@@ -63,21 +55,21 @@ void FacePage::build( lv_obj_t *tile )
     m_root = createBox( tile, Panel::WIDTH, Panel::HEIGHT );
 
     m_mono = createLabel( m_root, &jetbrains_mono_light_110, lv_color_white() );
-    centreAt( m_mono, s_centreX, s_clockY );
+    centreAt( m_mono, FaceConfig::CentreX, FaceConfig::ClockY );
     const int segmentsWidth = static_cast<int>( std::ceil( SevenSegment::timeWidth( s_segmentHeight ) ) );
     m_segments = createBox( m_root, segmentsWidth, static_cast<int>( s_segmentHeight ) );
-    centreAt( m_segments, s_centreX, s_clockY );
+    centreAt( m_segments, FaceConfig::CentreX, FaceConfig::ClockY );
     lv_obj_add_event_cb( m_segments, onDrawSegments, LV_EVENT_DRAW_MAIN, this );
 
     for ( int i = 0; i < FaceConfig::TextSlotCount; ++i ) {
         m_texts[i] = createLabel( m_root, &jetbrains_mono_26, i == FaceConfig::TopEdge || i == FaceConfig::BottomEdge
                                                                   ? lv_color_white()
                                                                   : s_grey );
-        centreAt( m_texts[i], s_centreX, s_textY[i] );
+        centreAt( m_texts[i], FaceConfig::CentreX, FaceConfig::TextY[i] );
     }
     for ( int i = 0; i < 4; ++i ) {
         m_cornerTexts[i] = createLabel( m_root, &jetbrains_mono_26, lv_color_white() );
-        centreAt( m_cornerTexts[i], s_cornerX[i], s_cornerY[i] );
+        centreAt( m_cornerTexts[i], FaceConfig::CornerX[i], FaceConfig::CornerY[i] );
     }
 
     m_moon = lv_canvas_create( m_root );
@@ -131,11 +123,11 @@ void FacePage::apply()
         // One icon of each kind: the first corner that asks for it.
         if ( item == FaceConfig::MoonIcon && !moon ) {
             moon = true;
-            centreAt( m_moon, s_cornerX[i], s_cornerY[i] );
+            centreAt( m_moon, FaceConfig::CornerX[i], FaceConfig::CornerY[i] );
         }
         if ( item == FaceConfig::WeekdayIcon && !weekday ) {
             weekday = true;
-            centreAt( m_weekday, s_cornerX[i], s_cornerY[i] );
+            centreAt( m_weekday, FaceConfig::CornerX[i], FaceConfig::CornerY[i] );
         }
         // The altitudes in the colour of their body (the font has no sun or moon sign).
         lv_color_t colour = lv_color_white();

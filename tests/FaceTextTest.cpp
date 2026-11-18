@@ -151,6 +151,17 @@ int main()
     check( "table: tomorrow's sunrise after sunset", table.next( localToUtc( 2026, 6, 21, 21, 0, offset ), false, event ) &&
                                                          event.kind == FaceTable::SunriseEvent );
     check( "table: past its end", !table.next( localToUtc( 2026, 6, 23, 0, 1, offset ), true, event ) );
+    // A minute wake past the table's end builds the events again without the sky day; the Hijri
+    // date stays that of the day the table was built for.
+    FaceTable later = table;
+    later.rebuild( day + 2, offset, istanbul, 17 );
+    check( "rebuild: next prayer two days on", later.next( localToUtc( 2026, 6, 23, 23, 59, offset ), true, event ) &&
+                                                   event.kind == FaceTable::PrayerEvent + Sky::Imsak &&
+                                                   event.time > localToUtc( 2026, 6, 24, 3, 0, offset ) &&
+                                                   event.time < localToUtc( 2026, 6, 24, 4, 0, offset ) );
+    check( "rebuild: valid to the end of the next day", !later.next( localToUtc( 2026, 6, 25, 0, 1, offset ), true, event ) );
+    check( "rebuild: keeps the Hijri day", later.localDay == table.localDay && later.hijriDay == table.hijriDay );
+    check( "rebuild: keeps the counters", strcmp( later.counterNames[0], "Ramazan" ) == 0 );
 
     // The default pages' texts fit their slots in both languages: a cut text is for pages the
     // owner composes, not for the defaults.
@@ -165,7 +176,7 @@ int main()
                 FaceText::text( static_cast<FaceConfig::TextItem>( page.items[slot] ), page.parameters[slot], in, text,
                                 sizeof( text ) );
                 const int width = FaceConfig::textWidth( page, slot );
-                char name[64];
+                char name[96];
                 snprintf( name, sizeof( name ), "default page %d slot %d fits (%s)", p, slot, text );
                 check( name, FaceText::fit( text, 16, width ) == static_cast<int>( strlen( text ) ) );
             }

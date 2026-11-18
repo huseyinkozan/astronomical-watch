@@ -48,6 +48,10 @@ public:
     // not with a whole Sky::computeDay.
     void build( const Sky::Day &today, int utcOffsetMinutes, const Astronomy::Observer &observer, int ishaAngle );
 
+    // The events of local day `day` and the next again, computed (the always-on face's minute
+    // wake past validUntil); the Hijri date, the counters and the cities stay.
+    void rebuild( int day, int utcOffsetMinutes, const Astronomy::Observer &observer, int ishaAngle );
+
     void setCounter( int index, const char *name, int day );
     void setCity( int index, const char *name, const Zone &zone );
 

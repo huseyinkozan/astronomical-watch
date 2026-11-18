@@ -48,6 +48,17 @@ void FaceTable::build( const Sky::Day &today, int utcOffsetMinutes, const Astron
     addDay( *this, tomorrow.riseSet, Sky::prayerTimes( today.day + 1, observer, ishaAngle ) );
 }
 
+void FaceTable::rebuild( int day, int utcOffsetMinutes, const Astronomy::Observer &observer, int ishaAngle )
+{
+    count = 0;
+    const int64_t localMidnight = static_cast<int64_t>( day ) * s_dayS - static_cast<int64_t>( utcOffsetMinutes ) * 60;
+    validUntil = localMidnight + 2 * s_dayS;
+    for ( int i = 0; i < 2; ++i ) {
+        const Astronomy::SunDay sun = Astronomy::sunDay( localMidnight + i * s_dayS, observer );
+        addDay( *this, sun.riseSet, Sky::prayerTimes( day + i, observer, ishaAngle ) );
+    }
+}
+
 void FaceTable::setCounter( int index, const char *name, int day )
 {
     if ( index < 0 || index >= CounterCount ) {

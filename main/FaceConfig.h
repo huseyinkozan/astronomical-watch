@@ -58,6 +58,16 @@ public:
     };
     static const int TextSlotCount = 4;
 
+    // The slots' places on the screen (docs/superpowers/specs/2026-11-18-face-templates-design.md),
+    // the same on the active and the always-on face: the text slots' centre lines, centred on
+    // CentreX; the corners' centres (TopLeft, TopRight, BottomLeft, BottomRight); the centre line
+    // of the Large template's clock.
+    static constexpr int CentreX = 205;
+    static constexpr int TextY[TextSlotCount] = { 25, 60, 442, 478 };
+    static constexpr int CornerX[4] = { 66, 344, 66, 344 };
+    static constexpr int CornerY[4] = { 70, 70, 432, 432 };
+    static constexpr int ClockY = 251;
+
     enum TextItem : uint8_t
     {
         NoText,

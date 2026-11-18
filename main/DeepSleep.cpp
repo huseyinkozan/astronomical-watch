@@ -35,6 +35,9 @@ struct WakeStatistics
     uint32_t lastTimerBootMs;
     uint32_t lastTimerAwakeMs;
     uint32_t longestTimerAwakeMs;
+    // Timer wakes since clearLongestTimerWake() and their app run time, for the average.
+    uint32_t sessionTimerWakes;
+    uint64_t sessionTimerAwakeMs;
     // Timer set for the last sleep, 0 when only the PWR key could wake.
     uint64_t lastSleepTimerUs;
 };
@@ -145,6 +148,13 @@ DeepSleep::Event DeepSleep::onBoot()
                   s_stats.totalAwakeMs );
         ESP_LOGI( TAG, "Last timer wake: reset to app %" PRIu32 " ms, app %" PRIu32 " ms",
                   s_stats.lastTimerBootMs, s_stats.lastTimerAwakeMs );
+        if ( s_stats.sessionTimerWakes > 0 ) {
+            ESP_LOGI( TAG, "Timer wakes of the last always-on: %" PRIu32 ", app %" PRIu32 " ms on average, longest %" PRIu32
+                      " ms",
+                      s_stats.sessionTimerWakes,
+                      static_cast<uint32_t>( s_stats.sessionTimerAwakeMs / s_stats.sessionTimerWakes ),
+                      s_stats.longestTimerAwakeMs );
+        }
         ESP_LOGI( TAG, "Last sleep: timer %" PRIu64 " ms", s_stats.lastSleepTimerUs / 1000 );
 
         const uint32_t first = s_eventCount > s_eventCapacity ? s_eventCount - s_eventCapacity : 0;
@@ -219,6 +229,8 @@ void DeepSleep::enter( uint64_t timerUs )
         if ( s_stats.lastAwakeMs > s_stats.longestTimerAwakeMs ) {
             s_stats.longestTimerAwakeMs = s_stats.lastAwakeMs;
         }
+        ++s_stats.sessionTimerWakes;
+        s_stats.sessionTimerAwakeMs += s_stats.lastAwakeMs;
     }
 
     ESP_LOGI( TAG, "Entering deep sleep after %" PRIu32 " ms (wake: %s)", s_stats.lastAwakeMs,
@@ -244,4 +256,6 @@ uint32_t DeepSleep::longestTimerWakeMs() const
 void DeepSleep::clearLongestTimerWake()
 {
     s_stats.longestTimerAwakeMs = 0;
+    s_stats.sessionTimerWakes = 0;
+    s_stats.sessionTimerAwakeMs = 0;
 }

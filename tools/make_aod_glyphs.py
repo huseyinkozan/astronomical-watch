@@ -2,22 +2,21 @@
 """Generates main/AodGlyphs.c: the 1-bit bitmaps of the always-on face.
 
 The always-on wakes draw without LVGL or fonts (main/AlwaysOn.cpp), and the panel's idle mode
-shows each colour channel on or off, so every glyph is stored with one bit per pixel. Digit
-sets, each as HH:MM:
+shows each colour channel on or off, so every glyph is stored with one bit per pixel. The digit
+sets of the face pages' digital clocks (FaceConfig::DigitalStyle), each as HH:MM at the size of
+the Large template:
 
-    Thin, Regular   JetBrains Mono
-    Dense           seven segments, each a hexagon tiled with dots 1 pixel apart
-    Thin 120        the smaller Thin digits of the sky arcs face
+    Mono            JetBrains Mono Light 110, placed as the active face's label
+    Seven segment   main/SevenSegment.cpp's geometry at 122 px, each segment filled with dots
+                    one pixel apart
 
-plus the small characters of the date and time (solid, and dotted for the seven-segment style). The same
-bitmaps also form
-LVGL fonts (1 bpp), with which the always-on page of active mode shows the styles. The moon is
-drawn on the watch, since it changes with the phase.
+plus the small characters of the slot texts: the watch font's set (ASCII, the degree sign and the
+Turkish letters, tools/make_fonts.sh) at 26 px, as the active face's slots. The moon and the
+weekday icon are drawn on the watch.
 
     tools/.venv/bin/python tools/make_aod_glyphs.py    (Pillow, see tools/setup_reference.sh)
 """
 
-import argparse
 import os
 
 from PIL import Image, ImageDraw, ImageFont
@@ -26,13 +25,10 @@ ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 FONTS = os.path.join(ROOT, 'tools', 'fonts')
 OUTPUT = os.path.join(ROOT, 'main', 'AodGlyphs.c')
 
-# Day names on the face (English now, Turkish for M11): their letters and the digits.
-DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']
-SMALL_SIZE = 36
-# The always-on date "21 June" (the sky faces): the month names' letters, English and Turkish.
-MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September',
-               'October', 'November', 'December', 'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
-               'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
+SMALL_SIZE = 26
+# The watch font's characters (tools/make_fonts.sh): ASCII, the degree sign, the Turkish letters.
+SMALL_CHARACTERS = [chr(c) for c in range(0x20, 0x7F)] + list('°ÇÖÜçöüĞğİıŞş')
+LARGE_HEIGHT = 122
 
 SEGMENTS = [0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F]
 
@@ -65,29 +61,27 @@ def renderText(fnt, characters):
     return [image.crop(box) for image in images], box
 
 
-def fontStyle(weight, size):
+def monoStyle(weight, size):
+    """HH:MM in monospaced cells, as an LVGL label of the same font shows it."""
     fnt = font(weight, size)
+    origin = (size // 2, size * 3 // 2)
     digits, box = renderText(fnt, '0123456789')
     colonImage = Image.new('L', (size * 2, size * 2), 0)
-    ImageDraw.Draw(colonImage).text((size // 2, size * 3 // 2), ':', font=fnt, fill=255, anchor='ls')
+    ImageDraw.Draw(colonImage).text(origin, ':', font=fnt, fill=255, anchor='ls')
     colonImage = threshold(colonImage)
-    left, _, right, _ = colonImage.getbbox()
-    colon = colonImage.crop((left, box[1], right, box[3]))
+    colonLeft, _, colonRight, _ = colonImage.getbbox()
+    colon = colonImage.crop((colonLeft, box[1], colonRight, box[3]))
     step = round(fnt.getlength('0'))
+    digitOffset = box[0] - origin[0]
+    colonOffset = colonLeft - origin[0]
+    x = [digitOffset, step + digitOffset, 2 * step + colonOffset, 3 * step + digitOffset, 4 * step + digitOffset]
+    left = min(x)
+    x = [value - left for value in x]
     width, height = digits[0].size
-    # A narrow colon: the monospaced one would take a whole digit cell.
-    space = round(size * 0.08)
-    colonX = step + width + space
-    minutesX = colonX + colon.size[0] + space
-    x = [0, step, colonX, minutesX, minutesX + step]
-    y = [0, 0, 0, 0, 0]
-    return digits, colon, x, y, minutesX + step + width, height
+    return digits, colon, x, [0, 0, 0, 0, 0], x[4] + width, height
 
 
 # --- Seven segments --------------------------------------------------------------------------
-
-DIGIT_W, DIGIT_H, STROKE, JOINT_GAP = 76, 170, 20, 4
-
 
 def hexagon(x0, y0, x1, y1):
     """A segment with pointed ends along its long axis."""
@@ -119,13 +113,21 @@ def toImage(pixels, size):
     return image
 
 
-def segmentDigit(digit):
-    w, h, t, g = DIGIT_W, DIGIT_H, STROKE, JOINT_GAP
-    m = h // 2
-    boxes = [(t // 2 + g, 0, w - t // 2 - g, t), (w - t, t // 2 + g, w, m - g), (w - t, m + g, w, h - t // 2 - g),
-             (t // 2 + g, h - t, w - t // 2 - g, h), (0, m + g, t, h - t // 2 - g), (0, t // 2 + g, t, m - g),
-             (t // 2 + g, m - t // 2, w - t // 2 - g, m + t // 2)]
-    size = (w + 1, h + 1)
+def even(value):
+    """Glyph places on even pixels, so that the dot grids of all glyphs line up."""
+    return 2 * round(value / 2)
+
+
+def segmentDigit(digit, h):
+    """main/SevenSegment.cpp: width 0.62 h, segments h / 11 thick, gaps h / 40 at the joints."""
+    w = h * 0.62
+    t = h / 11
+    g = h / 40
+    m = h / 2
+    boxes = [(t / 2 + g, 0, w - t / 2 - g, t), (w - t, t / 2 + g, w, m - g), (w - t, m + g, w, h - t / 2 - g),
+             (t / 2 + g, h - t, w - t / 2 - g, h), (0, m + g, t, h - t / 2 - g), (0, t / 2 + g, t, m - g),
+             (t / 2 + g, m - t / 2, w - t / 2 - g, m + t / 2)]
+    size = (int(w) + 2, h + 1)
     pixels = set()
     for i in range(7):
         if SEGMENTS[digit] & (1 << i):
@@ -133,28 +135,29 @@ def segmentDigit(digit):
     return toImage(pixels, size)
 
 
-def segmentColon():
-    # Two squares of 14 pixels, placed like the colon of the font styles.
-    w, h = 15, DIGIT_H + 1
+def segmentColon(h):
+    """Two squares of h / 11 at 0.3 and 0.7 of the height."""
+    side = h / 11
+    size = (even(side) + 2, h + 1)
     pixels = set()
-    for top in (DIGIT_H * 3 // 10 - 7, DIGIT_H - DIGIT_H * 3 // 10 - 7):
-        square = [(0, top), (14, top), (14, top + 14), (0, top + 14)]
-        tiledFill(pixels, square, 1, (w, h))
-    return toImage(pixels, (w, h))
+    for centre in (0.3 * h, 0.7 * h):
+        top = centre - side / 2
+        tiledFill(pixels, [(0, top), (side, top), (side, top + side), (0, top + side)], 1, size)
+    return toImage(pixels, size)
 
 
-def segmentStyle():
-    digits = [segmentDigit(d) for d in range(10)]
-    colon = segmentColon()
-    # Positions on even pixels, so that the dot grids of all glyphs line up; the colon in the
-    # middle between the hours and the minutes.
-    step = 90
-    hoursEnd = step + DIGIT_W + 1
-    minutesX = hoursEnd + 30
-    minutesX += -minutesX % 6
-    colonX = round((hoursEnd + minutesX - colon.size[0]) / 12) * 6
-    x = [0, step, colonX, minutesX, minutesX + step]
-    return digits, colon, x, [0, 0, 0, 0, 0], x[4] + DIGIT_W + 1, DIGIT_H + 1
+def segmentStyle(h):
+    """SevenSegment::layout: 0.16 of a digit's width between the digits of a pair, 0.18 on each
+    side of the colon."""
+    w = h * 0.62
+    pairGap = 0.16 * w
+    colonGap = 0.18 * w
+    side = h / 11
+    digits = [segmentDigit(d, h) for d in range(10)]
+    colon = segmentColon(h)
+    x2 = 2 * w + pairGap + 2 * colonGap + side
+    x = [0, even(w + pairGap), even(2 * w + pairGap + colonGap), even(x2), even(x2 + w + pairGap)]
+    return digits, colon, x, [0, 0, 0, 0, 0], x[4] + digits[0].size[0], h + 1
 
 
 # --- Output ----------------------------------------------------------------------------------
@@ -177,16 +180,6 @@ def packed(image):
     return bytes(data)
 
 
-def dottedImage(image):
-    """Every second pixel of every second row (glyph coordinates), for the dotted styles."""
-    out = Image.new('1', image.size, 0)
-    for y in range(0, image.size[1], 2):
-        for x in range(0, image.size[0], 2):
-            if image.getpixel((x, y)):
-                out.putpixel((x, y), 1)
-    return out
-
-
 class Writer:
     """One bitmap array for every glyph; each glyph starts on a byte."""
 
@@ -207,94 +200,31 @@ class Writer:
         return f'{{ {image.size[0]}, {image.size[1]}, s_bits + {self.add(image)} }}'
 
 
-def lvglFont(writer, name, codes, images, advances, offsetsX, lineHeight):
-    """An LVGL font (lv_font_fmt_txt, 1 bpp): the glyphs hang from the top of the line, so a
-    label at (x, y) puts a glyph of the line's full height at (x + ofs_x, y)."""
-    lines = ['    { .bitmap_index = 0, .adv_w = 0, .box_w = 0, .box_h = 0, .ofs_x = 0, .ofs_y = 0 },']
-    for image, advance, offsetX in zip(images, advances, offsetsX):
-        if image is None or image.size[0] == 0:
-            lines.append(f'    {{ .bitmap_index = 0, .adv_w = {advance * 16}, .box_w = 0, .box_h = 0, .ofs_x = 0, .ofs_y = 0 }},')
-            continue
-        lines.append(f'    {{ .bitmap_index = {writer.add(image)}, .adv_w = {advance * 16}, .box_w = {image.size[0]}, '
-                     f'.box_h = {image.size[1]}, .ofs_x = {offsetX}, .ofs_y = 0 }},')
-    first = codes[0]
-    offsets = ', '.join(str(code - first) for code in codes)
-    return (f'static const lv_font_fmt_txt_glyph_dsc_t {name}_glyphs[] = {{\n' + '\n'.join(lines) + '\n};\n'
-            f'static const uint16_t {name}_codes[] = {{ {offsets} }};\n'
-            f'static const lv_font_fmt_txt_cmap_t {name}_cmap = {{\n'
-            f'    .range_start = {first}, .range_length = {codes[-1] - first + 1}, .glyph_id_start = 1,\n'
-            f'    .unicode_list = {name}_codes, .glyph_id_ofs_list = NULL, .list_length = {len(codes)},\n'
-            f'    .type = LV_FONT_FMT_TXT_CMAP_SPARSE_TINY\n}};\n'
-            f'static const lv_font_fmt_txt_dsc_t {name}_dsc = {{\n'
-            f'    .glyph_bitmap = s_bits, .glyph_dsc = {name}_glyphs, .cmaps = &{name}_cmap, .kern_dsc = NULL,\n'
-            f'    .kern_scale = 0, .cmap_num = 1, .bpp = 1, .kern_classes = 0, .bitmap_format = 0\n}};\n'
-            f'const lv_font_t {name} = {{\n'
-            f'    .get_glyph_dsc = lv_font_get_glyph_dsc_fmt_txt, .get_glyph_bitmap = lv_font_get_bitmap_fmt_txt,\n'
-            f'    .line_height = {lineHeight}, .base_line = 0, .subpx = LV_FONT_SUBPX_NONE,\n'
-            f'    .underline_position = 0, .underline_thickness = 0, .dsc = &{name}_dsc, .fallback = NULL,\n'
-            f'    .user_data = NULL\n}};\n')
-
-
-def preview(styles, path):
-    """19:19 of every style side by side, for a check by eye."""
-    sheet = Image.new('1', (len(styles) * 420, 420), 0)
-    for i, (_, (digits, colon, x, y, width, height), _) in enumerate(styles):
-        left = i * 420 + (410 - width) // 2
-        top = (420 - height) // 2
-        glyphs = [digits[1], digits[9], colon, digits[1], digits[9]]
-        for k in range(5):
-            if x[k] >= 0 and glyphs[k] is not None:
-                sheet.paste(glyphs[k], (left + x[k], top + y[k]))
-    sheet.save(path)
-
-
 def main():
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('--preview', help='also write a PNG with 19:19 in every style')
-    args = parser.parse_args()
-
     styles = [
-        ('Thin', fontStyle('Thin', 140), False),
-        ('Regular', fontStyle('Regular', 120), False),
-        ('Dense', segmentStyle(), True),
-        # The digits of the sky arcs face (AlwaysOn style 3), under the arcs.
-        ('Thin 120', fontStyle('Thin', 120), False),
+        ('Mono', monoStyle('Light', 110)),
+        ('Seven segment', segmentStyle(LARGE_HEIGHT)),
     ]
-    if args.preview:
-        preview(styles, args.preview)
 
     writer = Writer()
-    fonts = []
     styleLines = []
-    for index, (name, (digits, colon, x, y, width, height), dotted) in enumerate(styles):
-        fontName = f'aodDigits{index}'
-        # The preview page draws the digits as one-character labels at the layout's places.
-        images = digits + [colon]
-        advances = [image.size[0] for image in images]
-        fonts.append(lvglFont(writer, fontName, list(range(0x30, 0x3B)), images, advances,
-                              [0] * 11, digits[0].size[1]))
+    for name, (digits, colon, x, y, width, height) in styles:
         glyphs = ',\n        '.join(writer.glyph(image) for image in digits)
         styleLines.append(
             f'    // {name}\n'
-            f'    {{ &{fontName},\n'
-            f'      {{ {glyphs} }},\n'
+            f'    {{ {{ {glyphs} }},\n'
             f'      {writer.glyph(colon)},\n'
             f'      {{ {", ".join(str(v) for v in x)} }},\n'
             f'      {{ {", ".join(str(v) for v in y)} }},\n'
-            f'      {width}, {height}, {"true" if dotted else "false"} }}')
+            f'      {width}, {height} }}')
 
-    characters = sorted({c for name in DAY_NAMES + MONTH_NAMES for c in name} | set('0123456789: '))
+    characters = SMALL_CHARACTERS
     small, _ = renderText(font('Regular', SMALL_SIZE), characters)
     advance = round(font('Regular', SMALL_SIZE).getlength('0'))
     codes = [ord(c) for c in characters]
     small = [Image.new('1', (0, 0)) if c == ' ' else image for c, image in zip(characters, small)]
-    dotted = [dottedImage(image) if image.size[0] else image for image in small]
-    advances = [advance] * len(characters)
-    lineHeight = max(image.size[1] for image in small)
-    fonts.append(lvglFont(writer, 'aodSmallFont', codes, small, advances, [0] * len(codes), lineHeight))
-    fonts.append(lvglFont(writer, 'aodSmallDottedFont', codes, dotted, advances, [0] * len(codes), lineHeight))
     smallGlyphs = ',\n    '.join(writer.glyph(image) for image in small)
-    dottedGlyphs = ',\n    '.join(writer.glyph(image) for image in dotted)
+    lineHeight = max(image.size[1] for image in small)
 
     rows = []
     for i in range(0, len(writer.data), 16):
@@ -304,15 +234,14 @@ def main():
                      '// License); do not edit.\n\n'
                      '#include "AodGlyphs.h"\n\n'
                      f'static const uint8_t s_bits[{len(writer.data)}] = {{\n' + '\n'.join(rows) + '\n};\n\n'
-                     + '\n'.join(fonts) + '\n'
                      'const AodStyle aodStyles[AOD_STYLE_COUNT] = {\n' + ',\n'.join(styleLines) + '\n};\n\n'
                      'const uint16_t aodSmallCodes[AOD_SMALL_COUNT] = { '
                      + ', '.join(f'0x{c:X}' for c in codes) + ' };\n\n'
                      'const AodGlyph aodSmall[AOD_SMALL_COUNT] = {\n    ' + smallGlyphs + '\n};\n\n'
-                     'const AodGlyph aodSmallDotted[AOD_SMALL_COUNT] = {\n    ' + dottedGlyphs + '\n};\n\n'
-                     f'const int aodSmallAdvance = {advance};\n')
+                     f'const int aodSmallAdvance = {advance};\n'
+                     f'const int aodSmallHeight = {lineHeight};\n')
     print(f'{OUTPUT}: {len(writer.data)} bytes of bitmaps; AOD_STYLE_COUNT must be {len(styles)}, '
-          f'AOD_SMALL_COUNT {len(codes)}')
+          f'AOD_SMALL_COUNT {len(codes)}, advance {advance}, line {lineHeight}')
 
 
 if __name__ == '__main__':
