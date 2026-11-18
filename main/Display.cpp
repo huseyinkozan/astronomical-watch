@@ -1176,21 +1176,6 @@ void Display::showLevels()
     bsp_display_unlock();
 }
 
-void Display::setFaceAnalog( int page, int style )
-{
-    if ( page >= 0 && page < m_facePages.count && style >= 0 && style < FaceConfig::AnalogStyleCount ) {
-        m_facePages.pages[page].clock = FaceConfig::AnalogClock;
-        m_facePages.pages[page].analog = static_cast<uint8_t>( style );
-        // As the portal does: Classic with the seconds hand.
-        if ( style == FaceConfig::ClassicHands ) {
-            m_facePages.pages[page].flags |= FaceConfig::SecondsHandFlag;
-        } else {
-            m_facePages.pages[page].flags &= static_cast<uint8_t>( ~FaceConfig::SecondsHandFlag );
-        }
-    }
-    showFaceStyle( page );
-}
-
 void Display::setFaceSlot( int page, int slot, int item )
 {
     if ( slot < 0 || slot >= FaceConfig::SlotCount || item < 0 || item > 255 ) {

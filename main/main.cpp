@@ -194,7 +194,16 @@ static bool pollHostCommands()
         int slot = 0;
         int item = 0;
         if ( sscanf( s_hostLine, "H %d %d", &style, &item ) == 2 ) {
-            s_display.setFaceAnalog( style, item );
+            if ( style >= 0 && style < s_facePages.count && item >= 0 && item < FaceConfig::AnalogStyleCount ) {
+                FaceConfig::Page &page = s_facePages.pages[style];
+                page.clock = FaceConfig::AnalogClock;
+                page.analog = static_cast<uint8_t>( item );
+                // As the portal does: Classic with the seconds hand.
+                page.flags = static_cast<uint8_t>( item == FaceConfig::ClassicHands ? page.flags | FaceConfig::SecondsHandFlag
+                                                                                    : page.flags & ~FaceConfig::SecondsHandFlag );
+                s_display.setPages( s_facePages );
+            }
+            s_display.showFaceStyle( style );
             continue;
         }
         if ( sscanf( s_hostLine, "G %d %d %d", &style, &slot, &item ) == 3 ) {
@@ -369,10 +378,12 @@ static void updateSky( int64_t now, const int inputs[5] )
 // The always-on face of face page `page` (Settings::FaceStyle when active mode ends) into s_look.
 static void fillLook( int page )
 {
-    FaceConfig::Pages pages = {};
-    FaceStore::load( pages );
+    // The pages active mode showed (loaded when it started, changed by the portal).
+    if ( s_facePages.count == 0 ) {
+        FaceStore::load( s_facePages );
+    }
     s_look = {};
-    s_look.page = pages.pages[page >= 0 && page < pages.count ? page : 0];
+    s_look.page = s_facePages.pages[page >= 0 && page < s_facePages.count ? page : 0];
     s_look.dayBrightness = s_settings.value( Settings::AodDayBrightness );
     s_look.nightBrightness = s_settings.value( Settings::AodNightBrightness );
     s_look.language = s_settings.value( Settings::Language );

@@ -84,7 +84,8 @@ public:
         int16_t y1;
     };
 
-    static const int MaxShapes = 16;
+    // Sixty marks, two hands, the centre and a weekday ring.
+    static const int MaxShapes = 80;
 
     // The sprites and shapes, and the box on the screen that holds them before the burn-in shift.
     struct Face

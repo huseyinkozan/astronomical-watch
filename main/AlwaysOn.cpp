@@ -6,6 +6,7 @@
 #include <cstring>
 #include <sys/time.h>
 
+#include "AnalogClock.h"
 #include "CornerTable.h"
 #include "Dates.h"
 #include "FaceText.h"
@@ -33,6 +34,8 @@ static const float s_notchGap = 18;  // degrees between two notches
 // Burn-in: the face moves within +-s_shift pixels, one step per minute; its box keeps that far
 // from the screen's edges.
 static const int s_shift = 8;
+// The Large template's analog clock, as on the active face.
+static const float s_analogRadius = 140;
 
 // The face of the last layout() (too large for the main task's stack).
 static AlwaysOn::Face s_face;
@@ -197,6 +200,23 @@ static void addWeekday( AlwaysOn::Face &face, int cx, int cy, int weekday )
     addSmallText( face, letter, cx, cy, AlwaysOn::White );
 }
 
+// The analog clock of the page's style without the seconds hand (one bit per colour: all white).
+static void addAnalog( AlwaysOn::Face &face, int style, const Rtc::DateTime &time )
+{
+    AnalogClock::Segment segments[AnalogClock::MaxSegments];
+    const int count = AnalogClock::segments( style, s_analogRadius, time.hour, time.minute, 0, false, segments,
+                                             AnalogClock::MaxSegments );
+    const int cx = FaceConfig::CentreX;
+    const int cy = FaceConfig::ClockY;
+    for ( int i = 0; i < count; ++i ) {
+        const AnalogClock::Segment &segment = segments[i];
+        addShape( face, AlwaysOn::LineShape, AlwaysOn::White, cx + static_cast<int>( lroundf( segment.x0 ) ),
+                  cy + static_cast<int>( lroundf( segment.y0 ) ), 0, static_cast<int>( segment.width ),
+                  cx + static_cast<int>( lroundf( segment.x1 ) ), cy + static_cast<int>( lroundf( segment.y1 ) ) );
+    }
+    addShape( face, AlwaysOn::DiscShape, AlwaysOn::White, cx, cy, 6 );
+}
+
 static bool usesItem( const FaceConfig::Page &page, int textItem, int cornerItem )
 {
     for ( int slot = 0; slot < FaceConfig::SlotCount; ++slot ) {
@@ -221,6 +241,8 @@ const AlwaysOn::Face &AlwaysOn::layout( const Look &look, const Rtc::DateTime &t
     const FaceConfig::Page &page = look.page;
     if ( page.clock == FaceConfig::DigitalClock && page.digital < AOD_STYLE_COUNT ) {
         addClock( face, aodStyles[page.digital], time );
+    } else if ( page.clock == FaceConfig::AnalogClock ) {
+        addAnalog( face, page.analog, time );
     }
 
     FaceText::Inputs in = {};
