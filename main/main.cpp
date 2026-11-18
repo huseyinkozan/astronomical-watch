@@ -97,6 +97,8 @@ static void logPowerKeyIrq()
 // portal changes the counters or the cities.
 static FaceTable s_faceTable;
 static bool s_faceTableStale = true;
+// The face pages (FaceStore), loaded when active mode starts and changed by the portal.
+static FaceConfig::Pages s_facePages;
 // What the always-on face shows (filled by fillLook; too large for the main task's stack).
 static AlwaysOn::Look s_look;
 static void fillLook( int page );
@@ -590,6 +592,11 @@ static void applyPortalData( const Portal::Received &received )
         s_display.setCities( s_worldClock );
         s_faceTableStale = true;
     }
+    if ( received.facesValid ) {
+        s_facePages = received.faces;
+        FaceStore::save( s_facePages );
+        s_display.setPages( s_facePages );
+    }
     if ( received.placeValid ) {
         s_worldClock.setHomePlace( received.place );
     }
@@ -622,7 +629,7 @@ static bool servicePortal( bool everySecond )
         if ( s_portal.isRunning() ) {
             s_portal.stop();
         } else {
-            s_portal.start( s_settings, s_worldClock, s_dayCounters );
+            s_portal.start( s_settings, s_worldClock, s_dayCounters, s_facePages );
             s_portalUsed = true;
         }
     }
@@ -1073,9 +1080,8 @@ extern "C" void app_main( void )
         // preparation, as in runs A to D: nothing switches the panel off before deep sleep.
 #else
         s_pmu.setPanelPower( true );
-        FaceConfig::Pages pages = {};
-        FaceStore::load( pages );
-        s_display.setPages( pages );
+        FaceStore::load( s_facePages );
+        s_display.setPages( s_facePages );
         s_displayOn = s_display.start( s_settings );
         // A new image from the portal is kept once it has drawn its pages; a reset before this
         // returns to the previous one.

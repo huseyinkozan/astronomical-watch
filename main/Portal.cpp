@@ -110,7 +110,8 @@ void Portal::newPassword()
     ESP_LOGI( TAG, "New password: %s", esp_err_to_name( err ) );
 }
 
-esp_err_t Portal::start( const Settings &settings, const WorldClock &worldClock, const DayCounters &counters )
+esp_err_t Portal::start( const Settings &settings, const WorldClock &worldClock, const DayCounters &counters,
+                         const FaceConfig::Pages &faces )
 {
     if ( isRunning() ) {
         return ESP_OK;
@@ -118,6 +119,7 @@ esp_err_t Portal::start( const Settings &settings, const WorldClock &worldClock,
     m_settings = &settings;
     m_worldClock = &worldClock;
     m_counters = &counters;
+    m_faces = &faces;
     m_hasCoreDump = esp_core_dump_image_check() == ESP_OK;
     esp_err_t err = ESP_OK;
     if ( !s_networkReady ) {
@@ -334,8 +336,12 @@ esp_err_t Portal::onCities( httpd_req_t *request )
 }
 
 // One buffer for every request that needs one: the HTTP server serves one request at a time in
-// its own task, whose stack is small. Its size holds the setup page's form and state.
-static char s_buffer[1536];
+// its own task, whose stack is small. Its size holds the setup page's form and state with eight
+// face pages (their commas URL-encoded in the form).
+static char s_buffer[4096];
+// The face pages as FaceConfig::encode writes them, for the state and from the form, where each
+// separator takes three characters ("%2C"): 22 numbers of up to three digits a page.
+static char s_faces[FaceConfig::MaxPages * 22 * 6 + 16];
 
 esp_err_t Portal::onState( httpd_req_t *request )
 {
@@ -385,7 +391,13 @@ esp_err_t Portal::onState( httpd_req_t *request )
         snprintf( json + used, jsonSize - used, "%s[\"%s\",\"%04d-%02d-%02d\"]", i == 0 ? "" : ",",
                   counters.counter( i ).name, fields.tm_year + 1900, fields.tm_mon + 1, fields.tm_mday );
     }
-    strlcat( json, "]}", jsonSize );
+    // The page's lists may be longer than this version's catalogues: it offers only these.
+    if ( FaceConfig::encode( *portal->m_faces, s_faces, sizeof( s_faces ) ) < 0 ) {
+        s_faces[0] = '\0';
+    }
+    const int used = strlen( json );
+    snprintf( json + used, jsonSize - used, "],\"faces\":\"%s\",\"faceItems\":[%d,%d]}", s_faces,
+              static_cast<int>( FaceConfig::TextItemCount ), static_cast<int>( FaceConfig::CornerItemCount ) );
     httpd_resp_set_type( request, "application/json" );
     noCache( request );
     return httpd_resp_sendstr( request, json );
@@ -655,6 +667,14 @@ esp_err_t Portal::onSave( httpd_req_t *request )
             strlcpy( counter.name, text, sizeof( counter.name ) );
             // The firmware never sets TZ, so mktime() works in UTC.
             counter.day = static_cast<int>( mktime( &fields ) / 86400 );
+        }
+    }
+    // The face pages: FaceConfig::encode's text, URL-encoded.
+    if ( httpd_query_key_value( body, "faces", s_faces, sizeof( s_faces ) ) == ESP_OK ) {
+        urlDecode( s_faces );
+        received.facesValid = FaceConfig::decode( s_faces, received.faces );
+        if ( !received.facesValid ) {
+            ESP_LOGW( TAG, "Setup page: face pages refused: %s", s_faces );
         }
     }
     ESP_LOGI( TAG, "Setup page saved: %s", body );

@@ -4,6 +4,7 @@
 
 #include "Settings.h"
 #include "DayCounters.h"
+#include "FaceConfig.h"
 #include "WorldClock.h"
 #include "esp_err.h"
 #include "esp_http_server.h"
@@ -36,6 +37,9 @@ public:
         bool countersValid;
         int counterCount;
         DayCounters::Counter counters[DayCounters::MaxCounters];
+        // The face pages; facesValid: the page sent them and they decoded.
+        bool facesValid;
+        FaceConfig::Pages faces;
     };
 
     // Reads the stored password, or creates one. NVS must be initialised (Settings::load()).
@@ -43,7 +47,8 @@ public:
 
     // Starts the soft AP, DHCP, DNS and HTTP servers. The page reads the current values from
     // `settings` while the portal runs.
-    esp_err_t start( const Settings &settings, const WorldClock &worldClock, const DayCounters &counters );
+    esp_err_t start( const Settings &settings, const WorldClock &worldClock, const DayCounters &counters,
+                     const FaceConfig::Pages &faces );
 
     // Stops everything start() started; safe to call when not running.
     void stop();
@@ -90,6 +95,7 @@ private:
     const Settings *m_settings = nullptr;
     const WorldClock *m_worldClock = nullptr;
     const DayCounters *m_counters = nullptr;
+    const FaceConfig::Pages *m_faces = nullptr;
     esp_netif_t *m_netif = nullptr;
     httpd_handle_t m_server = nullptr;
     void *m_dns = nullptr;

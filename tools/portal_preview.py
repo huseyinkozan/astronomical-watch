@@ -22,14 +22,17 @@ import threading
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'main', 'portal')
 PORT = 8765
 STATE = {
-    'timeout': 10, 'alwaysOn': 1, 'brightness': 77, 'autoOff': 30, 'face': 3, 'aod': 4, 'offset': 180,
-    'lat': 41.0082, 'lon': 28.9784, 'hijri': 0, 'faceItems': 7, 'aodItems': 3, 'aodDay': 25, 'aodNight': 2,
+    'timeout': 10, 'alwaysOn': 1, 'brightness': 77, 'autoOff': 30, 'face': 0, 'offset': 180,
+    'lat': 41.0082, 'lon': 28.9784, 'hijri': 0, 'aodDay': 25, 'aodNight': 2,
     'devMode': 0, 'usbStayOn': 1, 'isha': 17, 'language': 0, 'clockOrder': 0, 'clockHidden': 0, 'infoOrder': 0,
-    'infoHidden': 0, 'settingsOrder': 0, 'faceOrder': 0, 'faceHidden': 0, 'aodOrder': 0, 'aodHidden': 0,
+    'infoHidden': 0, 'settingsOrder': 0, 'settingsHidden': 0,
     'version': 'preview', 'battery': 80, 'usb': 0, 'updateMin': 30, 'coreDump': 0,
     'zone': 'Europe/Istanbul', 'place': 'Istanbul',
     'cities': [['London', 'Europe/London'], ['New York', 'America/New_York']],
     'days': [['Trip home', '2026-07-03']],
+    # FaceConfig::defaults, as FaceConfig::encode writes them, and the catalogues' sizes.
+    'faces': '0,0,1,0,0,2,5,0,9,2,8,1,4,0,0,0,0,0,0,0,0,209;0,0,0,0,0,0,1,3,0,0,0,0,0,0,0,0,0,0,0,0,0,6',
+    'faceItems': [12, 13],
 }
 FILES = {'/': ('index.html', 'text/html'), '/help': ('help.html', 'text/html'),
          '/update': ('update.html', 'text/html'),

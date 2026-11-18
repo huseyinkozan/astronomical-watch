@@ -27,6 +27,18 @@
   .order label { flex: 1; margin: 0; }
   .order input { width: auto; }
   .order button { width: auto; padding: 4px 12px; font-size: 1em; background: #333; }
+  .face { border-top: 1px solid #555; margin-top: 12px; padding-top: 4px; }
+  .face .head { display: flex; align-items: center; gap: 6px; }
+  .face .head strong { flex: 1; }
+  .face .head label { margin: 0; white-space: nowrap; }
+  .face input[type=checkbox] { width: auto; }
+  .face .head button { width: auto; padding: 4px 12px; font-size: 1em; background: #333; }
+  .slot { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
+  .slot select { flex: 2; }
+  .slot select.param { flex: 1; }
+  .slot label { margin: 0; white-space: nowrap; }
+  .slot input { width: auto; }
+  #addFace { margin-top: 12px; background: #333; }
   .suggest button { display: block; text-align: left; margin: 2px 0; padding: 10px; font-size: 1em;
                     background: #2a2a2a; }
 </style>
@@ -124,19 +136,16 @@
 
 <fieldset>
   <legend data-tr="Yüzler">Faces</legend>
-  <label for="face" data-tr="Ön yüz">Watch face</label>
-  <select id="face"></select>
-  <div class="checks" id="faceItems"></div>
-  <label for="aod" data-tr="Bekleme yüzü">Always-on face</label>
-  <select id="aod"></select>
-  <div class="checks" id="aodItems"></div>
-  <small data-tr="Saatte: ön yüzde ya da solundaki bekleme sayfasında yukarı veya aşağı kaydırın. Ekran köşeleri gündüzü ya da geceyi, pili, Ay'ın ufkun üstünde ya da altında geçen süresini ve evresini gösterir.">On the watch: swipe up or down on the watch face, or on the always-on page left of it.
-  The screen corners show the day or night, the battery, the Moon's time above or below the
-  horizon and its phase.</small>
+  <small data-tr="Ön yüzün sayfaları; saatte ön yüzde yukarı veya aşağı kaydırarak geçilir. Bekleme ekranı, etkin mod bittiğinde görünen sayfayı gösterir: saatini ve &quot;beklemede&quot; işaretli bilgileri. Ekran köşeleri gündüzü ya da geceyi, pili, Ay'ın ufkun üstünde ya da altında geçen süresini ve evresini gösterir.">The pages of the watch face; on the watch, swipe up or down on the face for the next one.
+  The always-on face shows the page shown when active mode ends: its clock and the items marked
+  "always-on". The screen corners show the day or night, the battery, the Moon's time above or
+  below the horizon and its phase.</small>
+  <div id="faces"></div>
+  <button type="button" id="addFace" data-tr="Sayfa ekle">Add a page</button>
 </fieldset>
 
 <fieldset>
-  <legend data-tr="Sayfalar ve yüzler">Pages and faces</legend>
+  <legend data-tr="Sayfalar">Pages</legend>
   <small data-tr="Dikey kaydırmanın geçtiği parçaların sırası ve hangilerinin gösterileceği.">The order of the parts a vertical swipe steps through, and which of them to show.</small>
   <div id="orders"></div>
 </fieldset>
@@ -207,39 +216,8 @@ function fillLists() {
   fill($('devMode'), [[0, off], [1, on]], keep('devMode'));
   fill($('usbStayOn'), [[1, on], [0, off]], keep('usbStayOn'));
   fill($('isha'), [[17, t('17° (Turkey)', '17° (Türkiye)')], [16, '16°']], keep('isha'));
-  fill($('face'), [[0, t('Classic', 'Klasik')], [1, t('Day arc', 'Gün yayı')], [2, t('Sky arcs', 'Gökyüzü yayları')],
-                   [3, t('Dial', 'Kadran')]], keep('face'));
-  fill($('aod'), [[0, t('Thin', 'İnce')], [1, t('Regular', 'Normal')], [2, t('Dense (dotted seven segments)', 'Yoğun (noktalı yedi parça)')],
-                  [3, t('Sky arcs', 'Gökyüzü yayları')], [4, t('Dial', 'Kadran')]], keep('aod'));
-  const faceBits = bitsOf($('faceItems')), aodBits = bitsOf($('aodItems'));
-  $('faceItems').innerHTML = '';
-  $('aodItems').innerHTML = '';
-  checks($('faceItems'), [[1, t('Date', 'Tarih')], [2, t('Next sun event', 'Sonraki Güneş olayı')], [4, t('Moon', 'Ay')]]);
-  checks($('aodItems'), [[1, t('Moon', 'Ay')], [2, t('Date', 'Tarih')]]);
-  setBits($('faceItems'), faceBits);
-  setBits($('aodItems'), aodBits);
 }
 
-// Item choices as bits, as in main/Display.h (FaceItem) and main/AlwaysOn.h (Item).
-function checks(box, items) {
-  for (const [bit, text] of items) {
-    const label = document.createElement('label');
-    label.innerHTML = '<input type="checkbox" data-bit="' + bit + '"> ' + text;
-    box.appendChild(label);
-  }
-}
-function bitsOf(box) {
-  let bits = 0;
-  for (const input of box.querySelectorAll('input')) if (input.checked) bits |= Number(input.dataset.bit);
-  return bits;
-}
-function setBits(box, bits) {
-  for (const input of box.querySelectorAll('input')) input.checked = (bits & Number(input.dataset.bit)) !== 0;
-}
-checks($('faceItems'), [[1, ''], [2, ''], [4, '']]);
-checks($('aodItems'), [[1, ''], [2, '']]);
-setBits($('faceItems'), 7);
-setBits($('aodItems'), 3);
 fillLists();
 const offsets = [];
 for (let m = -720; m <= 840; m += 15) offsets.push([m, offsetText(m)]);
@@ -445,10 +423,6 @@ const orderLists = [
   { title: ['Settings page', 'Ayarlar sayfası'], order: 'settingsOrder', hidden: 'settingsHidden', fixed: 3,
     names: [['Settings', 'Ayarlar'], ['More settings', 'Diğer ayarlar'], ['What this page set', 'Bu sayfanın girdikleri'],
             ['Wi-Fi setup', 'Wi-Fi kurulum'], ['Wi-Fi QR code', 'Wi-Fi QR kodu']] },
-  { title: ['Watch faces', 'Ön yüzler'], order: 'faceOrder', hidden: 'faceHidden',
-    names: [['Classic', 'Klasik'], ['Day arc', 'Gün yayı'], ['Sky arcs', 'Gökyüzü yayları'], ['Dial', 'Kadran']] },
-  { title: ['Always-on faces', 'Bekleme yüzleri'], order: 'aodOrder', hidden: 'aodHidden',
-    names: [['Thin', 'İnce'], ['Regular', 'Normal'], ['Dense', 'Yoğun'], ['Sky arcs', 'Gökyüzü yayları'], ['Dial', 'Kadran']] },
 ];
 function decodeOrder(value, count) {
   const parts = [];
@@ -512,6 +486,130 @@ function setOrders(s) {
 }
 setOrders({});
 
+// Face pages (main/FaceConfig.h): 22 numbers each (template, clock, digital style, analog style,
+// flags, eight slot items, eight parameters, the always-on bits), pages separated by ";". The
+// lists follow FaceConfig's enums; the watch sends how many items it knows.
+const faceTexts = [['Nothing', 'Boş'], ['Date, long', 'Tarih, uzun'], ['Date, short', 'Tarih, kısa'], ['Hijri date', 'Hicri tarih'],
+  ['Next sunrise or sunset', 'Sonraki gün doğumu ya da batımı'], ['Next prayer time', 'Sonraki namaz vakti'],
+  ['Seconds', 'Saniye'], ['Battery', 'Pil'], ['World clock city', 'Dünya saati şehri'], ['Day counter', 'Gün sayacı'],
+  ['Sun altitude', 'Güneş yüksekliği'], ['Moon altitude', 'Ay yüksekliği']];
+const faceCorners = [['Nothing', 'Boş'], ['Moon phase', 'Ay evresi'], ['Weekday ring', 'Hafta günü halkası'],
+  ['Weekday', 'Hafta günü'], ['Day of the month', 'Ayın günü'], ['Hijri day of the month', 'Hicri ayın günü'],
+  ['Month', 'Ay adı'], ['Hijri month', 'Hicri ay adı'], ['Sun altitude', 'Güneş yüksekliği'], ['Moon altitude', 'Ay yüksekliği'],
+  ['Hour', 'Saat'], ['Minute', 'Dakika'], ['Second', 'Saniye']];
+const slotNames = [['Top edge', 'Üst kenar'], ['Top', 'Üst'], ['Bottom', 'Alt'], ['Bottom edge', 'Alt kenar'],
+  ['Top left', 'Sol üst'], ['Top right', 'Sağ üst'], ['Bottom left', 'Sol alt'], ['Bottom right', 'Sağ alt']];
+const CityTime = 8, DayCounter = 9, SecondsHand = 1, Hidden = 128, MaxFaces = 8;
+let faces = [];
+let faceLimits = [faceTexts.length, faceCorners.length];
+
+function decodeFaces(text) {
+  const pages = (text || '').split(';').map((page) => page.split(',').map(Number))
+    .filter((v) => v.length === 22 && v.every((n) => Number.isInteger(n) && n >= 0 && n <= 255));
+  return pages.length > 0 ? pages : [[0, 0, 1, 0, 0, 2, 5, 0, 9, 2, 8, 1, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0b11010001]];
+}
+function selectOf(items, limit, value, onChange) {
+  const select = document.createElement('select');
+  fill(select, items.slice(0, limit).map((names, i) => [i, names[L]]), value);
+  select.addEventListener('change', () => onChange(Number(select.value)));
+  return select;
+}
+function checkOf(text, checked, onChange) {
+  const label = document.createElement('label');
+  const check = document.createElement('input');
+  check.type = 'checkbox';
+  check.checked = checked;
+  check.addEventListener('change', () => onChange(check.checked));
+  label.appendChild(check);
+  label.appendChild(document.createTextNode(' ' + text));
+  return label;
+}
+function labelOf(text) {
+  const label = document.createElement('label');
+  label.textContent = text;
+  return label;
+}
+function drawFaces() {
+  const box = $('faces');
+  box.innerHTML = '';
+  faces.forEach((v, p) => {
+    const page = document.createElement('div');
+    page.className = 'face';
+    const head = document.createElement('div');
+    head.className = 'head';
+    const title = document.createElement('strong');
+    title.textContent = t('Page ', 'Sayfa ') + (p + 1);
+    head.appendChild(title);
+    head.appendChild(checkOf(t('show', 'göster'), (v[4] & Hidden) === 0, (on) => {
+      // At least one page stays shown.
+      if (!on && faces.filter((f) => (f[4] & Hidden) === 0).length <= 1) { drawFaces(); return; }
+      v[4] = on ? v[4] & ~Hidden : v[4] | Hidden;
+    }));
+    for (const [text, move] of [['↑', -1], ['↓', 1], ['✕', 0]]) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = text;
+      button.disabled = move === 0 ? faces.length <= 1 : p + move < 0 || p + move >= faces.length;
+      button.addEventListener('click', () => {
+        if (move === 0) faces.splice(p, 1); else [faces[p], faces[p + move]] = [faces[p + move], faces[p]];
+        drawFaces();
+      });
+      head.appendChild(button);
+    }
+    page.appendChild(head);
+    page.appendChild(labelOf(t('Template', 'Şablon')));
+    page.appendChild(selectOf([['Large', 'Büyük']], 1, v[0], (n) => { v[0] = n; }));
+    page.appendChild(labelOf(t('Clock', 'Saat')));
+    page.appendChild(selectOf([['Digital', 'Dijital'], ['Analog (coming)', 'Analog (yakında)'], ['None', 'Yok']], 3, v[1],
+                              (n) => { v[1] = n; }));
+    const styles = document.createElement('div');
+    styles.className = 'row';
+    const digital = document.createElement('div');
+    digital.appendChild(labelOf(t('Digits', 'Rakamlar')));
+    digital.appendChild(selectOf([['JetBrains Mono', 'JetBrains Mono'], ['Seven segment', 'Yedi segment']], 2, v[2], (n) => { v[2] = n; }));
+    const analog = document.createElement('div');
+    analog.appendChild(labelOf(t('Hands', 'Akrep ve yelkovan')));
+    analog.appendChild(selectOf([['Classic', 'Klasik'], ['Bold', 'Kalın'], ['Fine scale', 'İnce ölçek'], ['One hand', 'Tek kol'],
+                                 ['Plain', 'Sade']], 5, v[3], (n) => { v[3] = n; }));
+    styles.appendChild(digital);
+    styles.appendChild(analog);
+    page.appendChild(styles);
+    page.appendChild(checkOf(t('Seconds hand (analog)', 'Saniye kolu (analog)'), (v[4] & SecondsHand) !== 0,
+                             (on) => { v[4] = on ? v[4] | SecondsHand : v[4] & ~SecondsHand; }));
+    for (let slot = 0; slot < 8; slot++) {
+      const corner = slot >= 4;
+      page.appendChild(labelOf(slotNames[slot][L]));
+      const row = document.createElement('div');
+      row.className = 'slot';
+      const param = document.createElement('select');
+      param.className = 'param';
+      const showParam = () => {
+        const item = v[5 + slot];
+        const count = corner ? 0 : item === CityTime ? 3 : item === DayCounter ? 4 : 0;
+        param.hidden = count === 0;
+        fill(param, [...Array(count).keys()].map((i) => [i, String(i + 1)]), Math.min(v[13 + slot], Math.max(count - 1, 0)));
+        v[13 + slot] = count === 0 ? 0 : Number(param.value);
+      };
+      param.addEventListener('change', () => { v[13 + slot] = Number(param.value); });
+      row.appendChild(selectOf(corner ? faceCorners : faceTexts, faceLimits[corner ? 1 : 0], v[5 + slot],
+                               (n) => { v[5 + slot] = n; showParam(); }));
+      row.appendChild(param);
+      showParam();
+      row.appendChild(checkOf(t('always-on', 'beklemede'), (v[21] & (1 << slot)) !== 0,
+                              (on) => { v[21] = on ? v[21] | (1 << slot) : v[21] & ~(1 << slot); }));
+      page.appendChild(row);
+    }
+    box.appendChild(page);
+  });
+  $('addFace').disabled = faces.length >= MaxFaces;
+}
+$('addFace').addEventListener('click', () => {
+  if (faces.length < MaxFaces) faces.push(faces[faces.length - 1].slice());
+  drawFaces();
+});
+faces = decodeFaces('');
+drawFaces();
+
 function setLanguage(language) {
   L = language === 1 ? 1 : 0;
   $('language').value = String(L);
@@ -519,6 +617,7 @@ function setLanguage(language) {
   fillLists();
   fillCities();
   drawOrders();
+  drawFaces();
   showZone();
 }
 $('language').addEventListener('change', () => setLanguage(Number($('language').value)));
@@ -530,10 +629,11 @@ setInterval(() => { $('now').textContent = t('This device: ', 'Bu cihaz: ') + ne
 fetch('/api/state').then((r) => r.json()).then((s) => {
   if (s.language !== undefined) setLanguage(s.language);
   $('version').textContent = s.version || '?';
-  for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'hijri', 'face', 'aod', 'aodDay', 'aodNight', 'devMode', 'usbStayOn', 'isha']) $(id).value = String(s[id]);
+  for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'hijri', 'aodDay', 'aodNight', 'devMode', 'usbStayOn', 'isha']) $(id).value = String(s[id]);
   setOrders(s);
-  setBits($('faceItems'), s.faceItems);
-  setBits($('aodItems'), s.aodItems);
+  if (s.faceItems) faceLimits = s.faceItems;
+  faces = decodeFaces(s.faces);
+  drawFaces();
   if (s.zone && zoneValid(s.zone)) { homeZone = s.zone; showZone(); }
   $('placeName').value = s.place || '';
   const home = cities.find((c) => c[4] === s.zone && watchName(c[1]) === $('placeName').value);
@@ -566,7 +666,7 @@ $('save').addEventListener('click', async () => {
   $('status').textContent = t('Saving…', 'Kaydediliyor…');
   try {
     const fields = new URLSearchParams();
-    for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'offset', 'hijri', 'face', 'aod', 'aodDay', 'aodNight', 'devMode', 'usbStayOn', 'isha', 'language']) fields.set(id, $(id).value);
+    for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'offset', 'hijri', 'aodDay', 'aodNight', 'devMode', 'usbStayOn', 'isha', 'language']) fields.set(id, $(id).value);
     // The own zone's clock changes, unless the offset was set by hand.
     const home = zoneValid(homeZone) ? zoneInfo(homeZone) : null;
     const byZone = home !== null && String(home[0]) === $('offset').value;
@@ -585,8 +685,7 @@ $('save').addEventListener('click', async () => {
       fields.set(list.order, String(list.parts.reduce((value, part, i) => value | (part << (3 * i)), 0)));
       if (list.hidden) fields.set(list.hidden, String([...list.off].reduce((bits, part) => bits | (1 << part), 0)));
     }
-    fields.set('faceItems', String(bitsOf($('faceItems'))));
-    fields.set('aodItems', String(bitsOf($('aodItems'))));
+    fields.set('faces', faces.map((v) => v.join(',')).join(';'));
     if ($('lat').value !== '' && $('lon').value !== '') {
       fields.set('lat', $('lat').value);
       fields.set('lon', $('lon').value);
