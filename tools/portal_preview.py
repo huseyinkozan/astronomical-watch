@@ -31,7 +31,7 @@ STATE = {
     'cities': [['London', 'Europe/London'], ['New York', 'America/New_York']],
     'days': [['Trip home', '2026-07-03']],
     # FaceConfig::defaults, as FaceConfig::encode writes them, and the catalogues' sizes.
-    'faces': '0,0,1,0,0,2,5,0,9,2,8,1,4,0,0,0,0,0,0,0,0,209;0,0,0,0,0,0,1,3,0,0,0,0,0,0,0,0,0,0,0,0,0,6',
+    'faces': '0,0,1,0,0,2,5,0,9,2,8,1,4,0,0,0,0,0,0,0,0,209;0,0,0,0,0,0,1,3,0,0,0,0,0,0,0,0,0,0,0,0,0,6;0,1,1,0,1,2,5,0,9,2,8,1,4,0,0,0,0,0,0,0,0,209',
     'faceItems': [12, 13],
 }
 FILES = {'/': ('index.html', 'text/html'), '/help': ('help.html', 'text/html'),

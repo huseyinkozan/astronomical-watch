@@ -124,7 +124,7 @@
   The always-on face shows the page shown when active mode ends: its clock and the items marked
   "always-on". The screen corners show the day or night, the battery, the Moon's time above or
   below the horizon and its phase.</small>
-  <div id="faces"></div>
+  <div id="faceEditor"></div>
 </fieldset>
 </section>
 
@@ -562,7 +562,7 @@ function headButton(text, disabled, onClick) {
   return button;
 }
 function drawFaces() {
-  const box = $('faces');
+  const box = $('faceEditor');
   box.innerHTML = '';
   facePage = Math.min(Math.max(facePage, 0), faces.length - 1);
   const p = facePage;
@@ -600,8 +600,10 @@ function drawFaces() {
   page.appendChild(labelOf(t('Template', 'Şablon')));
   page.appendChild(selectOf([['Large', 'Büyük']], 1, v[0], (n) => { v[0] = n; }));
   page.appendChild(labelOf(t('Clock', 'Saat')));
-  page.appendChild(selectOf([['Digital', 'Dijital'], ['Analog (coming)', 'Analog (yakında)'], ['None', 'Yok']], 3, v[1],
-                            (n) => { v[1] = n; }));
+  // Choosing the Classic analog clock turns its seconds hand on, as on the default page.
+  const classicSeconds = () => { if (v[1] === 1 && v[3] === 0) v[4] |= SecondsHand; };
+  page.appendChild(selectOf([['Digital', 'Dijital'], ['Analog', 'Analog'], ['None', 'Yok']], 3, v[1],
+                            (n) => { v[1] = n; classicSeconds(); drawFaces(); }));
   const styles = document.createElement('div');
   styles.className = 'row';
   const digital = document.createElement('div');
@@ -609,8 +611,8 @@ function drawFaces() {
   digital.appendChild(selectOf([['JetBrains Mono', 'JetBrains Mono'], ['Seven segment', 'Yedi parça']], 2, v[2], (n) => { v[2] = n; }));
   const analog = document.createElement('div');
   analog.appendChild(labelOf(t('Hands', 'Akrep ve yelkovan')));
-  analog.appendChild(selectOf([['Classic', 'Klasik'], ['Bold', 'Kalın'], ['Fine scale', 'İnce ölçek'], ['One hand', 'Tek kol'],
-                               ['Plain', 'Sade']], 5, v[3], (n) => { v[3] = n; }));
+  analog.appendChild(selectOf([['Classic', 'Klasik'], ['Bold', 'Kalın'], ['Fine scale', 'İnce bölmeli'], ['One hand', 'Tek ibre'],
+                               ['Plain', 'Çizgisiz']], 5, v[3], (n) => { v[3] = n; classicSeconds(); drawFaces(); }));
   styles.appendChild(digital);
   styles.appendChild(analog);
   page.appendChild(styles);
@@ -681,7 +683,6 @@ function showTab(index) {
 tabButtons.forEach((button, i) => button.addEventListener('click', () => { showTab(i); window.scrollTo(0, 0); }));
 // A link may name the tab: /#faces.
 showTab(Math.max(0, ['#time', '#faces', '#settings', '#update'].indexOf(location.hash)));
-window.addEventListener('load', () => window.scrollTo(0, 0));
 
 function setLanguage(language) {
   L = language === 1 ? 1 : 0;

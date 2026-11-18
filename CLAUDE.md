@@ -149,7 +149,8 @@ only in its own task (the main task's stack overflows), and allocates from the E
 The watch face is a list of face pages (`main/FaceConfig.*`, at most eight, kept in NVS by
 `main/FaceStore.*`, composed in the portal; design: `docs/superpowers/specs/2026-11-18-face-templates-design.md`).
 A page is a template (so far Large) with a clock (digital in JetBrains Mono or in seven segments
-of our own geometry, `main/SevenSegment.*`; analog follows) and eight slots in fixed places: four
+of our own geometry, `main/SevenSegment.*`; or analog in five styles, `main/AnalogClock.*`, the
+seconds hand only on the active face) and eight slots in fixed places: four
 text lines (top edge, top, bottom, bottom edge) and the four inner corners, filled from
 catalogues (`main/FaceText.*`; today's and tomorrow's events, the counters and cities in
 `main/FaceTable.*`), each marked whether the always-on face shows it too. A text longer than its

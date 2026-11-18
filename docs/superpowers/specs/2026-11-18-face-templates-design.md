@@ -222,6 +222,15 @@ above:
   (225 to 336 ms; the first, which clears the screen, 422 ms). Portal on: 121 KB of internal
   heap free.
 
+### Phase 2 result (2026-11-18)
+
+The five analog styles in the Large template (radius 140), from one geometry module
+(`main/AnalogClock.*`, host-tested) for both faces: on the active face white marks and hands, grey
+minor marks, the One hand style's hand and the seconds hand amber; on the always-on face all
+white, never a seconds hand. The defaults gained the mock-up's page 4 (Classic with the seconds
+hand, the first page's slots); the portal turns the seconds hand on when Classic is chosen.
+Minute wake with the Bold style (the widest lines): 211-214 ms of app time.
+
 ## Left to the builder
 
 The exact pixel places within the mock-ups' layout, colours of new elements (following today's:
