@@ -201,6 +201,27 @@ the portal on, and the host tests; the owner reviews at the end.
    README and the screenshots per language, release v0.0.3 with the earlier batch (commit
    776b14e).
 
+### Phase 1 result (2026-11-18)
+
+Done on branch `face-templates`, unreleased. What the board showed and what changed from the text
+above:
+
+- Slot widths: 176 px (11 characters) at the edges; an inner slot shares its row with the corners,
+  so it takes 208 px beside a used corner and 320 px otherwise. The default pages follow the
+  approved mock-up (page 1: short date, next prayer, day counter, weekday ring, Sun altitude,
+  moon, day of the month; page 2 in JetBrains Mono: long date and Hijri date, no corners), and a
+  host test checks that their texts fit in both languages.
+- A name-and-number text cut to its slot loses letters of the name, never digits of the number
+  ("Eve dönü 12", not "Eve dönüş 1").
+- The altitude corners show the value in the body's colour (amber Sun, pale Moon); the font has
+  no sun sign.
+- The always-on seven-segment digits are bitmaps made on the host from the same geometry, dotted;
+  the always-on texts use the watch font's characters at 26 px, all white; the weekday ring shows
+  its lit notches as chords.
+- Minute wake with the full-page always-on face: 243 ms of app time on average over 12 minutes
+  (225 to 336 ms; the first, which clears the screen, 422 ms). Portal on: 121 KB of internal
+  heap free.
+
 ## Left to the builder
 
 The exact pixel places within the mock-ups' layout, colours of new elements (following today's:

@@ -146,10 +146,19 @@ buffer while it is still being sent (docs/hardware.md, Display). It opens the pa
 flashed the old always-on image; the panel stays dark until LVGL's first frame. LVGL renders
 only in its own task (the main task's stack overflows), and allocates from the ESP-IDF heap.
 
-The always-on styles are 1-bit bitmaps made on the host (`tools/make_aod_glyphs.py` →
-`main/AodGlyphs.c`); the same bits also form LVGL fonts, so the always-on page of active mode
-(`main/AodPage.*`) shows exactly what the minute wakes draw (`AlwaysOn::layout` serves both).
-After a change, regenerate the file and compare both with `tools/screenshot.py`.
+The watch face is a list of face pages (`main/FaceConfig.*`, at most eight, kept in NVS by
+`main/FaceStore.*`, composed in the portal; design: `docs/superpowers/specs/2026-11-18-face-templates-design.md`).
+A page is a template (so far Large) with a clock (digital in JetBrains Mono or in seven segments
+of our own geometry, `main/SevenSegment.*`; analog follows) and eight slots in fixed places: four
+text lines (top edge, top, bottom, bottom edge) and the four inner corners, filled from
+catalogues (`main/FaceText.*`; today's and tomorrow's events, the counters and cities in
+`main/FaceTable.*`), each marked whether the always-on face shows it too. A text longer than its
+slot (`FaceConfig::textWidth`) is cut to whole characters, a name before its number.
+`main/FacePage.*` draws a page in active mode. The always-on face (`AlwaysOn`) draws the page
+shown when active mode ended, from 1-bit bitmaps made on the host (`tools/make_aod_glyphs.py` →
+`main/AodGlyphs.c`: both digit sets at the Large size and the watch font's characters at 26 px);
+a minute wake past the event table computes its events again. After a change, regenerate the
+file and compare both faces with `tools/screenshot.py` ("F <page>", "A <page>").
 
 The four screen corners are gauges on every page and on the always-on face (`main/Corners.*`
 computes them, `main/CornerView.*` draws them on LVGL's top layer, `AlwaysOn` with its own
@@ -163,17 +172,17 @@ a quarter circle 3 px inside the visible edge, starting at its lower end, with a
 middle as long as the gauge is wide. Active mode draws them 5 px wide with round ends in a
 channel of a dim tone of their own colour. The always-on face draws them 2 px wide without the
 channel in idle-mode colours, with notches at both ends too, outside the burn-in shift, and redraws a corner only when its
-gauge moved by a pixel; the always-on page shows that look pixel for pixel. In active mode the
+gauge moved by a pixel. In active mode the
 gauges are no LVGL objects (four arcs cost a quarter of each frame while swiping): `CornerView`
 writes the ring's pixels into each rendered band, their colours computed from a table of the
 ring's pixels in flash (`main/CornerTable.c`, made by `tools/make_corner_table.cpp`; the host
-tests fail when it is stale), which the always-on face reads too. The Moon's phase icon sits in the bottom-left corner inside the Moon's gauge,
-on the watch faces and the always-on face alike (the top-left corner stands for the Sun).
+tests fail when it is stale), which the always-on face reads too. The Moon's phase icon is a corner item; the default pages
+put it in the bottom-left corner, inside the Moon's gauge (the top-left corner stands for the Sun).
 
 Brightness: active mode has one level, the always-on face one by day and one by night, switched
-at sunrise and sunset (the day gauge; no light sensor on the board). A long press and a vertical
-drag sets them: on the watch face the active level, on the always-on page the level of the
-moment, shown at that brightness while dragging; the portal sets all three.
+at sunrise and sunset (the day gauge; no light sensor on the board). A long press and a drag on the
+watch face sets them: vertically the active level, sideways the always-on level of the moment
+(the first 20 px of movement choose the direction); the portal sets all three.
 
 Event log (`main/EventLog.*`, NVS): boots with their reset reason, the end of each active session
 (touches, touch controller state), the end of always-on and power-offs, with battery, smallest
@@ -195,13 +204,13 @@ in its flash partition. Read both over USB: `python tools/read_events.py`, then
   `main/Settings.*`); the Kconfig values are their defaults. Test builds that need other values
   set `CONFIG_WATCH_TEST_SETTINGS`, which ignores the saved settings.
 - Touch input: rows of 7.8 x 26 mm inside the corner gauges, one tap steps a value; no vertical scrolling
-  inside the swiped pages; sliding off a row cancels the tap. Five pages side by side:
-  always-on preview, watch face, clock (world clock, stopwatch, countdown, Gregorian and Hijri
+  inside the swiped pages; sliding off a row cancels the tap. Four pages side by side:
+  watch face, clock (world clock, stopwatch, countdown, Gregorian and Hijri
   calendars, day counters; `main/ClockPages.*`), information (sun, twilight, prayer times, moon,
   compass, time, battery, about) and settings (settings, more settings, what the portal set,
-  setup portal, its QR code). A vertical swipe steps the style on the face and always-on pages and the part on
+  setup portal, its QR code). A vertical swipe steps the face page on the watch face and the part on
   the stacked pages (`main/StackPage.*`); the pages keep `LV_EVENT_GESTURE` and do not scroll, and
-  the new style or part slides in. The stacked pages show their name at the top between the
+  the new page or part slides in. The stacked pages show their name at the top between the
   upper corner gauges, over a line bending up to them; their parts start `StackPage::HeaderPad`
   lower. On a calendar a sideways swipe steps the month, so the page
   swipe stops there ("<" ">" at the bottom say so); a tap chooses a day, marked on both calendars

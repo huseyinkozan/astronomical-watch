@@ -123,11 +123,13 @@ astronomical-watch/
 ## Status
 
 Restarted on ESP-IDF with C++17. The watch puts the unused peripherals into their lowest-power
-state. A PWR press starts active mode: five pages swiped sideways show the always-on face as it will
-look, the watch face (classic or day arc, with the date, Hijri date, next sunrise or sunset and
-the Moon's phase in the bottom-left corner; or the Sun's and the Moon's paths as arcs over the
-horizon or as orbits around a dial with hands), the clock, the information and the settings; a
-vertical swipe steps the always-on style, the face layout, and the parts of the last three pages.
+state. A PWR press starts active mode: four pages swiped sideways show the watch face, the clock, the
+information and the settings. The watch face is a set of pages composed in the setup portal: a
+large clock (JetBrains Mono or seven-segment digits) with up to four lines and four corners of
+information around it (the date, Hijri date, next prayer time or sunrise or sunset with the time
+left, a day counter, a world clock city, the battery, the Sun's or the Moon's altitude, the
+weekday ring, the Moon's phase, the hour, minute or second); a vertical swipe steps the face
+pages and the parts of the last three pages.
 The clock, information and settings pages show their name at the top between the corner gauges.
 The clock page holds a world clock (three cities that follow their daylight saving time), a
 stopwatch with laps and a countdown (both keep running while the watch sleeps), Gregorian and
@@ -142,14 +144,14 @@ page. The settings page holds the settings (display timeout, always-on, developm
 auto-off, screen on while on USB; one tap per value, kept in flash), what the portal set, and the
 setup portal, which opens the watch's own Wi-Fi for a phone or computer, whose browser sets the
 time, time zone, location, world clock cities, day counters and settings, and shows a short
-help page; each save also corrects the clock's rate. The portal also orders the stacked pages'
-parts and the faces, and hides the ones not wanted. The watch and the page speak English or
+help page; each save also corrects the clock's rate. The portal also composes the face pages, orders
+them and the stacked pages' parts, and hides the ones not wanted. The watch and the page speak English or
 Turkish. New versions install from a phone through the same page, which also hands over the
 watch's event log and crash dump for a report. A long press and a
-vertical drag on the watch face sets the brightness, on the always-on page the always-on
-brightness by day or by night. 10 s after the last touch
+drag on the watch face sets the brightness: vertically the face's, sideways the always-on face's
+by day or by night. 10 s after the last touch
 (the default), or at the next PWR press, a
-dim face in the chosen style (the time, the Moon's phase and the date), at a brightness of its
+dim form of the face page shown (its clock and the items marked for it), at a brightness of its
 own by day and by night (switched at sunrise and sunset), stays on the display
 while the processor deep-sleeps, redrawn once a minute. On every page and on the always-on face
 the four screen corners are gauges: the day or night, the battery, the Moon's time above or
@@ -200,8 +202,12 @@ Each step is built, verified on the board and documented before the next one sta
     return to the previous version if the new one does not start; the event log and crash dump
     downloaded from the same page. First release: v0.0.1. v0.0.2: the charging indicator, and the
     PWR key on boards whose key line lacks its pull-up resistor.
-13. Vibration motor.
-14. Alarms (clock time and sun/moon events) and countdown timer, also set through the portal.
+13. **Face templates** (phase 1 of 5 done, unreleased): face pages composed in the portal, the
+    Large template with both digital clocks, the slots, and the always-on face drawn from the
+    page (minute wake 0.24 s of app time on average). Next: analog clocks, the Sun's and the
+    Moon's arcs with the Milky Way, configurable corner gauges, then a release.
+14. Vibration motor.
+15. Alarms (clock time and sun/moon events) and countdown timer, also set through the portal.
 
 ## License
 
