@@ -144,4 +144,8 @@ public:
 
     // Whether the always-on face shows `slot`: its flag set, and never the seconds.
     static bool alwaysOnSlot( const Page &page, int slot );
+
+    // The width in pixels a text slot's text may take (0 for a corner slot): the edge slots
+    // between the gauges' ends, an inner slot narrower when a corner of its row is in use.
+    static int textWidth( const Page &page, int slot );
 };

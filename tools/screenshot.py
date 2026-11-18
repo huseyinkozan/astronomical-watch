@@ -37,9 +37,9 @@ import serial
 
 # The always-on styles (main/AodGlyphs.h, AOD_STYLE_COUNT): "A <style>" draws one of them.
 ALWAYS_ON_STYLES = 5
-# The watch face page and its layouts (main/WatchFace.h): "F <style>" shows one of them.
-FACE_PAGE = 1
-FACE_STYLES = 4
+# The watch face page and its default face pages (FaceConfig::defaults): "F <page>" shows one.
+FACE_PAGE = 0
+FACE_STYLES = 2
 
 
 def writePng(path, width, height, rows):

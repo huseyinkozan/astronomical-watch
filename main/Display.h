@@ -9,6 +9,7 @@
 #include "CornerView.h"
 #include "FaceConfig.h"
 #include "FacePage.h"
+#include "FaceTable.h"
 #include "libs/qrcode/qrcodegen.h"
 #include "PageMarks.h"
 #include "StackPage.h"
@@ -83,8 +84,9 @@ public:
 
     void showSetup( const Setup &setup );
 
-    // The astronomy pages: values of the local day and of this moment.
-    void showSky( const Sky::Day &day, const Sky::Now &now, int utcOffsetMinutes );
+    // The astronomy pages: values of the local day and of this moment; the face's events,
+    // counters and cities. Also updates the face with the time of the last update().
+    void showSky( const Sky::Day &day, const Sky::Now &now, int utcOffsetMinutes, const FaceTable &table );
 
     // The corner gauges, on every page.
     void showCorners( const Corners::Gauge gauges[Corners::CornerCount] );
@@ -121,6 +123,8 @@ public:
 #if CONFIG_WATCH_DEV_LOGGING
     // Shows face page `page` without changing the setting (tools/screenshot.py).
     void showFaceStyle( int page );
+    // Puts `item` into `slot` of face page `page` (not saved) and shows the page.
+    void setFaceSlot( int page, int slot, int item );
 
     // The fixed scene of the screenshots: sample states on the clock page.
     void setScene( bool scene );
@@ -216,6 +220,7 @@ private:
     Sky::Now m_now = {};
     int m_offsetMinutes = 0;
     bool m_haveSky = false;
+    FaceTable m_faceTable = {};
     Battery m_battery = {};
     // Battery page.
     lv_obj_t *m_percentLabel = nullptr;

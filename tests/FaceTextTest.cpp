@@ -152,6 +152,26 @@ int main()
                                                          event.kind == FaceTable::SunriseEvent );
     check( "table: past its end", !table.next( localToUtc( 2026, 6, 23, 0, 1, offset ), true, event ) );
 
+    // The default pages' texts fit their slots in both languages: a cut text is for pages the
+    // owner composes, not for the defaults.
+    FaceConfig::Pages defaults = {};
+    FaceConfig::defaults( defaults );
+    const Language::Id languages[2] = { Language::English, Language::Turkish };
+    for ( int l = 0; l < 2; ++l ) {
+        Language::set( languages[l] );
+        for ( int p = 0; p < defaults.count; ++p ) {
+            const FaceConfig::Page &page = defaults.pages[p];
+            for ( int slot = 0; slot < FaceConfig::TextSlotCount; ++slot ) {
+                FaceText::text( static_cast<FaceConfig::TextItem>( page.items[slot] ), page.parameters[slot], in, text,
+                                sizeof( text ) );
+                const int width = FaceConfig::textWidth( page, slot );
+                char name[64];
+                snprintf( name, sizeof( name ), "default page %d slot %d fits (%s)", p, slot, text );
+                check( name, FaceText::fit( text, 16, width ) == static_cast<int>( strlen( text ) ) );
+            }
+        }
+    }
+
     // Whole characters that fit a width (Review Focus 1).
     check( "fit: ten characters", FaceText::fit( "21 Haziran Pazar", 16, 160 ) == 10 );
     check( "fit: Turkish letters count once", FaceText::fit( "Gün batımı", 16, 64 ) == 5 );

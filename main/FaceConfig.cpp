@@ -29,28 +29,30 @@ void FaceConfig::defaults( Pages &pages )
     pages = {};
     pages.count = 2;
 
+    // As the owner's approved mock-up (docs/superpowers/specs/2026-11-18-face-templates/
+    // templates.png, page 3): every default text fits its slot (tests/FaceTextTest.cpp).
     Page &segments = pages.pages[0];
     segments.layout = Large;
     segments.clock = DigitalClock;
     segments.digital = SevenSegment;
     segments.items[TopEdge] = ShortDate;
-    segments.items[BottomInner] = NextSunEvent;
-    segments.items[BottomEdge] = HijriDate;
+    segments.items[TopInner] = NextPrayer;
+    segments.items[BottomEdge] = DayCounter;
     segments.items[TopLeft] = WeekdayIcon;
+    segments.items[TopRight] = SunAltitudeCorner;
     segments.items[BottomLeft] = MoonIcon;
     segments.items[BottomRight] = DayOfMonth;
     segments.alwaysOn = ( 1 << TopEdge ) | ( 1 << TopLeft ) | ( 1 << BottomLeft ) | ( 1 << BottomRight );
 
-    // Like the classic face of earlier versions.
+    // Like the classic face of earlier versions; no corners, so that the inner slots take the
+    // long dates.
     Page &mono = pages.pages[1];
     mono.layout = Large;
     mono.clock = DigitalClock;
     mono.digital = MonoDigits;
     mono.items[TopInner] = LongDate;
     mono.items[BottomInner] = HijriDate;
-    mono.items[BottomEdge] = NextSunEvent;
-    mono.items[BottomLeft] = MoonIcon;
-    mono.alwaysOn = ( 1 << TopInner ) | ( 1 << BottomLeft );
+    mono.alwaysOn = ( 1 << TopInner ) | ( 1 << BottomInner );
 }
 
 static bool pageValid( const FaceConfig::Page &page )
@@ -207,4 +209,20 @@ bool FaceConfig::alwaysOnSlot( const Page &page, int slot )
         return page.items[slot] != Seconds;
     }
     return page.items[slot] != SecondCorner;
+}
+
+int FaceConfig::textWidth( const Page &page, int slot )
+{
+    // Measured on the panel with the 26 px font (16 px a character): 11 characters between the
+    // gauges' ends at the edges; an inner slot keeps clear of a corner's icon or three letters
+    // (13 characters), or reaches the gauges (20 characters).
+    if ( slot == TopEdge || slot == BottomEdge ) {
+        return 176;
+    }
+    if ( slot != TopInner && slot != BottomInner ) {
+        return 0;
+    }
+    const int left = slot == TopInner ? TopLeft : BottomLeft;
+    const int right = slot == TopInner ? TopRight : BottomRight;
+    return page.items[left] != NoCorner || page.items[right] != NoCorner ? 208 : 320;
 }

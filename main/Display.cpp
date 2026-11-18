@@ -1,5 +1,7 @@
 #include "Display.h"
 
+#include "Dates.h"
+
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
@@ -671,7 +673,7 @@ void Display::applySetup()
     }
 }
 
-void Display::showSky( const Sky::Day &day, const Sky::Now &now, int utcOffsetMinutes )
+void Display::showSky( const Sky::Day &day, const Sky::Now &now, int utcOffsetMinutes, const FaceTable &table )
 {
     if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
         return;
@@ -684,6 +686,25 @@ void Display::showSky( const Sky::Day &day, const Sky::Now &now, int utcOffsetMi
     m_moonPercent = static_cast<int>( day.phase.illumination * 100 + 0.5 );
     m_waxing = day.phase.elongation < 180;
     m_face.setMoon( m_moonPercent, m_waxing );
+    m_faceTable = table;
+    FaceText::Inputs inputs = {};
+    const Rtc::DateTime &time = m_localTime;
+    inputs.timeValid = time.month >= 1 && time.month <= 12 && time.day >= 1 && time.day <= 31;
+    inputs.year = time.year;
+    inputs.month = time.month;
+    inputs.day = time.day;
+    inputs.hour = time.hour;
+    inputs.minute = time.minute;
+    inputs.second = time.second;
+    inputs.weekday = inputs.timeValid ? Dates::weekday( Dates::dayNumber( time.year, time.month, time.day ) ) : 0;
+    inputs.skyValid = true;
+    inputs.now = now.time;
+    inputs.table = &m_faceTable;
+    inputs.batteryPercent = m_battery.chargeState != nullptr ? m_battery.percent : -1;
+    inputs.sunAltitude = now.sun.altitude;
+    inputs.moonAltitude = now.moon.altitude;
+    inputs.altitudesValid = true;
+    m_face.update( inputs );
     bsp_display_unlock();
 }
 
@@ -1094,6 +1115,17 @@ void Display::showFaceStyle( int page )
     }
     m_face.show( m_facePages.pages[page] );
     bsp_display_unlock();
+}
+
+void Display::setFaceSlot( int page, int slot, int item )
+{
+    if ( slot < 0 || slot >= FaceConfig::SlotCount || item < 0 || item > 255 ) {
+        return;
+    }
+    if ( page >= 0 && page < m_facePages.count ) {
+        m_facePages.pages[page].items[slot] = static_cast<uint8_t>( item );
+    }
+    showFaceStyle( page );
 }
 
 void Display::setScene( bool scene )

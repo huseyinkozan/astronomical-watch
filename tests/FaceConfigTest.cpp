@@ -29,6 +29,17 @@ int main()
     check( "defaults: seven segment", first.digital == FaceConfig::SevenSegment );
     check( "defaults: weekday icon top left", first.items[FaceConfig::TopLeft] == FaceConfig::WeekdayIcon );
 
+    // Slot widths: the edges between the gauges' ends; an inner slot narrows when a corner of its
+    // row is in use (the corners share its row).
+    check( "width: top edge", FaceConfig::textWidth( first, FaceConfig::TopEdge ) == 176 );
+    check( "width: bottom edge", FaceConfig::textWidth( first, FaceConfig::BottomEdge ) == 176 );
+    FaceConfig::Page plain = {};
+    check( "width: inner without corners", FaceConfig::textWidth( plain, FaceConfig::TopInner ) == 320 );
+    plain.items[FaceConfig::TopRight] = FaceConfig::DayOfMonth;
+    check( "width: inner beside a corner", FaceConfig::textWidth( plain, FaceConfig::TopInner ) == 208 );
+    check( "width: other row unchanged", FaceConfig::textWidth( plain, FaceConfig::BottomInner ) == 320 );
+    check( "width: not a text slot", FaceConfig::textWidth( plain, FaceConfig::TopLeft ) == 0 );
+
     char text[512];
     const int length = FaceConfig::encode( pages, text, sizeof( text ) );
     check( "encode: fits", length > 0 );

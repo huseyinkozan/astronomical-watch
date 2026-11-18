@@ -15,6 +15,7 @@
 #include "DeepSleep.h"
 #include "Display.h"
 #include "FaceStore.h"
+#include "FaceTable.h"
 #include "Motion.h"
 #include "Panel.h"
 #include "Peripherals.h"
@@ -170,6 +171,12 @@ static bool pollHostCommands()
             s_display.showFaceStyle( style );
             continue;
         }
+        int slot = 0;
+        int item = 0;
+        if ( sscanf( s_hostLine, "G %d %d %d", &style, &slot, &item ) == 3 ) {
+            s_display.setFaceSlot( style, slot, item );
+            continue;
+        }
         if ( s_hostLine[0] == 'N' && s_hostLine[1] == '\0' ) {
             s_hostRequests |= Display::NewPassword;
             continue;
@@ -272,7 +279,26 @@ static void logEvent( EventLog::Entry entry, bool pmuReady )
     EventLog::add( entry, timeRead ? static_cast<uint32_t>( unixTime( time ) ) : 0 );
 }
 
-// `inputs`: latitude and longitude (micro-degrees), UTC offset (minutes), Hijri method.
+// The face slots' events, day counters and cities; built again with the sky day and when the
+// portal changes the counters or the cities.
+static FaceTable s_faceTable;
+static bool s_faceTableStale = true;
+
+static void buildFaceTable( const Astronomy::Observer &observer, int offsetMinutes, int ishaAngle )
+{
+    s_faceTable = {};
+    s_faceTable.build( s_skyDay, offsetMinutes, observer, ishaAngle );
+    for ( int i = 0; i < s_dayCounters.count() && i < FaceTable::CounterCount; ++i ) {
+        s_faceTable.setCounter( i, s_dayCounters.counter( i ).name, s_dayCounters.counter( i ).day );
+    }
+    for ( int i = 0; i < s_worldClock.count() && i < FaceTable::CityCount; ++i ) {
+        s_faceTable.setCity( i, s_worldClock.city( i ).name, s_worldClock.city( i ).zone );
+    }
+    s_faceTableStale = false;
+}
+
+// `inputs`: latitude and longitude (micro-degrees), UTC offset (minutes), Hijri method, isha
+// angle.
 static void updateSky( int64_t now, const int inputs[5] )
 {
     const int offsetMinutes = inputs[2];
@@ -289,12 +315,16 @@ static void updateSky( int64_t now, const int inputs[5] )
         const int64_t start = esp_timer_get_time();
         s_skyDay = Sky::computeDay( day, offsetMinutes, observer, static_cast<Hijri::Method>( inputs[3] ), inputs[4] );
         s_skyValid = true;
+        s_faceTableStale = true;
         // The stack margin left: the computation is the deepest call of the main task.
         ESP_LOGI( TAG, "Sky day computed in %d ms, main stack %u bytes never used",
                   static_cast<int>( ( esp_timer_get_time() - start ) / 1000 ),
                   static_cast<unsigned>( uxTaskGetStackHighWaterMark( nullptr ) ) );
     }
-    s_display.showSky( s_skyDay, Sky::computeNow( now, s_skyDay, observer ), offsetMinutes );
+    if ( s_faceTableStale || s_faceTable.localDay != s_skyDay.day ) {
+        buildFaceTable( observer, offsetMinutes, inputs[4] );
+    }
+    s_display.showSky( s_skyDay, Sky::computeNow( now, s_skyDay, observer ), offsetMinutes, s_faceTable );
 }
 
 // USB power and the battery at the last display update (the "On USB: stay on" setting, the
@@ -518,10 +548,12 @@ static void applyPortalData( const Portal::Received &received )
     if ( received.countersValid ) {
         s_dayCounters.set( received.counters, received.counterCount );
         s_display.setCounters( s_dayCounters );
+        s_faceTableStale = true;
     }
     if ( received.citiesValid ) {
         s_worldClock.set( received.cities, received.cityCount, received.homeZoneName );
         s_display.setCities( s_worldClock );
+        s_faceTableStale = true;
     }
     if ( received.placeValid ) {
         s_worldClock.setHomePlace( received.place );
