@@ -5,6 +5,8 @@
 
 static const int s_numbersPerPage = 5 + 2 * FaceConfig::SlotCount + 1;
 
+static int gaugeParameterLimit( int item );
+
 static int itemLimit( int slot )
 {
     return slot < FaceConfig::TextSlotCount ? static_cast<int>( FaceConfig::TextItemCount )
@@ -28,6 +30,11 @@ void FaceConfig::defaults( Pages &pages )
 {
     pages = {};
     pages.count = 5;
+    // Today's four gauges: the day or night, the battery, the Moon's pass and its phase.
+    pages.gauges[0] = DayNightGauge;
+    pages.gauges[1] = BatteryGauge;
+    pages.gauges[2] = MoonPassGauge;
+    pages.gauges[3] = MoonPhaseGauge;
 
     // As the owner's approved mock-up (docs/superpowers/specs/2026-11-18-face-templates/
     // templates.png, pages 1 to 4, then the classic face): every default text fits its slot
@@ -108,6 +115,11 @@ static bool pageValid( const FaceConfig::Page &page )
 
 bool FaceConfig::valid( const Pages &pages )
 {
+    for ( int i = 0; i < 4; ++i ) {
+        if ( pages.gauges[i] >= GaugeItemCount || pages.gaugeParameters[i] >= gaugeParameterLimit( pages.gauges[i] ) ) {
+            return false;
+        }
+    }
     if ( pages.count < 1 || pages.count > MaxPages ) {
         return false;
     }
@@ -143,8 +155,29 @@ static void clampPage( FaceConfig::Page &page )
     }
 }
 
+static int gaugeParameterLimit( int item )
+{
+    if ( item == FaceConfig::DayCounterGauge ) {
+        return 16;
+    }
+    return item == FaceConfig::HourGauge ? 2 : 1;
+}
+
+static void clampGauges( FaceConfig::Pages &pages )
+{
+    for ( int i = 0; i < 4; ++i ) {
+        if ( pages.gauges[i] >= FaceConfig::GaugeItemCount ) {
+            pages.gauges[i] = FaceConfig::NoGauge;
+        }
+        if ( pages.gaugeParameters[i] >= gaugeParameterLimit( pages.gauges[i] ) ) {
+            pages.gaugeParameters[i] = 0;
+        }
+    }
+}
+
 void FaceConfig::clamp( Pages &pages )
 {
+    clampGauges( pages );
     if ( pages.count < 1 ) {
         pages.count = 1;
     }
@@ -176,6 +209,15 @@ int FaceConfig::encode( const Pages &pages, char *text, int size )
             length += written;
         }
     }
+    // The corner gauges after the pages: "/" and their four items and four parameters.
+    for ( int n = 0; n < 8; ++n ) {
+        const int value = n < 4 ? pages.gauges[n] : pages.gaugeParameters[n - 4];
+        const int written = snprintf( text + length, size - length, "%s%d", n == 0 ? "/" : ",", value );
+        if ( written < 0 || written >= size - length ) {
+            return -1;
+        }
+        length += written;
+    }
     return length;
 }
 
@@ -199,7 +241,7 @@ bool FaceConfig::decode( const char *text, Pages &pages )
             const char expected = n < s_numbersPerPage - 1 ? ',' : ';';
             if ( *cursor == expected ) {
                 ++cursor;
-            } else if ( !( n == s_numbersPerPage - 1 && *cursor == '\0' ) ) {
+            } else if ( !( n == s_numbersPerPage - 1 && ( *cursor == '\0' || *cursor == '/' ) ) ) {
                 return false;
             }
         }
@@ -214,8 +256,31 @@ bool FaceConfig::decode( const char *text, Pages &pages )
             page.parameters[slot] = static_cast<uint8_t>( numbers[5 + SlotCount + slot] );
         }
         page.alwaysOn = static_cast<uint8_t>( numbers[s_numbersPerPage - 1] );
-        if ( *cursor == '\0' ) {
+        if ( *cursor == '\0' || *cursor == '/' ) {
             break;
+        }
+    }
+    // The corner gauges; an older string without them gets today's four.
+    Pages defaultPages = {};
+    defaults( defaultPages );
+    for ( int i = 0; i < 4; ++i ) {
+        result.gauges[i] = defaultPages.gauges[i];
+        result.gaugeParameters[i] = defaultPages.gaugeParameters[i];
+    }
+    if ( *cursor == '/' ) {
+        ++cursor;
+        for ( int n = 0; n < 8; ++n ) {
+            char *end = nullptr;
+            const long value = strtol( cursor, &end, 10 );
+            if ( end == cursor || value < 0 || value > 255 || ( n < 7 && *end != ',' ) || ( n == 7 && *end != '\0' ) ) {
+                return false;
+            }
+            if ( n < 4 ) {
+                result.gauges[n] = static_cast<uint8_t>( value );
+            } else {
+                result.gaugeParameters[n - 4] = static_cast<uint8_t>( value );
+            }
+            cursor = end + ( n < 7 ? 1 : 0 );
         }
     }
     clamp( result );

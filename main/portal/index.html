@@ -534,8 +534,14 @@ const CityTime = 8, DayCounter = 9, SecondsHand = 1, MilkyWay = 2, Hidden = 128,
 let faces = [];
 let faceLimits = [faceTexts.length, faceCorners.length];
 
+// The corner gauges (FaceConfig::Pages::gauges): four items and four parameters after a "/".
+let gauges = [1, 2, 3, 4, 0, 0, 0, 0];
+const encodeFaces = () => faces.map((v) => v.join(',')).join(';') + '/' + gauges.join(',');
 function decodeFaces(text) {
-  const pages = (text || '').split(';').map((page) => page.split(',').map(Number))
+  const [pageText, gaugeText] = (text || '').split('/');
+  const parts = (gaugeText || '').split(',').map(Number);
+  if (parts.length === 8 && parts.every((n) => Number.isInteger(n) && n >= 0 && n <= 255)) gauges = parts;
+  const pages = pageText.split(';').map((page) => page.split(',').map(Number))
     .filter((v) => v.length === 22 && v.every((n) => Number.isInteger(n) && n >= 0 && n <= 255));
   return pages.length > 0 ? pages : [[0, 0, 1, 0, 0, 2, 5, 0, 9, 2, 8, 1, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0b11010001]];
 }
@@ -685,7 +691,7 @@ async function showOnWatch(p, button) {
   button.textContent = t('Sending…', 'Gönderiliyor…');
   try {
     const fields = new URLSearchParams();
-    fields.set('faces', faces.map((v) => v.join(',')).join(';'));
+    fields.set('faces', encodeFaces());
     fields.set('show', String(p));
     fields.set('keep', '1');
     const response = await fetch('/api/save', { method: 'POST', body: fields });
@@ -785,7 +791,7 @@ $('save').addEventListener('click', async () => {
       fields.set(list.order, String(list.parts.reduce((value, part, i) => value | (part << (3 * i)), 0)));
       if (list.hidden) fields.set(list.hidden, String([...list.off].reduce((bits, part) => bits | (1 << part), 0)));
     }
-    fields.set('faces', faces.map((v) => v.join(',')).join(';'));
+    fields.set('faces', encodeFaces());
     if ($('lat').value !== '' && $('lon').value !== '') {
       fields.set('lat', $('lat').value);
       fields.set('lon', $('lon').value);

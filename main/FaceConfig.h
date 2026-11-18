@@ -127,10 +127,44 @@ public:
         uint8_t alwaysOn;               // a bit per slot: also on the always-on face
     };
 
+    // The corner gauges (global, the same on every page; Corners::compute).
+    enum GaugeItem : uint8_t
+    {
+        NoGauge,
+        DayNightGauge,     // sunrise to sunset, or sunset to sunrise
+        BatteryGauge,
+        MoonPassGauge,     // the Moon above the horizon, or below it
+        MoonPhaseGauge,
+        NextPrayerGauge,   // from the previous prayer time to the next
+        NextSunriseGauge,  // from the previous sunrise to the next
+        NextSunsetGauge,
+        NextMoonriseGauge,
+        NextMoonsetGauge,
+        WeekGauge,         // Monday 00:00 to the next
+        MonthGauge,
+        HijriMonthGauge,
+        YearGauge,
+        DayCounterGauge,   // parameter: the counter (bits 0-1) and the fill (bits 2-3, CounterFill)
+        SunAltitudeGauge,  // 0 to 90 degrees, empty at night
+        HourGauge,         // parameter: 0 24 hours a turn, 1 12 hours
+        MinuteGauge,
+        SecondGauge,       // the active face only
+        GaugeItemCount
+    };
+    enum CounterFill : uint8_t
+    {
+        SinceSaved,  // from the day the counter was saved in the portal to its date
+        Yearly,      // from the date's last anniversary to the next
+        Last30Days,  // the 30 days before the date
+        Last100Days
+    };
+
     struct Pages
     {
         uint8_t count;
         Page pages[MaxPages];
+        uint8_t gauges[4];  // by Corners::Corner
+        uint8_t gaugeParameters[4];
     };
 
     static void defaults( Pages &pages );

@@ -340,8 +340,9 @@ esp_err_t Portal::onCities( httpd_req_t *request )
 // face pages (their commas URL-encoded in the form).
 static char s_buffer[4096];
 // The face pages as FaceConfig::encode writes them, for the state and from the form, where each
-// separator takes three characters ("%2C"): 22 numbers of up to three digits a page.
-static char s_faces[FaceConfig::MaxPages * 22 * 6 + 16];
+// separator takes three characters ("%2C"): 22 numbers of up to three digits a page, then the
+// eight numbers of the corner gauges.
+static char s_faces[( FaceConfig::MaxPages * 22 + 8 ) * 6 + 16];
 
 esp_err_t Portal::onState( httpd_req_t *request )
 {

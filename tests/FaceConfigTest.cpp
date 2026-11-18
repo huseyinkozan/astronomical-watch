@@ -66,6 +66,34 @@ int main()
     check( "width: other row unchanged", FaceConfig::textWidth( plain, FaceConfig::BottomInner ) == 320 );
     check( "width: not a text slot", FaceConfig::textWidth( plain, FaceConfig::TopLeft ) == 0 );
 
+    // The corner gauges (global): today's four by default; encoded after the pages.
+    const uint8_t todays[4] = { FaceConfig::DayNightGauge, FaceConfig::BatteryGauge, FaceConfig::MoonPassGauge,
+                                FaceConfig::MoonPhaseGauge };
+    check( "gauges: today's four", memcmp( pages.gauges, todays, 4 ) == 0 );
+    {
+        FaceConfig::Pages withGauges = pages;
+        withGauges.gauges[0] = FaceConfig::DayCounterGauge;
+        withGauges.gaugeParameters[0] = 2 | ( 1 << 2 );  // counter 3, yearly
+        withGauges.gauges[3] = FaceConfig::HourGauge;
+        withGauges.gaugeParameters[3] = 1;  // 12 hours
+        char encoded[600];
+        check( "gauges: encode", FaceConfig::encode( withGauges, encoded, sizeof( encoded ) ) > 0 &&
+                                     strchr( encoded, '/' ) != nullptr );
+        FaceConfig::Pages back = {};
+        check( "gauges: decode", FaceConfig::decode( encoded, back ) &&
+                                     memcmp( &back, &withGauges, sizeof( back ) ) == 0 );
+        FaceConfig::Pages old = {};
+        check( "gauges: an older string without them",
+               FaceConfig::decode( "0,0,1,0,0,2,5,0,9,2,8,1,4,0,0,0,0,0,0,0,0,209", old ) &&
+                   memcmp( old.gauges, todays, 4 ) == 0 );
+        FaceConfig::Pages odd = {};
+        check( "gauges: unknown items and parameters clamped",
+               FaceConfig::decode( "0,0,1,0,0,2,5,0,9,2,8,1,4,0,0,0,0,0,0,0,0,209/99,16,2,3,7,200,0,9", odd ) &&
+                   odd.gauges[0] == FaceConfig::NoGauge && odd.gauges[1] == FaceConfig::HourGauge &&
+                   odd.gaugeParameters[1] == 0 && odd.gaugeParameters[2] == 0 && odd.gaugeParameters[3] == 0 );
+        check( "gauges: a broken gauge part refused", !FaceConfig::decode( "0,0,1,0,0,2,5,0,9,2,8,1,4,0,0,0,0,0,0,0,0,209/1,2", odd ) );
+    }
+
     char text[512];
     const int length = FaceConfig::encode( pages, text, sizeof( text ) );
     check( "encode: fits", length > 0 );
