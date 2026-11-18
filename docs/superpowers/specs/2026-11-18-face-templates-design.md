@@ -160,10 +160,9 @@ measured). When the always-on face lasts beyond the table (48 h), one wake recom
 Budget: the average minute wake stays at about 0.35 s from reset; the rare recomputing wake may
 take longer.
 
-The always-on preview page (the leftmost page): it always shows the always-on form of the face
-page in use; a vertical swipe there steps the face pages, the same list as on the face, and its
-marks stay. The page in use is saved like `FaceStyle` today. The press-and-drag for the always-on
-brightness stays.
+The always-on preview page (the leftmost tile) goes (the owner's decision): the always-on face
+follows the face page; its brightness is set from the face (see Transition). The page in use is
+saved in `FaceStyle`.
 
 ## Settings and portal
 
@@ -177,14 +176,12 @@ brightness stays.
   slots each with an "also on always-on" box) and the four corner gauges; order and hide as today.
 - The watch's own settings page keeps no face settings; the vertical swipe chooses the page.
 
-## Transition (decided by the builder)
+## Transition (the owner's decision, 2026-11-18)
 
-Until phase 5 the old four faces and five always-on styles stay in the lists beside the new
-pages, so nothing the owner uses disappears in between. Phase 5 removes them and their settings;
-nothing is carried over, the watch starts from the default pages. Day arc has no template: the half arcs replace it. Classic becomes the
-Large digital page's default (date long and Hijri date in the inner text slots, the next Sun
-event in the bottom slot, the moon icon in the bottom-left corner). The always-on style that was
-chosen separately is not kept: the always-on face follows the face page (the owner's choice).
+The old four faces, the five always-on styles, the always-on page (the leftmost tile) and their
+settings go in phase 1; nothing is carried over. Until phase 3 the watch has only Large pages.
+The always-on brightness moves into the face's brightness control: after the long press a
+vertical drag sets the active level, a horizontal one the always-on level of the moment.
 
 ## Phases
 
@@ -192,16 +189,15 @@ Each phase ends built, flashed, checked on the board with screenshots of every a
 its always-on face (fixed scene), the minute-wake time from the wake statistics, the heap with
 the portal on, and the host tests; the owner reviews at the end.
 
-1. **Framework and Large digital**: `FaceConfig` with defaults and the old settings mapped;
-   the Large template with both digital styles; the eight slots with the text and corner
+1. **Framework and Large digital**: `FaceConfig` with defaults (the old faces, always-on styles,
+   always-on tile and their settings removed); the Large template with both digital styles; the eight slots with the text and corner
    catalogues including the weekday icon; the always-on face from the same page; the portal
    section.
 2. **Analog**: the five analog styles in Large, active and always-on.
 3. **Arcs**: Full arcs and Half arcs as templates (today's Dial and Sky arcs rebuilt on them),
    either clock type; the Milky Way band with its host tests.
 4. **Corner gauges**: the gauge catalogue, generalised cyclic quantities, portal choices.
-5. **Clean-up and release**: the old face and always-on code and settings removed (nothing
-   carried over), CLAUDE.md,
+5. **Clean-up and release**: what is left of the old code removed, CLAUDE.md,
    README and the screenshots per language, release v0.0.3 with the earlier batch (commit
    776b14e).
 
