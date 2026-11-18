@@ -157,7 +157,8 @@ slot (`FaceConfig::textWidth`) is cut to whole characters, a name before its num
 `main/FacePage.*` draws a page in active mode. The always-on face (`AlwaysOn`) draws the page
 shown when active mode ended, from 1-bit bitmaps made on the host (`tools/make_aod_glyphs.py` →
 `main/AodGlyphs.c`: both digit sets at the Large size and the watch font's characters at 26 px);
-a minute wake past the event table computes its events again. After a change, regenerate the
+the first minute wake of a new local day computes the slots' events of today and tomorrow
+again and moves the Hijri date on (`FaceTable::follow`). After a change, regenerate the
 file and compare both faces with `tools/screenshot.py` ("F <page>", "A <page>").
 
 The four screen corners are gauges on every page and on the always-on face (`main/Corners.*`
