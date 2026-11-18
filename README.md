@@ -125,7 +125,8 @@ astronomical-watch/
 Restarted on ESP-IDF with C++17. The watch puts the unused peripherals into their lowest-power
 state. A PWR press starts active mode: four pages swiped sideways show the watch face, the clock, the
 information and the settings. The watch face is a set of pages composed in the setup portal: a
-large clock (JetBrains Mono or seven-segment digits, or analog in five styles) with up to four lines and four corners of
+clock (JetBrains Mono or seven-segment digits, or analog in five styles), large or among the
+Sun's and the Moon's orbits or their paths over the horizon with the Milky Way, with up to four lines and four corners of
 information around it (the date, Hijri date, next prayer time or sunrise or sunset with the time
 left, a day counter, a world clock city, the battery, the Sun's or the Moon's altitude, the
 weekday ring, the Moon's phase, the hour, minute or second); a vertical swipe steps the face
@@ -202,10 +203,10 @@ Each step is built, verified on the board and documented before the next one sta
     return to the previous version if the new one does not start; the event log and crash dump
     downloaded from the same page. First release: v0.0.1. v0.0.2: the charging indicator, and the
     PWR key on boards whose key line lacks its pull-up resistor.
-13. **Face templates** (phases 1 and 2 of 5 done, unreleased): face pages composed in the portal,
-    the Large template with both digital clocks and five analog styles, the slots, and the
-    always-on face drawn from the page (minute wake 0.24 s of app time on average). Next: the
-    Sun's and the Moon's arcs with the Milky Way, configurable corner gauges, then a release.
+13. **Face templates** (phases 1 to 3 of 5 done, unreleased): face pages composed in the portal,
+    the Large, Full arcs and Half arcs templates with both digital clocks and five analog styles,
+    the Milky Way band, the slots, and the always-on face drawn from the page (minute wake
+    0.24 s of app time on average). Next: configurable corner gauges, then a release.
 14. Vibration motor.
 15. Alarms (clock time and sun/moon events) and countdown timer, also set through the portal.
 

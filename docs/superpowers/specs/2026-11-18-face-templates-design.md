@@ -231,6 +231,17 @@ white, never a seconds hand. The defaults gained the mock-up's page 4 (Classic w
 hand, the first page's slots); the portal turns the seconds hand on when Classic is chosen.
 Minute wake with the Bold style (the widest lines): 211-214 ms of app time.
 
+### Phase 3 result (2026-11-18)
+
+Full arcs and Half arcs as templates on both faces, with either clock type (JetBrains Mono Light
+64 or 64 px seven segments; a dial of r 100 inside the orbits, r 70 below the horizon, since a
+dial of 90 would cross it). The bodies' places come from one host-tested function
+(`Corners::arcPlace`). The Milky Way band leaves the observer like a clock hand towards the
+galactic centre's azimuth and bends upwards (its circle's centre a quarter turn aside, on the
+upper side), so its bend changes side once a night as the centre crosses the meridian; the
+galactic centre's place is within 0.1° of Skyfield. The defaults are the four pages above, then
+Large JetBrains Mono. Minute wake with Full arcs and a Classic dial: 225-238 ms of app time.
+
 ## Left to the builder
 
 The exact pixel places within the mock-ups' layout, colours of new elements (following today's:
