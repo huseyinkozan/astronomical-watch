@@ -395,9 +395,17 @@ esp_err_t Portal::onState( httpd_req_t *request )
     if ( FaceConfig::encode( *portal->m_faces, s_faces, sizeof( s_faces ) ) < 0 ) {
         s_faces[0] = '\0';
     }
-    const int used = strlen( json );
-    snprintf( json + used, jsonSize - used, "],\"faces\":\"%s\",\"faceItems\":[%d,%d]}", s_faces,
+    int used = strlen( json );
+    snprintf( json + used, jsonSize - used, "],\"faces\":\"%s\",\"faceItems\":[%d,%d]", s_faces,
               static_cast<int>( FaceConfig::TextItemCount ), static_cast<int>( FaceConfig::CornerItemCount ) );
+    // The default pages, the same as on a first start, for the page's "Load the default faces".
+    FaceConfig::Pages defaults = {};
+    FaceConfig::defaults( defaults );
+    if ( FaceConfig::encode( defaults, s_faces, sizeof( s_faces ) ) < 0 ) {
+        s_faces[0] = '\0';
+    }
+    used = strlen( json );
+    snprintf( json + used, jsonSize - used, ",\"faceDefaults\":\"%s\"}", s_faces );
     httpd_resp_set_type( request, "application/json" );
     noCache( request );
     return httpd_resp_sendstr( request, json );

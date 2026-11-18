@@ -33,6 +33,7 @@ STATE = {
     # FaceConfig::defaults, as FaceConfig::encode writes them, and the catalogues' sizes.
     'faces': '0,0,1,0,0,2,5,0,9,2,8,1,4,0,0,0,0,0,0,0,0,209;0,0,0,0,0,0,1,3,0,0,0,0,0,0,0,0,0,0,0,0,0,6;0,1,1,0,1,2,5,0,9,2,8,1,4,0,0,0,0,0,0,0,0,209',
     'faceItems': [12, 13],
+    'faceDefaults': '0,0,1,0,0,2,5,0,9,2,8,1,4,0,0,0,0,0,0,0,0,209;0,0,0,0,0,0,1,3,0,0,0,0,0,0,0,0,0,0,0,0,0,6;0,1,1,0,1,2,5,0,9,2,8,1,4,0,0,0,0,0,0,0,0,209',
 }
 FILES = {'/': ('index.html', 'text/html'), '/help': ('help.html', 'text/html'),
          '/update': ('update.html', 'text/html'),

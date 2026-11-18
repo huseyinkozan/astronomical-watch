@@ -43,6 +43,7 @@
   .slot select.param { flex: 1; }
   .slot label { margin: 0; white-space: nowrap; }
   .slot input { width: auto; }
+  #faceDefaults { margin-top: 12px; font-size: 1em; padding: 8px; background: #333; }
   .face .showOnWatch { margin-top: 8px; font-size: 1em; padding: 8px; background: #2d4f73; }
   .suggest button { display: block; text-align: left; margin: 2px 0; padding: 10px; font-size: 1em;
                     background: #2a2a2a; }
@@ -125,6 +126,7 @@
   "always-on". The screen corners show the day or night, the battery, the Moon's time above or
   below the horizon and its phase.</small>
   <div id="faceEditor"></div>
+  <button type="button" id="faceDefaults" class="secondary" data-tr="Varsayılan yüzleri yükle">Load the default faces</button>
 </fieldset>
 </section>
 
@@ -551,6 +553,16 @@ function labelOf(text) {
   label.textContent = text;
   return label;
 }
+// The watch's default pages (FaceConfig::defaults), the same as on its first start.
+let defaultFaces = '';
+$('faceDefaults').addEventListener('click', () => {
+  if (!defaultFaces || !confirm(t('Replace every face page with the defaults? Save or "show on the watch" sends them.',
+                                  'Tüm yüz sayfaları varsayılanlarla değiştirilsin mi? Kaydet ya da "saatte göster" saate gönderir.'))) return;
+  faces = decodeFaces(defaultFaces);
+  facePage = 0;
+  drawFaces();
+});
+
 // One page at a time: a list chooses the page, the fields below belong to it.
 let facePage = 0;
 function headButton(text, disabled, onClick) {
@@ -706,6 +718,7 @@ fetch('/api/state').then((r) => r.json()).then((s) => {
   for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'hijri', 'aodDay', 'aodNight', 'devMode', 'usbStayOn', 'isha']) $(id).value = String(s[id]);
   setOrders(s);
   if (s.faceItems) faceLimits = s.faceItems;
+  if (s.faceDefaults) defaultFaces = s.faceDefaults;
   faces = decodeFaces(s.faces);
   drawFaces();
   if (s.zone && zoneValid(s.zone)) { homeZone = s.zone; showZone(); }
