@@ -365,11 +365,12 @@ Before a push that changes what the watch shows, refresh `docs/screenshots/en/` 
 the board with the development build, once per language (host command `L 0` or `L 1` switches
 the watch's language; put back the one it had):
 `python tools/screenshot.py --out docs/screenshots/<en|tr> --send P --after P --after N` (all
-pages, every always-on style and watch face layout; the setup portal on for its page, then off
+pages, every face page and its always-on face; the watch's saved face pages and corner gauges
+are what it shows, so the defaults; the setup portal on for its page, then off
 with a new password, so that the published one is not in use), then
 `tools/.venv/bin/python tools/make_gifs.py --dir docs/screenshots/<en|tr>` and the portal
-pictures `tools/portal_preview.py --shot docs/screenshots/<en|tr>/<portal|update>.png
---language <0|1> [--page /update]`. Each language has its page of them
+pictures `tools/portal_preview.py --shot docs/screenshots/<en|tr>/<portal|portal-faces|update>.png
+--language <0|1> [--page /#faces | /update]`, their empty lower part cut off. Each language has its page of them
 (`docs/screenshots/<en|tr>/README.md`, the watch's pages as columns, their parts below each
 other); the README shows only the animations. The pages show a fixed scene (Istanbul,
 2026-06-21 19:19), so that the published pictures stay comparable and never show the watch's

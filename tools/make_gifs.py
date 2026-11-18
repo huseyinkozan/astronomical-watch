@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Animations of the README from the screenshots of tools/screenshot.py: every always-on style
-(always-on-<style>.png -> always-on.gif) and every watch face layout (face-<style>.png ->
+"""Animations of the README from the screenshots of tools/screenshot.py: the always-on face of
+every face page (always-on-<page>.png -> always-on.gif) and every face page (face-<page>.png ->
 faces.gif), one after the other, as a swipe up or down on the watch steps through them.
 
     tools/.venv/bin/python tools/make_gifs.py    (Pillow, see tools/setup_reference.sh)

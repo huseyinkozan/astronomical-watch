@@ -34,11 +34,11 @@ and the PWR key turns it on again.
 
 ## Screenshots
 
-| Always-on styles | Watch faces |
+| Always-on faces | Face pages |
 |---|---|
-| ![Always-on styles](docs/screenshots/en/always-on.gif) | ![Watch faces](docs/screenshots/en/faces.gif) |
+| ![Always-on faces](docs/screenshots/en/always-on.gif) | ![Face pages](docs/screenshots/en/faces.gif) |
 
-Every page, part and style, and the setup portal: **[English](docs/screenshots/en/README.md)** ·
+Every page and part, the default face pages, and the setup portal: **[English](docs/screenshots/en/README.md)** ·
 **[Türkçe](docs/screenshots/tr/README.md)**. Taken from the watch in a fixed scene (Istanbul,
 21 June 2026, 19:19); the always-on face is shown at full brightness, the watch dims it.
 

@@ -15,8 +15,8 @@ The pages show a fixed scene (the "D" command: Istanbul, 2026-06-21 19:19 local 
 the published pictures stay the same and do not show the watch's location; --live keeps the
 watch's own time and settings.
 
-Without page numbers it takes every page, then the always-on face in every style
-(always-on-<style>.png) and the watch face in every layout (face-<style>.png);
+Without page numbers it takes every page, then the always-on face of every face page
+(always-on-<page>.png) and every face page (face-<page>.png);
 tools/make_gifs.py turns those into the animations of the README.
 
 Screenshots for the repository (before a push): the setup portal on, then off with a new
