@@ -348,10 +348,12 @@ void FacePage::onDrawAnalog( lv_event_t *event )
         line.width = static_cast<int32_t>( segment.width );
         line.round_start = mark ? 0 : 1;
         line.round_end = mark ? 0 : 1;
-        line.p1.x = cx + segment.x0;
-        line.p1.y = cy + segment.y0;
-        line.p2.x = cx + segment.x1;
-        line.p2.y = cy + segment.y1;
+        // Rounded, not cut: LVGL keeps whole pixels here, and sinf( pi ) is a hair below 0, which
+        // leaned the hand at half past and the 6 o'clock mark by a pixel.
+        line.p1.x = static_cast<int32_t>( lroundf( cx + segment.x0 ) );
+        line.p1.y = static_cast<int32_t>( lroundf( cy + segment.y0 ) );
+        line.p2.x = static_cast<int32_t>( lroundf( cx + segment.x1 ) );
+        line.p2.y = static_cast<int32_t>( lroundf( cy + segment.y1 ) );
         lv_draw_line( layer, &line );
     }
     if ( !timeValid ) {
@@ -362,8 +364,8 @@ void FacePage::onDrawAnalog( lv_event_t *event )
     lv_draw_rect_dsc_init( &disc );
     disc.bg_color = lv_color_white();
     disc.radius = LV_RADIUS_CIRCLE;
-    const int x = static_cast<int>( cx );
-    const int y = static_cast<int>( cy );
+    const int x = static_cast<int>( lroundf( cx ) );
+    const int y = static_cast<int>( lroundf( cy ) );
     const lv_area_t outer = { x - 6, y - 6, x + 6, y + 6 };
     lv_draw_rect( layer, &disc, &outer );
     if ( face->secondsHand() ) {

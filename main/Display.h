@@ -20,9 +20,9 @@
 // AMOLED panel and touch through the BSP and LVGL, in active mode. The panel's power enable
 // DSI_PWR_EN is pulled up from AXP2101 ALDO2, so the caller switches ALDO2 on first
 // (docs/hardware.md). The pages are side by side; a horizontal swipe moves between them:
-// always-on preview, watch face, information, settings. The information page holds sun,
-// twilight, moon, sun compass, battery and about one over the other, the settings page the
-// settings and the setup portal (CONFIG_WATCH_SETUP_PORTAL); a vertical swipe moves between them.
+// watch face (its face pages, FacePage), clock, information, settings. The stacked pages hold
+// their parts one over the other (StackPage); a vertical swipe moves between them, and on the
+// watch face between the face pages.
 class Display
 {
 public:
@@ -151,7 +151,6 @@ public:
 private:
     static void onSettingClicked( lv_event_t *event );
     static void onGesture( lv_event_t *event );
-    // The always-on page shows the corners as the always-on face draws them.
     static void onPageChanged( lv_event_t *event );
     static void onPagesScrolled( lv_event_t *event );
     // A clock page part that takes sideways swipes itself (ClockPages::swipesSideways) stops the
