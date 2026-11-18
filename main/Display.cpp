@@ -298,6 +298,7 @@ bool Display::start( Settings &settings )
     lv_obj_add_event_cb( pages, onPageChanged, LV_EVENT_VALUE_CHANGED, this );
     m_corners.build();
     buildBrightnessControl();
+    lv_obj_add_event_cb( m_faceTile, onBrightnessDrag, LV_EVENT_PRESSED, this );
     lv_obj_add_event_cb( m_faceTile, onBrightnessDrag, LV_EVENT_LONG_PRESSED, this );
     lv_obj_add_event_cb( m_faceTile, onBrightnessDrag, LV_EVENT_PRESSING, this );
     lv_obj_add_event_cb( m_faceTile, onBrightnessDrag, LV_EVENT_RELEASED, this );
@@ -888,11 +889,22 @@ void Display::onBrightnessDrag( lv_event_t *event )
     if ( indev != nullptr ) {
         lv_indev_get_point( indev, &point );
     }
+    if ( code == LV_EVENT_PRESSED ) {
+        self->m_pressX = point.x;
+        self->m_pressY = point.y;
+        self->m_pressMoved = false;
+        return;
+    }
     if ( code == LV_EVENT_LONG_PRESSED ) {
-        self->startAdjust( point.x, point.y );
+        if ( !self->m_pressMoved ) {
+            self->startAdjust( point.x, point.y );
+        }
         return;
     }
     if ( !self->m_adjusting ) {
+        if ( abs( point.x - self->m_pressX ) >= s_axisPx || abs( point.y - self->m_pressY ) >= s_axisPx ) {
+            self->m_pressMoved = true;
+        }
         return;
     }
     self->m_lastX = point.x;

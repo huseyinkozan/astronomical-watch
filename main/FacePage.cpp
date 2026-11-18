@@ -415,7 +415,9 @@ void FacePage::onDrawAnalog( lv_event_t *event )
     const float cx = ( area.x1 + area.x2 + 1 ) / 2.0f;
     const float cy = ( area.y1 + area.y2 + 1 ) / 2.0f;
     const bool timeValid = face->m_hour >= 0;
-    AnalogClock::Segment segments[AnalogClock::MaxSegments];
+    // Not on the stack: only the LVGL task draws, and 1.5 KB more on its stack overflowed it
+    // (a crash while swiping to the analog page).
+    static AnalogClock::Segment segments[AnalogClock::MaxSegments];
     const int count = AnalogClock::segments( face->m_page.analog, static_cast<float>( face->m_analogRadius ), timeValid ? face->m_hour : 0,
                                              timeValid ? face->m_minute : 0, timeValid ? face->m_second : 0,
                                              timeValid && face->secondsHand(), segments, AnalogClock::MaxSegments );

@@ -227,6 +227,11 @@ private:
     bool m_adjustAxisChosen = false;
     int m_lastX = 0;  // the finger's last point while adjusting
     int m_lastY = 0;
+    // Where the finger touched the face, and whether it has moved away since: a swipe held
+    // after the page step is no long press.
+    int m_pressX = 0;
+    int m_pressY = 0;
+    bool m_pressMoved = false;
     lv_obj_t *m_faceTile = nullptr;
     lv_obj_t *m_clockTile = nullptr;
     StackPage m_info;
