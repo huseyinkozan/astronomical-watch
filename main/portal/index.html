@@ -17,7 +17,12 @@
   .row > div { flex: 1; }
   button { width: 100%; font-size: 1.1em; padding: 12px; border: 0; border-radius: 8px;
            background: #3a6ea5; color: #fff; }
-  #status { margin-top: 12px; min-height: 1.4em; }
+  #status { margin-top: 6px; min-height: 1.4em; }
+  /* The tabs stay at the top and the Save button at the bottom while the page scrolls. */
+  #tabs { position: sticky; top: 0; z-index: 1; display: flex; gap: 4px; padding: 8px 0; background: #111; }
+  #tabs button { flex: 1; padding: 10px 4px; font-size: 1em; background: #333; }
+  #tabs button.on { background: #3a6ea5; }
+  #saveBar { position: sticky; bottom: 0; padding: 8px 0; background: #111; border-top: 1px solid #333; }
   small { color: #888; }
   .checks label { display: inline-block; margin: 4px 16px 4px 0; }
   .checks input { width: auto; }
@@ -29,7 +34,7 @@
   .order button { width: auto; padding: 4px 12px; font-size: 1em; background: #333; }
   .face { border-top: 1px solid #555; margin-top: 12px; padding-top: 4px; }
   .face .head { display: flex; align-items: center; gap: 6px; }
-  .face .head strong { flex: 1; }
+  .face .head select { flex: 1; }
   .face .head label { margin: 0; white-space: nowrap; }
   .face input[type=checkbox] { width: auto; }
   .face .head button { width: auto; padding: 4px 12px; font-size: 1em; background: #333; }
@@ -38,7 +43,6 @@
   .slot select.param { flex: 1; }
   .slot label { margin: 0; white-space: nowrap; }
   .slot input { width: auto; }
-  #addFace { margin-top: 12px; background: #333; }
   .face .showOnWatch { margin-top: 8px; font-size: 1em; padding: 8px; background: #2d4f73; }
   .suggest button { display: block; text-align: left; margin: 2px 0; padding: 10px; font-size: 1em;
                     background: #2a2a2a; }
@@ -52,6 +56,14 @@
   <div><select id="language" aria-label="Language / Dil"><option value="0">English</option><option value="1">Türkçe</option></select></div>
 </div>
 
+<nav id="tabs">
+  <button type="button" data-tr="Zaman">Time</button>
+  <button type="button" data-tr="Yüzler">Faces</button>
+  <button type="button" data-tr="Ayarlar">Settings</button>
+  <button type="button" data-tr="Güncelleme">Update</button>
+</nav>
+
+<section class="tab">
 <fieldset>
   <legend data-tr="Zaman">Time</legend>
   <div id="now"></div>
@@ -86,6 +98,38 @@
 </fieldset>
 
 <fieldset>
+  <legend data-tr="Dünya saati">World clock</legend>
+  <label for="w0" data-tr="Saat sayfasındaki şehirler (en çok üç; birkaç harf yazın)">Cities on the watch's clock page (up to three; type a few letters)</label>
+  <input id="w0" autocomplete="off" placeholder="Search" data-tr-ph="Ara">
+  <input id="w1" autocomplete="off" placeholder="Search" data-tr-ph="Ara">
+  <input id="w2" autocomplete="off" placeholder="Search" data-tr-ph="Ara">
+  <small data-tr="Saat, bu şehirlerin saat değişimlerini (yaz saati) bir yıl boyunca izler; bu sayfayı bir yıl içinde yeniden açın.">The watch follows their clock changes (daylight saving time) for a year from now; open
+  this page again within a year.</small>
+</fieldset>
+
+<fieldset>
+  <legend data-tr="Gün sayaçları">Day counters</legend>
+  <label data-tr="Kaç gün kaldığı ya da geçtiği gösterilecek tarihler (en çok dört)">Dates shown as days until or since them (up to four)</label>
+  <div class="row"><div><input id="dn0" maxlength="20" placeholder="Name" data-tr-ph="Ad"></div><div><input id="dd0" type="date"></div></div>
+  <div class="row"><div><input id="dn1" maxlength="20" placeholder="Name" data-tr-ph="Ad"></div><div><input id="dd1" type="date"></div></div>
+  <div class="row"><div><input id="dn2" maxlength="20" placeholder="Name" data-tr-ph="Ad"></div><div><input id="dd2" type="date"></div></div>
+  <div class="row"><div><input id="dn3" maxlength="20" placeholder="Name" data-tr-ph="Ad"></div><div><input id="dd3" type="date"></div></div>
+</fieldset>
+</section>
+
+<section class="tab">
+<fieldset>
+  <legend data-tr="Yüzler">Faces</legend>
+  <small data-tr="Ön yüzün sayfaları; saatte ön yüzde yukarı veya aşağı kaydırarak geçilir. Bekleme ekranı, etkin mod bittiğinde görünen sayfayı gösterir: saatini ve &quot;beklemede&quot; işaretli bilgileri. Ekran köşeleri gündüzü ya da geceyi, pili, Ay'ın ufkun üstünde ya da altında geçen süresini ve evresini gösterir.">The pages of the watch face; on the watch, swipe up or down on the face for the next one.
+  The always-on face shows the page shown when active mode ends: its clock and the items marked
+  "always-on". The screen corners show the day or night, the battery, the Moon's time above or
+  below the horizon and its phase.</small>
+  <div id="faces"></div>
+</fieldset>
+</section>
+
+<section class="tab">
+<fieldset>
   <legend data-tr="Saat">Watch</legend>
   <label for="timeout" data-tr="Ekranın kapanma süresi">Screen off after</label>
   <select id="timeout"></select>
@@ -97,8 +141,8 @@
   <input id="aodDay" type="number" min="1" max="100" step="1">
   <label for="aodNight" data-tr="Gece bekleme parlaklığı (%)">Always-on brightness from sunset to sunrise (%)</label>
   <input id="aodNight" type="number" min="1" max="100" step="1">
-  <small data-tr="Saatte: ön yüzde (ya da bekleme parlaklığı için bekleme sayfasında) parmağınızı basılı tutup yukarı veya aşağı sürükleyin.">On the watch: hold a finger on the watch face (or on the always-on page for the
-  always-on brightness of the moment) and drag up or down.</small>
+  <small data-tr="Saatte: ön yüzde parmağınızı basılı tutun; yukarı ya da aşağı sürüklemek ön yüzün, sağa ya da sola sürüklemek o anki bekleme parlaklığını değiştirir.">On the watch: hold a finger on the watch face; drag up or down for the face's
+  brightness, sideways for the always-on brightness of the moment.</small>
   <label for="usbStayOn" data-tr="USB takılıyken ekran açık kalsın">Screen stays on while USB is plugged in</label>
   <select id="usbStayOn"></select>
   <label for="autoOff" data-tr="Hareketsiz kalınca kapanma">Switch off without motion after</label>
@@ -117,40 +161,13 @@
 </fieldset>
 
 <fieldset>
-  <legend data-tr="Dünya saati">World clock</legend>
-  <label for="w0" data-tr="Saat sayfasındaki şehirler (en çok üç; birkaç harf yazın)">Cities on the watch's clock page (up to three; type a few letters)</label>
-  <input id="w0" autocomplete="off" placeholder="Search" data-tr-ph="Ara">
-  <input id="w1" autocomplete="off" placeholder="Search" data-tr-ph="Ara">
-  <input id="w2" autocomplete="off" placeholder="Search" data-tr-ph="Ara">
-  <small data-tr="Saat, bu şehirlerin saat değişimlerini (yaz saati) bir yıl boyunca izler; bu sayfayı bir yıl içinde yeniden açın.">The watch follows their clock changes (daylight saving time) for a year from now; open
-  this page again within a year.</small>
-</fieldset>
-
-<fieldset>
-  <legend data-tr="Gün sayaçları">Day counters</legend>
-  <label data-tr="Kaç gün kaldığı ya da geçtiği gösterilecek tarihler (en çok dört)">Dates shown as days until or since them (up to four)</label>
-  <div class="row"><div><input id="dn0" maxlength="20" placeholder="Name" data-tr-ph="Ad"></div><div><input id="dd0" type="date"></div></div>
-  <div class="row"><div><input id="dn1" maxlength="20" placeholder="Name" data-tr-ph="Ad"></div><div><input id="dd1" type="date"></div></div>
-  <div class="row"><div><input id="dn2" maxlength="20" placeholder="Name" data-tr-ph="Ad"></div><div><input id="dd2" type="date"></div></div>
-  <div class="row"><div><input id="dn3" maxlength="20" placeholder="Name" data-tr-ph="Ad"></div><div><input id="dd3" type="date"></div></div>
-</fieldset>
-
-<fieldset>
-  <legend data-tr="Yüzler">Faces</legend>
-  <small data-tr="Ön yüzün sayfaları; saatte ön yüzde yukarı veya aşağı kaydırarak geçilir. Bekleme ekranı, etkin mod bittiğinde görünen sayfayı gösterir: saatini ve &quot;beklemede&quot; işaretli bilgileri. Ekran köşeleri gündüzü ya da geceyi, pili, Ay'ın ufkun üstünde ya da altında geçen süresini ve evresini gösterir.">The pages of the watch face; on the watch, swipe up or down on the face for the next one.
-  The always-on face shows the page shown when active mode ends: its clock and the items marked
-  "always-on". The screen corners show the day or night, the battery, the Moon's time above or
-  below the horizon and its phase.</small>
-  <div id="faces"></div>
-  <button type="button" id="addFace" data-tr="Sayfa ekle">Add a page</button>
-</fieldset>
-
-<fieldset>
   <legend data-tr="Sayfalar">Pages</legend>
   <small data-tr="Dikey kaydırmanın geçtiği parçaların sırası ve hangilerinin gösterileceği.">The order of the parts a vertical swipe steps through, and which of them to show.</small>
   <div id="orders"></div>
 </fieldset>
+</section>
 
+<section class="tab">
 <fieldset>
   <legend data-tr="Yazılım güncelleme ve kayıtlar">Software update and logs</legend>
   <div><span data-tr="Saatteki sürüm:">Version on the watch:</span> <b id="version">?</b></div>
@@ -158,11 +175,15 @@
   <small data-tr="Yeni sürüm telefonun giriş penceresinden değil, tarayıcıdan yüklenir; sayfa nasıl yapılacağını anlatır. Sorun bildirmek için kayıtlar da oradadır.">A new version is installed from the browser, not from the phone's sign-in window; the page
   explains how. The logs for a problem report are there too.</small>
 </fieldset>
+</section>
 
-<button id="save" data-tr="Saate kaydet">Save to the watch</button>
+
+<div id="saveBar">
+  <button id="save" data-tr="Saate kaydet">Save to the watch</button>
+  <div id="status"></div>
+</div>
 <small data-tr="Kaydetmek saati ayarlar ve Wi-Fi ağını kapatır; telefonunuz kendi ağına döner. Sonradan bir şeyi değiştirmek için kurulumu saatte yeniden başlatın.">Saving sets the watch and closes its Wi-Fi network; your phone returns to its usual
 network. To change something later, start the setup on the watch again.</small>
-<div id="status"></div>
 <p><small><span data-tr="Şehir verisi:">City data:</span> <a href="https://www.geonames.org/">GeoNames</a> (CC BY 4.0).
 <span data-tr="Kaynak kod:">Source code:</span> gitlab.com/huseyinkozan/astronomical-watch</small></p>
 </main>
@@ -530,85 +551,101 @@ function labelOf(text) {
   label.textContent = text;
   return label;
 }
+// One page at a time: a list chooses the page, the fields below belong to it.
+let facePage = 0;
+function headButton(text, disabled, onClick) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.textContent = text;
+  button.disabled = disabled;
+  button.addEventListener('click', onClick);
+  return button;
+}
 function drawFaces() {
   const box = $('faces');
   box.innerHTML = '';
-  faces.forEach((v, p) => {
-    const page = document.createElement('div');
-    page.className = 'face';
-    const head = document.createElement('div');
-    head.className = 'head';
-    const title = document.createElement('strong');
-    title.textContent = t('Page ', 'Sayfa ') + (p + 1);
-    head.appendChild(title);
-    head.appendChild(checkOf(t('show', 'göster'), (v[4] & Hidden) === 0, (on) => {
-      // At least one page stays shown.
-      if (!on && faces.filter((f) => (f[4] & Hidden) === 0).length <= 1) { drawFaces(); return; }
-      v[4] = on ? v[4] & ~Hidden : v[4] | Hidden;
-    }));
-    for (const [text, move] of [['↑', -1], ['↓', 1], ['✕', 0]]) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.textContent = text;
-      button.disabled = move === 0 ? faces.length <= 1 : p + move < 0 || p + move >= faces.length;
-      button.addEventListener('click', () => {
-        if (move === 0) faces.splice(p, 1); else [faces[p], faces[p + move]] = [faces[p + move], faces[p]];
-        drawFaces();
-      });
-      head.appendChild(button);
-    }
-    page.appendChild(head);
-    page.appendChild(labelOf(t('Template', 'Şablon')));
-    page.appendChild(selectOf([['Large', 'Büyük']], 1, v[0], (n) => { v[0] = n; }));
-    page.appendChild(labelOf(t('Clock', 'Saat')));
-    page.appendChild(selectOf([['Digital', 'Dijital'], ['Analog (coming)', 'Analog (yakında)'], ['None', 'Yok']], 3, v[1],
-                              (n) => { v[1] = n; }));
-    const styles = document.createElement('div');
-    styles.className = 'row';
-    const digital = document.createElement('div');
-    digital.appendChild(labelOf(t('Digits', 'Rakamlar')));
-    digital.appendChild(selectOf([['JetBrains Mono', 'JetBrains Mono'], ['Seven segment', 'Yedi parça']], 2, v[2], (n) => { v[2] = n; }));
-    const analog = document.createElement('div');
-    analog.appendChild(labelOf(t('Hands', 'Akrep ve yelkovan')));
-    analog.appendChild(selectOf([['Classic', 'Klasik'], ['Bold', 'Kalın'], ['Fine scale', 'İnce ölçek'], ['One hand', 'Tek kol'],
-                                 ['Plain', 'Sade']], 5, v[3], (n) => { v[3] = n; }));
-    styles.appendChild(digital);
-    styles.appendChild(analog);
-    page.appendChild(styles);
-    page.appendChild(checkOf(t('Seconds hand (analog)', 'Saniye kolu (analog)'), (v[4] & SecondsHand) !== 0,
-                             (on) => { v[4] = on ? v[4] | SecondsHand : v[4] & ~SecondsHand; }));
-    for (let slot = 0; slot < 8; slot++) {
-      const corner = slot >= 4;
-      page.appendChild(labelOf(slotNames[slot][L]));
-      const row = document.createElement('div');
-      row.className = 'slot';
-      const param = document.createElement('select');
-      param.className = 'param';
-      const showParam = () => {
-        const item = v[5 + slot];
-        const count = corner ? 0 : item === CityTime ? 3 : item === DayCounter ? 4 : 0;
-        param.hidden = count === 0;
-        fill(param, [...Array(count).keys()].map((i) => [i, String(i + 1)]), Math.min(v[13 + slot], Math.max(count - 1, 0)));
-        v[13 + slot] = count === 0 ? 0 : Number(param.value);
-      };
-      param.addEventListener('change', () => { v[13 + slot] = Number(param.value); });
-      row.appendChild(selectOf(corner ? faceCorners : faceTexts, faceLimits[corner ? 1 : 0], v[5 + slot],
-                               (n) => { v[5 + slot] = n; showParam(); }));
-      row.appendChild(param);
-      showParam();
-      row.appendChild(checkOf(t('always-on', 'beklemede'), (v[21] & (1 << slot)) !== 0,
-                              (on) => { v[21] = on ? v[21] | (1 << slot) : v[21] & ~(1 << slot); }));
-      page.appendChild(row);
-    }
-    const show = document.createElement('button');
-    show.type = 'button';
-    show.className = 'showOnWatch';
-    show.textContent = t('Save the faces and show this page on the watch', 'Yüzleri kaydet, bu sayfayı saatte göster');
-    show.addEventListener('click', () => showOnWatch(p, show));
-    page.appendChild(show);
-    box.appendChild(page);
-  });
-  $('addFace').disabled = faces.length >= MaxFaces;
+  facePage = Math.min(Math.max(facePage, 0), faces.length - 1);
+  const p = facePage;
+  const v = faces[p];
+  const page = document.createElement('div');
+  page.className = 'face';
+  const head = document.createElement('div');
+  head.className = 'head';
+  const chooser = document.createElement('select');
+  fill(chooser, faces.map((f, i) => [i, t('Page ', 'Sayfa ') + (i + 1) + ((f[4] & Hidden) ? t(' (hidden)', ' (gizli)') : '')]), p);
+  chooser.addEventListener('change', () => { facePage = Number(chooser.value); drawFaces(); });
+  head.appendChild(chooser);
+  const move = (to) => { [faces[p], faces[to]] = [faces[to], faces[p]]; facePage = to; drawFaces(); };
+  head.appendChild(headButton('↑', p === 0, () => move(p - 1)));
+  head.appendChild(headButton('↓', p === faces.length - 1, () => move(p + 1)));
+  head.appendChild(headButton('✕', faces.length <= 1, () => {
+    faces.splice(p, 1);
+    // At least one page stays shown.
+    if (faces.every((f) => (f[4] & Hidden) !== 0)) faces[0][4] &= ~Hidden;
+    drawFaces();
+  }));
+  head.appendChild(headButton('+', faces.length >= MaxFaces, () => {
+    faces.splice(p + 1, 0, v.slice());
+    faces[p + 1][4] &= ~Hidden;
+    facePage = p + 1;
+    drawFaces();
+  }));
+  page.appendChild(head);
+  page.appendChild(checkOf(t('Show this page on the watch face', 'Bu sayfa ön yüzde gösterilsin'), (v[4] & Hidden) === 0, (on) => {
+    // At least one page stays shown.
+    if (!on && faces.filter((f) => (f[4] & Hidden) === 0).length <= 1) { drawFaces(); return; }
+    v[4] = on ? v[4] & ~Hidden : v[4] | Hidden;
+    drawFaces();
+  }));
+  page.appendChild(labelOf(t('Template', 'Şablon')));
+  page.appendChild(selectOf([['Large', 'Büyük']], 1, v[0], (n) => { v[0] = n; }));
+  page.appendChild(labelOf(t('Clock', 'Saat')));
+  page.appendChild(selectOf([['Digital', 'Dijital'], ['Analog (coming)', 'Analog (yakında)'], ['None', 'Yok']], 3, v[1],
+                            (n) => { v[1] = n; }));
+  const styles = document.createElement('div');
+  styles.className = 'row';
+  const digital = document.createElement('div');
+  digital.appendChild(labelOf(t('Digits', 'Rakamlar')));
+  digital.appendChild(selectOf([['JetBrains Mono', 'JetBrains Mono'], ['Seven segment', 'Yedi parça']], 2, v[2], (n) => { v[2] = n; }));
+  const analog = document.createElement('div');
+  analog.appendChild(labelOf(t('Hands', 'Akrep ve yelkovan')));
+  analog.appendChild(selectOf([['Classic', 'Klasik'], ['Bold', 'Kalın'], ['Fine scale', 'İnce ölçek'], ['One hand', 'Tek kol'],
+                               ['Plain', 'Sade']], 5, v[3], (n) => { v[3] = n; }));
+  styles.appendChild(digital);
+  styles.appendChild(analog);
+  page.appendChild(styles);
+  page.appendChild(checkOf(t('Seconds hand (analog)', 'Saniye kolu (analog)'), (v[4] & SecondsHand) !== 0,
+                           (on) => { v[4] = on ? v[4] | SecondsHand : v[4] & ~SecondsHand; }));
+  for (let slot = 0; slot < 8; slot++) {
+    const corner = slot >= 4;
+    page.appendChild(labelOf(slotNames[slot][L]));
+    const row = document.createElement('div');
+    row.className = 'slot';
+    const param = document.createElement('select');
+    param.className = 'param';
+    const showParam = () => {
+      const item = v[5 + slot];
+      const count = corner ? 0 : item === CityTime ? 3 : item === DayCounter ? 4 : 0;
+      param.hidden = count === 0;
+      fill(param, [...Array(count).keys()].map((i) => [i, String(i + 1)]), Math.min(v[13 + slot], Math.max(count - 1, 0)));
+      v[13 + slot] = count === 0 ? 0 : Number(param.value);
+    };
+    param.addEventListener('change', () => { v[13 + slot] = Number(param.value); });
+    row.appendChild(selectOf(corner ? faceCorners : faceTexts, faceLimits[corner ? 1 : 0], v[5 + slot],
+                             (n) => { v[5 + slot] = n; showParam(); }));
+    row.appendChild(param);
+    showParam();
+    row.appendChild(checkOf(t('always-on', 'beklemede'), (v[21] & (1 << slot)) !== 0,
+                            (on) => { v[21] = on ? v[21] | (1 << slot) : v[21] & ~(1 << slot); }));
+    page.appendChild(row);
+  }
+  const show = document.createElement('button');
+  show.type = 'button';
+  show.className = 'showOnWatch';
+  show.textContent = t('Save the faces and show this page on the watch', 'Yüzleri kaydet, bu sayfayı saatte göster');
+  show.addEventListener('click', () => showOnWatch(p, show));
+  page.appendChild(show);
+  box.appendChild(page);
 }
 // Saves only the face pages and shows one of them; the watch keeps its Wi-Fi on, so that the next
 // change can follow (the main Save button closes it).
@@ -631,12 +668,20 @@ async function showOnWatch(p, button) {
     say(t('Could not reach the watch', 'Saate ulaşılamadı'));
   }
 }
-$('addFace').addEventListener('click', () => {
-  if (faces.length < MaxFaces) faces.push(faces[faces.length - 1].slice());
-  drawFaces();
-});
 faces = decodeFaces('');
 drawFaces();
+
+// Tabs: one section shown at a time; Save sends the fields of every section.
+const tabButtons = [...document.querySelectorAll('#tabs button')];
+const tabSections = [...document.querySelectorAll('section.tab')];
+function showTab(index) {
+  tabSections.forEach((section, i) => { section.hidden = i !== index; });
+  tabButtons.forEach((button, i) => button.classList.toggle('on', i === index));
+}
+tabButtons.forEach((button, i) => button.addEventListener('click', () => { showTab(i); window.scrollTo(0, 0); }));
+// A link may name the tab: /#faces.
+showTab(Math.max(0, ['#time', '#faces', '#settings', '#update'].indexOf(location.hash)));
+window.addEventListener('load', () => window.scrollTo(0, 0));
 
 function setLanguage(language) {
   L = language === 1 ? 1 : 0;
