@@ -361,6 +361,16 @@ Off mode [HW] (guided test `off`, 2026-10-31; `main/Axp2101.*`):
   display on/off (0x29/0x28) and brightness (0x51) only. `bsp_display_start()` always resets the panel [REF].
 - CO5300 commands: 0x28 display off, 0x10 sleep in, 0x11 sleep out (wait 120 ms; must precede 0x29),
   0x39 idle mode, 0x4F deep standby, 0x51 brightness [REF].
+- Mirroring, MADCTL (0x36): the datasheet (V0.01, §7.5.29) gives MY = bit 7 (rows bottom to top) and
+  MX = bit 6 (columns right to left) [DS]; Waveshare's Arduino CO5300 driver flips with 0x02 and
+  0x05 and a column offset of 0 when flipped, and `esp_lcd_sh8601` calls MY unsupported [REF].
+  Guided test `mirror` (2026-11-18, test-logs/mirror-20261118-191031.log) [HW]: 0x40 mirrors
+  left-right, 0x80 top-bottom, 0xC0 turns the picture around; with the column gap kept at 22
+  nothing is cut (the GRAM has 22 columns on each side, 454 in all), a gap of 0 cuts an edge.
+  0x02 also mirrors left-right (not in the datasheet), 0x05 changes nothing. The firmware uses
+  0x40/0x80 (Settings::Mirror, `Display`) and mirrors the touch points to match
+  (`esp_lcd_touch_set_mirror_x/y`); the always-on wakes keep the register, as the panel is not
+  reset between them.
 - CO5300 datasheet currents [DS §6, p.103]: Sleep In ≈ 85–110 µA (VDDI) + 25 µA (VCI); deep
   standby ≈ 2 µA + 1 µA. **No figures are given for normal, idle or partial display**, so the
   always-on panel current must come from a battery run.

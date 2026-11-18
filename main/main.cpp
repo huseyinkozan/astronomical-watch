@@ -125,8 +125,10 @@ static int s_hostLineLength = 0;
 // portal on or off and "N" makes a new portal password (so that a published screenshot does not
 // show the one in use). "D" shows a fixed scene until the next reset (s_sceneInputs); "F <page>"
 // shows that face page without changing the setting, "G <page> <slot> <item>" puts an item into
-// a slot of it, "H <page> <style>" makes it analog (neither saved); "O" ends active mode as a PWR press does. Only "E" (the event log,
-// read by tools/read_events.py) also works without CONFIG_WATCH_DEV_LOGGING.
+// a slot of it, "H <page> <style>" makes it analog (neither saved); "O" ends active mode as a
+// PWR press does; "U <0|1>" sets the PWR key's internal pull-up; "K" shows the brightness
+// control; "X <hex> <gap>" sets the panel's MADCTL and column gap (guided test "mirror"). Only
+// "E" (the event log, read by tools/read_events.py) also works without CONFIG_WATCH_DEV_LOGGING.
 // Returns true when a command arrived: like a touch, it restarts the display timeout, so that
 // the watch stays in active mode while tools/screenshot.py works.
 static bool pollHostCommands()
@@ -185,6 +187,21 @@ static bool pollHostCommands()
         }
         if ( sscanf( s_hostLine, "F %d", &style ) == 1 ) {
             s_display.showFaceStyle( style );
+            continue;
+        }
+        unsigned addressMode = 0;
+        int gap = 0;
+        if ( sscanf( s_hostLine, "X %x %d", &addressMode, &gap ) == 2 ) {
+            s_display.testAddressMode( static_cast<int>( addressMode ), gap );
+            continue;
+        }
+        int pullUp = 0;
+        if ( sscanf( s_hostLine, "U %d", &pullUp ) == 1 ) {
+            // Settings::PowerKeyPullUp by hand, e.g. after a press taken as missed by mistake.
+            s_settings.setValue( Settings::PowerKeyPullUp, pullUp != 0 ? 1 : 0 );
+            s_settings.save();
+            s_deepSleep.setPowerKeyPullUp( pullUp != 0 );
+            ESP_LOGI( TAG, "PWR internal pull-up %s", pullUp != 0 ? "on" : "off" );
             continue;
         }
         if ( s_hostLine[0] == 'K' && s_hostLine[1] == '\0' ) {
@@ -714,7 +731,9 @@ static bool servicePortal( bool everySecond )
 
 // A PWR press that reached only the AXP2101: on a board without the key's pull-up resistor (R11,
 // docs/hardware.md) GPIO10 stays low. Switches the internal pull-up on for good.
-static bool powerKeyMissed( bool &flagsCleared )
+// `gpioSawPress`: GPIO10 rose since the last read; the AXP2101's flag then belongs to that press
+// (a PWR press that mirrors the picture keeps active mode, so its flag is read afterwards).
+static bool powerKeyMissed( bool &flagsCleared, bool gpioSawPress )
 {
     bool shortPress = false;
     bool longPress = false;
@@ -724,7 +743,7 @@ static bool powerKeyMissed( bool &flagsCleared )
     }
     // The first read only clears the flags left by the press that woke the watch. GPIO10 is read
     // after the AXP2101, so that a press starting between the two reads is not taken as missed.
-    const bool missed = flagsCleared && pressStart && gpio_get_level( s_powerKeyGpio ) == 0;
+    const bool missed = flagsCleared && pressStart && !gpioSawPress && gpio_get_level( s_powerKeyGpio ) == 0;
     flagsCleared = true;
     if ( missed && s_settings.value( Settings::PowerKeyPullUp ) == 0 ) {
         ESP_LOGW( TAG, "PWR press seen only by the AXP2101: internal pull-up on" );
@@ -751,6 +770,7 @@ static int runActiveMode()
     uint32_t elapsedMs = 0;
     int sinceKeyFlagsMs = 0;
     bool keyFlagsCleared = false;
+    bool gpioSawPress = false;
     while ( true ) {
         const bool everySecond = s_displayOn && sinceUpdateMs >= 1000;
         if ( everySecond ) {
@@ -766,7 +786,12 @@ static int runActiveMode()
         const int level = gpio_get_level( s_powerKeyGpio );
         if ( level != lastLevel ) {
             lastLevel = level;
-            if ( level == 1 ) {
+            gpioSawPress = gpioSawPress || level == 1;
+            // During a held brightness drag the press mirrors the picture instead.
+            const int axis = level == 1 && s_displayOn ? s_display.adjustAxis() : -1;
+            if ( axis >= 0 ) {
+                s_display.toggleMirror( axis );
+            } else if ( level == 1 ) {
                 s_deepSleep.addEvent( DeepSleep::Event::PowerKeyPressed );
                 ESP_LOGI( TAG, "PWR press: active mode ends" );
                 return 2;
@@ -774,10 +799,17 @@ static int runActiveMode()
         }
         if ( elapsedMs >= 1000 && sinceKeyFlagsMs >= 200 ) {
             sinceKeyFlagsMs = 0;
-            if ( powerKeyMissed( keyFlagsCleared ) ) {
-                s_deepSleep.addEvent( DeepSleep::Event::PowerKeyPressed );
-                ESP_LOGI( TAG, "PWR press (AXP2101): active mode ends" );
-                return 2;
+            const bool missed = powerKeyMissed( keyFlagsCleared, gpioSawPress );
+            gpioSawPress = gpio_get_level( s_powerKeyGpio ) == 1;
+            if ( missed ) {
+                const int axis = s_displayOn ? s_display.adjustAxis() : -1;
+                if ( axis >= 0 ) {
+                    s_display.toggleMirror( axis );
+                } else {
+                    s_deepSleep.addEvent( DeepSleep::Event::PowerKeyPressed );
+                    ESP_LOGI( TAG, "PWR press (AXP2101): active mode ends" );
+                    return 2;
+                }
             }
         }
         uint32_t idleMs = activeMs;

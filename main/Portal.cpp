@@ -52,7 +52,7 @@ static const char *s_fieldNames[] = { "timeout", "alwaysOn", "devMode",    "auto
                                                          "settingsOrder",
                                                          // Set by the watch itself.
                                                          "pwrPullUp", "unplugged",
-                                                         "settingsHidden" };
+                                                         "settingsHidden", "mirror" };
 // One name per setting: a missing one would be read as a null name.
 static_assert( sizeof( s_fieldNames ) / sizeof( s_fieldNames[0] ) == Settings::ItemCount, "a field name per setting" );
 
@@ -356,7 +356,7 @@ esp_err_t Portal::onState( httpd_req_t *request )
               "\"offset\":%d,\"lat\":%.6f,\"lon\":%.6f,\"hijri\":%d,"
               "\"aodDay\":%d,\"aodNight\":%d,\"devMode\":%d,\"usbStayOn\":%d,\"isha\":%d,\"language\":%d,"
               "\"clockOrder\":%d,\"clockHidden\":%d,\"infoOrder\":%d,\"infoHidden\":%d,"
-              "\"settingsOrder\":%d,\"settingsHidden\":%d,"
+              "\"settingsOrder\":%d,\"settingsHidden\":%d,\"mirror\":%d,"
               "\"version\":\"%s\",\"battery\":%d,\"usb\":%d,\"updateMin\":%d,\"coreDump\":%d,"
               "\"zone\":\"%s\",\"place\":\"%s\",\"cities\":[",
               settings.value( Settings::DisplayTimeout ), settings.value( Settings::AlwaysOnFace ),
@@ -370,7 +370,7 @@ esp_err_t Portal::onState( httpd_req_t *request )
               settings.value( Settings::ClockOrder ),
               settings.value( Settings::ClockHidden ), settings.value( Settings::InfoOrder ),
               settings.value( Settings::InfoHidden ), settings.value( Settings::SettingsOrder ),
-              settings.value( Settings::SettingsHidden ),
+              settings.value( Settings::SettingsHidden ), settings.value( Settings::Mirror ),
               esp_app_get_description()->version, portal->m_batteryPercent, portal->m_usb ? 1 : 0, UpdateMinPercent,
               portal->m_hasCoreDump ? 1 : 0,
               world.homeZoneName(),

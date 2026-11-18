@@ -35,6 +35,7 @@ WAIT = 'wait'
 QUIET = 'quiet'
 SEND_TIME = 'send_time'
 ASK = 'ask'
+SEND = 'send'
 
 RTC_LINE = re.compile(r'RTC (\d{4})-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d) UTC')
 
@@ -44,6 +45,7 @@ RTC_LINE = re.compile(r'RTC (\d{4})-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d) UTC')
 # kind QUIET (shown as CHECK) passes when the pattern does NOT appear within the timeout.
 # kind SEND_TIME sends the host's UTC time to the watch, then waits for the pattern.
 # kind ASK asks the tester a yes/no question (a visual check) and logs the answer.
+# kind SEND sends the development command in the pattern field (e.g. 'X 40 22') and goes on.
 # Every 'RTC ... UTC' line, logged at the RTC's second tick, gets the RTC - host difference.
 TESTS = {
     # Off mode (docs/hardware.md, PWR key), build with sdkconfig.noaod: without the always-on
@@ -243,6 +245,35 @@ TESTS = {
         (WAIT, 'The portal should close by itself after 5 minutes without requests.',
          r'Setup portal timeout', 330),
     ],
+    # Panel mirroring (docs/hardware.md, Display): which MADCTL (0x36) value mirrors the picture
+    # which way, and which column gap keeps it in place. The datasheet (V0.01) has MY 0x80 and
+    # MX 0x40; Waveshare's Arduino CO5300 driver flips with 0x02 (horizontal) and 0x05 (vertical)
+    # and a column offset of 0 instead of 22. Development build, the watch on USB in active mode
+    # with "USB: stay on" (the screen stays on). Look at the watch face after each change.
+    'mirror': [
+        (ASK, 'Is the watch face shown (swipe to it if not), with the watch on USB?', '', 0),
+        (SEND, '', 'X 40 22', 0),
+        (ASK, 'Value 0x40, gap 22: is the picture mirrored LEFT-RIGHT (text reads backwards)?', '', 0),
+        (ASK, 'Value 0x40, gap 22: is it UPSIDE DOWN?', '', 0),
+        (ASK, 'Value 0x40, gap 22: is a corner gauge cut or a black band along an edge?', '', 0),
+        (SEND, '', 'X 40 0', 0),
+        (ASK, 'Value 0x40, gap 0: is a corner gauge cut or a black band along an edge?', '', 0),
+        (SEND, '', 'X 80 22', 0),
+        (ASK, 'Value 0x80: is the picture mirrored LEFT-RIGHT?', '', 0),
+        (ASK, 'Value 0x80: is it UPSIDE DOWN?', '', 0),
+        (ASK, 'Value 0x80: is a corner gauge cut or a black band along an edge?', '', 0),
+        (SEND, '', 'X C0 0', 0),
+        (ASK, 'Value 0xC0, gap 0: is the picture turned around (180 degrees, text upside down but not backwards)?', '', 0),
+        (ASK, 'Value 0xC0, gap 0: is a corner gauge cut or a black band along an edge?', '', 0),
+        (SEND, '', 'X 02 22', 0),
+        (ASK, 'Value 0x02: is the picture mirrored LEFT-RIGHT?', '', 0),
+        (ASK, 'Value 0x02: is it UPSIDE DOWN?', '', 0),
+        (SEND, '', 'X 05 22', 0),
+        (ASK, 'Value 0x05: is the picture mirrored LEFT-RIGHT?', '', 0),
+        (ASK, 'Value 0x05: is it UPSIDE DOWN?', '', 0),
+        (SEND, '', 'X 00 22', 0),
+        (ASK, 'Value 0x00 (normal): does the face look as usual again?', '', 0),
+    ],
     # Reads the battery drain log; the board must not be reset, or RTC memory is cleared.
     'battery': [
         (WAIT, 'Reading the battery log.', r'Battery log: \d+ of \d+ samples', 30),
@@ -250,7 +281,7 @@ TESTS = {
     ],
 }
 
-NO_RESET_TESTS = {'battery', 'motionhand'}
+NO_RESET_TESTS = {'battery', 'motionhand', 'mirror'}
 
 
 def notify(title, instruction):
@@ -362,6 +393,12 @@ def runSteps(reader, steps):
             mark = f'{GREEN}YES{RESET}' if passed else f'{RED}NO{RESET}'
             print(f'    [{index:2}] {mark}')
             results.append((index, instruction, passed))
+            continue
+        if kind == SEND:
+            if reader.serial is not None:
+                reader.serial.write(f'{pattern}\n'.encode())
+            reader.emit(f'<sent: {pattern}>')
+            time.sleep(1.5)
             continue
         if kind == SEND_TIME:
             sendTime(reader)

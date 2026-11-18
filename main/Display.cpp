@@ -156,6 +156,24 @@ static void roundArea( lv_event_t *event )
 // is still being sent (horizontal stripes on the panel), and it stores RGB panel callbacks into
 // the SH8601 panel object. lvgl_port_add_disp() reports the band when the transfer is done.
 static esp_lcd_panel_io_handle_t s_panelIo = nullptr;
+static esp_lcd_panel_handle_t s_panel = nullptr;
+static esp_lcd_touch_handle_t s_touch = nullptr;
+
+// Settings::Mirror on the panel and the touch: the panel's own address order (MADCTL 0x36: MX
+// 0x40 left-right, MY 0x80 top-bottom; docs/hardware.md, the column gap stays 22), so drawing
+// costs nothing more and the always-on wakes keep it, and the touch points mirrored to match.
+static void applyMirror( int mirror )
+{
+    if ( s_panelIo == nullptr ) {
+        return;
+    }
+    const uint8_t madctl = static_cast<uint8_t>( ( ( mirror & 1 ) ? 0x40 : 0 ) | ( ( mirror & 2 ) ? 0x80 : 0 ) );
+    esp_lcd_panel_io_tx_param( s_panelIo, ( 0x02 << 24 ) | ( 0x36 << 8 ), &madctl, 1 );
+    if ( s_touch != nullptr ) {
+        esp_lcd_touch_set_mirror_x( s_touch, ( mirror & 1 ) != 0 );
+        esp_lcd_touch_set_mirror_y( s_touch, ( mirror & 2 ) != 0 );
+    }
+}
 
 static void setBrightness( int percent )
 {
@@ -190,6 +208,7 @@ static lv_display_t *startLvgl( lv_indev_t *&touch )
         return nullptr;
     }
     s_panelIo = io;
+    s_panel = panel;
     lvgl_port_display_cfg_t displayConfig = {};
     displayConfig.io_handle = io;
     displayConfig.panel_handle = panel;
@@ -214,6 +233,7 @@ static lv_display_t *startLvgl( lv_indev_t *&touch )
         touchConfig.disp = display;
         touchConfig.handle = touchHandle;
         touch = lvgl_port_add_touch( &touchConfig );
+        s_touch = touchHandle;
     }
     if ( touch == nullptr ) {
         ESP_LOGE( TAG, "Touch start failed: %s", esp_err_to_name( touchErr ) );
@@ -245,6 +265,8 @@ bool Display::start( Settings &settings )
         ESP_LOGE( TAG, "Display lock timeout" );
         return false;
     }
+    // Before the first frame (the panel stays dark until it).
+    applyMirror( settings.value( Settings::Mirror ) );
     // Black background: an AMOLED pixel that is off draws no current.
     // How long building the pages takes: every PWR wake pays it before the first frame.
     const int64_t buildStartUs = esp_timer_get_time();
@@ -859,6 +881,8 @@ void Display::onBrightnessDrag( lv_event_t *event )
     if ( !self->m_adjusting ) {
         return;
     }
+    self->m_lastX = point.x;
+    self->m_lastY = point.y;
     const int dx = point.x - self->m_adjustX;
     const int dy = self->m_adjustY - point.y;
     if ( code == LV_EVENT_PRESSING ) {
@@ -969,10 +993,41 @@ void Display::refreshSettings()
         showSetting( i );
     }
     setBrightness( m_settings->value( Settings::Brightness ) );
+    applyMirror( m_settings->value( Settings::Mirror ) );
+    lv_obj_invalidate( lv_screen_active() );
     // A save from the portal while the code shows keeps it dim.
     m_joinCodeDimmed = false;
     updateJoinCodeBrightness();
     bsp_display_unlock();
+}
+
+int Display::adjustAxis()
+{
+    if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
+        return -1;
+    }
+    const int axis = m_adjusting && m_adjustAxisChosen ? ( m_adjustItem == Settings::Brightness ? 0 : 1 ) : -1;
+    bsp_display_unlock();
+    return axis;
+}
+
+void Display::toggleMirror( int axis )
+{
+    if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
+        return;
+    }
+    const int mirror = m_settings->value( Settings::Mirror ) ^ ( axis == 1 ? 1 : 2 );
+    m_settings->setValue( Settings::Mirror, mirror );
+    applyMirror( mirror );
+    // The finger stays where it is, but its point now reads mirrored: the drag goes on from there
+    // and from the value it had, without a jump.
+    m_adjustStart = m_adjustPercent;
+    m_adjustX = axis == 1 ? Panel::WIDTH - m_lastX : m_lastX;
+    m_adjustY = axis == 0 ? Panel::HEIGHT - m_lastY : m_lastY;
+    lv_obj_invalidate( lv_screen_active() );
+    lv_obj_invalidate( lv_layer_top() );
+    bsp_display_unlock();
+    ESP_LOGI( TAG, "Mirror %d (PWR during the brightness drag)", mirror );
 }
 
 void Display::stop()
@@ -1165,6 +1220,21 @@ void Display::showFaceStyle( int page )
     }
     m_face.show( m_facePages.pages[page] );
     bsp_display_unlock();
+}
+
+void Display::testAddressMode( int value, int gap )
+{
+    if ( !m_started || s_panelIo == nullptr || !bsp_display_lock( 1000 ) ) {
+        return;
+    }
+    // MADCTL (0x36), sent as Panel sends its commands (QSPI opcode 0x02).
+    const uint8_t parameter = static_cast<uint8_t>( value );
+    esp_lcd_panel_io_tx_param( s_panelIo, ( 0x02 << 24 ) | ( 0x36 << 8 ), &parameter, 1 );
+    esp_lcd_panel_set_gap( s_panel, gap, 0 );
+    lv_obj_invalidate( lv_screen_active() );
+    lv_obj_invalidate( lv_layer_top() );
+    bsp_display_unlock();
+    ESP_LOGI( TAG, "Address mode 0x%02X, column gap %d", parameter, gap );
 }
 
 void Display::showLevels()

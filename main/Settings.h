@@ -42,6 +42,8 @@ public:
                          // board's resistor is missing (runActiveMode, DeepSleep)
         UnpluggedMinute, // when USB power last went away: minutes since 1970 UTC, 0 while present
         SettingsHidden,  // the settings page's hidden parts (PartOrder); the setup part always shows
+        Mirror,          // the picture mirrored: bit 0 left-right, bit 1 top-bottom (both: turned
+                         // around); the portal, or PWR while a brightness drag is held (Display)
         ItemCount
     };
     // The items before this one are on the watch's settings page; FaceStyle is chosen by a

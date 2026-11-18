@@ -145,6 +145,11 @@
   <input id="aodNight" type="number" min="1" max="100" step="1">
   <small data-tr="Saatte: ön yüzde parmağınızı basılı tutun; yukarı ya da aşağı sürüklemek ön yüzün, sağa ya da sola sürüklemek o anki bekleme parlaklığını değiştirir.">On the watch: hold a finger on the watch face; drag up or down for the face's
   brightness, sideways for the always-on brightness of the moment.</small>
+  <label for="mirror" data-tr="Ekran">Screen</label>
+  <select id="mirror"></select>
+  <small data-tr="Ters takılan saat için 180°, bir aynadan bakmak için aynalı. Saatte: parlaklık için basılı tutup sürüklerken PWR'a basmak resmi o yönde aynalar.">Turned around for a watch worn the other way up, mirrored for a look through a mirror.
+  On the watch: while holding and dragging for the brightness, a PWR press mirrors the picture in
+  that direction.</small>
   <label for="usbStayOn" data-tr="USB takılıyken ekran açık kalsın">Screen stays on while USB is plugged in</label>
   <select id="usbStayOn"></select>
   <label for="autoOff" data-tr="Hareketsiz kalınca kapanma">Switch off without motion after</label>
@@ -240,6 +245,8 @@ function fillLists() {
   fill($('devMode'), [[0, off], [1, on]], keep('devMode'));
   fill($('usbStayOn'), [[1, on], [0, off]], keep('usbStayOn'));
   fill($('isha'), [[17, t('17° (Turkey)', '17° (Türkiye)')], [16, '16°']], keep('isha'));
+  fill($('mirror'), [[0, t('Normal', 'Normal')], [3, t('Turned around (180°)', 'Ters çevrilmiş (180°)')],
+                     [1, t('Mirrored left-right', 'Sağ-sol aynalı')], [2, t('Mirrored top-bottom', 'Alt-üst aynalı')]], keep('mirror'));
 }
 
 fillLists();
@@ -715,7 +722,7 @@ setInterval(() => { $('now').textContent = t('This device: ', 'Bu cihaz: ') + ne
 fetch('/api/state').then((r) => r.json()).then((s) => {
   if (s.language !== undefined) setLanguage(s.language);
   $('version').textContent = s.version || '?';
-  for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'hijri', 'aodDay', 'aodNight', 'devMode', 'usbStayOn', 'isha']) $(id).value = String(s[id]);
+  for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'hijri', 'aodDay', 'aodNight', 'devMode', 'usbStayOn', 'isha', 'mirror']) $(id).value = String(s[id]);
   setOrders(s);
   if (s.faceItems) faceLimits = s.faceItems;
   if (s.faceDefaults) defaultFaces = s.faceDefaults;
@@ -753,7 +760,7 @@ $('save').addEventListener('click', async () => {
   $('status').textContent = t('Saving…', 'Kaydediliyor…');
   try {
     const fields = new URLSearchParams();
-    for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'offset', 'hijri', 'aodDay', 'aodNight', 'devMode', 'usbStayOn', 'isha', 'language']) fields.set(id, $(id).value);
+    for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'offset', 'hijri', 'aodDay', 'aodNight', 'devMode', 'usbStayOn', 'isha', 'language', 'mirror']) fields.set(id, $(id).value);
     // The own zone's clock changes, unless the offset was set by hand.
     const home = zoneValid(homeZone) ? zoneInfo(homeZone) : null;
     const byZone = home !== null && String(home[0]) === $('offset').value;

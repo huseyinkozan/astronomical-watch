@@ -185,7 +185,10 @@ Brightness: active mode has one level, the always-on face one by day and one by 
 at sunrise and sunset (the day gauge; no light sensor on the board). A long press on the watch
 face shows both levels it can set, the active one with a vertical bar and the always-on one of
 the moment with a horizontal bar; the first 20 px of the drag choose one and hide the other. The
-portal sets all three.
+portal sets all three. A PWR press while that drag is held (its direction chosen) mirrors the
+picture along it instead of ending active mode (Settings::Mirror, also in the portal; both
+directions turn it around): the panel's own MADCTL bits, the touch points mirrored to match
+(docs/hardware.md, Display).
 
 Event log (`main/EventLog.*`, NVS): boots with their reset reason, the end of each active session
 (touches, touch controller state), the end of always-on and power-offs, with battery, smallest

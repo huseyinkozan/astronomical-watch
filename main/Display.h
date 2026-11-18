@@ -123,6 +123,11 @@ public:
     int touches() const;
     bool touchStarted() const;
 
+    // While a brightness drag is held with its direction chosen: 0 up or down, 1 sideways; else
+    // -1. A PWR press then mirrors the picture along that direction (toggleMirror).
+    int adjustAxis();
+    void toggleMirror( int axis );
+
     // Before deep sleep: takes the display lock and keeps it, so LVGL no longer uses the bus.
     void stop();
 
@@ -133,6 +138,8 @@ public:
     void setFaceSlot( int page, int slot, int item );
     // Shows the brightness control as a long press does (a screenshot of it).
     void showLevels();
+    // The mirror test (tools/guided_test.py mirror): MADCTL `value` and the column gap.
+    void testAddressMode( int value, int gap );
 
     // The fixed scene of the screenshots: sample states on the clock page.
     void setScene( bool scene );
@@ -214,6 +221,8 @@ private:
     int m_adjustX = 0;
     int m_adjustY = 0;
     bool m_adjustAxisChosen = false;
+    int m_lastX = 0;  // the finger's last point while adjusting
+    int m_lastY = 0;
     lv_obj_t *m_faceTile = nullptr;
     lv_obj_t *m_clockTile = nullptr;
     StackPage m_info;
