@@ -33,8 +33,13 @@ CONFIG_LV_USE_CLIB_MALLOC=y
 CONFIG_LV_USE_QRCODE=y
 
 # The main task computes the astronomy of the day (Sky::computeDay, with the neighbouring days'
-# moonrises for the corner gauges); 3584 bytes overflowed at power-on (2026-11-14).
-CONFIG_ESP_MAIN_TASK_STACK_SIZE=6144
+# moonrises for the corner gauges); 3584 bytes overflowed at power-on (2026-11-14), and 6144
+# left about 1 KB in active mode (event log, 2026-11-18).
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+# A stack overflow stops at once at a watchpoint on the stack's end, with a readable core dump;
+# the canary check alone found it only at a task switch, after the overflow had damaged memory
+# (v0.0.3: the core dump got stuck and a watchdog reset the watch).
+CONFIG_FREERTOS_WATCHPOINT_END_OF_STACK=y
 
 # A crash stores a core dump in flash, read later over USB with `idf.py coredump-info` (the watch
 # runs on the wrist without a console). Not checked at boot: that would lengthen every minute

@@ -196,7 +196,10 @@ static void onFirstFrame( lv_event_t * )
 
 static lv_display_t *startLvgl( lv_indev_t *&touch )
 {
-    const lvgl_port_cfg_t portConfig = ESP_LVGL_PORT_INIT_CONFIG();
+    lvgl_port_cfg_t portConfig = ESP_LVGL_PORT_INIT_CONFIG();
+    // The port's 7 KB left 56 bytes while the face pages were swiped (v0.0.3 crashed): all
+    // drawing runs on this stack.
+    portConfig.task_stack = 9 * 1024;
     if ( lvgl_port_init( &portConfig ) != ESP_OK ) {
         return nullptr;
     }
