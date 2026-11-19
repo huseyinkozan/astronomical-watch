@@ -150,7 +150,8 @@ The watch face is a list of face pages (`main/FaceConfig.*`, at most eight, kept
 `main/FaceStore.*`, composed in the portal; design: `docs/superpowers/specs/2026-11-18-face-templates-design.md`).
 A page is a template (Large; Full arcs: the Sun's and the Moon's orbits around a small clock;
 Half arcs: their paths over the horizon, a small clock below and the Milky Way band, turned by
-the galactic centre's azimuth, `main/MilkyWay.*`; the places of the bodies in
+the galactic centre's azimuth, `main/MilkyWay.*`; on both, an option shows the seven planets
+between the Sun's and the Moon's arcs, `Planets::arcPlace`; the places of the bodies in
 `Corners::arcPlace`, each template's clock in `FaceConfig::clockPlace`) with a clock (digital in JetBrains Mono or in seven segments
 of our own geometry, `main/SevenSegment.*`; or analog in five styles, `main/AnalogClock.*`, the
 seconds hand only on the active face) and eight slots in fixed places: four

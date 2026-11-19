@@ -130,7 +130,7 @@ Restarted on ESP-IDF with C++17. The watch puts the unused peripherals into thei
 state. A PWR press starts active mode: five pages swiped sideways show the watch face, the clock, the
 information, the planets and the settings. The watch face is a set of pages composed in the setup portal: a
 clock (JetBrains Mono or seven-segment digits, or analog in five styles), large or among the
-Sun's and the Moon's orbits or their paths over the horizon with the Milky Way, with up to four lines and four corners of
+Sun's and the Moon's orbits or their paths over the horizon with the Milky Way and the planets, with up to four lines and four corners of
 information around it (the date, Hijri date, next prayer time or sunrise or sunset with the time
 left, a day counter, a world clock city, the battery, the Sun's or the Moon's altitude, the
 weekday ring, the Moon's phase, the hour, minute or second); a vertical swipe steps the face
@@ -213,7 +213,7 @@ Each step is built, verified on the board and documented before the next one sta
     (minute wake 0.25 s of app time on average); the picture mirrored for the other wrist.
 14. **Planets page** (done, unreleased): the solar system, the sky, rise and set and distances
     of the seven planets, computed on the watch within a few arcminutes of JPL's DE421
-    ephemeris.
+    ephemeris; the planets on the Full arcs and Half arcs faces too.
 15. Vibration motor.
 16. Alarms (clock time and sun/moon events) and countdown timer, also set through the portal.
 

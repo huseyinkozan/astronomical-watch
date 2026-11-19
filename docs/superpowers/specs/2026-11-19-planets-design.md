@@ -125,3 +125,15 @@ first view of the page does not freeze the swipe noticeably.
   the horizon. The always-on face: the idle-mode colours (Mercury white; Venus, Jupiter, Saturn
   yellow; Mars red; Uranus cyan; Neptune blue); below the horizon every second pixel lit.
 - Cost to measure: the minute wake with the option on (estimate +20 ms).
+
+Result (2026-11-19): `Planets::arcPlace` gives the place from the hour angle H and the half arc
+H0 (cos H0 = (sin −0.5667° − sin φ sin δ) / (cos φ cos δ)); on the Full arcs the faces' rule
+reduces to 270° + H. Against Skyfield's rises and sets at Istanbul, Sydney and Quito: 28 rows,
+largest error 0.06°. On the board in the fixed scene the four faces match the preview. The
+always-on face draws the planets below the horizon as discs with every second pixel lit, Saturn
+without its ring there; Uranus got an idle-mode cyan. Minute wake, Half arcs page, measured with
+the wake statistics: 307 ms of app time on average with the planets (7 wakes; the Milky Way flag
+was on too, its band not drawn by day) against 285 ms without (8 wakes), the last wake 249 against
+234 ms: about 20 ms, as estimated. Heap in active mode at least 140 KB; stack margins main
+3764 B, LVGL 3664 B. Saved face pages of earlier versions keep the option off ("Load default
+faces" in the portal, or the box). This section replaces the non-goal "nothing on the watch faces".
