@@ -103,7 +103,7 @@ static const char *s_texts[][2] = {
     { "Week %d, day %d", "%d. hafta, %d. gün" },
     { "Diyanet", "Diyanet" },
     { "Local crescent", "Yerel hilal" },
-    { "Days", "Günler" },
+    { "Day counters", "Gün sayaçları" },
     { "Dates: set them\nin the setup portal", "Tarihleri kurulum\nsayfasında girin" },
     { "today", "bugün" },
     { "in %d d", "%d gün sonra" },
@@ -176,7 +176,7 @@ static const char *s_texts[][2] = {
     // Page names.
     { "Clock", "Saat" },
     { "Info", "Bilgi" },
-    { "Settings", "Ayarlar" },
+    { "Settings", "Ayar" },
     // Battery part.
     { "Unplugged %s", "Şarjsız %s" },
     { "%d d %d h", "%d g %d sa" },
