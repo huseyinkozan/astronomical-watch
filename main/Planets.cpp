@@ -278,3 +278,24 @@ Planets::Day Planets::day( int64_t localMidnight, const Astronomy::Observer &obs
     }
     return result;
 }
+
+bool Planets::DayRequest::needed( int64_t now, int utcOffsetMinutes, const Astronomy::Observer &observer,
+                                  int64_t &localMidnight ) const
+{
+    const int64_t offset = static_cast<int64_t>( utcOffsetMinutes ) * 60;
+    const int64_t local = now + offset;
+    int64_t day = local / 86400;
+    if ( local < 0 && local % 86400 != 0 ) {
+        --day;
+    }
+    localMidnight = day * 86400 - offset;
+    return !( m_answered && m_midnight == localMidnight && m_observer.latitude == observer.latitude &&
+              m_observer.longitude == observer.longitude );
+}
+
+void Planets::DayRequest::answered( int64_t localMidnight, const Astronomy::Observer &observer )
+{
+    m_answered = true;
+    m_midnight = localMidnight;
+    m_observer = observer;
+}

@@ -165,6 +165,30 @@ int main( int argc, char **argv )
         failures += ok ? 0 : 1;
     }
 
+    // The page's request for a day's rise and set: asked until answered (an answer can be lost
+    // when the display is busy), asked again for a new local day or place.
+    {
+        Planets::DayRequest request;
+        const Astronomy::Observer istanbul = { 41.01, 28.98 };
+        const int64_t noon = 1782036000;  // 2026-06-21 13:00 local (UTC+3)
+        int64_t midnight = 0;
+        const bool first = request.needed( noon, 180, istanbul, midnight );
+        const bool firstMidnight = midnight == 1781989200;  // 2026-06-21 00:00 local
+        const bool lostAskedAgain = request.needed( noon + 1, 180, istanbul, midnight );
+        request.answered( midnight, istanbul );
+        const bool heldThen = !request.needed( noon + 2, 180, istanbul, midnight );
+        const bool nextDay = request.needed( noon + 86400, 180, istanbul, midnight ) && midnight == 1781989200 + 86400;
+        request.answered( midnight, istanbul );
+        const bool newPlace = request.needed( noon + 86400, 180, Astronomy::Observer { -33.87, 151.21 }, midnight );
+        const bool beforeEpochDay = request.needed( 3600, -180, istanbul, midnight ) && midnight == -86400 + 10800;
+        const bool ok = first && firstMidnight && lostAskedAgain && heldThen && nextDay && newPlace && beforeEpochDay;
+        printf( "%s day request: first %d, its midnight %d, lost answer asked again %d, held %d, next day %d, new place %d, "
+                "negative local time %d\n", ok ? "    " : "FAIL", first, firstMidnight, lostAskedAgain, heldThen, nextDay, newPlace,
+                beforeEpochDay );
+        failures += ok ? 0 : 1;
+        checks += 7;
+    }
+
     printf( "Planets: %d checks, %d failures\n", checks, failures );
     return failures == 0 ? 0 : 1;
 }

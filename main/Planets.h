@@ -58,4 +58,20 @@ public:
         Astronomy::Crossings riseSet[BodyCount];
     };
     static Day day( int64_t localMidnight, const Astronomy::Observer &observer );
+
+    // Which local day's rise and set the planets page needs: asked again until answered (an
+    // answer may be lost while the display is busy), and again for a new local day or place.
+    class DayRequest
+    {
+    public:
+        // True, with that day's local midnight (Unix s), while the day of `now` at
+        // `utcOffsetMinutes` and `observer` has no answer.
+        bool needed( int64_t now, int utcOffsetMinutes, const Astronomy::Observer &observer, int64_t &localMidnight ) const;
+        void answered( int64_t localMidnight, const Astronomy::Observer &observer );
+
+    private:
+        bool m_answered = false;
+        int64_t m_midnight = 0;
+        Astronomy::Observer m_observer = {};
+    };
 };

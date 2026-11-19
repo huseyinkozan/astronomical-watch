@@ -1515,7 +1515,8 @@ bool Display::takePlanetsRequest( int64_t &localMidnight, Astronomy::Observer &o
 
 void Display::showPlanetsDay( const Planets::Day &day, int64_t localMidnight, const Astronomy::Observer &observer )
 {
-    if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
+    // Up to a second: the answer took 0.3 s to compute (a lost one is asked for again anyway).
+    if ( !m_started || !bsp_display_lock( 1000 ) ) {
         return;
     }
     m_planets.showDay( day, localMidnight, observer );

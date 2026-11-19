@@ -76,5 +76,5 @@ private:
     int64_t m_dayMidnight = 0;
     Astronomy::Observer m_dayObserver = {};
     bool m_dayValid = false;
-    bool m_dayAsked = false;
+    Planets::DayRequest m_request;
 };

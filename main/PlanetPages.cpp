@@ -213,12 +213,14 @@ void PlanetPages::place()
     char text[24];
     for ( int i = 0; i < s_planetCount; ++i ) {
         const Planets::Body body = s_planets[i];
-        positions[count] = Planets::position( body, m_now, m_observer );
+        // One geocentric place for the sky and the distance (each costs a few milliseconds).
+        const Planets::Geocentric geo = Planets::geocentric( body, m_now );
+        positions[count] = Astronomy::starPosition( geo.raHours, geo.decDegrees, m_now, m_observer );
         colours[count] = s_colours[body];
         radii[count++] = s_skyDotRadius[body];
         // The distance and the light time.
-        const Planets::Geocentric geo = Planets::geocentric( body, m_now );
-        snprintf( text, sizeof( text ), "%.2f", geo.distance );
+        // One decimal from 10 AU on: the two columns of Uranus and Neptune stay apart.
+        snprintf( text, sizeof( text ), geo.distance < 10 ? "%.2f" : "%.1f", geo.distance );
         m_distance.text().set( 1 + i, 1, text );
         snprintf( text, sizeof( text ), Language::text( Language::Minutes ),
                   static_cast<int>( lround( geo.distance * 499.004784 / 60 ) ) );
@@ -262,23 +264,16 @@ bool PlanetPages::takeDayRequest( int64_t &localMidnight, Astronomy::Observer &o
     if ( !m_built || !m_located || m_now == 0 ) {
         return false;
     }
-    const int64_t offset = static_cast<int64_t>( m_offsetMinutes ) * 60;
-    int64_t day = ( m_now + offset ) / 86400;
-    if ( m_now + offset < 0 ) {
-        --day;
-    }
-    const int64_t midnight = day * 86400 - offset;
-    if ( m_dayValid && midnight == m_dayMidnight && sameObserver( m_observer, m_dayObserver ) ) {
+    int64_t midnight = 0;
+    if ( !m_request.needed( m_now, m_offsetMinutes, m_observer, midnight ) ) {
         return false;
     }
-    // Asked once per day and place; the answer comes from the main task.
-    if ( m_dayAsked && midnight == m_dayMidnight && sameObserver( m_observer, m_dayObserver ) ) {
-        return false;
+    // Another day or place: yesterday's times must not stand for today's while the main task
+    // computes.
+    if ( m_dayValid && ( midnight != m_dayMidnight || !sameObserver( m_observer, m_dayObserver ) ) ) {
+        m_dayValid = false;
+        fillRiseSet();
     }
-    m_dayAsked = true;
-    m_dayValid = false;
-    m_dayMidnight = midnight;
-    m_dayObserver = m_observer;
     localMidnight = midnight;
     observer = m_observer;
     return true;
@@ -286,12 +281,17 @@ bool PlanetPages::takeDayRequest( int64_t &localMidnight, Astronomy::Observer &o
 
 void PlanetPages::showDay( const Planets::Day &day, int64_t localMidnight, const Astronomy::Observer &observer )
 {
-    if ( localMidnight != m_dayMidnight || !sameObserver( observer, m_dayObserver ) ) {
+    // An answer for a day or place no longer shown is dropped; the page asks again.
+    int64_t midnight = 0;
+    m_request.needed( m_now, m_offsetMinutes, m_observer, midnight );
+    if ( localMidnight != midnight || !sameObserver( observer, m_observer ) ) {
         return;
     }
+    m_request.answered( localMidnight, observer );
     m_day = day;
+    m_dayMidnight = localMidnight;
+    m_dayObserver = observer;
     m_dayValid = true;
-    m_dayAsked = false;
     fillRiseSet();
 }
 
