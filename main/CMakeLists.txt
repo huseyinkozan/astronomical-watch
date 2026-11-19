@@ -1,5 +1,5 @@
 set(srcs "BatteryLog.cpp" "EventLog.cpp" "Peripherals.cpp" "DeepSleep.cpp" "Axp2101.cpp" "Rtc.cpp" "Display.cpp" "CornerView.cpp" "PageMarks.cpp" "StackPage.cpp" "ClockPages.cpp" "Timers.cpp" "WorldClock.cpp" "DayCounters.cpp" "Zones.cpp" "Dates.cpp" "PartOrder.cpp" "Language.cpp" "Corners.cpp" "Panel.cpp"
-         "AlwaysOn.cpp" "AodGlyphs.c" "CornerTable.c" "Motion.cpp" "Settings.cpp" "Astronomy.cpp" "Hijri.cpp" "Sky.cpp" "Planets.cpp" "PlanetPages.cpp" "SkyPages.cpp" "TablePart.cpp" "Styles.cpp" "TableText.cpp" "FaceConfig.cpp" "FaceStore.cpp" "FacePage.cpp" "FaceText.cpp" "FaceTable.cpp" "SevenSegment.cpp" "AnalogClock.cpp" "MilkyWay.cpp" "Sound.cpp" "main.cpp"
+         "AlwaysOn.cpp" "AodGlyphs.c" "CornerTable.c" "Motion.cpp" "Settings.cpp" "Astronomy.cpp" "Hijri.cpp" "Sky.cpp" "Planets.cpp" "PlanetPages.cpp" "SkyPages.cpp" "TablePart.cpp" "Styles.cpp" "TableText.cpp" "FaceConfig.cpp" "FaceStore.cpp" "FacePage.cpp" "FaceText.cpp" "FaceTable.cpp" "SevenSegment.cpp" "AnalogClock.cpp" "MilkyWay.cpp" "Sound.cpp" "Alarms.cpp" "main.cpp"
          "fonts/jetbrains_mono_26.c" "fonts/jetbrains_mono_48.c"
          "fonts/jetbrains_mono_light_110.c" "fonts/jetbrains_mono_light_90.c" "fonts/jetbrains_mono_light_64.c")
 # The setup portal's components are always listed: ESP-IDF collects the requirements before it
