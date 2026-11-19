@@ -61,6 +61,8 @@ static const ItemInfo s_items[Settings::ItemCount] = {
     { "unplug_min", 0, 0, {}, 0, 70000000 },
     { "set_hidden", 0, 0, {}, 0, 255 },
     { "mirror", 0, 0, {}, 0, 3 },
+    { "plan_order", 0, 0, {}, 0, 16777215 },
+    { "plan_hidden", 0, 0, {}, 0, 255 },
 };
 
 static int indexOf( const ItemInfo &info, int value )

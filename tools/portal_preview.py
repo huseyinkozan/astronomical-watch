@@ -25,7 +25,7 @@ STATE = {
     'timeout': 10, 'alwaysOn': 1, 'brightness': 77, 'autoOff': 30, 'face': 0, 'offset': 180,
     'lat': 41.0082, 'lon': 28.9784, 'hijri': 0, 'aodDay': 25, 'aodNight': 2,
     'devMode': 0, 'usbStayOn': 1, 'isha': 17, 'language': 0, 'clockOrder': 0, 'clockHidden': 0, 'infoOrder': 0,
-    'infoHidden': 0, 'settingsOrder': 0, 'settingsHidden': 0, 'mirror': 0,
+    'infoHidden': 0, 'settingsOrder': 0, 'settingsHidden': 0, 'mirror': 0, 'planetsOrder': 0, 'planetsHidden': 0,
     'version': 'preview', 'battery': 80, 'usb': 0, 'updateMin': 30, 'coreDump': 0,
     'zone': 'Europe/Istanbul', 'place': 'Istanbul',
     'cities': [['London', 'Europe/London'], ['New York', 'America/New_York']],

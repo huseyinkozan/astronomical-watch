@@ -468,6 +468,11 @@ void Display::applyOrders()
                                    InfoCount, -1, parts );
         m_info.setOrder( parts, shown );
     }
+    if ( m_built[PlanetsPage] ) {
+        shown = PartOrder::decode( m_settings->value( Settings::PlanetsOrder ), m_settings->value( Settings::PlanetsHidden ),
+                                   PlanetPages::PartCount, -1, parts );
+        m_planets.stack().setOrder( parts, shown );
+    }
     if ( m_built[SettingsPage] ) {
 #if CONFIG_WATCH_SETUP_PORTAL
         const int alwaysShown = SetupPart;
@@ -494,6 +499,7 @@ void Display::ensureBuilt( int page )
         }
     } else if ( page == PlanetsPage ) {
         m_planets.build( m_tiles[PlanetsPage] );
+        applyOrders();
         if ( m_freedPart[page] >= 0 ) {
             m_planets.stack().restore( m_freedPart[page] );
         }

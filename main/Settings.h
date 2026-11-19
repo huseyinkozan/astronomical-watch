@@ -44,6 +44,8 @@ public:
         SettingsHidden,  // the settings page's hidden parts (PartOrder); the setup part always shows
         Mirror,          // the picture mirrored: bit 0 left-right, bit 1 top-bottom (both: turned
                          // around); the portal, or PWR while a brightness drag is held (Display)
+        PlanetsOrder,    // the planets page's parts (PartOrder)
+        PlanetsHidden,
         ItemCount
     };
     // The items before this one are on the watch's settings page; FaceStyle is chosen by a
