@@ -755,6 +755,19 @@ void ClockPages::setScene( bool scene )
     setText( m_stopwatchLeft, Language::text( Language::Lap ) );
     setText( m_stopwatchRight, Language::text( Language::Stop ) );
     lv_obj_set_style_text_color( m_stopwatchRight, s_amber, 0 );
+    // Sample alarms, their next ringing from Alarms::next at the scene (Istanbul, Sunday 21 June
+    // 2026, 19:19): 07:00 on weekdays, sunset -10, 06:30 on four days (off), isha +5.
+    static const char *const s_sceneAlarms[4] = { "0|7|0|0|0|31|1", "1|0|0|1|-10|127|1", "0|6|30|0|0|85|0",
+                                                  "1|0|0|16|5|127|1" };
+    static const int64_t s_sceneDue[4] = { 1782100800, 1782063000, 0, 1782070980 };
+    m_alarms = {};
+    for ( int i = 0; i < 4; ++i ) {
+        if ( Alarms::decode( s_sceneAlarms[i], m_alarms.alarms[i] ) ) {
+            m_alarms.count = i + 1;
+        }
+        m_alarmDue[i] = s_sceneDue[i];
+    }
+    showAlarms();
     setText( m_timerTime, "07:42" );
     snprintf( text, sizeof( text ), Language::text( Language::TimerEnds ), 10, 0, "19:27" );
     setText( m_timerInfo, text );
@@ -780,6 +793,10 @@ void ClockPages::finishCountdown()
 
 void ClockPages::setAlarms( const AlarmStore::List &alarms, const int64_t *due )
 {
+    // The screenshots show the scene's sample alarms, not the owner's.
+    if ( m_scene ) {
+        return;
+    }
     m_alarms = alarms;
     for ( int i = 0; i < Alarms::MaxAlarms; ++i ) {
         m_alarmDue[i] = due[i];

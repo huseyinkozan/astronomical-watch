@@ -12,9 +12,11 @@ static const int s_durationMs = 60000;
 static const int s_toneMs = 100;
 static const int s_gapMs = 150;
 static const int s_frequencies[2] = { 1000, 1500 };
-// ES8311 register 0x32: 0x9B -18 dB, 6 steps of 0.5 dB a 3 dB rise, at most 0xB3 -6 dB.
+// ES8311 register 0x32: 0x9B -18 dB, 6 steps of 0.5 dB a 3 dB rise, at most 0xA7 -12 dB (the
+// owner's choice after the meter: -6 dB drew 0.17 A and full scale browned the board out; at
+// 1000/1500 Hz -12 dB still sounds louder than 2700 Hz at -6 dB, docs/hardware.md).
 static const int s_firstVolume = 0x9B;
-static const int s_lastVolume = 0xB3;
+static const int s_lastVolume = 0xA7;
 static const int s_volumeStep = 6;
 static const int s_riseMs = 2000;
 

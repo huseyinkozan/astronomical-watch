@@ -181,3 +181,9 @@ Built on branch `alarm-sound` (plan `docs/superpowers/plans/2026-11-19-alarms.md
 - The corner icons follow the owner's preview (the inner bell enlarged at the owner's request).
 - Not yet measured: the battery current while ringing, the sleep current after a ringing (the
   gate before merging), the hourly battery wake and the 2 % floor on a long run.
+- After the meter (2026-11-19): -6 dB drew about 0.17 A and full scale browned the board out
+  (docs/hardware.md); the owner chose -12 dB as the ringing's top (about 0.08 A at 2700 Hz; the
+  1000/1500 Hz tones sound louder than 2700 Hz at -6 dB). The sleep current after a ringing was
+  not measured (the owner's clip leads were unreliable, and hours of beeping for a battery-log run
+  are a nuisance): the owner chose to merge without it; it stays an open risk to watch in the
+  event log's battery readings.

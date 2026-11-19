@@ -710,7 +710,8 @@ speaker's impedance, size and response are published nowhere (Waveshare: "onboar
   them. Conclusions: full scale is not safe on this board; a ringing of 60 s at -6 dB costs about
   2-2.5 mAh (estimate), and the current peak, not the energy, limits the level at a low cell.
 - The alarm sound (`main/Ringer.*`, chosen from these measurements, 2026-11-19): beeps of 100 ms
-  every 250 ms alternating 1000 and 1500 Hz, from -18 dB rising 3 dB every 2 s to -6 dB, at most
+  every 250 ms alternating 1000 and 1500 Hz, from -18 dB rising 3 dB every 2 s to -12 dB (the
+  owner's choice after the current readings below), at most
   60 s, the codec's ADC side powered down (0x0E `0x6A`, 0x0D `0x31` read back after start), the
   amplifier switched on once per ringing. The codec ends each ringing with the driver's suspend
   sequence (0x0D `0xFC`). **Open:** the battery current while ringing and the sleep current after

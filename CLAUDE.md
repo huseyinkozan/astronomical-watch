@@ -299,7 +299,7 @@ in its flash partition. Read both over USB: `python tools/read_events.py`, then
   off), a due time rung up to 10 min late and skipped later. They are defined in the portal
   (`main/AlarmStore.*`) and switched on the clock page's last part, Alarms. There is no
   vibration motor on the board: `main/Ringer.*` beeps 1000/1500 Hz (the speaker's loudest
-  region, docs/hardware.md, "Speaker and alarm sound"), from -18 dB to at most -6 dB, through
+  region, docs/hardware.md, "Speaker and alarm sound"), from -18 dB to at most -12 dB (the meter: -6 dB drew 0.17 A, full scale browned the board out), through
   `main/Sound.*`, for at most 60 s; a tap or PWR stops it. Design:
   `docs/superpowers/specs/2026-11-19-alarms-design.md`. Development commands: "R <s>" a test
   alarm, "K <n> <text>" defines an alarm, "Q" ends active mode as without the always-on face.
