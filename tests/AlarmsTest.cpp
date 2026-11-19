@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cstring>
 
+#include "AlarmIcons.h"
 #include "Alarms.h"
 #include "Dates.h"
 #include "Sky.h"
@@ -202,6 +203,19 @@ int main()
     check( "reject offset", !Alarms::decode( "1|0|0|3|121|31|1", back ) );
     check( "reject event", !Alarms::decode( "1|0|0|17|0|31|1", back ) );
     check( "reject fields", !Alarms::decode( "0|7|30|0|0|31", back ) );
+
+    // The corner icons are mirror images left to right.
+    for ( int icon = 0; icon < AlarmIcons::IconCount; ++icon ) {
+        const AlarmIcons::Icon i = static_cast<AlarmIcons::Icon>( icon );
+        bool symmetric = AlarmIcons::width( i ) > 0 && AlarmIcons::height( i ) > 0;
+        for ( int y = 0; y < AlarmIcons::height( i ); ++y ) {
+            for ( int x = 0; x < AlarmIcons::width( i ); ++x ) {
+                symmetric = symmetric && AlarmIcons::pixel( i, x, y ) == AlarmIcons::pixel( i, AlarmIcons::width( i ) - 1 - x, y );
+            }
+        }
+        check( "icon symmetric", symmetric );
+    }
+    check( "hourglass has sand", AlarmIcons::pixel( AlarmIcons::Hourglass, 14, 21 ) == AlarmIcons::Sand );
 
     printf( "Alarms: %d checks, %d failures\n", s_checks, s_failures );
     return s_failures == 0 ? 0 : 1;

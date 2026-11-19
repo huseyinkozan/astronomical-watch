@@ -102,6 +102,9 @@ public:
         HourCorner,
         MinuteCorner,
         SecondCorner,
+        AlarmDays,   // the ring of an alarm's days with a bell (parameter: the alarm, 0-3)
+        AlarmBell,   // lit while an alarm is on
+        TimerGlass,  // lit while the stopwatch or the countdown runs
         CornerItemCount
     };
 
@@ -115,6 +118,7 @@ public:
     // DayCounters::MaxCounters).
     static const int CityCount = 3;
     static const int CounterCount = 4;
+    static const int AlarmCount = 4;  // Alarms::MaxAlarms
 
     struct Page
     {

@@ -827,6 +827,7 @@ void Display::showSky( const Sky::Day &day, const Sky::Now &now, const Astronomy
     inputs.sunAltitude = now.sun.altitude;
     inputs.moonAltitude = now.moon.altitude;
     inputs.altitudesValid = located;
+    inputs.alarms = m_alarmIcons;
     m_face.update( inputs );
     bsp_display_unlock();
 }
@@ -1614,4 +1615,10 @@ bool Display::takeAlarmToggle( int &index )
     const bool taken = m_clock.takeAlarmToggle( index );
     bsp_display_unlock();
     return taken;
+}
+
+void Display::setAlarmIcons( const FaceText::AlarmIconState &state )
+{
+    // Read by showSky() under the display lock, written by the main task like the other inputs.
+    m_alarmIcons = state;
 }

@@ -112,6 +112,8 @@ enum WakePurpose : uint8_t
     WakeAlarm      // the pending sleep: an alarm, or the hourly battery check
 };
 RTC_DATA_ATTR static uint8_t s_wakePurpose;
+// The stopwatch or the countdown runs (the hourglass icon), from the clock page each second.
+static bool s_timerRunning = false;
 #if CONFIG_WATCH_SETUP_PORTAL
 static Portal s_portal;
 #endif
@@ -311,6 +313,11 @@ static bool pollHostCommands()
             continue;
         }
         if ( sscanf( s_hostLine, "G %d %d %d", &style, &slot, &item ) == 3 ) {
+            // The always-on face ("A") draws from these pages.
+            if ( style >= 0 && style < s_facePages.count && slot >= 0 && slot < FaceConfig::SlotCount && item >= 0 &&
+                 item < 256 ) {
+                s_facePages.pages[style].items[slot] = static_cast<uint8_t>( item );
+            }
             s_display.setFaceSlot( style, slot, item );
             continue;
         }
@@ -517,6 +524,27 @@ static void updateSky( int64_t now, const int inputs[5] )
 }
 
 // The always-on face of face page `page` (Settings::FaceStyle when active mode ends) into s_look.
+static Zone homeZone();
+
+// The corner icons' state: each alarm's days (a "once" alarm: the day it rings), on or off,
+// any alarm on, a timer running.
+static FaceText::AlarmIconState alarmIcons()
+{
+    FaceText::AlarmIconState state = {};
+    for ( int i = 0; i < s_alarms.count && i < Alarms::MaxAlarms; ++i ) {
+        const Alarms::Definition &alarm = s_alarms.alarms[i];
+        state.on[i] = alarm.on;
+        state.days[i] = alarm.days;
+        if ( alarm.days == 0 && s_plan.due[i] != 0 ) {
+            const int64_t local = s_plan.due[i] + static_cast<int64_t>( Zones::offsetAt( homeZone(), s_plan.due[i] ) ) * 60;
+            state.days[i] = static_cast<uint8_t>( 1 << Dates::weekday( static_cast<int>( local / 86400 ) ) );
+        }
+    }
+    state.anyOn = s_plan.anyOn;
+    state.timerRunning = s_timerRunning;
+    return state;
+}
+
 static void fillLook( int page )
 {
     // The pages active mode showed (loaded when it started, changed by the portal).
@@ -532,6 +560,7 @@ static void fillLook( int page )
     s_look.dayBrightness = s_settings.value( Settings::AodDayBrightness );
     s_look.nightBrightness = s_settings.value( Settings::AodNightBrightness );
     s_look.language = s_settings.value( Settings::Language );
+    s_look.alarms = alarmIcons();
     if ( s_skyValid ) {
         s_look.moonPercent = static_cast<int>( s_skyDay.phase.illumination * 100 + 0.5 );
         s_look.waxing = s_skyDay.phase.elongation < 180;
@@ -1054,6 +1083,7 @@ static void planAlarms( bool force )
     int64_t endMs = 0;
     bool stopwatch = false;
     if ( s_display.timers( endMs, stopwatch ) ) {
+        s_timerRunning = stopwatch || endMs > 0;
         const int64_t end = endMs > 0 ? ( endMs + 999 ) / 1000 : 0;
         s_plan.due[s_countdownAlarm] = end == s_handled[s_countdownAlarm] ? 0 : end;
     }
@@ -1092,6 +1122,7 @@ static void serviceAlarms()
     planAlarms( s_alarmsChanged );
     s_alarmsChanged = false;
     s_display.setAlarms( s_alarms, s_plan.due );
+    s_display.setAlarmIcons( alarmIcons() );
 #if CONFIG_WATCH_DEV_LOGGING
     if ( s_testDue != 0 && Alarms::check( s_testDue, s_rtcNow ) == Alarms::Ring ) {
         s_testDue = 0;

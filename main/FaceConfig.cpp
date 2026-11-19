@@ -23,6 +23,9 @@ static int parameterLimit( int slot, int item )
     if ( slot < FaceConfig::TextSlotCount && item == FaceConfig::DayCounter ) {
         return FaceConfig::CounterCount;
     }
+    if ( slot >= FaceConfig::TextSlotCount && item == FaceConfig::AlarmDays ) {
+        return FaceConfig::AlarmCount;
+    }
     return 1;
 }
 

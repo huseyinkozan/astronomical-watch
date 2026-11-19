@@ -7,6 +7,7 @@
 #include "Styles.h"
 #include "Fonts.h"
 #include "Language.h"
+#include "AlarmIcons.h"
 #include "AnalogClock.h"
 #include "MilkyWay.h"
 #include "Panel.h"
@@ -125,6 +126,12 @@ void FacePage::build( lv_obj_t *tile )
     lv_obj_add_event_cb( m_weekday, onDrawWeekday, LV_EVENT_DRAW_MAIN, this );
     m_weekdayLetter = createLabel( m_weekday, &jetbrains_mono_26, lv_color_white() );
     lv_obj_center( m_weekdayLetter );
+    m_alarmDays = createBox( m_root, weekdaySize, weekdaySize );
+    lv_obj_add_event_cb( m_alarmDays, onDrawAlarmDays, LV_EVENT_DRAW_MAIN, this );
+    m_bell = createBox( m_root, AlarmIcons::width( AlarmIcons::Bell ), AlarmIcons::height( AlarmIcons::Bell ) );
+    lv_obj_add_event_cb( m_bell, onDrawBell, LV_EVENT_DRAW_MAIN, this );
+    m_glass = createBox( m_root, AlarmIcons::width( AlarmIcons::Hourglass ), AlarmIcons::height( AlarmIcons::Hourglass ) );
+    lv_obj_add_event_cb( m_glass, onDrawGlass, LV_EVENT_DRAW_MAIN, this );
     apply();
 }
 
@@ -180,6 +187,9 @@ void FacePage::apply()
     lv_obj_set_hidden( m_analog, m_page.clock != FaceConfig::AnalogClock );
     bool moon = false;
     bool weekday = false;
+    bool alarmDays = false;
+    bool bell = false;
+    bool glass = false;
     for ( int i = 0; i < 4; ++i ) {
         const int item = m_page.items[FaceConfig::TopLeft + i];
         // One icon of each kind: the first corner that asks for it.
@@ -190,6 +200,19 @@ void FacePage::apply()
         if ( item == FaceConfig::WeekdayIcon && !weekday ) {
             weekday = true;
             centreAt( m_weekday, FaceConfig::CornerX[i], FaceConfig::CornerY[i] );
+        }
+        if ( item == FaceConfig::AlarmDays && !alarmDays ) {
+            alarmDays = true;
+            m_alarmDaysIndex = m_page.parameters[FaceConfig::TopLeft + i];
+            centreAt( m_alarmDays, FaceConfig::CornerX[i], FaceConfig::CornerY[i] );
+        }
+        if ( item == FaceConfig::AlarmBell && !bell ) {
+            bell = true;
+            centreAt( m_bell, FaceConfig::CornerX[i], FaceConfig::CornerY[i] );
+        }
+        if ( item == FaceConfig::TimerGlass && !glass ) {
+            glass = true;
+            centreAt( m_glass, FaceConfig::CornerX[i], FaceConfig::CornerY[i] );
         }
         // The altitudes in the colour of their body (the font has no sun or moon sign).
         lv_color_t colour = lv_color_white();
@@ -202,6 +225,9 @@ void FacePage::apply()
     }
     lv_obj_set_hidden( m_moon, !moon );
     lv_obj_set_hidden( m_weekday, !weekday );
+    lv_obj_set_hidden( m_alarmDays, !alarmDays );
+    lv_obj_set_hidden( m_bell, !bell );
+    lv_obj_set_hidden( m_glass, !glass );
     // The clock and the texts again for the new page.
     m_hour = -1;
     update( m_inputs );
@@ -209,7 +235,13 @@ void FacePage::apply()
 
 void FacePage::update( const FaceText::Inputs &inputs )
 {
+    const bool alarmsChanged = memcmp( &inputs.alarms, &m_inputs.alarms, sizeof( inputs.alarms ) ) != 0;
     m_inputs = inputs;
+    if ( alarmsChanged && m_root != nullptr ) {
+        lv_obj_invalidate( m_alarmDays );
+        lv_obj_invalidate( m_bell );
+        lv_obj_invalidate( m_glass );
+    }
     if ( m_root == nullptr ) {
         return;
     }
@@ -541,6 +573,101 @@ void FacePage::onDrawSegments( lv_event_t *event )
     }
 }
 
+// Seven notches of the weekday ring around (cx, cy), from 12 o'clock clockwise, Monday first;
+// bit i of `lit` lights the i-th.
+static void drawNotches( lv_layer_t *layer, int32_t cx, int32_t cy, int lit )
+{
+    lv_draw_arc_dsc_t arc;
+    lv_draw_arc_dsc_init( &arc );
+    arc.center.x = cx;
+    arc.center.y = cy;
+    arc.radius = s_weekdayRadius;
+    arc.width = s_weekdayWidth;
+    const float step = 360.0f / 7;
+    for ( int i = 0; i < 7; ++i ) {
+        // LVGL counts angles clockwise from 3 o'clock.
+        arc.start_angle = 270 + i * step + s_notchGap / 2;
+        arc.end_angle = 270 + ( i + 1 ) * step - s_notchGap / 2;
+        arc.color = ( lit & ( 1 << i ) ) != 0 ? s_amber : s_notchOff;
+        lv_draw_arc( layer, &arc );
+    }
+}
+
+// An alarm icon (AlarmIcons) centred at (cx, cy), a rectangle per run of pixels in a row; the
+// hourglass's sand only when `sand`.
+static void drawIcon( lv_layer_t *layer, AlarmIcons::Icon icon, int32_t cx, int32_t cy, lv_color_t colour, bool sand )
+{
+    lv_draw_rect_dsc_t rect;
+    lv_draw_rect_dsc_init( &rect );
+    rect.bg_color = colour;
+    const int width = AlarmIcons::width( icon );
+    const int height = AlarmIcons::height( icon );
+    const int32_t left = cx - width / 2;
+    const int32_t top = cy - height / 2;
+    for ( int y = 0; y < height; ++y ) {
+        int x = 0;
+        while ( x < width ) {
+            const AlarmIcons::Pixel p = AlarmIcons::pixel( icon, x, y );
+            if ( p == AlarmIcons::Empty || ( p == AlarmIcons::Sand && !sand ) ) {
+                ++x;
+                continue;
+            }
+            int end = x + 1;
+            while ( end < width ) {
+                const AlarmIcons::Pixel next = AlarmIcons::pixel( icon, end, y );
+                if ( next == AlarmIcons::Empty || ( next == AlarmIcons::Sand && !sand ) ) {
+                    break;
+                }
+                ++end;
+            }
+            const lv_area_t run = { left + x, top + y, left + end - 1, top + y };
+            lv_draw_rect( layer, &rect, &run );
+            x = end;
+        }
+    }
+}
+
+static void boxCentre( lv_obj_t *box, int32_t &cx, int32_t &cy )
+{
+    lv_area_t area;
+    lv_obj_get_coords( box, &area );
+    cx = ( area.x1 + area.x2 + 1 ) / 2;
+    cy = ( area.y1 + area.y2 + 1 ) / 2;
+}
+
+// The ring of an alarm's days (dim while it is off) with a small bell.
+void FacePage::onDrawAlarmDays( lv_event_t *event )
+{
+    const FacePage *face = static_cast<FacePage *>( lv_event_get_user_data( event ) );
+    const int index = face->m_alarmDaysIndex >= 0 && face->m_alarmDaysIndex < 4 ? face->m_alarmDaysIndex : 0;
+    const bool on = face->m_inputs.alarms.on[index];
+    int32_t cx = 0;
+    int32_t cy = 0;
+    boxCentre( face->m_alarmDays, cx, cy );
+    drawNotches( lv_event_get_layer( event ), cx, cy, on ? face->m_inputs.alarms.days[index] : 0 );
+    drawIcon( lv_event_get_layer( event ), AlarmIcons::SmallBell, cx, cy, on ? s_amber : s_notchOff, false );
+}
+
+void FacePage::onDrawBell( lv_event_t *event )
+{
+    const FacePage *face = static_cast<FacePage *>( lv_event_get_user_data( event ) );
+    int32_t cx = 0;
+    int32_t cy = 0;
+    boxCentre( face->m_bell, cx, cy );
+    drawIcon( lv_event_get_layer( event ), AlarmIcons::Bell, cx, cy, face->m_inputs.alarms.anyOn ? s_amber : s_notchOff, false );
+}
+
+// The hourglass: lit with its sand while a timer runs.
+void FacePage::onDrawGlass( lv_event_t *event )
+{
+    const FacePage *face = static_cast<FacePage *>( lv_event_get_user_data( event ) );
+    const bool running = face->m_inputs.alarms.timerRunning;
+    int32_t cx = 0;
+    int32_t cy = 0;
+    boxCentre( face->m_glass, cx, cy );
+    drawIcon( lv_event_get_layer( event ), AlarmIcons::Hourglass, cx, cy, running ? s_amber : s_notchOff, running );
+}
+
 // Seven notches around the weekday's letter, from 12 o'clock clockwise: the first n lit on the
 // n-th day of the week (Monday one, Sunday seven).
 void FacePage::onDrawWeekday( lv_event_t *event )
@@ -549,23 +676,10 @@ void FacePage::onDrawWeekday( lv_event_t *event )
     if ( face->m_weekdayShown < 0 ) {
         return;
     }
-    lv_layer_t *layer = lv_event_get_layer( event );
-    lv_area_t area;
-    lv_obj_get_coords( face->m_weekday, &area );
-    lv_draw_arc_dsc_t arc;
-    lv_draw_arc_dsc_init( &arc );
-    arc.center.x = ( area.x1 + area.x2 + 1 ) / 2;
-    arc.center.y = ( area.y1 + area.y2 + 1 ) / 2;
-    arc.radius = s_weekdayRadius;
-    arc.width = s_weekdayWidth;
-    const float step = 360.0f / 7;
-    for ( int i = 0; i < 7; ++i ) {
-        // LVGL counts angles clockwise from 3 o'clock.
-        arc.start_angle = 270 + i * step + s_notchGap / 2;
-        arc.end_angle = 270 + ( i + 1 ) * step - s_notchGap / 2;
-        arc.color = i <= face->m_weekdayShown ? s_amber : s_notchOff;
-        lv_draw_arc( layer, &arc );
-    }
+    int32_t cx = 0;
+    int32_t cy = 0;
+    boxCentre( face->m_weekday, cx, cy );
+    drawNotches( lv_event_get_layer( event ), cx, cy, ( 2 << face->m_weekdayShown ) - 1 );
 }
 
 // Whether `box` meets the part of the screen being drawn: LVGL draws the arcs object band by band,

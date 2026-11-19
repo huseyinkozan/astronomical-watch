@@ -38,6 +38,9 @@ private:
     void placeSky();
     bool secondsHand() const;
     static void onDrawWeekday( lv_event_t *event );
+    static void onDrawAlarmDays( lv_event_t *event );
+    static void onDrawBell( lv_event_t *event );
+    static void onDrawGlass( lv_event_t *event );
     void apply();
     void paintMoon();
 
@@ -53,6 +56,12 @@ private:
     lv_obj_t *m_moon = nullptr;
     lv_obj_t *m_weekday = nullptr;  // the notches (onDrawWeekday) and the letter
     lv_obj_t *m_weekdayLetter = nullptr;
+    // The alarm corner icons (FaceConfig::AlarmDays, AlarmBell, TimerGlass), drawn from
+    // m_inputs.alarms; m_alarmDaysIndex: the alarm whose days the ring shows.
+    lv_obj_t *m_alarmDays = nullptr;
+    lv_obj_t *m_bell = nullptr;
+    lv_obj_t *m_glass = nullptr;
+    int m_alarmDaysIndex = 0;
     FaceConfig::Page m_page = {};
     FaceText::Inputs m_inputs = {};
     int m_hour = -1;  // the time the clock objects show

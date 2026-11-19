@@ -123,6 +123,9 @@ public:
     void setCities( const WorldClock &worldClock );
     void setCounters( const DayCounters &counters );
 
+    // The alarm corner icons' state for the face (FaceText::Inputs::alarms).
+    void setAlarmIcons( const FaceText::AlarmIconState &state );
+
     // The clock page's alarms part (ClockPages::setAlarms, takeAlarmToggle).
     void setAlarms( const AlarmStore::List &alarms, const int64_t *due );
     bool takeAlarmToggle( int &index );
@@ -213,6 +216,7 @@ private:
     bool m_built[PageSlots] = {};
     int m_freedPart[PageSlots] = { -1, -1, -1, -1, -1 };  // the part a freed page showed, for its next build
     PlanetPages m_planets;
+    FaceText::AlarmIconState m_alarmIcons = {};
     lv_obj_t *m_alarm = nullptr;
     lv_obj_t *m_alarmTime = nullptr;
     lv_obj_t *m_alarmName = nullptr;

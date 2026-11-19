@@ -552,7 +552,10 @@ const faceTexts = [['Nothing', 'Boş'], ['Date, long', 'Tarih, uzun'], ['Date, s
 const faceCorners = [['Nothing', 'Boş'], ['Moon phase', 'Ay evresi'], ['Weekday ring', 'Hafta günü halkası'],
   ['Weekday', 'Hafta günü'], ['Day of the month', 'Ayın günü'], ['Hijri day of the month', 'Hicri ayın günü'],
   ['Month', 'Ay adı'], ['Hijri month', 'Hicri ay adı'], ['Sun altitude', 'Güneş yüksekliği'], ['Moon altitude', 'Ay yüksekliği'],
-  ['Hour', 'Saat'], ['Minute', 'Dakika'], ['Second', 'Saniye']];
+  ['Hour', 'Saat'], ['Minute', 'Dakika'], ['Second', 'Saniye'], ['Alarm days', 'Alarm günleri'],
+  ['Alarm bell', 'Alarm zili'], ['Running timer (hourglass)', 'Çalışan sayaç (kum saati)']];
+// FaceConfig::AlarmDays: its parameter is the alarm (1-4).
+const AlarmDaysCorner = 13;
 const slotNames = [['Top edge', 'Üst kenar'], ['Top', 'Üst'], ['Bottom', 'Alt'], ['Bottom edge', 'Alt kenar'],
   ['Top left', 'Sol üst'], ['Top right', 'Sağ üst'], ['Bottom left', 'Sol alt'], ['Bottom right', 'Sağ alt']];
 const CityTime = 8, DayCounter = 9, SecondsHand = 1, MilkyWay = 2, PlanetsOnArcs = 4, Hidden = 128, MaxFaces = 8;
@@ -795,7 +798,7 @@ function drawFaces() {
     param.className = 'param';
     const showParam = () => {
       const item = v[5 + slot];
-      const count = corner ? 0 : item === CityTime ? 3 : item === DayCounter ? 4 : 0;
+      const count = corner ? (item === AlarmDaysCorner ? 4 : 0) : item === CityTime ? 3 : item === DayCounter ? 4 : 0;
       param.hidden = count === 0;
       fill(param, [...Array(count).keys()].map((i) => [i, String(i + 1)]), Math.min(v[13 + slot], Math.max(count - 1, 0)));
       v[13 + slot] = count === 0 ? 0 : Number(param.value);

@@ -6,6 +6,7 @@
 #include <cstring>
 #include <sys/time.h>
 
+#include "AlarmIcons.h"
 #include "AnalogClock.h"
 #include "CornerTable.h"
 #include "MilkyWay.h"
@@ -78,6 +79,31 @@ static uint8_t s_moonBits[( s_moonSize * s_moonSize + 7 ) / 8];
 static AodGlyph s_moon;
 static uint8_t s_skyMoonBits[( ( 2 * s_skyMoonRadius + 1 ) * ( 2 * s_skyMoonRadius + 1 ) + 7 ) / 8];
 static AodGlyph s_skyMoon;
+
+// The alarm corner icons as bitmaps (AlarmIcons), one buffer each; the hourglass's sand only
+// while a timer runs (its own buffer).
+static uint8_t s_iconBits[AlarmIcons::IconCount + 1][( 28 * 28 + 7 ) / 8];
+static AodGlyph s_iconGlyphs[AlarmIcons::IconCount + 1];
+
+static const AodGlyph *iconGlyph( AlarmIcons::Icon icon, bool sand )
+{
+    const int index = sand ? AlarmIcons::IconCount : icon;
+    const int width = AlarmIcons::width( icon );
+    const int height = AlarmIcons::height( icon );
+    uint8_t *bits = s_iconBits[index];
+    memset( bits, 0, sizeof( s_iconBits[index] ) );
+    for ( int y = 0; y < height; ++y ) {
+        for ( int x = 0; x < width; ++x ) {
+            const AlarmIcons::Pixel p = AlarmIcons::pixel( icon, x, y );
+            if ( p == AlarmIcons::Lit || ( p == AlarmIcons::Sand && sand ) ) {
+                const int bit = y * width + x;
+                bits[bit / 8] |= static_cast<uint8_t>( 0x80 >> ( bit % 8 ) );
+            }
+        }
+    }
+    s_iconGlyphs[index] = { static_cast<int16_t>( width ), static_cast<int16_t>( height ), bits };
+    return &s_iconGlyphs[index];
+}
 
 static void addSprite( AlwaysOn::Face &face, int x, int y, const AodGlyph *glyph, AlwaysOn::Colour colour )
 {
@@ -215,6 +241,40 @@ static void addWeekday( AlwaysOn::Face &face, int cx, int cy, int weekday )
     char letter[8];
     snprintf( letter, sizeof( letter ), "%.*s", FaceText::fit( name, 1, 1 ), name );
     addSmallText( face, letter, cx, cy, AlwaysOn::White );
+}
+
+// An alarm corner icon in idle-mode yellow while lit, grey (every second pixel) while dim: the
+// ring of an alarm's days (only the lit notches, as the weekday ring) with a small bell, the
+// bell, or the hourglass (with its sand while a timer runs).
+static void addAlarmIcon( AlwaysOn::Face &face, FaceConfig::CornerItem item, int parameter,
+                          const FaceText::AlarmIconState &alarms, int cx, int cy )
+{
+    AlarmIcons::Icon icon = AlarmIcons::Bell;
+    bool lit = alarms.anyOn;
+    bool sand = false;
+    if ( item == FaceConfig::AlarmDays ) {
+        const int index = parameter >= 0 && parameter < 4 ? parameter : 0;
+        icon = AlarmIcons::SmallBell;
+        lit = alarms.on[index];
+        const float step = 360.0f / 7;
+        for ( int i = 0; i < 7 && lit; ++i ) {
+            if ( ( alarms.days[index] & ( 1 << i ) ) == 0 ) {
+                continue;
+            }
+            const float a0 = ( 270 + i * step + s_notchGap / 2 ) * static_cast<float>( M_PI ) / 180.0f;
+            const float a1 = ( 270 + ( i + 1 ) * step - s_notchGap / 2 ) * static_cast<float>( M_PI ) / 180.0f;
+            addShape( face, AlwaysOn::LineShape, AlwaysOn::Yellow, static_cast<int>( lroundf( cx + s_notchRadius * cosf( a0 ) ) ),
+                      static_cast<int>( lroundf( cy + s_notchRadius * sinf( a0 ) ) ), 0, 3,
+                      static_cast<int>( lroundf( cx + s_notchRadius * cosf( a1 ) ) ),
+                      static_cast<int>( lroundf( cy + s_notchRadius * sinf( a1 ) ) ) );
+        }
+    } else if ( item == FaceConfig::TimerGlass ) {
+        icon = AlarmIcons::Hourglass;
+        lit = alarms.timerRunning;
+        sand = lit;
+    }
+    addSprite( face, cx - AlarmIcons::width( icon ) / 2, cy - AlarmIcons::height( icon ) / 2, iconGlyph( icon, sand ),
+               lit ? AlwaysOn::Yellow : AlwaysOn::Grey );
 }
 
 // The analog clock of the page's style without the seconds hand (one bit per colour: all white);
@@ -502,6 +562,8 @@ const AlwaysOn::Face &AlwaysOn::layout( const Look &look, const Rtc::DateTime &t
             if ( in.timeValid ) {
                 addWeekday( face, x, y, in.weekday );
             }
+        } else if ( item == FaceConfig::AlarmDays || item == FaceConfig::AlarmBell || item == FaceConfig::TimerGlass ) {
+            addAlarmIcon( face, static_cast<FaceConfig::CornerItem>( item ), page.parameters[slot], look.alarms, x, y );
         } else {
             FaceText::corner( static_cast<FaceConfig::CornerItem>( item ), in, text, sizeof( text ) );
             addSmallText( face, text, x, y, item == FaceConfig::SunAltitudeCorner ? Yellow : White );

@@ -7,6 +7,7 @@
 #include "Corners.h"
 #include "FaceConfig.h"
 #include "FaceTable.h"
+#include "FaceText.h"
 #include "Rtc.h"
 #include "sdkconfig.h"
 
@@ -38,6 +39,7 @@ public:
         int dayBrightness;
         int nightBrightness;
         int language;  // Language::Id: the minute wakes read no settings
+        FaceText::AlarmIconState alarms;
     };
 
     enum Colour

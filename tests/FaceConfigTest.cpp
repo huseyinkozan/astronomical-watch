@@ -150,6 +150,25 @@ int main( int argc, char **argv )
     FaceConfig::clamp( bad );
     check( "clamp: corner to none", bad.pages[0].items[FaceConfig::TopLeft] == FaceConfig::NoCorner );
 
+    // The alarm corner icons: the alarm days take the alarm (0-3) as their parameter.
+    FaceConfig::Pages alarmPages = pages;
+    alarmPages.pages[2].items[FaceConfig::TopLeft] = FaceConfig::AlarmDays;
+    alarmPages.pages[2].parameters[FaceConfig::TopLeft] = 3;
+    alarmPages.pages[2].items[FaceConfig::TopRight] = FaceConfig::AlarmBell;
+    alarmPages.pages[2].items[FaceConfig::BottomLeft] = FaceConfig::TimerGlass;
+    check( "alarm icons valid", FaceConfig::valid( alarmPages ) );
+    alarmPages.pages[2].parameters[FaceConfig::TopLeft] = 4;
+    check( "alarm days: alarm 5 invalid", !FaceConfig::valid( alarmPages ) );
+    bool defaultsUseAlarms = false;
+    for ( int p = 0; p < pages.count; ++p ) {
+        for ( int slot = FaceConfig::TextSlotCount; slot < FaceConfig::SlotCount; ++slot ) {
+            const int item = pages.pages[p].items[slot];
+            defaultsUseAlarms = defaultsUseAlarms || item == FaceConfig::AlarmDays || item == FaceConfig::AlarmBell ||
+                                item == FaceConfig::TimerGlass;
+        }
+    }
+    check( "defaults use no alarm icon", !defaultsUseAlarms );
+
     // The portal preview's fake watch (argv[1]: tools/portal_preview.py) sends the defaults as
     // the watch encodes them, so that the published portal pictures show the watch's boxes.
     if ( argc > 1 ) {

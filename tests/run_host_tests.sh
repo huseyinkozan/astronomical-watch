@@ -18,7 +18,7 @@ g++ -std=c++17 -O2 -Wall -Wextra -I main tests/AnalogClockTest.cpp main/AnalogCl
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/MilkyWayTest.cpp main/MilkyWay.cpp main/Astronomy.cpp -o build-host/milky_way_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/SevenSegmentTest.cpp main/SevenSegment.cpp -o build-host/seven_segment_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/TableTextTest.cpp main/TableText.cpp -o build-host/table_text_test
-g++ -std=c++17 -O2 -Wall -Wextra -I main tests/AlarmsTest.cpp main/Alarms.cpp main/Zones.cpp main/Sky.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/alarms_test
+g++ -std=c++17 -O2 -Wall -Wextra -I main tests/AlarmsTest.cpp main/Alarms.cpp main/AlarmIcons.cpp main/Zones.cpp main/Sky.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/alarms_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/PlanetsTest.cpp main/Planets.cpp main/Astronomy.cpp -o build-host/planets_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tools/make_corner_table.cpp main/Corners.cpp main/Sky.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/make_corner_table
 build-host/astronomy_test tests/astronomy_reference.csv

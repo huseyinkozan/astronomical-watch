@@ -13,6 +13,16 @@ class FaceTable;
 class FaceText
 {
 public:
+    // The alarm corner icons (FaceConfig::AlarmDays, AlarmBell, TimerGlass).
+    struct AlarmIconState
+    {
+        uint8_t days[4];    // per alarm, the lit day notches (bit 0 Monday): its days, or the
+                            // day a "once" alarm rings
+        bool on[4];
+        bool anyOn;         // the bell
+        bool timerRunning;  // the hourglass: the stopwatch or the countdown runs
+    };
+
     struct Inputs
     {
         bool timeValid;
@@ -30,6 +40,7 @@ public:
         double sunAltitude;  // degrees
         double moonAltitude;
         bool altitudesValid;
+        AlarmIconState alarms;
     };
 
     // `parameter`: the city or day counter of a CityTime or DayCounter slot. A text of a name and
