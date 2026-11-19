@@ -76,8 +76,9 @@ public:
         Skip
     };
 
-    // What to do with `due` at `now` (0: nothing due, Wait).
-    static Due check( int64_t due, int64_t now );
+    // What to do with `due` at `now` (0: nothing due, Wait); `handled`: the last due time rung or
+    // skipped, which is never due again.
+    static Due check( int64_t due, int64_t now, int64_t handled = 0 );
 
     // Where a plan searches from (next()'s `after`): LateSeconds back, so that a due time missed by
     // a reset still rings, but not before `handled`, the last due time rung or skipped, or the

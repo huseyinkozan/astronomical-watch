@@ -27,7 +27,8 @@ public:
         AlarmTapped = 1,
         AlarmPowerKey = 2,
         AlarmTimedOut = 3,
-        AlarmSkipped = 4  // found more than Alarms::LateSeconds late, not rung
+        AlarmSkipped = 4,     // found more than Alarms::LateSeconds late, not rung
+        AlarmActiveEnded = 5  // active mode ended while it rang (a development command)
     };
 
     enum PowerOffReason : uint8_t

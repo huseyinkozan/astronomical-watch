@@ -20,7 +20,7 @@ import serial
 
 TYPES = {1: 'boot', 2: 'active end', 3: 'always-on end', 4: 'power off', 5: 'always-on status', 6: 'alarm'}
 # EventLog::AlarmEnd.
-ALARM_ENDS = {1: 'stopped by a tap', 2: 'stopped by PWR', 3: 'ended after 60 s', 4: 'skipped, too late'}
+ALARM_ENDS = {1: 'stopped by a tap', 2: 'stopped by PWR', 3: 'ended after 60 s', 4: 'skipped, too late', 5: 'active mode ended'}
 RESETS = ['unknown', 'power-on', 'external pin', 'software', 'PANIC', 'INTERRUPT WATCHDOG', 'TASK WATCHDOG',
           'WATCHDOG', 'deep sleep', 'BROWNOUT', 'SDIO', 'USB', 'JTAG', 'EFUSE', 'POWER GLITCH', 'CPU LOCKUP']
 ACTIVE_ENDS = {1: 'display timeout', 2: 'PWR press'}

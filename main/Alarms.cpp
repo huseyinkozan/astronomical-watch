@@ -105,9 +105,9 @@ int64_t Alarms::sleepBefore( int64_t due, int64_t now )
     return sleep < 3600 ? sleep : 3600;
 }
 
-Alarms::Due Alarms::check( int64_t due, int64_t now )
+Alarms::Due Alarms::check( int64_t due, int64_t now, int64_t handled )
 {
-    if ( due == 0 || now < due ) {
+    if ( due == 0 || now < due || due == handled ) {
         return Wait;
     }
     return now - due <= LateSeconds ? Ring : Skip;

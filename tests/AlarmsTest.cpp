@@ -166,6 +166,11 @@ int main()
     check( "ring late", Alarms::check( due, due + Alarms::LateSeconds ) == Alarms::Ring );
     check( "skip", Alarms::check( due, due + Alarms::LateSeconds + 1 ) == Alarms::Skip );
     check( "no due waits", Alarms::check( 0, due ) == Alarms::Wait );
+    // A due time already handled (rung or skipped) is never due again, whatever the clock says
+    // (a display that failed must not bring the same alarm back at every wake).
+    check( "handled waits", Alarms::check( due, due + 5, due ) == Alarms::Wait );
+    check( "handled late waits", Alarms::check( due, due + Alarms::LateSeconds + 60, due ) == Alarms::Wait );
+    check( "other handled rings", Alarms::check( due, due + 5, due - 86400 ) == Alarms::Ring );
     check( "rung not found again", Alarms::next( weekdays, due, istanbul ) > due );
 
     // Where a plan searches from: 10 min back after a boot, but not before the last handled time;

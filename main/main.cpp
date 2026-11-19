@@ -161,6 +161,8 @@ static void fillLook( int page );
 [[maybe_unused]] static bool s_hostEndActive = false;
 // Set by the host command "Q": active mode ends as with the always-on face disabled.
 [[maybe_unused]] static bool s_hostNoFace = false;
+// Set by the host command "Y": the next active mode starts without the display, as when it fails.
+RTC_DATA_ATTR [[maybe_unused]] static bool s_hostSkipDisplay = false;
 static char s_hostLine[32];
 // The scene of the published screenshots, so that they stay the same and do not show the
 // watch's location: Istanbul on 2026-06-21 at 19:19 local time (UTC+3), the local Hijri method.
@@ -324,6 +326,11 @@ static bool pollHostCommands()
         }
         if ( s_hostLine[0] == 'N' && s_hostLine[1] == '\0' ) {
             s_hostRequests |= Display::NewPassword;
+            continue;
+        }
+        if ( s_hostLine[0] == 'Y' && s_hostLine[1] == '\0' ) {
+            s_hostSkipDisplay = true;
+            ESP_LOGI( TAG, "The next active mode starts without the display" );
             continue;
         }
         if ( s_hostLine[0] == 'Q' && s_hostLine[1] == '\0' ) {
@@ -1135,7 +1142,7 @@ static void serviceAlarms()
     int ring = -1;
     bool handled = false;
     for ( int i = 0; i < s_dueCount; ++i ) {
-        const Alarms::Due due = Alarms::check( s_plan.due[i], s_rtcNow );
+        const Alarms::Due due = Alarms::check( s_plan.due[i], s_rtcNow, s_handled[i] );
         if ( due == Alarms::Wait ) {
             continue;
         }
@@ -1163,6 +1170,15 @@ static void serviceAlarms()
     }
 }
 
+// Active mode without the display: the RTC's time for the alarms, as updateDisplay() reads it.
+static void readRtcNow()
+{
+    Rtc::DateTime time = {};
+    bool oscillatorStopped = false;
+    const bool read = s_rtc.read( time, oscillatorStopped ) == ESP_OK && !oscillatorStopped && time.month != 0;
+    s_rtcNow = read ? unixTime( time ) : 0;
+}
+
 static int runActiveMode()
 {
     int lastLevel = gpio_get_level( s_powerKeyGpio );
@@ -1176,13 +1192,19 @@ static int runActiveMode()
     bool keyFlagsCleared = false;
     bool gpioSawPress = false;
     while ( true ) {
-        const bool everySecond = s_displayOn && sinceUpdateMs >= 1000;
-        if ( everySecond ) {
-            updateDisplay();
+        const bool secondTick = sinceUpdateMs >= 1000;
+        const bool everySecond = s_displayOn && secondTick;
+        if ( secondTick ) {
+            if ( s_displayOn ) {
+                updateDisplay();
+            } else {
+                // The display did not start: the alarms still ring (the sound needs no display).
+                readRtcNow();
+            }
             sinceUpdateMs = 0;
         }
         // A tap ends a ringing at once; the start waits for the second's update.
-        if ( s_displayOn && ( everySecond || s_ringing ) ) {
+        if ( secondTick || s_ringing ) {
             serviceAlarms();
         }
         if ( s_ringing ) {
@@ -1372,7 +1394,8 @@ static bool batteryEmpty( uint16_t millivolts, uint8_t percent )
 // Alarm pending: an alarm on or the countdown running keeps the watch from powering off.
 static bool alarmPending()
 {
-    return s_plan.anyOn || s_plan.due[s_countdownAlarm] != 0;
+    const int64_t countdown = s_plan.due[s_countdownAlarm];
+    return s_plan.anyOn || ( countdown != 0 && countdown != s_handled[s_countdownAlarm] );
 }
 
 // The earliest due time, 0 when none.
@@ -1380,7 +1403,8 @@ static int64_t nextDue()
 {
     int64_t next = 0;
     for ( int i = 0; i < s_dueCount; ++i ) {
-        if ( s_plan.due[i] != 0 && ( next == 0 || s_plan.due[i] < next ) ) {
+        // A due time handled but not planned again (active mode without the display) is past.
+        if ( s_plan.due[i] != 0 && s_plan.due[i] != s_handled[i] && ( next == 0 || s_plan.due[i] < next ) ) {
             next = s_plan.due[i];
         }
     }
@@ -1811,7 +1835,17 @@ extern "C" void app_main( void )
         s_pmu.setPanelPower( true );
         FaceStore::load( s_facePages );
         s_display.setPages( s_facePages );
+#if CONFIG_WATCH_DEV_LOGGING
+        if ( s_hostSkipDisplay ) {
+            s_hostSkipDisplay = false;
+            s_displayOn = false;
+            ESP_LOGW( TAG, "Display not started (host command Y)" );
+        } else {
+            s_displayOn = s_display.start( s_settings );
+        }
+#else
         s_displayOn = s_display.start( s_settings );
+#endif
         // A new image from the portal is kept once it has drawn its pages; a reset before this
         // returns to the previous one.
         esp_ota_img_states_t state = ESP_OTA_IMG_UNDEFINED;
@@ -1847,6 +1881,13 @@ extern "C" void app_main( void )
     s_deepSleep.activeModeStarted();
     const int64_t activeStartUs = esp_timer_get_time();
     const int endCode = runActiveMode();
+    // Before any sleep: a ringing alarm stopped properly (the codec to its power-down state),
+    // and a change of the definitions made while it rang planned.
+    if ( s_ringing ) {
+        stopRinging( EventLog::AlarmActiveEnded );
+    }
+    planAlarms( s_alarmsChanged );
+    s_alarmsChanged = false;
     logPowerKeyIrq();
     EventLog::Entry active = {};
     active.type = EventLog::ActiveEnd;
