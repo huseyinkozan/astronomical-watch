@@ -1,0 +1,2 @@
+# Speaker validator, frequency sweep (with configs/sound).
+CONFIG_WATCH_SOUND_TEST_SWEEP=y

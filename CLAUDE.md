@@ -29,7 +29,7 @@ work as in the development build:
 
 ```bash
 idf.py -B build-release -D SDKCONFIG=build-release/sdkconfig \
-       -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.release" build flash
+       -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;configs/release" build flash
 ```
 
 Versions are annotated git tags `vX.Y.Z` (from v0.0.1): ESP-IDF names the image with
@@ -45,6 +45,7 @@ development builds `v0.0.1-3-gabc1234-dirty`. A new release is a new tag, pushed
 |---|---|
 | `main/` | Application component (`main.cpp` and project modules) |
 | `docs/hardware.md` | Hardware fact base: pins, power tree, register semantics, sources, unknowns |
+| `configs/` | Build variants added to `sdkconfig.defaults` with `-D SDKCONFIG_DEFAULTS="sdkconfig.defaults;configs/<name>"`: `release`, battery runs (`battery` and its add-ons), validators (`sound`, `sweep`) |
 | `tools/guided_test.py` | Guided hardware tests: prompts the tester and checks the serial log; logs go to `test-logs/` (ignored) |
 | `tools/screenshot.py` | Screenshots of the watch pages from the development build |
 | `tools/read_events.py` | Reads the watch's event log (stability on the wrist) |
@@ -371,11 +372,11 @@ of milliamps), so on-board data stay in use for averages over time:
 Report meter readings as measured currents; slopes and budgets as estimates.
 
 Battery drain runs use separate builds, so the committed `sdkconfig` stays unchanged
-(`sdkconfig.battery` enables the timer log; add `sdkconfig.noquiesce` for a baseline run):
+(`configs/battery` enables the timer log; add `configs/noquiesce` for a baseline run):
 
 ```bash
 idf.py -B build-battery -D SDKCONFIG=build-battery/sdkconfig \
-       -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.battery" build flash
+       -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;configs/battery" build flash
 ```
 
 Power-cycle the watch (hold PWR 6 s, then press) so that the log and all chips start from their

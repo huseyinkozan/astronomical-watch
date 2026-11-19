@@ -46,7 +46,7 @@ menu "Astronomical Watch"
             touch, whichever is later; a PWR press ends it at once. The watch
             then shows the always-on face, or powers off without it. The
             settings page offers 5, 10, 20, 30 and 60 s; longer values are
-            for test builds (sdkconfig.drain).
+            for test builds (configs/drain).
 
     config WATCH_ALWAYS_ON
         bool "Always-on face after active mode"

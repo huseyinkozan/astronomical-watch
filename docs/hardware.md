@@ -168,7 +168,7 @@ Motion check (M6, `main/Motion.*`) [HW, 2026-11-12]:
   t2 ≈ 3 ms plus one sample period predicts. Three samples are dropped (t5 = 3/ODR) and eight
   averaged; then CTRL7 = 0 and CTRL1 = `0x41` (power-down). The watch is awake 109 ms longer
   per reading; one reading every 10 min adds under 0.01 mA on average (estimate).
-- Measurement (`sdkconfig.motionlog`, one reading per always-on minute, `tools/guided_test.py
+- Measurement (`configs/motionlog`, one reading per always-on minute, `tools/guided_test.py
   motion` steps): **on a desk** 31 readings over 30 min stayed within 3 mg on every axis; the
   eight samples of one reading spread by 5–12 mg. **On the wrist** for 65 min (sitting, typing,
   walking, a while with the arm still) two readings one minute apart differed by as little as
@@ -177,7 +177,7 @@ Motion check (M6, `main/Motion.*`) [HW, 2026-11-12]:
   previous one; a change of more than **10 mg** on any axis counts as motion. After 30 min
   (`CONFIG_WATCH_MOTION_OFF_MIN`, three checks) without motion the watch powers off. A failed
   reading counts as no motion, so a broken sensor cannot keep the watch out of off mode.
-- Validated with `sdkconfig.motionquick` (a check every minute, power-off after 3 min;
+- Validated with `configs/motionquick` (a check every minute, power-off after 3 min;
   `tools/guided_test.py motioncheck` and `motionhand`): on the desk the changes were 1 mg and
   the watch powered off after the third check; held in the hand the changes were 361 and 539 mg,
   each resetting the count, and back on the desk it powered off three checks later. A PWR wake
@@ -352,7 +352,7 @@ Off mode [HW] (guided test `off`, 2026-10-31; `main/Axp2101.*`):
   wake after USB was unplugged powered it off within a minute. A press of about 1 s powered it on
   again; the face appears 2–3 s after the press.
 - The battery charges in the off state: after the cell was discharged to 80 % with the display on
-  (`sdkconfig.drain`), 5.3 min off with USB plugged in raised the gauge from 80 to 85 % (about
+  (`configs/drain`), 5.3 min off with USB plugged in raised the gauge from 80 to 85 % (about
   20 mAh, roughly 0.2 A on average; an estimate), and the charger read constant current at the
   next power-on.
 
@@ -439,7 +439,7 @@ Internal RAM in active mode [HW] (log line "Display started", 2026-11-12; PSRAM 
   run out: the 170 px digits (about 13 KB per glyph while drawn) were not drawn at all. The Wi-Fi, lwIP IRAM
   optimisations are off (`sdkconfig.defaults`).
 - Image (`idf.py size`): with the portal 1.0 MB of flash code, 101 KB loaded into RAM at every
-  start (IRAM code and .data) and 102 KB .bss; without it (`sdkconfig.noportal`) 0.47 MB, 84 KB
+  start (IRAM code and .data) and 102 KB .bss; without it (`configs/noportal`) 0.47 MB, 84 KB
   and 87 KB. The default 1 MB application partition is too small: `partitions.csv` gives 4 MB.
 - Development screenshots (`tools/screenshot.py`): rows are sent from the LVGL task while it
   flushes; rendering a full screen in the main task overflowed its stack.
@@ -539,7 +539,7 @@ Touch that does not wake (2026-11-14, event log and a diagnostic build) [HW]:
   mode (the driver sets 2 s) and, per DS §2.3, may ignore I2C after other bus traffic. Touches
   still wake it; this is no fault.
 
-Scrolling speed (2026-11-14, `sdkconfig.perf`: LVGL's system monitor) [HW]:
+Scrolling speed (2026-11-14, `configs/perf`: LVGL's system monitor) [HW]:
 - With the page swipe the whole screen is redrawn each frame in 40-line bands. Render time per
   frame while swiping, averaged over the busy samples: 134 ms (DIO flash, 160 MHz), 120 ms
   (240 MHz), 80 ms (quad flash reads `QIO` and 64-byte data cache lines, as in the Waveshare
@@ -784,11 +784,11 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
 
 | Run | Firmware state | Duration | VBAT slope | Gauge slope | Estimated average current |
 |---|---|---|---|---|---|
-| A (2026-10-29/30) | peripherals at power-on defaults (`sdkconfig.noquiesce`) | 9.5 h fitted (10.7 h total), 4.10 → 4.01 V | −8.8 ± 0.6 mV/h | −1.00 ± 0.02 %/h | **≈ 1.5 mA** (≈ 4) |
+| A (2026-10-29/30) | peripherals at power-on defaults (`configs/noquiesce`) | 9.5 h fitted (10.7 h total), 4.10 → 4.01 V | −8.8 ± 0.6 mV/h | −1.00 ± 0.02 %/h | **≈ 1.5 mA** (≈ 4) |
 | B (2026-10-30) | sleep preparation on (section 4) | 9.5 h fitted (10.5 h total), 4.04 → 3.94 V | −8.8 ± 0.5 mV/h | −0.96 ± 0.02 %/h | **≈ 1.5 mA** (≈ 3.9) |
 | C (2026-10-31) | B + codec power-down + AXP IRQ step | 4.0 h fitted (5.2 h total), 4.10 → 3.71 V | −69 ± 2 mV/h | −9.4 ± 0.1 %/h | **≈ 12 mA**, rough (≈ 35–40) |
 | D (2026-10-31) | B + AXP IRQ step (codec step skipped) | 2.0 h fitted (3.1 h total), 3.92 → 3.89 V | −11 ± 5 mV/h | unusable (see below) | **same level as A/B** |
-| E (2026-10-31/11-01) | always-on face, brightness 10 %, idle mode off (`sdkconfig.aodlog`) | 10.8 h fitted (11.8 h total), 4.06 → 3.74 V | −28.8 mV/h | −3.96 %/h | **≈ 5 mA**, rough (≈ 13–16) |
+| E (2026-10-31/11-01) | always-on face, brightness 10 %, idle mode off (`configs/aodlog`) | 10.8 h fitted (11.8 h total), 4.06 → 3.74 V | −28.8 mV/h | −3.96 %/h | **≈ 5 mA**, rough (≈ 13–16) |
 | F (2026-11-01/02) | E with idle mode on (39h) | 10.5 h fitted (18.9 h total), 4.09 → 3.87 V | −18.5 mV/h | −2.33 %/h | **≈ 3.2 mA**, rough (≈ 8.5–9.5) |
 | G (2026-11-02) | B + idle pads held in every second hour (see below) | 10.75 h fitted (11.75 h total), 4.09 → 4.01 V | −6.7 mV/h overall | −0.79 %/h overall | held vs. free not resolved |
 | H (2026-11-02/03) | B + idle pads held through every sleep | 10.5 h fitted (11.5 h total), 4.11 → 4.03 V | −6.2 ± 0.4 mV/h | −0.71 ± 0.02 %/h | **≈ 1.1 mA**; 1.2 mA over 1–4 h (≈ 2.8–2.9) |
@@ -800,12 +800,12 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
 | N (2026-11-04) | H + panel QSPI lines held (CS high, SCLK and SIO0–3 low), 5 min samples | 2.9 h fitted (3.9 h total), 4.10 → 4.08 V | −7.0 ± 0.1 mV/h without dips (H over the same 1–4 h: −7.1 ± 0.2) | −0.76 %/h (H: −0.77) | **same as H** |
 | O (2026-11-04) | H + AXP2101 ADCs (REG30 = 0) and fuel gauge (REG18 bit3) off in deep sleep, on again at each wake, 5 min samples | 3.9 h, 4.11 → 4.07 V | ≈ −7 mV/h between the steps of the stale readings (see below) | none (gauge off, 100 % throughout) | **same as H within ≈ 0.2 mA** (≈ 0.5) |
 | P (2026-11-08) | H with the display FPC unplugged (panel, touch and panel supply removed), 5 min samples | 2.8 h fitted (3.8 h total), 4.11 → 4.06 V | −7.0 ± 0.2 mV/h without dips (H over the same hours: −7.1 ± 0.2, N: −7.0 ± 0.1) | 95 → 93 % in 2.75 h (H, N: 96 → 94 %) | **same as H: the floor is not in the panel module** |
-| Q (2026-11-09) | H with DCDC1 (VCC3V3) at 3.0 V in deep sleep, 3.3 V again at each wake (`sdkconfig.dcdc1`), 5 min samples | 2.8 h fitted (3.9 h total), 4.11 → 4.08 V | −6.2 ± 0.1 mV/h without dips (H, N, P over the same hours: −7.0 to −7.1) | 96 → 95 % in 2.9 h | **≈ 11 % lower (≈ 0.14 mA): most of the floor is a load on VCC3V3** |
-| R (2026-11-09/10) | H + calibration load: GPIO1, 2, 3, 17 (10k pull-ups to VCC3V3, no SD card) held low in deep sleep (`sdkconfig.sdlow`), 5 min samples | 2.8 h fitted (3.8 h total), 4.11 → 4.06 V | −14.0 ± 0.4 mV/h without dips (P over the same hours: −7.0 ± 0.2) | 96 → 92 % in 2.8 h | **+1.2 mA known load → 5.8 mV/h per mA; floor ≈ 1.2 mA** |
-| S (2026-11-10) | H + USB pads GPIO19/20 isolated in deep sleep, given back to USB at each wake (`sdkconfig.usbiso`), 5 min samples | 2.8 h fitted (3.8 h total), 4.10 → 4.08 V | −6.9 ± 0.1 mV/h without dips (N, P over the same hours: −7.0, −7.1) | 96 → 93 % in 2.8 h | **same as H: floating USB pads are not the floor** |
-| T (2026-11-10) | H + AXP2101 sleep mode (REG26 bit0) set before deep sleep, cleared at each wake (`sdkconfig.axpsleep`), 5 min samples | 2.8 h fitted (3.9 h total), 4.10 → 4.08 V | −6.9 ± 0.1 mV/h without dips (S, P over the same hours: −6.9, −7.1) | 96 → 94 % in 2.8 h | **same as H: the AXP2101 sleep mode does not lower the floor** |
+| Q (2026-11-09) | H with DCDC1 (VCC3V3) at 3.0 V in deep sleep, 3.3 V again at each wake (`configs/dcdc1`), 5 min samples | 2.8 h fitted (3.9 h total), 4.11 → 4.08 V | −6.2 ± 0.1 mV/h without dips (H, N, P over the same hours: −7.0 to −7.1) | 96 → 95 % in 2.9 h | **≈ 11 % lower (≈ 0.14 mA): most of the floor is a load on VCC3V3** |
+| R (2026-11-09/10) | H + calibration load: GPIO1, 2, 3, 17 (10k pull-ups to VCC3V3, no SD card) held low in deep sleep (`configs/sdlow`), 5 min samples | 2.8 h fitted (3.8 h total), 4.11 → 4.06 V | −14.0 ± 0.4 mV/h without dips (P over the same hours: −7.0 ± 0.2) | 96 → 92 % in 2.8 h | **+1.2 mA known load → 5.8 mV/h per mA; floor ≈ 1.2 mA** |
+| S (2026-11-10) | H + USB pads GPIO19/20 isolated in deep sleep, given back to USB at each wake (`configs/usbiso`), 5 min samples | 2.8 h fitted (3.8 h total), 4.10 → 4.08 V | −6.9 ± 0.1 mV/h without dips (N, P over the same hours: −7.0, −7.1) | 96 → 93 % in 2.8 h | **same as H: floating USB pads are not the floor** |
+| T (2026-11-10) | H + AXP2101 sleep mode (REG26 bit0) set before deep sleep, cleared at each wake (`configs/axpsleep`), 5 min samples | 2.8 h fitted (3.9 h total), 4.10 → 4.08 V | −6.9 ± 0.1 mV/h without dips (S, P over the same hours: −6.9, −7.1) | 96 → 94 % in 2.8 h | **same as H: the AXP2101 sleep mode does not lower the floor** |
 | U (2026-11-11) | H after a full charge with the new charger setting (100 mA, termination 25 mA), 5 min samples | 2.8 h fitted (4.0 h total), 4.155 → 4.135 V | −7.6 ± 0.1 mV/h without dips | 100 → 99 % in 2.8 h | **new baseline, higher on the cell's curve: not comparable with runs A–T** |
-| V (2026-11-12/13) | always-on face (`sdkconfig.aodlog`) changing every 90 min after a blank first hour: blank, Sparse, Light, twice (`sdkconfig.aodcycle`), 15 min samples | 9.0 h fitted (10.2 h total), 4.15 → 3.99 V | −18.4 ± 0.4 mV/h without four dips; per 90 min block: blank −19 and −20, Sparse −11 (the first block unusable), Light −19 and −17 | 100 → 84 % in 9 h (−1.9 %/h) | **≈ 3.2 mA, rough, as run F; the face content (lit share 0–5.5 %) makes no visible difference** |
+| V (2026-11-12/13) | always-on face (`configs/aodlog`) changing every 90 min after a blank first hour: blank, Sparse, Light, twice (`configs/aodcycle`), 15 min samples | 9.0 h fitted (10.2 h total), 4.15 → 3.99 V | −18.4 ± 0.4 mV/h without four dips; per 90 min block: blank −19 and −20, Sparse −11 (the first block unusable), Light −19 and −17 | 100 → 84 % in 9 h (−1.9 %/h) | **≈ 3.2 mA, rough, as run F; the face content (lit share 0–5.5 %) makes no visible difference** |
 
 - mA figures in the notes below that were written before run R assume a 400 mAh cell;
   multiply them by about 0.38 (run R).
@@ -874,7 +874,7 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
   2.5 mA of the floor remain unexplained besides R11 (~0.33 mA).
 - **Run I** repeated the codec power-down of run C with the I2S lines held: the same tenfold
   drain. Floating I2S lines are therefore not the cause; one of the register writes is. Run I
-  was the first short screening run (a sample every 5 min, `sdkconfig.quick`); an effect of
+  was the first short screening run (a sample every 5 min, `configs/quick`); an effect of
   this size shows within the first hour. The writes are now selected one group at a time
   (`CONFIG_WATCH_CODEC_WRITE_MASK`) to find the one responsible.
 - **Run J** wrote only ES7210 0x06: the drain stayed at the floor, so the pin pull-ups are not

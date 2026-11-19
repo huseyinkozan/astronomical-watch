@@ -1,51 +1,23 @@
 # Astronomical Watch
 
-A personal low-power astronomical watch based on the **Waveshare ESP32-S3-Touch-AMOLED-2.06**.
-
-It shows the time, date and astronomical information computed on the device. Location, date/time,
-UTC offset and the other settings are entered on a setup page that the watch serves over its own
-Wi-Fi for a few minutes (started on the watch), from any phone or computer browser; no internet,
-GPS or online service is used. Battery life has priority over features: the processor sleeps most
-of the time. Between interactions a dim
-always-on face shows the time; when the watch has not moved for a while, it switches itself off
-and the PWR key turns it on again.
+A personal low-power astronomical watch on the **Waveshare ESP32-S3-Touch-AMOLED-2.06**. Everything
+is computed on the watch from the time and the location set on its own setup page; no internet,
+GPS or online service is used. Battery life comes first: the processor sleeps most of the time.
 
 ## Features
 
-- Time and date; a watch face of pages composed in the setup page: a digital clock (JetBrains
-  Mono or seven-segment digits) or an analog one in five styles, large or among the Sun's and
-  the Moon's orbits or their paths over the horizon (with the Milky Way and the planets), with up
-  to four lines and four corners of information around it; a vertical swipe steps the pages
-- Sunrise, sunset, solar noon, civil/nautical/astronomical twilight, golden and blue hours, day
-  length, a sun compass
-- Moon phase, illumination, age, moonrise and moonset, the new crescent, the Hijri date (by local
-  crescent visibility or Diyanet's rule)
+- Face pages composed on the setup page: a digital or analog clock, large or among the Sun's and
+  the Moon's paths (with the Milky Way and the planets), with lines and corners of information
+- Sun: rise, set, noon, twilights, golden and blue hours, day length, a sun compass
+- Moon: phase, illumination, age, rise and set, the new crescent; the Hijri date
 - Prayer times by Diyanet's method; solar, ezani and sidereal time, the qibla time
-- Planets: Mercury to Neptune in the solar system and in the sky, their rise and set, their
-  distance and light time
-- A clock page: world clock (three cities that follow their daylight saving time), stopwatch
-  with laps, countdown, Gregorian and Hijri calendars, day counters
-- Gauges in the four screen corners, chosen in the setup portal: the battery, the day or night,
-  the Moon's time above or below the horizon, its phase, the time to the next prayer, sunrise,
-  sunset, moonrise or moonset, the week, month, Hijri month or year, a day counter, the Sun's
-  altitude, the hour, minute or second; while charging, the battery gauge fills up in white
-- Alarms at a clock time on chosen weekdays, or relative to a sun or moon event or a prayer time
-  (sunrise, twilights, solar noon, sunset, moonrise, moonset), with an offset; the countdown
-  rings too; the board has no vibration motor, so they beep through the speaker
-- PWR key opens the interactive mode (touch, pages); after a configurable timeout the watch
-  returns to a dim always-on face, updated once a minute, or switches off (setting)
-- Switches off after a long time without motion (checked at wide intervals); the PWR key turns it on
-- Switches off at 10 % battery, so that the clock keeps time for days; the PWR key still shows the
-  watch until the display timeout
-- Setup page over the watch's own Wi-Fi, started with a button on the watch's Setup page and
-  stopped by the button, a save or a timeout (captive portal; a phone joins by scanning a QR code
-  on the watch, or with the network name and password shown there): time and UTC offset from the
-  browser, location from a country/city list or coordinates pasted from a map app, the face
-  pages, the alarms and every other setting
-- English and Turkish; software updates from a phone through the setup page, which also hands
-  over the watch's event log and crash dump for a report
-- The brightness set with a long press and a drag on the face; the picture mirrored for the
-  other wrist
+- Planets: the solar system, the sky, rise and set, distances
+- Clock page: world clock, stopwatch, countdown, Gregorian and Hijri calendars, day counters, alarms
+- Alarms at a clock time or a sky event or prayer time; they beep through the speaker
+- Gauges in the screen corners: the battery, day or night, the Moon, the next prayer and more
+- A dim always-on face between uses; switches itself off when not moved or at 10 % battery
+- Setup page over the watch's own Wi-Fi: time, location, faces, alarms, settings, software updates
+- English and Turkish
 
 ## Screenshots
 
@@ -75,66 +47,18 @@ Releases are on the project's release page (GitLab and GitHub), each with two fi
 
 ## Hardware
 
-Waveshare ESP32-S3-Touch-AMOLED-2.06: ESP32-S3R8, 410 × 502 AMOLED (CO5300), FT3168 touch,
-QMI8658 IMU, PCF85063 RTC, AXP2101 PMIC, battery connector.
-Pins, power tree and device notes are in [docs/hardware.md](docs/hardware.md).
+Waveshare ESP32-S3-Touch-AMOLED-2.06 (ESP32-S3, 410 × 502 AMOLED, AXP2101, PCF85063, QMI8658).
+Details: [docs/hardware.md](docs/hardware.md).
 
-## Software
+## Build
 
-ESP-IDF v6.1, C++17, LVGL, Waveshare board support package.
-
-## Build and Flash
-
-For development (see [CLAUDE.md](CLAUDE.md) for the release and battery-test builds):
+ESP-IDF v6.1, C++17, LVGL. Release and test builds: [CLAUDE.md](CLAUDE.md).
 
 ```bash
 source ~/.espressif/v6.1/esp-idf/export.sh
 idf.py build
 idf.py -p /dev/ttyACM0 flash monitor
-```
-
-## Host Tests
-
-The astronomy code (`main/Astronomy.*`, `main/Hijri.*`) does not depend on ESP-IDF and is tested
-on the computer against reference values from [Skyfield](https://rhodesmill.org/skyfield/) with
-NASA JPL's DE421 ephemeris, and against the Hijri month starts published by Turkey's Diyanet:
-
-```bash
-sh tests/run_host_tests.sh          # needs only g++
-```
-
-The reference values are in the repository. To make them again (Python, about 20 MB):
-
-```bash
-sh tools/setup_reference.sh         # Skyfield and the ephemeris in tools/.venv
-tools/.venv/bin/python tools/make_astronomy_reference.py > tests/astronomy_reference.csv
-```
-
-## Project Structure
-
-```text
-astronomical-watch/
-├── CLAUDE.md             development rules
-├── README.md
-├── CMakeLists.txt
-├── sdkconfig.defaults    project configuration (sdkconfig is generated)
-├── dependencies.lock     locked component versions
-├── docs/hardware.md      hardware fact base
-├── partitions.csv        flash layout (two 4 MB application slots for updates)
-├── docs/screenshots/     pictures of the watch pages, in English (en/) and Turkish (tr/)
-├── tools/guided_test.py  guided hardware tests
-├── tools/screenshot.py   screenshots from the watch (development build)
-├── tools/read_events.py  the watch's event log over USB (stability on the wrist)
-├── tools/make_cities.py  city list of the setup page, from GeoNames
-├── tools/setup_reference.sh  Python environment for the astronomy reference values
-├── tools/make_fonts.sh   watch fonts (main/fonts/) from tools/fonts/, needs Node.js
-├── tools/make_aod_glyphs.py  always-on bitmaps (main/AodGlyphs.c), needs Pillow (tools/.venv)
-├── tools/make_gifs.py    README animations from the screenshots, needs Pillow
-├── tools/portal_preview.py  the setup portal's pages on localhost with a fake watch; pictures
-├── tools/make_corner_table.cpp  corner gauge pixel table (main/CornerTable.c)
-├── tests/                host tests of the astronomy code and their reference data
-├── main/                 application
-└── archive/              earlier QMI8658 validator (reference only)
+sh tests/run_host_tests.sh    # astronomy tests on the computer (g++), against Skyfield and JPL DE421
 ```
 
 ## License

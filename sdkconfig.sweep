@@ -1,2 +1,0 @@
-# Speaker validator, frequency sweep (with sdkconfig.sound).
-CONFIG_WATCH_SOUND_TEST_SWEEP=y

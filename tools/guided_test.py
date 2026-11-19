@@ -47,7 +47,7 @@ RTC_LINE = re.compile(r'RTC (\d{4})-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d) UTC')
 # kind SEND sends the development command in the pattern field (e.g. 'X 40 22') and goes on.
 # Every 'RTC ... UTC' line, logged at the RTC's second tick, gets the RTC - host difference.
 TESTS = {
-    # Off mode (docs/hardware.md, PWR key), build with sdkconfig.noaod: without the always-on
+    # Off mode (docs/hardware.md, PWR key), build with configs/noaod: without the always-on
     # face the watch powers off when active mode ends. Software power-off returns every chip
     # and AXP rail to its power-on default, so each power-on runs the full sleep preparation.
     'off': [
@@ -69,7 +69,7 @@ TESTS = {
         (WAIT, '', USB_DISCONNECTED, 10),
     ],
     # Sets the RTC from the host clock and checks that it keeps time through off mode
-    # (docs/hardware.md, PCF85063A section). Build with sdkconfig.noaod.
+    # (docs/hardware.md, PCF85063A section). Build with configs/noaod.
     'rtc': [
         (WAIT, 'The board is being reset.', r'wake source: power-on/reset', 20),
         (WAIT, '', r'RTC \d{4}-', 10),
@@ -80,7 +80,7 @@ TESTS = {
         (WAIT, '', r'RTC \d{4}-.* OS 0', 10),
         (WAIT, 'Waiting for the power-off.', r'Powering off', 25),
     ],
-    # Display basics (M4), build with sdkconfig.noaod. Only the screen needs watching until the
+    # Display basics (M4), build with configs/noaod. Only the screen needs watching until the
     # question comes.
     'display': [
         (WAIT, 'The board is being reset.', r'wake source: power-on/reset', 20),
@@ -109,13 +109,13 @@ TESTS = {
         (ASK, 'Did the active face (time with seconds, date, battery) come back?', '', 0),
     ],
     # Reads the RTC once against the host clock (drift over hours or days). Build with
-    # sdkconfig.noaod.
+    # configs/noaod.
     'clock': [
         (WAIT, 'The board is being reset.', r'wake source: power-on/reset', 20),
         (WAIT, '', r'RTC \d{4}-', 10),
         (WAIT, 'Waiting for the power-off.', r'Powering off', 25),
     ],
-    # Motion measurement (M6, docs/hardware.md open question 3), build with sdkconfig.motionlog:
+    # Motion measurement (M6, docs/hardware.md open question 3), build with configs/motionlog:
     # one accelerometer reading per always-on minute, 30 min on the desk, then 60 min worn.
     'motion': [
         (WAIT, 'The board is being reset.', r'wake source: power-on/reset', 20),
@@ -129,7 +129,7 @@ TESTS = {
          r'wake source: wake: PWR key', 4800),
         (WAIT, '', r'Motion log: \d+', 30),
     ],
-    # Motion power-off (M6), build with sdkconfig.motionquick: a check every minute, power-off
+    # Motion power-off (M6), build with configs/motionquick: a check every minute, power-off
     # after 3 min without motion.
     'motioncheck': [
         (WAIT, 'The board is being reset.', r'wake source: power-on/reset', 20),

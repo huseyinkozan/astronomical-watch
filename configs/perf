@@ -1,7 +1,7 @@
-# Display performance test, on top of sdkconfig.release: LVGL logs its frame rate, render and
+# Display performance test, on top of configs/release: LVGL logs its frame rate, render and
 # flush times once a second ("sysmon: ..." lines on the USB console).
 #     idf.py -B build-perf -D SDKCONFIG=build-perf/sdkconfig \
-#            -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.release;sdkconfig.perf" build flash
+#            -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;configs/release;configs/perf" build flash
 CONFIG_LV_USE_SYSMON=y
 CONFIG_LV_USE_PERF_MONITOR=y
 CONFIG_LV_USE_PERF_MONITOR_LOG_MODE=y
