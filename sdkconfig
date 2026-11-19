@@ -1006,6 +1006,8 @@ CONFIG_WATCH_QUIESCE=y
 # default:
 # CONFIG_WATCH_CODEC_POWER_DOWN is not set
 # default:
+# CONFIG_WATCH_SOUND_TEST is not set
+# default:
 # CONFIG_WATCH_BATTERY_LOG is not set
 # default:
 # CONFIG_WATCH_MOTION_LOG is not set

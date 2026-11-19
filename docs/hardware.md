@@ -639,6 +639,68 @@ Measured on the board (`esp_timer`, active mode, default build):
   (`CONFIG_WATCH_DEV_LOGGING`) therefore wait for the host and flush before sleeping; with it,
   logging starts about 0.77 s after the wake instead of about 0.26 s.
 
+### Speaker and alarm sound (research and first measurements 2026-11-19)
+No vibration motor is fitted (section 1), so alarms sound through the speaker. The path [SCH]:
+ESP32-S3 I2S (MCLK GPIO16, SCLK 41, LRCK 45, DOUT 40) → ES8311 DAC → NS4150B class-D amplifier
+(CTRL GPIO46, 10k pull-down) → speaker on P5/P6. The amplifier's input comes only from the
+ES8311, so a beep needs the codec and I2S running; a GPIO tone cannot reach the speaker. The
+speaker's impedance, size and response are published nowhere (Waveshare: "onboard speaker").
+
+- NS4150B [NS4150B DS V1.1, pp. 2–7]: supply 3.0–5.0 V (here VCC3V3); quiescent 3.0 mA typ at
+  3.6 V without load (4 mA on the front page); shutdown 0.1 µA typ, 10 µA max; CTRL has two
+  states only (≥ 1.2 V on, ≤ 0.2 V shutdown, no pulse modes); start-up 120 ms, shutdown 80 ms,
+  pop suppression built in; efficiency up to 90 % near full power, much lower at small output.
+  Gain 240 kΩ / Rin; with the board's 150 kΩ input resistors [SCH] 1.6× (+4.1 dB).
+- ES8311 [ES8311 PB rev 11.0, p. 9; DS rev 10.0, pp. 18–25]: DAC full scale 0.9 Vrms at AVDD
+  3.3 V (about 1.44 Vrms after the amplifier, about 0.26 W into 8 Ω: estimate); 8 mA "normal
+  operation" measured with DVDD 1.8 V (here DVDD and PVDD are 3.3 V), 0 µA in power-down, entered
+  by the power-down registers first and then stopping the clock. Volume register 0x32: 0x00
+  −95.5 dB, 0.5 dB steps, 0xBF 0 dB, 0xFF +32 dB (above 0 dB a full-scale signal clips).
+  Power-down bits: 0x0D (analog, bias, ADC bias, ADC and DAC references, VREF, VMID), 0x0E (PGA,
+  ADC modulator), 0x12 bit 1 (DAC), 0x0F (low-power modes, e.g. LPDAC bit 7, LPDACVRP bit 2).
+  Sample rates 8–96 kHz; MCLK 256·Fs is the datasheet's test condition.
+- `esp_codec_dev` 1.5.11 `es8311_start()` powers the ADC side too, even in DAC mode
+  (0x0E `0x02`, 0x14 `0x1A`, 0x0D `0x01`, i.e. PDN_VREF cleared); `es8311_suspend()` ends with
+  0x0D `0xFC`. Section 4 records that clearing PDN_VREF raised the sleep drain about tenfold and
+  that the raised state outlasted the register value: **the sleep current after a beep must be
+  measured**. The off state is not affected (DCDC1 and ALDO1 go off).
+- The BSP configures the codec for a 5 V amplifier (`pa_voltage = 5.0`); here it runs from 3.3 V.
+- ESP32-S3: the I2S driver holds an `ESP_PM_APB_FREQ_MAX` lock while a channel is enabled, so
+  the chip cannot light-sleep during a beep; the CPU can only wait (WAITI: 27.6/42.3 mA at
+  160 MHz, 22.0/36.1 mA at 80 MHz, 13.2/18.8 mA at 40 MHz [ESP32-S3 DS, Table 5-9]).
+- Hearing: the ear is most sensitive at 2–5 kHz; a tone shorter than about 200 ms sounds quieter
+  (about 3 dB per halving); alarm standards use pulses of 75–200 ms (IEC 60601-1-8).
+- Expected cost (estimate): ESP32 waiting about 30–40 mA, codec at least 8 mA, amplifier 3–5 mA,
+  plus the speaker's share: an alarm of 60 s at about 70 mA is about 1.2 mAh, under 1 % of the
+  cell. The fixed costs are about as large as the sound itself, so the amplifier stays on for
+  the whole alarm (120 ms start-up) and silence is written between beeps.
+- To measure on the board: the battery current of each stage (codec on, amplifier on and idle,
+  tones at several frequencies and levels, a beep pattern, the codec's low-power bits), the
+  loudness with a phone's dB meter at a fixed distance, and the current after the codec is
+  suspended (active, always-on, sleep).
+- Loudness measured [HW] (2026-11-19, `CONFIG_WATCH_SOUND_TEST`, `main/Sound.*`): the speaker is
+  fitted and loud; full scale at 2700 Hz rang in the owner's ears across a room. A phone (phyphox
+  "Audio amplitude", uncalibrated, so relative dB) at 10 cm compressed the levels (30 dB of steps
+  read as 8 dB); at 1 m facing the speaker, room −62 dB:
+  - 2700 Hz sine, DAC volume −30/−24/−18/−12/−6/0 dB: −45.8, −40.0, −32.9, −27.2, −22.0, −19.1:
+    6 dB a step up to −6 dB, then only +2.9 dB for four times the power (the amplifier or the
+    speaker saturates): an alarm needs no more than about −6 dB.
+  - At −12 dB: 1000 Hz −14.3, 2000 Hz −30.8, 2700 Hz −27.2, 3500 Hz −23.6, 4000 Hz −26.8. The
+    1 kHz tone was 13 dB louder for the same signal; one position only (room reflections can
+    favour single frequencies): a finer sweep is to come.
+  - Square wave at −12 dB: +1.2 dB over the sine. The codec's low-power bits (0x0E `0x6A`,
+    0x0D `0x31`, 0x0F `0x84`): −2.9 dB. Codec and amplifier on without signal: no hiss above the
+    room. The volume register reads back what was written at every step.
+  - Sweep at −12 dB, 500–4000 Hz in 100 Hz steps of 3 s, twice with the watch turned by 90°
+    between the passes (`CONFIG_WATCH_SOUND_TEST_SWEEP`), phone at 1 m, room −60 dB; mean of the
+    two passes: 500–700 Hz −37 … −30; **800–1600 Hz −21 … −16, peaks at 1000 Hz (−16.2) and
+    1500 Hz (−16.6) in both positions**, a dip at 1200 Hz (−29); 1700–3000 Hz −35 … −24 (2700 Hz
+    −28.4); a second peak at 3100–3400 Hz (−24 … −21); a deep dip at 3700 Hz (−39) in both
+    positions. The speaker gives about 12 dB more at 1–1.5 kHz than at 2.7 kHz for the same
+    signal (the phone's microphone response is not known; the ear is a few dB more sensitive
+    at 3–4 kHz).
+  - Battery currents not yet measured (meter not connected).
+
 ## 4. Sleep Preparation (`main/Peripherals.*`)
 
 Done once after power-on or reset (RTC flag); everything survives deep sleep. Verified with the
@@ -967,6 +1029,10 @@ with the bridge on are meaningless (the meter then carries only part of the curr
 - FT3168 datasheet: https://files.waveshare.com/wiki/common/FT3168.pdf
 - ES8311 datasheet rev 10.0: https://files.waveshare.com/wiki/common/ES8311.DS.pdf (user guide:
   https://files.waveshare.com/wiki/common/ES8311.user.Guide.pdf)
+- ES8311 product brief rev 11.0 (DC characteristics, full-scale output): Everest Semiconductor
+  "ES8311_PB.pdf"; local copies of all audio datasheets in the reference directory.
+- NS4150B datasheet V1.1 (Nsiway, March 2021, Chinese): a copy in M5Stack's documentation files
+  (LCSC's link returned a web page, not the PDF)
 - ES7210 datasheet rev 21.0: https://files.waveshare.com/wiki/common/ES7210_DS.pdf
 - ESP32-S3 sleep modes: https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-reference/system/sleep_modes.html
 - SensorLib (QMI8658, PCF85063): https://github.com/lewisxhe/SensorLib

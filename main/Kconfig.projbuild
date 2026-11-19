@@ -189,6 +189,24 @@ menu "Astronomical Watch"
             current. The rails stay as they are and the wakeup bit is never
             written.
 
+    config WATCH_SOUND_TEST
+        bool "Speaker validator"
+        default n
+        help
+            Each active session starts with a fixed sequence of steady states of
+            15 s (codec, amplifier, tones from -30 to 0 dB, beeps, the codec's low-power bits,
+            all off), the step's number on the screen, for battery current
+            readings with a meter and loudness readings (docs/hardware.md,
+            "Speaker and alarm sound"). Battery only: USB would power the board.
+
+    config WATCH_SOUND_TEST_SWEEP
+        bool "Speaker validator: frequency sweep instead of the steady states"
+        default n
+        depends on WATCH_SOUND_TEST
+        help
+            500 to 4000 Hz in 100 Hz steps of 3 s at -12 dB, twice, the watch
+            turned by 90 degrees between the passes, after a 1 kHz mark.
+
     config WATCH_BATTERY_LOG
         bool "Battery drain log"
         default n

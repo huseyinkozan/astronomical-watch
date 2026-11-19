@@ -27,6 +27,8 @@
 #endif
 #include "Rtc.h"
 #include "Settings.h"
+#include "Sound.h"
+#include "Fonts.h"
 #include "DayCounters.h"
 #include "Language.h"
 #include "WorldClock.h"
@@ -1114,6 +1116,140 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
     s_deepSleep.enter( 500 * 1000 );
 }
 
+#if CONFIG_WATCH_SOUND_TEST
+// The speaker validator (docs/hardware.md, "Speaker and alarm sound"): steady states of 15 s
+// each, their number on the screen, for battery current readings with the meter and loudness
+// readings with a phone's dB meter. Battery only: USB would power the board.
+static lv_obj_t *s_testLabel = nullptr;
+static const int s_stepMs = 15000;
+
+static void showTestStep( const char *text )
+{
+    ESP_LOGI( TAG, "Sound test: %s", text );
+    if ( !bsp_display_lock( 1000 ) ) {
+        return;
+    }
+    if ( s_testLabel == nullptr ) {
+        s_testLabel = lv_label_create( lv_layer_top() );
+        lv_obj_set_style_text_font( s_testLabel, &jetbrains_mono_48, 0 );
+        lv_obj_set_style_text_color( s_testLabel, lv_color_white(), 0 );
+        lv_obj_set_style_bg_color( s_testLabel, lv_color_black(), 0 );
+        lv_obj_set_style_bg_opa( s_testLabel, LV_OPA_COVER, 0 );
+        lv_obj_set_style_pad_all( s_testLabel, 12, 0 );
+    }
+    lv_label_set_text( s_testLabel, text );
+    lv_obj_center( s_testLabel );
+    bsp_display_unlock();
+}
+
+static void testTone( Sound &sound, const char *text, int frequency, int volume, bool square )
+{
+    showTestStep( text );
+    sound.setVolume( volume );
+    sound.tone( frequency, s_stepMs, square );
+}
+
+#if CONFIG_WATCH_SOUND_TEST_SWEEP
+// The speaker's response: tones from 500 to 4000 Hz in 100 Hz steps of 3 s at -12 dB, twice,
+// the watch turned by 90 degrees between the passes (one position can favour a frequency by
+// room reflections). A 1 kHz mark of 2 s first, to find the start in the recording.
+static void soundSweep( Sound &sound )
+{
+    if ( sound.start() != ESP_OK ) {
+        showTestStep( "no codec" );
+        vTaskDelay( pdMS_TO_TICKS( 5000 ) );
+        return;
+    }
+    sound.setAmplifier( true );
+    sound.silence( 200 );
+    sound.setVolume( 0xA7 );
+    showTestStep( "mark" );
+    sound.tone( 1000, 2000, false );
+    sound.silence( 2000 );
+    for ( int pass = 0; pass < 2; ++pass ) {
+        for ( int frequency = 500; frequency <= 4000; frequency += 100 ) {
+            char text[16];
+            snprintf( text, sizeof( text ), "%d Hz", frequency );
+            showTestStep( text );
+            sound.tone( frequency, 3000, false );
+        }
+        if ( pass == 0 ) {
+            showTestStep( "turn 90" );
+            sound.silence( 10000 );
+        }
+    }
+    showTestStep( "end" );
+    sound.stop();
+    vTaskDelay( pdMS_TO_TICKS( 3000 ) );
+    if ( bsp_display_lock( 1000 ) ) {
+        lv_obj_delete( s_testLabel );
+        s_testLabel = nullptr;
+        bsp_display_unlock();
+    }
+}
+#endif
+
+static void soundTest()
+{
+    // The owner prepares the meter, its bridge and the phone first; a tap starts the sequence.
+    showTestStep( "tap to start" );
+    const int touches = s_display.touches();
+    while ( s_display.touches() == touches ) {
+        vTaskDelay( pdMS_TO_TICKS( 50 ) );
+    }
+    Sound sound;
+#if CONFIG_WATCH_SOUND_TEST_SWEEP
+    soundSweep( sound );
+    return;
+#endif
+    showTestStep( "1 base" );
+    vTaskDelay( pdMS_TO_TICKS( s_stepMs ) );
+    showTestStep( "2 codec" );
+    if ( sound.start() != ESP_OK ) {
+        showTestStep( "no codec" );
+        vTaskDelay( pdMS_TO_TICKS( 5000 ) );
+        return;
+    }
+    sound.silence( s_stepMs );
+    showTestStep( "3 amp" );
+    sound.setAmplifier( true );
+    sound.silence( s_stepMs );
+    // Quiet first, full scale last of the levels: 0 dB rang in the owner's ears across the room.
+    testTone( sound, "4 2700 -30dB", 2700, 0x83, false );
+    testTone( sound, "5 2700 -24dB", 2700, 0x8F, false );
+    testTone( sound, "6 2700 -18dB", 2700, 0x9B, false );
+    testTone( sound, "7 2700 -12dB", 2700, 0xA7, false );
+    testTone( sound, "8 2700 -6dB", 2700, 0xB3, false );
+    testTone( sound, "9 2700 0dB", 2700, 0xBF, false );
+    testTone( sound, "10 square -12", 2700, 0xA7, true );
+    testTone( sound, "11 1000 -12", 1000, 0xA7, false );
+    testTone( sound, "12 2000 -12", 2000, 0xA7, false );
+    testTone( sound, "13 3500 -12", 3500, 0xA7, false );
+    testTone( sound, "14 4000 -12", 4000, 0xA7, false );
+    showTestStep( "15 beeps -12" );
+    sound.setVolume( 0xA7 );
+    // Four beeps of 100 ms each second.
+    for ( int second = 0; second < s_stepMs / 1000; ++second ) {
+        for ( int beep = 0; beep < 4; ++beep ) {
+            sound.tone( 2700, 100, false );
+            sound.silence( 150 );
+        }
+    }
+    sound.lowPowerCodec();
+    testTone( sound, "16 low pwr -12", 2700, 0xA7, false );
+    showTestStep( "17 off" );
+    sound.stop();
+    vTaskDelay( pdMS_TO_TICKS( s_stepMs ) );
+    showTestStep( "end" );
+    vTaskDelay( pdMS_TO_TICKS( 3000 ) );
+    if ( bsp_display_lock( 1000 ) ) {
+        lv_obj_delete( s_testLabel );
+        s_testLabel = nullptr;
+        bsp_display_unlock();
+    }
+}
+#endif
+
 extern "C" void app_main( void )
 {
 #if CONFIG_WATCH_SLEEP_ISOLATE_USB_PADS
@@ -1271,6 +1407,11 @@ extern "C" void app_main( void )
 #endif
     }
 
+#if CONFIG_WATCH_SOUND_TEST
+    if ( s_displayOn ) {
+        soundTest();
+    }
+#endif
     const int64_t activeStartUs = esp_timer_get_time();
     const int endCode = runActiveMode();
     logPowerKeyIrq();

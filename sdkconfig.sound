@@ -1,0 +1,2 @@
+# Speaker validator: steady sound states for meter readings (docs/hardware.md, "Speaker and alarm sound").
+CONFIG_WATCH_SOUND_TEST=y
