@@ -222,8 +222,12 @@ void PlanetPages::place()
         // One decimal from 10 AU on: the two columns of Uranus and Neptune stay apart.
         snprintf( text, sizeof( text ), geo.distance < 10 ? "%.2f" : "%.1f", geo.distance );
         m_distance.text().set( 1 + i, 1, text );
-        snprintf( text, sizeof( text ), Language::text( Language::Minutes ),
-                  static_cast<int>( lround( geo.distance * 499.004784 / 60 ) ) );
+        const double lightMinutes = geo.distance * 499.004784 / 60;
+        if ( lightMinutes < 99.5 ) {
+            snprintf( text, sizeof( text ), Language::text( Language::Minutes ), static_cast<int>( lround( lightMinutes ) ) );
+        } else {
+            snprintf( text, sizeof( text ), Language::text( Language::LightHours ), lightMinutes / 60 );
+        }
         m_distance.text().set( 1 + i, 2, text );
     }
     for ( int i = 0; i < count; ++i ) {

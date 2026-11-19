@@ -197,6 +197,8 @@ static const char *s_texts[][2] = {
     { "Light", "Işık" },
     { "E", "D" },
     { "W", "B" },
+    // The light time from 100 minutes on (Uranus, Neptune): "169 min" did not fit the column.
+    { "%.1f h", "%.1f sa" },
 };
 // One pair per text: a missing one would shift every text after it.
 static_assert( sizeof( s_texts ) / sizeof( s_texts[0] ) == Language::TextCount, "a text pair per Language::Text" );

@@ -32,7 +32,7 @@
   .order label { flex: 1; margin: 0; }
   .order input { width: auto; }
   .order button { width: auto; padding: 4px 12px; font-size: 1em; background: #333; }
-  .face { border-top: 1px solid #555; margin-top: 12px; padding-top: 4px; }
+  .face { padding-top: 4px; }
   .face .head { display: flex; align-items: center; gap: 6px; }
   .face .head select { flex: 1; }
   .face .head label { margin: 0; white-space: nowrap; }
@@ -44,7 +44,7 @@
   .slot label { margin: 0; white-space: nowrap; }
   .slot input { width: auto; }
   #faceDefaults { margin-top: 12px; font-size: 1em; padding: 8px; background: #333; }
-  .face .showOnWatch { margin-top: 8px; font-size: 1em; padding: 8px; background: #2d4f73; }
+  .showOnWatch { margin-top: 8px; font-size: 1em; padding: 8px; background: #2d4f73; }
   .suggest button { display: block; text-align: left; margin: 2px 0; padding: 10px; font-size: 1em;
                     background: #2a2a2a; }
 </style>
@@ -120,13 +120,20 @@
 
 <section class="tab">
 <fieldset>
-  <legend data-tr="Yüzler">Faces</legend>
-  <small data-tr="Ön yüzün sayfaları; saatte ön yüzde yukarı veya aşağı kaydırarak geçilir. Bekleme ekranı, etkin mod bittiğinde görünen sayfayı gösterir: saatini ve &quot;beklemede&quot; işaretli bilgileri. Ekranın dört köşesindeki göstergeler bütün sayfalarda aynıdır.">The pages of the watch face; on the watch, swipe up or down on the face for the next one.
-  The always-on face shows the page shown when active mode ends: its clock and the items marked
-  "always-on". The gauges in the four screen corners are the same on every page.</small>
-  <label data-tr="Köşe göstergeleri">Corner gauges</label>
+  <legend data-tr="Köşe göstergeleri">Corner gauges</legend>
+  <small data-tr="Ekranın dört köşesindeki göstergeler bütün sayfalarda aynıdır.">The gauges in the four screen corners are the same on every page.</small>
   <div id="gaugeEditor"></div>
+</fieldset>
+<fieldset>
+  <legend data-tr="Sayfalar">Pages</legend>
+  <small data-tr="Ön yüzün sayfaları; saatte ön yüzde yukarı veya aşağı kaydırarak geçilir. Bekleme ekranı, etkin mod bittiğinde görünen sayfayı gösterir: saatini ve &quot;beklemede&quot; işaretli bilgileri.">The pages of the watch face; on the watch, swipe up or down on the face for the next one.
+  The always-on face shows the page shown when active mode ends: its clock and the items marked
+  "always-on".</small>
   <div id="faceEditor"></div>
+</fieldset>
+<fieldset>
+  <legend data-tr="Önizleme">Preview</legend>
+  <button type="button" id="faceShow" class="showOnWatch" data-tr="Yüzleri kaydet, bu sayfayı saatte göster">Save the faces and show this page on the watch</button>
   <button type="button" id="faceDefaults" class="secondary" data-tr="Varsayılan yüzleri yükle">Load the default faces</button>
 </fieldset>
 </section>
@@ -721,12 +728,6 @@ function drawFaces() {
                             (on) => { v[21] = on ? v[21] | (1 << slot) : v[21] & ~(1 << slot); }));
     page.appendChild(row);
   }
-  const show = document.createElement('button');
-  show.type = 'button';
-  show.className = 'showOnWatch';
-  show.textContent = t('Save the faces and show this page on the watch', 'Yüzleri kaydet, bu sayfayı saatte göster');
-  show.addEventListener('click', () => showOnWatch(p, show));
-  page.appendChild(show);
   box.appendChild(page);
 }
 // Saves only the face pages and shows one of them; the watch keeps its Wi-Fi on, so that the next
@@ -750,6 +751,7 @@ async function showOnWatch(p, button) {
     say(t('Could not reach the watch', 'Saate ulaşılamadı'));
   }
 }
+$('faceShow').addEventListener('click', () => showOnWatch(facePage, $('faceShow')));
 faces = decodeFaces('');
 drawFaces();
 

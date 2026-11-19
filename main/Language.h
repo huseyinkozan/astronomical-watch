@@ -203,6 +203,7 @@ public:
         LightTime,
         EastLetter,
         WestLetter,
+        LightHours,
         TextCount
     };
 
