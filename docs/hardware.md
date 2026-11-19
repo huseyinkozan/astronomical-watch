@@ -878,6 +878,33 @@ about 0.3 s awake (log: 52 ms after boot), under 0.02 mA on average.
 - VBAT readings scatter by up to ~20 mV between neighbouring samples (single reading right after
   boot); use fits over many samples, not single values.
 
+### Battery current measured with a meter [HW] (2026-11-19, v0.0.4 release build)
+
+Method: a Mastech MY64 on its 20 mA DC range in series with the battery's positive lead (an
+extension cable between the cell's MX1.25 plug and the board, the red wire cut), USB unplugged.
+A clip lead bridges the meter while the watch boots or wakes (the meter's shunt would drop volts
+at tens of milliamps); it is taken off only while the watch sleeps, read, and put back. Readings
+with the bridge on are meaningless (the meter then carries only part of the current).
+
+| State | Battery current |
+|---|---|
+| Off (AXP2101 off, PCF85063 on VCC-RTC) | **0.05 mA** (the 20 mA range resolves 0.01 mA) |
+| Always-on, between minute wakes, the owner's brightness | **3.76 mA** |
+| Always-on at 1 % brightness | **4.00 mA** |
+| Always-on at 50 % brightness | **4.19 mA** |
+
+- The off state matches the estimate of about 40 µA from the datasheets.
+- **Brightness hardly matters in always-on**: 1 % to 50 % adds about 0.2 mA, within the spread of
+  single readings (3.76 and 4.00 mA at low levels). Run V had found no visible cost of lit
+  pixels either. The ~4 mA is the panel being on (controller and AMOLED supplies) on top of the
+  board's sleep floor (about 1.1 mA from runs H/U, an estimate): about 3 mA for the panel, not
+  separately measured.
+- The minute wakes (about 0.25 s at tens of mA) add roughly 0.2–0.3 mA on average (estimate), so
+  always-on averages about 4 mA; the slope estimate of runs F and V (about 3.2 mA) was about 20 %
+  low. With the cell behaving like about 150 mAh (run R), always-on alone lasts about 35–40 h.
+- Not yet measured: active mode (200 mA range, with the bridge off only while the display is on)
+  and the board's floor with the panel off.
+
 ## 5. Open Questions
 
 1. Battery thermistor: the schematic has RP2 on TS, but the official AXP example disables TS
