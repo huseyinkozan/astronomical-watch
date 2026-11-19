@@ -131,6 +131,12 @@ public:
     // holds the display lock.
     uint32_t inactiveMs();
 
+    // The ringing alarm over every page: its name and the time, and a tap anywhere stops it
+    // (alarmTapped() once true until the next showAlarm()).
+    void showAlarm( const char *name, const char *time );
+    void hideAlarm();
+    bool alarmTapped() const;
+
     // For the event log: touch presses since start(), and whether touch input started.
     int touches() const;
     bool touchStarted() const;
@@ -199,6 +205,11 @@ private:
     bool m_built[PageSlots] = {};
     int m_freedPart[PageSlots] = { -1, -1, -1, -1, -1 };  // the part a freed page showed, for its next build
     PlanetPages m_planets;
+    lv_obj_t *m_alarm = nullptr;
+    lv_obj_t *m_alarmTime = nullptr;
+    lv_obj_t *m_alarmName = nullptr;
+    volatile bool m_alarmTapped = false;
+    static void onAlarmPressed( lv_event_t *event );
     Setup m_setup = {};
     char m_setupTexts[SetupInfoRows][40] = {};
     // A long press on the watch face, then a drag: vertically the active brightness,

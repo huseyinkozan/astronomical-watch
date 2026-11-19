@@ -199,6 +199,8 @@ static const char *s_texts[][2] = {
     { "W", "B" },
     // The light time from 100 minutes on (Uranus, Neptune): "169 min" did not fit the column.
     { "%.1f h", "%.1f sa" },
+    { "Alarm", "Alarm" },
+    { "Tap to stop", "Durdurmak için dokun" },
 };
 // One pair per text: a missing one would shift every text after it.
 static_assert( sizeof( s_texts ) / sizeof( s_texts[0] ) == Language::TextCount, "a text pair per Language::Text" );
@@ -241,6 +243,19 @@ const char *Language::monthName( int month )
 const char *Language::shortMonth( int month )
 {
     return s_shortMonths[s_language][clampIndex( month - 1, 12 )];
+}
+
+// Alarms::Event, short enough for a row with an offset ("Gün batımı -120").
+static const char *s_alarmEvents[2][17] = {
+    { "Sunrise", "Sunset", "Civil dawn", "Civil dusk", "Naut. dawn", "Naut. dusk", "Astro dawn", "Astro dusk",
+      "Solar noon", "Moonrise", "Moonset", "Imsak", "Shuruq", "Dhuhr", "Asr", "Maghrib", "Isha" },
+    { "Gün doğumu", "Gün batımı", "Sivil sabah", "Sivil akşam", "Denizci sabah", "Denizci akşam", "Astro sabah",
+      "Astro akşam", "Güneş öğlesi", "Ay doğuşu", "Ay batışı", "İmsak", "Güneş vakti", "Öğle", "İkindi", "Akşam",
+      "Yatsı" } };
+
+const char *Language::alarmEvent( int event )
+{
+    return s_alarmEvents[s_language][clampIndex( event, 17 )];
 }
 
 const char *Language::hijriMonth( int month )

@@ -31,6 +31,7 @@
 #include "Fonts.h"
 #include "DayCounters.h"
 #include "AlarmStore.h"
+#include "Ringer.h"
 #include "Language.h"
 #include "WorldClock.h"
 #include "Zones.h"
@@ -41,6 +42,7 @@
 #include "driver/usb_serial_jtag.h"
 #include "driver/usb_serial_jtag_vfs.h"
 #include "esp_attr.h"
+#include "esp_heap_caps.h"
 #include "esp_timer.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
@@ -72,6 +74,19 @@ static DayCounters s_dayCounters;
 // The alarms' definitions (NVS); s_alarmsChanged: their due times must be computed again.
 static AlarmStore::List s_alarms;
 static bool s_alarmsChanged = false;
+// The ringing alarm (which: 0-3 an alarm, 4 the countdown).
+static const int s_countdownAlarm = 4;
+static Ringer s_ringer;
+static bool s_ringing = false;
+static int s_ringWhich = -1;
+static int64_t s_ringStartUs = 0;
+// The RTC's Unix time at the last display update in active mode; 0 while the clock is not set.
+static int64_t s_rtcNow = 0;
+static bool s_pmuReady = false;
+#if CONFIG_WATCH_DEV_LOGGING
+// "R <seconds>": a test alarm in RAM, due that many seconds from now.
+static int64_t s_testDue = 0;
+#endif
 #if CONFIG_WATCH_SETUP_PORTAL
 static Portal s_portal;
 #endif
@@ -166,6 +181,12 @@ static bool pollHostCommands()
         }
 #if CONFIG_WATCH_DEV_LOGGING
         int swipePage = 0;
+        int testSeconds = 0;
+        if ( sscanf( s_hostLine, "R %d", &testSeconds ) == 1 ) {
+            s_testDue = s_rtcNow != 0 ? s_rtcNow + testSeconds : 0;
+            ESP_LOGI( TAG, "Test alarm in %d s", testSeconds );
+            continue;
+        }
         if ( sscanf( s_hostLine, "W %d", &swipePage ) == 1 ) {
             s_display.swipeTo( swipePage );
             continue;
@@ -540,6 +561,7 @@ static void updateDisplay()
     if ( timeValid ) {
         advanceZones( unixTime( time ) );
     }
+    s_rtcNow = timeValid ? unixTime( time ) : 0;
     const bool batteryRead = s_pmu.readBattery( battery.millivolts, battery.percent, battery.vbusGood ) == ESP_OK;
     battery.chargeState = s_pmu.chargeState();
     battery.unpluggedMinutes = -1;
@@ -854,6 +876,75 @@ static bool powerKeyMissed( bool &flagsCleared, bool gpioSawPress )
 // start or the last touch, or until a new PWR press. The press that woke the watch may still
 // be held; only a later press counts.
 // Returns 1 at the display timeout, 2 at a PWR press (EventLog::ActiveEnd codes).
+// The name shown while an alarm rings: the event and its offset, "Alarm", or the countdown.
+static void alarmName( int which, char *text, int size )
+{
+    if ( which == s_countdownAlarm ) {
+        snprintf( text, size, "%s", Language::text( Language::Timer ) );
+        return;
+    }
+    const bool event = which >= 0 && which < s_alarms.count && s_alarms.alarms[which].kind == Alarms::SkyEvent;
+    if ( !event ) {
+        snprintf( text, size, "%s", Language::text( Language::AlarmTitle ) );
+        return;
+    }
+    const Alarms::Definition &alarm = s_alarms.alarms[which];
+    if ( alarm.offsetMinutes == 0 ) {
+        snprintf( text, size, "%s", Language::alarmEvent( alarm.event ) );
+    } else {
+        snprintf( text, size, "%s %+d", Language::alarmEvent( alarm.event ), alarm.offsetMinutes );
+    }
+}
+
+static void startRinging( int which )
+{
+    char name[40];
+    alarmName( which, name, sizeof( name ) );
+    const int64_t local = s_rtcNow + static_cast<int64_t>( Zones::offsetAt( homeZone(), s_rtcNow ) ) * 60;
+    char time[8];
+    snprintf( time, sizeof( time ), "%02d:%02d", static_cast<int>( local / 3600 % 24 ), static_cast<int>( local / 60 % 60 ) );
+    s_display.showAlarm( name, time );
+    s_ringing = s_ringer.start();
+    s_ringWhich = which;
+    s_ringStartUs = esp_timer_get_time();
+    ESP_LOGI( TAG, "Alarm %d rings: %s", which, name );
+}
+
+static void stopRinging( EventLog::AlarmEnd end )
+{
+    s_ringer.stop();
+    s_display.hideAlarm();
+    EventLog::Entry entry = {};
+    entry.type = EventLog::Alarm;
+    entry.code = static_cast<uint8_t>( s_ringWhich < 0 ? 0 : s_ringWhich );
+    entry.touches = end;
+    entry.duration = static_cast<uint16_t>( ( esp_timer_get_time() - s_ringStartUs ) / 1000000 );
+    logEvent( entry, s_pmuReady );
+    ESP_LOGI( TAG, "Alarm %d ended (%d) after %u s, heap min %u", s_ringWhich, end, entry.duration,
+              static_cast<unsigned>( heap_caps_get_minimum_free_size( MALLOC_CAP_INTERNAL ) ) );
+    s_ringing = false;
+    s_ringWhich = -1;
+}
+
+// Once a second in active mode: an alarm due now starts ringing; a ringing one ends by itself.
+static void serviceAlarms()
+{
+    if ( s_ringing ) {
+        if ( s_display.alarmTapped() ) {
+            stopRinging( EventLog::AlarmTapped );
+        } else if ( !s_ringer.ringing() ) {
+            stopRinging( EventLog::AlarmTimedOut );
+        }
+        return;
+    }
+#if CONFIG_WATCH_DEV_LOGGING
+    if ( s_testDue != 0 && Alarms::check( s_testDue, s_rtcNow ) == Alarms::Ring ) {
+        s_testDue = 0;
+        startRinging( 0 );
+    }
+#endif
+}
+
 static int runActiveMode()
 {
     int lastLevel = gpio_get_level( s_powerKeyGpio );
@@ -872,6 +963,14 @@ static int runActiveMode()
             updateDisplay();
             sinceUpdateMs = 0;
         }
+        // A tap ends a ringing at once; the start waits for the second's update.
+        if ( s_displayOn && ( everySecond || s_ringing ) ) {
+            serviceAlarms();
+        }
+        if ( s_ringing ) {
+            // No display timeout while an alarm rings.
+            activeMs = 0;
+        }
 #if CONFIG_WATCH_SETUP_PORTAL
         if ( s_displayOn && servicePortal( everySecond ) ) {
             // The display stays on while the portal runs; the timeout counts again after it.
@@ -884,7 +983,11 @@ static int runActiveMode()
             gpioSawPress = gpioSawPress || level == 1;
             // During a held brightness drag the press mirrors the picture instead.
             const int axis = level == 1 && s_displayOn ? s_display.adjustAxis() : -1;
-            if ( axis >= 0 ) {
+            if ( level == 1 && s_ringing ) {
+                // PWR stops a ringing alarm; active mode goes on.
+                stopRinging( EventLog::AlarmPowerKey );
+                activeMs = 0;
+            } else if ( axis >= 0 ) {
                 s_display.toggleMirror( axis );
             } else if ( level == 1 ) {
                 s_deepSleep.addEvent( DeepSleep::Event::PowerKeyPressed );
@@ -898,7 +1001,10 @@ static int runActiveMode()
             gpioSawPress = gpio_get_level( s_powerKeyGpio ) == 1;
             if ( missed ) {
                 const int axis = s_displayOn ? s_display.adjustAxis() : -1;
-                if ( axis >= 0 ) {
+                if ( s_ringing ) {
+                    stopRinging( EventLog::AlarmPowerKey );
+                    activeMs = 0;
+                } else if ( axis >= 0 ) {
                     s_display.toggleMirror( axis );
                 } else {
                     s_deepSleep.addEvent( DeepSleep::Event::PowerKeyPressed );
@@ -1279,6 +1385,7 @@ extern "C" void app_main( void )
 
     i2c_master_bus_handle_t bus = bsp_i2c_get_handle();
     const bool pmuReady = s_pmu.init( bus ) == ESP_OK;
+    s_pmuReady = pmuReady;
     if ( !pmuReady ) {
         ESP_LOGE( TAG, "AXP2101 init failed" );
     }

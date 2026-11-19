@@ -18,7 +18,9 @@ import time
 
 import serial
 
-TYPES = {1: 'boot', 2: 'active end', 3: 'always-on end', 4: 'power off', 5: 'always-on status'}
+TYPES = {1: 'boot', 2: 'active end', 3: 'always-on end', 4: 'power off', 5: 'always-on status', 6: 'alarm'}
+# EventLog::AlarmEnd.
+ALARM_ENDS = {1: 'stopped by a tap', 2: 'stopped by PWR', 3: 'ended after 60 s', 4: 'skipped, too late'}
 RESETS = ['unknown', 'power-on', 'external pin', 'software', 'PANIC', 'INTERRUPT WATCHDOG', 'TASK WATCHDOG',
           'WATCHDOG', 'deep sleep', 'BROWNOUT', 'SDIO', 'USB', 'JTAG', 'EFUSE', 'POWER GLITCH', 'CPU LOCKUP']
 ACTIVE_ENDS = {1: 'display timeout', 2: 'PWR press'}
@@ -54,6 +56,10 @@ def words(fields):
             parts.append('NO TOUCHES')
     elif kind == 4:
         parts.append(POWER_OFFS.get(code, str(code)))
+    elif kind == 6:
+        parts.append('countdown' if code == 4 else f'alarm {code + 1}')
+        parts.append(ALARM_ENDS.get(int(fields['touches']), fields['touches']))
+        parts.append(f'{fields["duration"]} s')
     if kind in (3, 4, 5) and fields['duration'] != '0':
         parts.append(f'always-on {fields["duration"]} min, longest wake {fields["longest"]}')
     names = [name for bit, name in FLAGS if flags & bit]

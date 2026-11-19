@@ -110,7 +110,12 @@ esp_err_t Sound::start()
         stop();
         return ESP_FAIL;
     }
-    setVolume( 0xBF );
+    // Quiet until the caller chooses: -18 dB (full scale rang in the owner's ears).
+    setVolume( 0x9B );
+    // The driver powers the ADC side too, unused here (no microphone): PGA and modulator off
+    // (0x0E, its reset value), the ADC bias and reference off (0x0D bits 5 and 4).
+    esp_codec_dev_write_reg( s_device, 0x0E, 0x6A );
+    esp_codec_dev_write_reg( s_device, 0x0D, 0x31 );
     // The driver's first write to the ES8311 fails now and then (it writes register 0x44 twice
     // for this): the registers that matter, read back.
     const int registers[] = { 0x01, 0x0D, 0x0E, 0x12, 0x14, 0x32, 0x44 };
@@ -136,7 +141,7 @@ void Sound::setVolume( int value )
         esp_codec_dev_write_reg( s_device, 0x32, value );
         int read = -1;
         esp_codec_dev_read_reg( s_device, 0x32, &read );
-        ESP_LOGI( TAG, "Volume 0x%02X, read back 0x%02X", value, read & 0xFF );
+        ESP_LOGD( TAG, "Volume 0x%02X, read back 0x%02X", value, read & 0xFF );
     }
 }
 

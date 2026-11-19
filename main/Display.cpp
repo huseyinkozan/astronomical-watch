@@ -1522,3 +1522,56 @@ void Display::showPlanetsDay( const Planets::Day &day, int64_t localMidnight, co
     m_planets.showDay( day, localMidnight, observer );
     bsp_display_unlock();
 }
+
+void Display::onAlarmPressed( lv_event_t *event )
+{
+    static_cast<Display *>( lv_event_get_user_data( event ) )->m_alarmTapped = true;
+}
+
+void Display::showAlarm( const char *name, const char *time )
+{
+    if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
+        return;
+    }
+    if ( m_alarm == nullptr ) {
+        // Over every page, black, catching the presses (the pages under it get none).
+        m_alarm = lv_obj_create( lv_layer_top() );
+        lv_obj_remove_style_all( m_alarm );
+        lv_obj_set_size( m_alarm, Panel::WIDTH, Panel::HEIGHT );
+        lv_obj_set_style_bg_color( m_alarm, lv_color_black(), 0 );
+        lv_obj_set_style_bg_opa( m_alarm, LV_OPA_COVER, 0 );
+        lv_obj_set_clickable( m_alarm, true );
+        lv_obj_add_event_cb( m_alarm, onAlarmPressed, LV_EVENT_PRESSED, this );
+        m_alarmTime = lv_label_create( m_alarm );
+        Styles::text( m_alarmTime, &jetbrains_mono_light_90, lv_color_white() );
+        lv_obj_align( m_alarmTime, LV_ALIGN_CENTER, 0, -50 );
+        m_alarmName = lv_label_create( m_alarm );
+        Styles::text( m_alarmName, &jetbrains_mono_26, lv_color_hex( 0xFFB040 ) );
+        lv_obj_align( m_alarmName, LV_ALIGN_CENTER, 0, 30 );
+        lv_obj_t *hint = lv_label_create( m_alarm );
+        Styles::text( hint, &jetbrains_mono_26, lv_color_hex( 0x808080 ) );
+        lv_label_set_text( hint, Language::text( Language::TapToStop ) );
+        lv_obj_align( hint, LV_ALIGN_CENTER, 0, 100 );
+    }
+    lv_label_set_text( m_alarmTime, time );
+    lv_label_set_text( m_alarmName, name );
+    m_alarmTapped = false;
+    bsp_display_unlock();
+}
+
+void Display::hideAlarm()
+{
+    if ( m_alarm == nullptr || !bsp_display_lock( 1000 ) ) {
+        return;
+    }
+    lv_obj_delete( m_alarm );
+    m_alarm = nullptr;
+    m_alarmTime = nullptr;
+    m_alarmName = nullptr;
+    bsp_display_unlock();
+}
+
+bool Display::alarmTapped() const
+{
+    return m_alarmTapped;
+}

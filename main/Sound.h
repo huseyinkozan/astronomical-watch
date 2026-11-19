@@ -12,7 +12,7 @@ class Sound
 public:
     static const int SampleRate = 16000;
 
-    // I2S and the codec on, the amplifier off, the DAC volume at 0 dB.
+    // I2S and the codec on (its ADC side off), the amplifier off, the DAC volume at -18 dB.
     esp_err_t start();
 
     // The amplifier needs 120 ms after switching on before it plays (NS4150B datasheet).
@@ -27,7 +27,7 @@ public:
 
     esp_err_t silence( int milliseconds );
 
-    // Test: the ADC side of the codec off and the DAC in its low-power modes.
+    // Test (CONFIG_WATCH_SOUND_TEST): the DAC in its low-power modes as well.
     void lowPowerCodec();
 
     // Muted, the amplifier off, the codec in its power-down state, I2S released.

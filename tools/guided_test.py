@@ -274,6 +274,20 @@ TESTS = {
         (SEND, '', 'X 00 22', 0),
         (ASK, 'Value 0x00 (normal): does the face look as usual again?', '', 0),
     ],
+    # The alarm's ringing (development build, USB, active mode): "R <seconds>" sets a test alarm.
+    'alarm': [
+        (ASK, 'Is the watch in active mode (the face shown), on USB?', '', 0),
+        (SEND, '', 'R 5', 0),
+        (WAIT, '', r'Alarm 0 rings', 15),
+        (ASK, 'Ringing: is the time shown large, "Alarm" below it and "Tap to stop" / "Durdurmak için dokun" under it, nothing cut?', '', 0),
+        (ACT, 'Tap the screen anywhere to stop the alarm.', r'Alarm 0 ended \(1\)', 0),
+        (ASK, 'Did the sound stop at once and the page come back?', '', 0),
+        (SEND, '', 'R 5', 0),
+        (WAIT, '', r'Alarm 0 rings', 15),
+        (ACT, 'Press PWR once to stop the alarm (active mode must go on).', r'Alarm 0 ended \(2\)', 0),
+        (QUIET, 'Active mode goes on after the PWR press', r'active mode ends', 5),
+        (ASK, 'Is the watch still in active mode, the page shown?', '', 0),
+    ],
     # Reads the battery drain log; the board must not be reset, or RTC memory is cleared.
     'battery': [
         (WAIT, 'Reading the battery log.', r'Battery log: \d+ of \d+ samples', 30),

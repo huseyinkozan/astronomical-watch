@@ -17,7 +17,17 @@ public:
         ActiveEnd = 2,      // code: 1 display timeout, 2 PWR press
         AlwaysOnEnd = 3,    // code: 1 PWR press
         PowerOff = 4,       // code: PowerOffReason
-        AlwaysOnStatus = 5  // development mode: every 30 min of always-on
+        AlwaysOnStatus = 5,  // development mode: every 30 min of always-on
+        Alarm = 6            // code: the alarm (0-3, 4 the countdown); touches: how it ended (AlarmEnd)
+    };
+
+    // How a ringing ended (Entry::touches of an Alarm entry).
+    enum AlarmEnd : uint8_t
+    {
+        AlarmTapped = 1,
+        AlarmPowerKey = 2,
+        AlarmTimedOut = 3,
+        AlarmSkipped = 4  // found more than Alarms::LateSeconds late, not rung
     };
 
     enum PowerOffReason : uint8_t
