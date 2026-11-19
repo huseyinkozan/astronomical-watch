@@ -5,6 +5,7 @@
 #include "AlwaysOn.h"
 #include "Astronomy.h"
 #include "Hijri.h"
+#include "Planets.h"
 #include "Sky.h"
 #include "Axp2101.h"
 #include "BatteryLog.h"
@@ -427,6 +428,16 @@ static void updateSky( int64_t now, const int inputs[5] )
     }
     s_display.showSky( s_skyDay, Sky::computeNow( now, s_skyDay, observer ), offsetMinutes, s_faceTable,
                        inputs[0] != 0 || inputs[1] != 0 );
+    s_display.showPlanets( now, observer, offsetMinutes, inputs[0] != 0 || inputs[1] != 0 );
+    // The planets page asks for its day's rise and set when it is built or a new day begins.
+    int64_t localMidnight = 0;
+    Astronomy::Observer planetsObserver = {};
+    if ( s_display.takePlanetsRequest( localMidnight, planetsObserver ) ) {
+        const int64_t start = esp_timer_get_time();
+        const Planets::Day planets = Planets::day( localMidnight, planetsObserver );
+        ESP_LOGI( TAG, "Planets' day computed in %d ms", static_cast<int>( ( esp_timer_get_time() - start ) / 1000 ) );
+        s_display.showPlanetsDay( planets, localMidnight, planetsObserver );
+    }
 }
 
 // The always-on face of face page `page` (Settings::FaceStyle when active mode ends) into s_look.

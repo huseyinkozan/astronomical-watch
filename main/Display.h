@@ -13,6 +13,7 @@
 #include "libs/qrcode/qrcodegen.h"
 #include "PageMarks.h"
 #include "StackPage.h"
+#include "PlanetPages.h"
 #include "SkyPages.h"
 #include "TablePart.h"
 #include "lvgl.h"
@@ -92,6 +93,15 @@ public:
     // The astronomy pages: values of the local day and of this moment; the face's events,
     // counters and cities. Also updates the face with the time of the last update(); `located`
     // false: no location set yet (the face's sky slots stay empty).
+    // The pages side by side (Display.cpp: face, clock, information, planets, settings).
+    static const int PageSlots = 5;
+
+    // The planets page: the moment and the place every second; the main task computes the rise
+    // and set of a day it asks for (a few hundred milliseconds) and hands them over.
+    void showPlanets( int64_t now, const Astronomy::Observer &observer, int utcOffsetMinutes, bool located );
+    bool takePlanetsRequest( int64_t &localMidnight, Astronomy::Observer &observer );
+    void showPlanetsDay( const Planets::Day &day, int64_t localMidnight, const Astronomy::Observer &observer );
+
     void showSky( const Sky::Day &day, const Sky::Now &now, int utcOffsetMinutes, const FaceTable &table,
                   bool located );
 
@@ -185,9 +195,10 @@ private:
     void applyOrders();
     // The face page of Settings::FaceStyle, one of those shown (FaceConfig::shown).
     void showFacePage( int direction );
-    lv_obj_t *m_tiles[4] = {};
-    bool m_built[4] = {};
-    int m_freedPart[4] = { -1, -1, -1, -1 };  // the part a freed page showed, for its next build
+    lv_obj_t *m_tiles[PageSlots] = {};
+    bool m_built[PageSlots] = {};
+    int m_freedPart[PageSlots] = { -1, -1, -1, -1, -1 };  // the part a freed page showed, for its next build
+    PlanetPages m_planets;
     Setup m_setup = {};
     char m_setupTexts[SetupInfoRows][40] = {};
     // A long press on the watch face, then a drag: vertically the active brightness,

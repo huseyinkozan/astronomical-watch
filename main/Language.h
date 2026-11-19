@@ -188,6 +188,19 @@ public:
         DurationDayHours,   // "%d d %d h"
         DurationHourMins,   // "%d h %d min"
         JoinCodeHint,       // the QR code part while the setup portal is off
+        // Planets page (PlanetPages).
+        PlanetsPageName,
+        PlanetMercury,
+        PlanetVenus,
+        PlanetMars,
+        PlanetJupiter,
+        PlanetSaturn,
+        RiseAndSet,
+        Distance,
+        AstronomicalUnit,
+        LightTime,
+        EastLetter,
+        WestLetter,
         TextCount
     };
 

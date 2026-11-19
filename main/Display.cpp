@@ -56,10 +56,11 @@ enum Page
     FacePage,
     ClockPage,     // world clock, timers and calendars, one over the other (ClockPages)
     InfoPage,      // the information parts, one over the other (InfoPart)
+    PlanetsPage,   // the solar system, the sky, rise and set, distances (PlanetPages)
     SettingsPage,  // the settings, and under them the setup portal
     PageCount
 };
-static_assert( PageCount == 4, "Display.h sizes m_tiles and m_built for four pages" );
+static_assert( PageCount == Display::PageSlots, "Display.h sizes m_tiles and m_built for the pages" );
 
 enum SettingsPart
 {
@@ -100,6 +101,8 @@ struct Shot
     // Last, so that the numbers of the others stay those of the published pictures.
     { "setup-code", SettingsPage, SetupCodePart },
 #endif
+    { "orbits", PlanetsPage, PlanetPages::OrbitsPart }, { "sky", PlanetsPage, PlanetPages::SkyPart },
+    { "rise-set", PlanetsPage, PlanetPages::RiseSetPart }, { "distance", PlanetsPage, PlanetPages::DistancePart },
 };
 [[maybe_unused]] static const int s_shotCount = sizeof( s_shots ) / sizeof( s_shots[0] );
 
@@ -489,6 +492,11 @@ void Display::ensureBuilt( int page )
         if ( m_freedPart[page] >= 0 ) {
             m_info.restore( m_freedPart[page] );
         }
+    } else if ( page == PlanetsPage ) {
+        m_planets.build( m_tiles[PlanetsPage] );
+        if ( m_freedPart[page] >= 0 ) {
+            m_planets.stack().restore( m_freedPart[page] );
+        }
     } else if ( page == SettingsPage ) {
         buildSettingsPage();
         if ( m_freedPart[page] >= 0 ) {
@@ -510,11 +518,11 @@ int Display::activePage() const
 
 void Display::keepPages( int shown )
 {
-    const int pages[2] = { InfoPage, SettingsPage };
-    for ( int i = 0; i < 2; ++i ) {
+    const int pages[3] = { InfoPage, PlanetsPage, SettingsPage };
+    for ( int i = 0; i < 3; ++i ) {
         const int page = pages[i];
         bool near = page >= shown - 1 && page <= shown + 1;
-        if ( page == InfoPage && m_setup.running && shown != InfoPage ) {
+        if ( ( page == InfoPage || page == PlanetsPage ) && m_setup.running && shown != page ) {
             near = false;
         }
         if ( near ) {
@@ -527,11 +535,14 @@ void Display::keepPages( int shown )
 
 void Display::freePage( int page )
 {
-    if ( ( page != InfoPage && page != SettingsPage ) || !m_built[page] ) {
+    if ( ( page != InfoPage && page != PlanetsPage && page != SettingsPage ) || !m_built[page] ) {
         return;
     }
     lv_obj_t *tile = m_tiles[page];
-    if ( page == InfoPage ) {
+    if ( page == PlanetsPage ) {
+        m_freedPart[page] = m_planets.stack().current();
+        m_planets.forget();
+    } else if ( page == InfoPage ) {
         m_freedPart[page] = m_info.current();
         m_info.forget();
         m_sky.forget();
@@ -1385,7 +1396,9 @@ void Display::capture( int page )
     ensureBuilt( shot.page );
     lv_tileview_set_tile_by_index( m_pages, static_cast<uint32_t>( shot.page ), 0, LV_ANIM_OFF );
     if ( shot.part >= 0 ) {
-        StackPage &stack = shot.page == InfoPage ? m_info : ( shot.page == ClockPage ? m_clock.stack() : m_settingsPage );
+        StackPage &stack = shot.page == InfoPage ? m_info
+                           : ( shot.page == ClockPage ? m_clock.stack()
+                                                      : ( shot.page == PlanetsPage ? m_planets.stack() : m_settingsPage ) );
         stack.show( shot.part, 0 );
     }
     // The jump to the page counts as a swipe; the pictures show the pages at rest.
@@ -1473,4 +1486,32 @@ uint32_t Display::inactiveMs()
         bsp_display_unlock();
     }
     return m_inactiveMs;
+}
+
+void Display::showPlanets( int64_t now, const Astronomy::Observer &observer, int utcOffsetMinutes, bool located )
+{
+    if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
+        return;
+    }
+    m_planets.show( now, observer, utcOffsetMinutes, located );
+    bsp_display_unlock();
+}
+
+bool Display::takePlanetsRequest( int64_t &localMidnight, Astronomy::Observer &observer )
+{
+    if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
+        return false;
+    }
+    const bool asked = m_planets.takeDayRequest( localMidnight, observer );
+    bsp_display_unlock();
+    return asked;
+}
+
+void Display::showPlanetsDay( const Planets::Day &day, int64_t localMidnight, const Astronomy::Observer &observer )
+{
+    if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
+        return;
+    }
+    m_planets.showDay( day, localMidnight, observer );
+    bsp_display_unlock();
 }

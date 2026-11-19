@@ -222,13 +222,45 @@ Astronomy::Position Planets::position( Body body, int64_t time, const Astronomy:
     return Astronomy::starPosition( geo.raHours, geo.decDegrees, time, observer );
 }
 
-static double planetAltitude( int64_t time, const Astronomy::Observer &observer, int body )
+// The planet's right ascension and declination at the start, the middle and the end of the day:
+// the altitude search interpolates them (Meeus 15) instead of solving the orbits at each of its
+// 160 steps, which took 1.7 s for the five planets on the watch. The search runs in one task at
+// a time, so a file-scope copy is enough.
+static int64_t s_dayStart = 0;
+static double s_ra[3] = {};
+static double s_dec[3] = {};
+
+static double interpolated( const double values[3], int64_t time )
 {
-    return Planets::position( static_cast<Planets::Body>( body ), time, observer ).altitude;
+    const double n = static_cast<double>( time - s_dayStart ) / ( 12 * 3600.0 );
+    const double a = values[1] - values[0];
+    const double b = values[2] - values[1];
+    return values[0] + n * a + n * ( n - 1 ) / 2 * ( b - a );
+}
+
+static double planetAltitude( int64_t time, const Astronomy::Observer &observer, int )
+{
+    double ra = std::fmod( interpolated( s_ra, time ), 24.0 );
+    if ( ra < 0 ) {
+        ra += 24;
+    }
+    return Astronomy::starPosition( ra, interpolated( s_dec, time ), time, observer ).altitude;
 }
 
 Astronomy::Crossings Planets::riseSet( Body body, int64_t localMidnight, const Astronomy::Observer &observer )
 {
+    s_dayStart = localMidnight;
+    for ( int i = 0; i < 3; ++i ) {
+        const Geocentric geo = geocentric( body, localMidnight + i * 12 * 3600 );
+        s_ra[i] = geo.raHours;
+        s_dec[i] = geo.decDegrees;
+        // Continuous through 0 h.
+        if ( i > 0 && s_ra[i] - s_ra[i - 1] > 12 ) {
+            s_ra[i] -= 24;
+        } else if ( i > 0 && s_ra[i] - s_ra[i - 1] < -12 ) {
+            s_ra[i] += 24;
+        }
+    }
     return Astronomy::dayCrossings( planetAltitude, body, localMidnight, observer, -0.5667 );
 }
 

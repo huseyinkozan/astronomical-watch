@@ -182,6 +182,19 @@ static const char *s_texts[][2] = {
     { "%d d %d h", "%d g %d sa" },
     { "%d h %d min", "%d sa %d dk" },
     { "Start Wi-Fi setup\nabove; its QR code\nshows here", "Kurulumu yukarıda\nbaşlatın; QR kodu\nburada görünür" },
+    // Planets page.
+    { "Planets", "Gezegen" },
+    { "Mercury", "Merkür" },
+    { "Venus", "Venüs" },
+    { "Mars", "Mars" },
+    { "Jupiter", "Jüpiter" },
+    { "Saturn", "Satürn" },
+    { "Rise and set", "Doğuş ve batış" },
+    { "Distance", "Uzaklık" },
+    { "AU", "AB" },
+    { "Light", "Işık" },
+    { "E", "D" },
+    { "W", "B" },
 };
 // One pair per text: a missing one would shift every text after it.
 static_assert( sizeof( s_texts ) / sizeof( s_texts[0] ) == Language::TextCount, "a text pair per Language::Text" );
