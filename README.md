@@ -21,8 +21,9 @@ and the PWR key turns it on again.
   the Moon's time above or below the horizon, its phase, the time to the next prayer, sunrise,
   sunset, moonrise or moonset, the week, month, Hijri month or year, a day counter, the Sun's
   altitude, the hour, minute or second; while charging, the battery gauge fills up in white
-- Alarms at a clock time or relative to a sun or moon event (sunrise, twilights, solar noon,
-  sunset, moonrise, moonset), with an offset; a countdown timer; signalled by vibration
+- Alarms at a clock time on chosen weekdays, or relative to a sun or moon event or a prayer time
+  (sunrise, twilights, solar noon, sunset, moonrise, moonset), with an offset; the countdown
+  rings too; the board has no vibration motor, so they beep through the speaker
 - PWR key opens the interactive mode (touch, pages); after a configurable timeout the watch
   returns to a dim always-on face, updated once a minute, or switches off (setting)
 - Switches off after a long time without motion (checked at wide intervals); the PWR key turns it on
@@ -133,13 +134,15 @@ clock (JetBrains Mono or seven-segment digits, or analog in five styles), large 
 Sun's and the Moon's orbits or their paths over the horizon with the Milky Way and the planets, with up to four lines and four corners of
 information around it (the date, Hijri date, next prayer time or sunrise or sunset with the time
 left, a day counter, a world clock city, the battery, the Sun's or the Moon's altitude, the
-weekday ring, the Moon's phase, the hour, minute or second); a vertical swipe steps the face
+weekday ring, the Moon's phase, the hour, minute or second, an alarm's days, the alarm bell, a
+running timer); a vertical swipe steps the face
 pages and the parts of the last three pages.
 The clock, information and settings pages show their name at the top between the corner gauges.
 The clock page holds a world clock (three cities that follow their daylight saving time), a
 stopwatch with laps and a countdown (both keep running while the watch sleeps), Gregorian and
-Hijri month calendars (a sideways swipe steps the month; a tap chooses a day on both calendars)
-and day counters. The information page
+Hijri month calendars (a sideways swipe steps the month; a tap chooses a day on both calendars),
+day counters and the alarms (a tap switches one on or off; an alarm that is on keeps the watch
+from switching itself off, so the battery lasts shorter). The information page
 holds the Sun (rise, set, noon, day length, time left until sunset), the twilights with the
 golden and blue hours, the prayer times by Diyanet's method, the Moon (phase, rise and set, the
 dark part of the night, the new crescent, the Hijri date), a sun compass, the time (solar,
@@ -214,8 +217,10 @@ Each step is built, verified on the board and documented before the next one sta
 14. **Planets page** (done): the solar system, the sky, rise and set and distances
     of the seven planets, computed on the watch within a few arcminutes of JPL's DE421
     ephemeris; the planets on the Full arcs and Half arcs faces too.
-15. Vibration motor.
-16. Alarms (clock time and sun/moon events) and countdown timer, also set through the portal.
+15. **Alarms** (done, unreleased): clock time and sky event alarms set through the portal and
+    switched on the clock page, the countdown's signal, beeps through the speaker (no vibration
+    motor is fitted), the watch asleep instead of off while one is pending, and corner icons for
+    an alarm's days, the alarm bell and a running timer.
 
 ## License
 

@@ -161,3 +161,23 @@ loudness measurements (docs/hardware.md, "Speaker and alarm sound").
   short names, the portal layout inside its box, the event log entry's fields.
 - Whether an alarm wake starts the full active mode (display, pages) or a lighter ringing
   screen first, as long as the name shows within about a second and the face follows after.
+
+## Result (2026-11-19)
+
+Built on branch `alarm-sound` (plan `docs/superpowers/plans/2026-11-19-alarms.md`).
+- `main/Alarms.*` (45 host checks: weekdays, once, the events against the astronomy and prayer
+  functions, the ringing-day rule across midnight, a day without a moonrise, Tromsø's polar
+  night and white nights, a DST change, the late rule, the cache key, the portal text, the icons'
+  symmetry). Events are searched 60 days ahead (not 400: up to about 40 s of astronomy at polar
+  latitudes on the watch); none within them: "--:--", searched again the next day.
+- On the board (USB, development build): an alarm from always-on rang at its second (0 s late),
+  one from the sleep without the face at its second with the panel starting again, the countdown
+  1 s after its end; a daily alarm reset while ringing did not ring again. A tap and PWR stop the
+  ringing (guided test `alarm`, by the owner), active mode going on after PWR. A ringing with the
+  setup portal on left 75 KB of internal heap at its lowest; main stack margin about 3.9 KB.
+  Planning the four sample alarms took 0.33 s once (sky events), 0 ms while nothing changed.
+- The Alarms part is the clock page's last part (inserting it would renumber the parts in the
+  saved orders); `PartOrder` keeps an order saved before a part was added.
+- The corner icons follow the owner's preview (the inner bell enlarged at the owner's request).
+- Not yet measured: the battery current while ringing, the sleep current after a ringing (the
+  gate before merging), the hourly battery wake and the 2 % floor on a long run.

@@ -102,14 +102,21 @@ development builds `v0.0.1-3-gabc1234-dirty`. A new release is a new tag, pushed
   - **Alarm pending**: while an alarm or countdown is set, the watch does not power off: nothing
     on the board can power the AXP2101 on at a set time (the PCF85063 INT reaches only GPIO39,
     which cannot wake from deep sleep either). Instead the ESP32 deep-sleeps with one timer wake
-    for the next alarm, waking a little early to re-read the PCF85063 because the internal RC
-    timer drifts. In always-on the minute wake checks the alarms.
+    for the next alarm, waking a little early (2 s and 0.2 % of the sleep) to re-read the
+    PCF85063 because the internal RC timer drifts, and at least once an hour to read the
+    battery. Every power-off but the battery floor becomes this sleep without the face: a wake
+    0.5 s later puts the panel to deep standby (`Panel::sleep`) and cuts ALDO2. In always-on the
+    minute wake checks the due times and ends always-on for them. The due times are planned
+    in active mode and kept in RTC memory (`main.cpp`, `s_plan`); the ones rung or skipped in
+    RTC_NOINIT memory, so that a reset in the alarm minute neither loses nor repeats it.
   - **Battery limit**: at 10 % or less on battery the watch powers off instead of entering or
     keeping always-on, so that the cell keeps the RTC running for days (off state about 40 µA,
     about 1 mAh a day; an estimate). VBAT must also be at most 3.65 V, because the gauge reads
     too low for a while after a power cycle. The PWR key still starts active mode, and the watch
     powers off again when it ends. The battery gauge shows red at the limit. Battery-log builds
-    ignore the limit. What a pending alarm does at the limit is decided with the alarms.
+    ignore the limit. With an alarm pending the watch goes on below the limit without the face,
+    down to 2 % with VBAT at most 3.50 V (or VBAT at most 3.40 V), then powers off (the owner,
+    2026-11-14: the RTC must keep its time).
 - Always-on must use the lowest-power approach the panel allows (low brightness, few lit pixels,
   idle or partial mode where they help), never a CPU that stays awake. Do not call any mode
   low-power without evidence from the board (see "Power evaluation").
@@ -131,7 +138,7 @@ by wake source:
   timeout draw the always-on face and dim the panel.
 - Minute timer: update the always-on face; when due, check motion and power off if the watch
   has not moved.
-- Alarm timer: re-read the time; when an alarm is due, vibrate and show it, otherwise sleep the
+- Alarm timer: re-read the time; when an alarm is due, ring and show it, otherwise sleep the
   remaining seconds.
 
 Then deep sleep with the minute timer (always-on) or the alarm timer (alarm pending), or power
@@ -222,7 +229,7 @@ in its flash partition. Read both over USB: `python tools/read_events.py`, then
 - Touch input: rows of 7.8 x 26 mm inside the corner gauges, one tap steps a value; no vertical scrolling
   inside the swiped pages; sliding off a row cancels the tap. Five pages side by side:
   watch face, clock (world clock, stopwatch, countdown, Gregorian and Hijri
-  calendars, day counters; `main/ClockPages.*`), information (sun, twilight, prayer times, moon,
+  calendars, day counters, alarms; `main/ClockPages.*`), information (sun, twilight, prayer times, moon,
   compass, time, battery, about), planets (the seven planets and the Earth: the solar system on a logarithmic scale, the sky
   seen from the south, the day's rise and set, distances; `main/PlanetPages.*`, the day's rise and
   set computed in the main task on the page's request, 0.4 s; design:
@@ -286,7 +293,16 @@ in its flash partition. Read both over USB: `python tools/read_events.py`, then
   never as a computed time. The next occurrence is computed from the definition, location and
   UTC offset, and again after each firing and after any change to them. An event that does not
   occur on a day (no moonrise, no astronomical dusk at high latitude) moves to the next day it
-  occurs.
+  occurs (searched 60 days ahead). `main/Alarms.*` (host-tested) holds these rules: at most four
+  alarms, a clock time or one of 17 sky events (the Sun's and the Moon's events and the prayer
+  times) with up to ±120 min, the weekdays it rings on (none: once, then it switches itself
+  off), a due time rung up to 10 min late and skipped later. They are defined in the portal
+  (`main/AlarmStore.*`) and switched on the clock page's last part, Alarms. There is no
+  vibration motor on the board: `main/Ringer.*` beeps 1000/1500 Hz (the speaker's loudest
+  region, docs/hardware.md, "Speaker and alarm sound"), from -18 dB to at most -6 dB, through
+  `main/Sound.*`, for at most 60 s; a tap or PWR stops it. Design:
+  `docs/superpowers/specs/2026-11-19-alarms-design.md`. Development commands: "R <s>" a test
+  alarm, "K <n> <text>" defines an alarm, "Q" ends active mode as without the always-on face.
 
 ## Dependency Selection
 

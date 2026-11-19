@@ -700,6 +700,16 @@ speaker's impedance, size and response are published nowhere (Waveshare: "onboar
     signal (the phone's microphone response is not known; the ear is a few dB more sensitive
     at 3–4 kHz).
   - Battery currents not yet measured (meter not connected).
+- The alarm sound (`main/Ringer.*`, chosen from these measurements, 2026-11-19): beeps of 100 ms
+  every 250 ms alternating 1000 and 1500 Hz, from -18 dB rising 3 dB every 2 s to -6 dB, at most
+  60 s, the codec's ADC side powered down (0x0E `0x6A`, 0x0D `0x31` read back after start), the
+  amplifier switched on once per ringing. The codec ends each ringing with the driver's suspend
+  sequence (0x0D `0xFC`). **Open:** the battery current while ringing and the sleep current after
+  a ringing (the PDN_VREF question of section 4) are not yet measured.
+- Panel deep standby from normal mode (`Panel::sleep`, for the alarm pending sleep without the
+  face): display off (0x28), sleep in (0x10), 120 ms, deep standby (0x4F `0x01`); every active
+  start resets the panel. On the board the panel started normally after it [HW]; its current in
+  that state is not measured.
 
 ## 4. Sleep Preparation (`main/Peripherals.*`)
 
