@@ -237,6 +237,9 @@ def main():
         writePng(path, width, height, rows)
         note = f', {missing} rows missing' if missing else ''
         print(f'{name}: {path}{note}')
+        # The main task answers a page's requests (the planets' day, a Hijri month) between the
+        # commands; without a pause the next part would show "--:--" until the next build.
+        time.sleep(1.5)
         if missing:
             failures += 1
         page += 1
