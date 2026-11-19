@@ -7,29 +7,41 @@
 
 namespace {
 
-// Colours of Planets::Body; the Earth blue. The tables write the names in them, so they are the
-// key to the two drawings.
-const uint32_t s_colours[Planets::BodyCount] = { 0xAAAAAA, 0xF0E1AA, 0x5A8CFF, 0xE65A3C, 0xE1BE8C, 0xDCBE6E };
-const uint8_t s_orbitDotRadius[Planets::BodyCount] = { 3, 4, 5, 4, 7, 6 };
-const uint8_t s_skyDotRadius[Planets::BodyCount] = { 3, 4, 0, 4, 6, 5 };
+// Colours of Planets::Body; the Earth blue, Neptune violet so that the two stay apart. The tables
+// write the names in them, so they are the key to the two drawings.
+const uint32_t s_colours[Planets::BodyCount] = { 0xAAAAAA, 0xF0E1AA, 0x5A8CFF, 0xE65A3C,
+                                                 0xE1BE8C, 0xDCBE6E, 0x96D7E1, 0x8C78FF };
+const uint8_t s_orbitDotRadius[Planets::BodyCount] = { 3, 4, 5, 4, 7, 6, 5, 5 };
+// Uranus and Neptune small in the sky: the eye does not see them.
+const uint8_t s_skyDotRadius[Planets::BodyCount] = { 3, 4, 0, 4, 6, 5, 2, 2 };
 const uint32_t s_sunColour = 0xFFD040;
 const uint32_t s_moonColour = 0xDCE1EB;
 const uint32_t s_lineColour = 0x5A5A5A;
 const uint32_t s_dimLineColour = 0x373737;
 const uint32_t s_grey = 0xA0A0A0;
 
-// Mean distances (AU): the orbits on a square-root scale, Saturn's 180 px, so that Mercury's
-// still shows (36 px) and the order and spacing read right.
-const double s_meanDistance[Planets::BodyCount] = { 0.387, 0.723, 1.0, 1.524, 5.203, 9.537 };
-const double s_saturnOrbitPx = 180;
+// Mean distances (AU): the orbits on a logarithmic scale from Mercury's 30 px to Neptune's 180 px,
+// so that all eight fit and the inner ones stay apart (the owner's choice over a square root).
+const double s_meanDistance[Planets::BodyCount] = { 0.387, 0.723, 1.0, 1.524, 5.203, 9.537, 19.19, 30.07 };
+const double s_innerOrbitPx = 30;
+const double s_outerOrbitPx = 180;
+
+double orbitRadius( int body )
+{
+    const double scale = ( s_outerOrbitPx - s_innerOrbitPx ) / std::log( s_meanDistance[Planets::Neptune] / s_meanDistance[Planets::Mercury] );
+    return s_innerOrbitPx + scale * std::log( s_meanDistance[body] / s_meanDistance[Planets::Mercury] );
+}
 // The sky: the sphere seen from the south, as a circle; its centre where the orbits' is.
 const double s_skyRadius = 160;
 const int s_centreY = 253;  // in the part, below its top padding: 265 on the screen
 
 // The planets in the tables, in Planets::Body order without the Earth.
-const Planets::Body s_planets[5] = { Planets::Mercury, Planets::Venus, Planets::Mars, Planets::Jupiter, Planets::Saturn };
-const Language::Text s_names[5] = { Language::PlanetMercury, Language::PlanetVenus, Language::PlanetMars,
-                                    Language::PlanetJupiter, Language::PlanetSaturn };
+const int s_planetCount = 7;
+const Planets::Body s_planets[s_planetCount] = { Planets::Mercury, Planets::Venus,  Planets::Mars,   Planets::Jupiter,
+                                                 Planets::Saturn,  Planets::Uranus, Planets::Neptune };
+const Language::Text s_names[s_planetCount] = { Language::PlanetMercury, Language::PlanetVenus,  Language::PlanetMars,
+                                                Language::PlanetJupiter, Language::PlanetSaturn, Language::PlanetUranus,
+                                                Language::PlanetNeptune };
 
 uint32_t dimmed( uint32_t rgb )
 {
@@ -43,8 +55,8 @@ uint32_t dimmed( uint32_t rgb )
 TablePart::Layout tableLayout( const char *title )
 {
     // As the information page's tables: a 160 px name and two 105 px values, centred.
-    TablePart::Layout layout = { title, 6, {}, -1, 38, 38, 20, 160, 180, 105, 0, 32 + 9 * 38 };
-    for ( int i = 0; i < 6; ++i ) {
+    TablePart::Layout layout = { title, 1 + s_planetCount, {}, -1, 38, 38, 20, 160, 180, 105, 0, 32 + 9 * 38 };
+    for ( int i = 0; i < 1 + s_planetCount; ++i ) {
         layout.kinds[i] = TablePart::TwoValues;
     }
     return layout;
@@ -122,7 +134,7 @@ void PlanetPages::build( lv_obj_t *tile )
     m_distance.text().set( 0, 1, Language::text( Language::AstronomicalUnit ) );
     m_distance.text().set( 0, 2, Language::text( Language::LightTime ) );
     m_distance.text().setColours( 0, TableText::Grey, TableText::Grey );
-    for ( int i = 0; i < 5; ++i ) {
+    for ( int i = 0; i < s_planetCount; ++i ) {
         const uint32_t colour = s_colours[s_planets[i]];
         m_riseSet.text().set( 1 + i, 0, Language::text( s_names[i] ) );
         m_riseSet.text().setColours( 1 + i, colour, TableText::White );
@@ -177,7 +189,7 @@ void PlanetPages::place()
     const double cx = 205;
     for ( int i = 0; i < Planets::BodyCount; ++i ) {
         const Planets::Heliocentric helio = Planets::heliocentric( static_cast<Planets::Body>( i ), m_now );
-        const double r = std::sqrt( s_meanDistance[i] / s_meanDistance[Planets::Saturn] ) * s_saturnOrbitPx;
+        const double r = orbitRadius( i );
         // Seen from the ecliptic's north: anticlockwise, the vernal equinox to the right.
         Dot &dot = m_orbitDots[i];
         dot.x = static_cast<int16_t>( lround( cx + r * std::cos( helio.longitude * degree ) ) );
@@ -199,7 +211,7 @@ void PlanetPages::place()
     colours[count] = s_moonColour;
     radii[count++] = 7;
     char text[24];
-    for ( int i = 0; i < 5; ++i ) {
+    for ( int i = 0; i < s_planetCount; ++i ) {
         const Planets::Body body = s_planets[i];
         positions[count] = Planets::position( body, m_now, m_observer );
         colours[count] = s_colours[body];
@@ -235,7 +247,7 @@ void PlanetPages::place()
 void PlanetPages::fillRiseSet()
 {
     char text[8];
-    for ( int i = 0; i < 5; ++i ) {
+    for ( int i = 0; i < s_planetCount; ++i ) {
         const Astronomy::Crossings &crossings = m_day.riseSet[s_planets[i]];
         formatTime( text, sizeof( text ), m_dayValid ? crossings.rising : Astronomy::Event {}, m_offsetMinutes );
         m_riseSet.text().set( 1 + i, 1, text );
@@ -292,7 +304,7 @@ void PlanetPages::onDrawOrbits( lv_event_t *event )
     const int cx = area.x1 + 205;
     const int cy = area.y1 + s_centreY;
     for ( int i = 0; i < Planets::BodyCount; ++i ) {
-        const int r = static_cast<int>( lround( std::sqrt( s_meanDistance[i] / s_meanDistance[Planets::Saturn] ) * s_saturnOrbitPx ) );
+        const int r = static_cast<int>( lround( orbitRadius( i ) ) );
         drawCircle( layer, cx, cy, r, 0, 360, s_dimLineColour, 1 );
     }
     drawDot( layer, cx, cy, 7, s_sunColour );

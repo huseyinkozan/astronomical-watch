@@ -9,7 +9,7 @@
 
 #include "Planets.h"
 
-static const char *s_names[Planets::BodyCount] = { "mercury", "venus", "earth", "mars", "jupiter", "saturn" };
+static const char *s_names[Planets::BodyCount] = { "mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune" };
 
 static int bodyOf( const char *name )
 {
@@ -101,8 +101,9 @@ int main( int argc, char **argv )
     // of the distances. Jupiter and Saturn 2': JPL's elements alone were 5' and 9' off, Schlyter's
     // great-inequality terms bring them to 0.9' and 1.7'. Saturn's distance 0.02 AU: JPL's elements
     // keep it to 0.018 AU, the second decimal of about 9.6 AU on the distance part, 10 s of light.
-    const double angleLimits[Planets::BodyCount] = { 1, 1, 1, 2, 2, 2 };
-    const double distanceLimits[Planets::BodyCount] = { 0.002, 0.002, 0.002, 0.002, 0.01, 0.02 };
+    // Uranus and Neptune 2' and 0.01 AU: JPL's elements alone give 1.8' and 0.8'.
+    const double angleLimits[Planets::BodyCount] = { 1, 1, 1, 2, 2, 2, 2, 2 };
+    const double distanceLimits[Planets::BodyCount] = { 0.002, 0.002, 0.002, 0.002, 0.01, 0.02, 0.01, 0.01 };
     int failures = 0;
     for ( int i = 0; i < Planets::BodyCount; ++i ) {
         const double angleLimit = angleLimits[i];

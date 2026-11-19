@@ -24,7 +24,8 @@ sun, earth = eph['sun'], eph['earth']
 
 # As main/Planets.h's Planets::Body.
 BODIES = [('mercury', 'mercury'), ('venus', 'venus'), ('earth', 'earth'), ('mars', 'mars'),
-          ('jupiter', 'jupiter barycenter'), ('saturn', 'saturn barycenter')]
+          ('jupiter', 'jupiter barycenter'), ('saturn', 'saturn barycenter'), ('uranus', 'uranus barycenter'),
+          ('neptune', 'neptune barycenter')]
 PLACES = [('istanbul', 41.01, 28.98), ('sydney', -33.87, 151.21)]
 # Across the elements' range 1800-2050, and the screenshots' scene (2026-06-21 19:19 UTC+3).
 MOMENTS = ['2000-01-01 12:00', '2005-06-15 12:00', '2010-03-01 12:00', '2015-09-01 12:00',

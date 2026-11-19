@@ -195,6 +195,8 @@ public:
         PlanetMars,
         PlanetJupiter,
         PlanetSaturn,
+        PlanetUranus,
+        PlanetNeptune,
         RiseAndSet,
         Distance,
         AstronomicalUnit,

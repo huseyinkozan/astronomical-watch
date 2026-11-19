@@ -4,7 +4,7 @@
 
 #include "Astronomy.h"
 
-// The five planets seen with the naked eye, and the Earth, from JPL's "Keplerian elements for
+// The planets and the Earth, from JPL's "Keplerian elements for
 // approximate positions of the major planets" (E. M. Standish, Table 1, valid 1800-2050) and
 // Kepler's equation. Plain C++ like Astronomy, checked against Skyfield with the DE421
 // ephemeris (tests/PlanetsTest.cpp).
@@ -19,6 +19,8 @@ public:
         Mars,
         Jupiter,
         Saturn,
+        Uranus,
+        Neptune,
         BodyCount
     };
 

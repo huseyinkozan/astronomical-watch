@@ -20,7 +20,7 @@ eph = load('de421.bsp')
 ts = load.timescale()
 
 BODIES = [('mercury', 'mercury'), ('venus', 'venus'), ('mars', 'mars'), ('jupiter', 'jupiter barycenter'),
-          ('saturn', 'saturn barycenter')]
+          ('saturn', 'saturn barycenter'), ('uranus', 'uranus barycenter'), ('neptune', 'neptune barycenter')]
 # As tools/make_astronomy_reference.py: name, latitude, longitude, UTC offset of the local day.
 PLACES = [('ankara', 39.93, 32.86, 3), ('istanbul', 41.01, 28.98, 3), ('tromso', 69.65, 18.96, 1),
           ('reykjavik', 64.15, -21.94, 0), ('sydney', -33.87, 151.21, 10), ('quito', -0.18, -78.47, -5),

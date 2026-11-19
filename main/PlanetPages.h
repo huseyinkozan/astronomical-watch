@@ -69,7 +69,7 @@ private:
 
     // The orbit radii and the bodies' places on the two drawings.
     Dot m_orbitDots[Planets::BodyCount] = {};
-    static const int SkyBodies = Planets::BodyCount + 1;  // the five planets, the Sun, the Moon
+    static const int SkyBodies = Planets::BodyCount + 1;  // the seven planets, the Sun, the Moon
     Dot m_skyDots[SkyBodies] = {};
 
     Planets::Day m_day = {};

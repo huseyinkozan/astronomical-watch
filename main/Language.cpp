@@ -189,6 +189,8 @@ static const char *s_texts[][2] = {
     { "Mars", "Mars" },
     { "Jupiter", "Jüpiter" },
     { "Saturn", "Satürn" },
+    { "Uranus", "Uranüs" },
+    { "Neptune", "Neptün" },
     { "Rise and set", "Doğuş ve batış" },
     { "Distance", "Uzaklık" },
     { "AU", "AB" },
