@@ -14,10 +14,9 @@ the watch from the date, time and location, no network.
   watch face · clock · information · **planets** · settings.
 - Four parts, stepped with a vertical swipe like the other stacked pages (`main/StackPage.*`),
   the page name ("Planets" / "Gezegenler") at the top:
-  1. **Solar system**: the Sun in the middle, the orbits of Mercury, Venus, Earth, Mars, Jupiter
-     and Saturn as thin dim circles, each body at its heliocentric ecliptic longitude. Radii on a
-     square-root scale of the mean distance, Saturn's orbit 180 px (Mercury 36, Venus 50, Earth 58,
-     Mars 72, Jupiter 133). Seen from the ecliptic's north: anticlockwise, the vernal equinox to
+  1. **Solar system**: the Sun in the middle, the orbits of the eight planets as thin dim circles,
+     each body at its heliocentric ecliptic longitude. Radii on a logarithmic scale of the mean
+     distance (changed from a square root, see Result): Mercury 30 px to Neptune 180 px. Seen from the ecliptic's north: anticlockwise, the vernal equinox to
      the right. Each planet a disc in its colour (Earth blue), Saturn with a thin ring; sizes only
      to tell them apart, not to scale. No text.
   2. **Sky**: the celestial sphere seen from the south as a circle of 160 px radius: the horizon
@@ -73,13 +72,19 @@ the watch from the date, time and location, no network.
 
 ## Result (2026-11-19)
 
-Built on branch `planets` (not pushed). Positions against Skyfield (DE421) over 2000–2050:
-Mercury 0.6′, Venus 0.5′, Mars 1.7′ (seen near opposition), Jupiter 0.9′, Saturn 1.7′ and
-0.018 AU; Jupiter and Saturn needed Schlyter's elements with the great-inequality terms (JPL's
-Table 1 alone: 5′ and 9′). Rise and set within 5 s at middle latitudes and 9 s at Tromsø and
-Reykjavik, the days without a rise or set matching. Interpolating the places through the day
-brought the day's computation from 1.7 s to 0.31 s on the watch. The page takes 3.3 KB of heap.
-The Turkish page name is "Gezegen": "Gezegenler" did not fit between the header line's bends.
+Built on branch `planets` (not pushed). After a preview the owner chose all eight planets on a
+logarithmic scale (Mercury's orbit 30 px, Neptune's 180 px) instead of the square root, and
+Uranus and Neptune on every part (small in the sky: the eye does not see them); Neptune violet,
+apart from the Earth's blue; distances from 10 AU with one decimal, so that the columns stay
+apart. Positions against Skyfield (DE421): the test's 13 moments give Mercury 0.6′, Venus 0.5′,
+Mars 1.7′, Jupiter 0.9′, Saturn 1.7′ (0.018 AU), Uranus 1.8′, Neptune 0.8′; the final review's
+check every 7 days over 2000–2050 found Venus 1.6′, Mars 3.3′ (near opposition) and Saturn 2.1′
+at worst, a few pixels' fraction on the sky circle. Jupiter and Saturn needed Schlyter's elements
+with the great-inequality terms (JPL's Table 1 alone: 5′ and 9′). Rise and set within 5 s at
+middle latitudes and 9 s at Tromsø and Reykjavik, the days without a rise or set matching.
+Interpolating the places through the day brought the day's computation from 1.7 s to 0.31 s for
+five planets (0.43 s for seven) on the watch. The page takes 3.3 KB of heap. The Turkish page
+name is "Gezegen": "Gezegenler" did not fit between the header line's bends.
 
 ## Decided by the builder (2026-11-19, for the owner to check)
 

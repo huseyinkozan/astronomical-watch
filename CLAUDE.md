@@ -222,9 +222,9 @@ in its flash partition. Read both over USB: `python tools/read_events.py`, then
   inside the swiped pages; sliding off a row cancels the tap. Five pages side by side:
   watch face, clock (world clock, stopwatch, countdown, Gregorian and Hijri
   calendars, day counters; `main/ClockPages.*`), information (sun, twilight, prayer times, moon,
-  compass, time, battery, about), planets (the solar system on a square-root scale, the sky seen
-  from the south, the day's rise and set, distances; `main/PlanetPages.*`, the day's rise and set
-  computed in the main task on the page's request, 0.3 s; design:
+  compass, time, battery, about), planets (the seven planets and the Earth: the solar system on a logarithmic scale, the sky
+  seen from the south, the day's rise and set, distances; `main/PlanetPages.*`, the day's rise and
+  set computed in the main task on the page's request, 0.4 s; design:
   `docs/superpowers/specs/2026-11-19-planets-design.md`) and settings (settings, more settings,
   what the portal set, setup portal, its QR code). A vertical swipe steps the face page on the watch face and the part on
   the stacked pages (`main/StackPage.*`); the pages keep `LV_EVENT_GESTURE` and do not scroll, and
@@ -235,8 +235,9 @@ in its flash partition. Read both over USB: `python tools/read_events.py`, then
   until the next wake (the Hijri month of a day chosen on the Gregorian one is computed then). Only the watch face and its neighbours are
   built at a PWR wake; a page is built when its neighbour is shown (`Display::ensureBuilt`): a
   glance at the time built 1.6 s of pages before (now 0.5 s), and the built pages left too little
-  heap for the portal's Wi-Fi. The information and settings pages are freed again far from the
-  shown page, and the information page while the portal runs (`Display::keepPages`); their
+  heap for the portal's Wi-Fi. The information, planets and settings pages are freed again far from
+  the shown page, and the information and planets pages while the portal runs unless shown
+  (`Display::keepPages`); their
   tables are one object per part (`main/TablePart.*`) and repeated looks share their styles
   (`main/Styles.*`), so that the internal heap stays free (docs/hardware.md). Marks along
   the right edge, in line with the corner gauges, show the position (`main/PageMarks.*`; on the

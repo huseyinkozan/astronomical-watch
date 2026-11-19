@@ -15,8 +15,8 @@ and the PWR key turns it on again.
 - Time and date
 - Sunrise, sunset, solar noon, civil/nautical/astronomical twilight, day length
 - Moon phase, illumination, age, moonrise and moonset
-- Planets: Mercury, Venus, Mars, Jupiter and Saturn in the solar system and in the sky, their rise
-  and set, their distance and light time
+- Planets: Mercury to Neptune in the solar system and in the sky, their rise and set, their
+  distance and light time
 - Gauges in the four screen corners, chosen in the setup portal: the battery, the day or night,
   the Moon's time above or below the horizon, its phase, the time to the next prayer, sunrise,
   sunset, moonrise or moonset, the week, month, Hijri month or year, a day counter, the Sun's
@@ -212,7 +212,7 @@ Each step is built, verified on the board and documented before the next one sta
     slots, the corner gauges chosen from a catalogue, and the always-on face drawn from the page
     (minute wake 0.25 s of app time on average); the picture mirrored for the other wrist.
 14. **Planets page** (done, unreleased): the solar system, the sky, rise and set and distances
-    of the five bright planets, computed on the watch within about an arcminute of JPL's DE421
+    of the seven planets, computed on the watch within a few arcminutes of JPL's DE421
     ephemeris.
 15. Vibration motor.
 16. Alarms (clock time and sun/moon events) and countdown timer, also set through the portal.

@@ -90,9 +90,6 @@ public:
 
     void showSetup( const Setup &setup );
 
-    // The astronomy pages: values of the local day and of this moment; the face's events,
-    // counters and cities. Also updates the face with the time of the last update(); `located`
-    // false: no location set yet (the face's sky slots stay empty).
     // The pages side by side (Display.cpp: face, clock, information, planets, settings).
     static const int PageSlots = 5;
 
@@ -102,6 +99,9 @@ public:
     bool takePlanetsRequest( int64_t &localMidnight, Astronomy::Observer &observer );
     void showPlanetsDay( const Planets::Day &day, int64_t localMidnight, const Astronomy::Observer &observer );
 
+    // The astronomy pages: values of the local day and of this moment; the face's events,
+    // counters and cities. Also updates the face with the time of the last update(); `located`
+    // false: no location set yet (the face's sky slots stay empty).
     void showSky( const Sky::Day &day, const Sky::Now &now, int utcOffsetMinutes, const FaceTable &table,
                   bool located );
 
