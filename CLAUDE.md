@@ -112,7 +112,7 @@ development builds `v0.0.1-3-gabc1234-dirty`. A new release is a new tag, pushed
     ignore the limit. What a pending alarm does at the limit is decided with the alarms.
 - Always-on must use the lowest-power approach the panel allows (low brightness, few lit pixels,
   idle or partial mode where they help), never a CPU that stays awake. Do not call any mode
-  low-power without evidence from the board (see "Power evaluation without external equipment").
+  low-power without evidence from the board (see "Power evaluation").
 - Deep-sleep wake sources: the PWR key (GPIO10, active high, EXT1), the minute timer in
   always-on and the alarm timer while an alarm is pending. In off mode the AXP2101 itself powers
   the watch on from the PWR key. Motion does not wake the watch: the QMI8658 is powered down
@@ -332,17 +332,21 @@ Tests that need the tester to act (press keys, move the watch) are written as a 
 then the saved log is analysed. Wake/sleep logging relies on `CONFIG_WATCH_DEV_LOGGING`; disable it
 for battery-life runs.
 
-### Power evaluation without external equipment
+### Power evaluation
 
-No current meter or power profiler is available, and the AXP2101 cannot measure battery current.
-Power-related changes are evaluated with on-board data instead:
+The AXP2101 cannot measure battery current. The owner has a meter (Mastech MY64, DC ranges 2,
+20 and 200 mA) that measures it in series with the battery's + lead, with a clip lead bridging
+the meter while the watch boots or wakes (docs/hardware.md, "Battery current measured with a
+meter"). The owner connects it; ask for a reading of a steady state: off, always-on between
+the minute wakes, active mode. It cannot follow the wakes themselves (a few hundred ms at tens
+of milliamps), so on-board data stay in use for averages over time:
 
 - Wake statistics kept in RTC memory: wakes per source, awake time per wake
   (`esp_timer`), refused sleep entries.
 - Battery voltage and gauge percentage logged over long runs on battery only (USB charges the battery).
-- An energy budget estimated from datasheet currents and the measured awake time.
+- An energy budget from the measured currents, datasheet values and the measured awake time.
 
-Report such results as estimates, never as measured current.
+Report meter readings as measured currents; slopes and budgets as estimates.
 
 Battery drain runs use separate builds, so the committed `sdkconfig` stays unchanged
 (`sdkconfig.battery` enables the timer log; add `sdkconfig.noquiesce` for a baseline run):
