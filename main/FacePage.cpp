@@ -85,6 +85,9 @@ void FacePage::build( lv_obj_t *tile )
     lv_obj_add_event_cb( m_segments, onDrawSegments, LV_EVENT_DRAW_MAIN, this );
     m_analog = createBox( m_root, 1, 1 );
     lv_obj_add_event_cb( m_analog, onDrawAnalog, LV_EVENT_DRAW_MAIN, this );
+    m_noTime = createLabel( m_root, &jetbrains_mono_26, lv_color_white() );
+    lv_label_set_text( m_noTime, "--:--" );
+    lv_obj_set_hidden( m_noTime, true );
 
     for ( int i = 0; i < FaceConfig::TextSlotCount; ++i ) {
         m_texts[i] = createLabel( m_root, &jetbrains_mono_26, i == FaceConfig::TopEdge || i == FaceConfig::BottomEdge
@@ -150,6 +153,7 @@ void FacePage::apply()
     // A margin for the hands' round ends.
     lv_obj_set_size( m_analog, 2 * m_analogRadius + 16, 2 * m_analogRadius + 16 );
     centreAt( m_analog, FaceConfig::CentreX, m_clockY );
+    centreAt( m_noTime, FaceConfig::CentreX, m_clockY );
     lv_obj_set_hidden( m_arcs, m_page.layout == FaceConfig::Large );
     m_skyMinute = -1;
     placeSky();
@@ -193,8 +197,10 @@ void FacePage::update( const FaceText::Inputs &inputs )
         return;
     }
     const bool timeValid = inputs.timeValid;
+    // Without a valid time (the clock never set, as after the battery was unplugged) the clock
+    // shows dashes, so that the face does not look stuck.
     if ( !timeValid ) {
-        lv_label_set_text( m_mono, "" );
+        lv_label_set_text( m_mono, "--:--" );
     } else if ( inputs.hour != m_hour || inputs.minute != m_minute ) {
         lv_label_set_text_fmt( m_mono, "%02d:%02d", inputs.hour, inputs.minute );
     }
@@ -207,6 +213,7 @@ void FacePage::update( const FaceText::Inputs &inputs )
     m_hour = timeValid ? inputs.hour : -1;
     m_minute = timeValid ? inputs.minute : -1;
     m_second = timeValid ? inputs.second : -1;
+    lv_obj_set_hidden( m_noTime, timeValid || m_page.clock != FaceConfig::AnalogClock );
 
     char text[64];
     const int advance = lv_font_get_glyph_width( &jetbrains_mono_26, 'M', 0 );
@@ -469,9 +476,6 @@ void FacePage::onDrawAnalog( lv_event_t *event )
 void FacePage::onDrawSegments( lv_event_t *event )
 {
     const FacePage *face = static_cast<FacePage *>( lv_event_get_user_data( event ) );
-    if ( face->m_hour < 0 ) {
-        return;
-    }
     lv_layer_t *layer = lv_event_get_layer( event );
     lv_area_t area;
     lv_obj_get_coords( face->m_segments, &area );
@@ -479,7 +483,13 @@ void FacePage::onDrawSegments( lv_event_t *event )
     float digitX[4] = {};
     float colonX = 0;
     SevenSegment::layout( height, digitX, colonX );
-    const int digits[4] = { face->m_hour / 10, face->m_hour % 10, face->m_minute / 10, face->m_minute % 10 };
+    int digits[4] = { SevenSegment::Dash, SevenSegment::Dash, SevenSegment::Dash, SevenSegment::Dash };
+    if ( face->m_hour >= 0 ) {
+        digits[0] = face->m_hour / 10;
+        digits[1] = face->m_hour % 10;
+        digits[2] = face->m_minute / 10;
+        digits[3] = face->m_minute % 10;
+    }
     for ( int d = 0; d < 4; ++d ) {
         SevenSegment::Hexagon hexagons[7];
         const int count = SevenSegment::segments( digits[d], height, hexagons );

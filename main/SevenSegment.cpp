@@ -1,7 +1,8 @@
 #include "SevenSegment.h"
 
 // Segments a to g in bits 0 to 6.
-static const unsigned char s_digits[10] = { 0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F };
+// Segment bits a (top) to g (middle) of 0 to 9, then the dash.
+static const unsigned char s_digits[11] = { 0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F, 0x40 };
 static const float s_widthShare = 0.62f;
 static const float s_pairGapShare = 0.16f;
 static const float s_colonGapShare = 0.18f;
@@ -29,7 +30,7 @@ float SevenSegment::digitWidth( float height )
 
 int SevenSegment::segments( int digit, float height, Hexagon out[7] )
 {
-    if ( digit < 0 || digit > 9 ) {
+    if ( digit < 0 || digit > Dash ) {
         return 0;
     }
     const float w = digitWidth( height );

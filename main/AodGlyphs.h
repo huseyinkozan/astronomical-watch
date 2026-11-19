@@ -21,7 +21,7 @@ typedef struct
 // The digits and the colon of a digital clock at the Large template's size.
 typedef struct
 {
-    AodGlyph digits[10];
+    AodGlyph digits[11];  // 0 to 9, then the dash of "--:--" (no valid time): AOD_DASH
     AodGlyph colon;
     // Top-left corners of the two hour digits, the colon and the two minute digits in the time
     // block.
@@ -38,7 +38,8 @@ enum
     AOD_SIZE_LARGE = 0,
     AOD_SIZE_MEDIUM = 1,
     AOD_STYLE_COUNT = 4,
-    AOD_SMALL_COUNT = 108
+    AOD_SMALL_COUNT = 108,
+    AOD_DASH = 10
 };
 
 extern const AodStyle aodStyles[AOD_STYLE_COUNT];

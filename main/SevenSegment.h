@@ -20,8 +20,11 @@ public:
 
     static float digitWidth( float height );
 
-    // The lit segments of `digit` (0 to 9) with the digit's top-left corner at (0, 0); returns
-    // how many.
+    // A dash in place of a digit: the clock without a valid time shows "--:--".
+    static const int Dash = 10;
+
+    // The lit segments of `digit` (0 to 9, or Dash) with the digit's top-left corner at (0, 0);
+    // returns how many.
     static int segments( int digit, float height, Hexagon out[7] );
 
     // The side of the colon's squares, which sit at 0.3 and 0.7 of the height.

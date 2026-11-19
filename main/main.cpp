@@ -114,6 +114,8 @@ static char s_hostLine[32];
 // watch's location: Istanbul on 2026-06-21 at 19:19 local time (UTC+3), the local Hijri method.
 // The settings are not changed, so that nothing of it reaches NVS.
 [[maybe_unused]] static bool s_scene = false;
+// Development: the faces drawn as without a valid time ("Z"), for screenshots of "--:--".
+[[maybe_unused]] static bool s_noTime = false;
 [[maybe_unused]] static const int s_sceneInputs[5] = { 41008200, 28978400, 180, 0, 17 };
 [[maybe_unused]] static const Rtc::DateTime s_sceneTime = { 2026, 6, 21, 16, 19, 0 };
 static int s_hostLineLength = 0;
@@ -129,7 +131,8 @@ static int s_hostLineLength = 0;
 // sets its template, "C <corner> <item> <parameter>" a corner gauge (none saved); "O" ends active mode as a
 // PWR press does; "U <0|1>" sets the PWR key's internal pull-up; "K" shows the brightness
 // control; "X <hex> <gap>" sets the panel's MADCTL and column gap (guided test "mirror"); "V <altitude>
-// <azimuth> <sun altitude>" puts the galactic centre and the Sun there for the face. Only
+// <azimuth> <sun altitude>" puts the galactic centre and the Sun there for the face; "Z" draws the
+// faces as without a valid time ("--:--"), again "Z" with it. Only
 // "E" (the event log, read by tools/read_events.py) also works without CONFIG_WATCH_DEV_LOGGING.
 // Returns true when a command arrived: like a touch, it restarts the display timeout, so that
 // the watch stays in active mode while tools/screenshot.py works.
@@ -184,7 +187,7 @@ static bool pollHostCommands()
         int style = 0;
         if ( sscanf( s_hostLine, "A %d", &style ) == 1 ) {
             fillLook( style );
-            AlwaysOn::capture( s_look, style );
+            AlwaysOn::capture( s_look, style, !s_noTime );
             continue;
         }
         if ( sscanf( s_hostLine, "F %d", &style ) == 1 ) {
@@ -263,6 +266,10 @@ static bool pollHostCommands()
         if ( s_hostLine[0] == 'O' && s_hostLine[1] == '\0' ) {
             // As a PWR press: active mode ends (a measurement of the minute wakes on USB).
             s_hostEndActive = true;
+            continue;
+        }
+        if ( s_hostLine[0] == 'Z' && s_hostLine[1] == '\0' ) {
+            s_noTime = !s_noTime;
             continue;
         }
         if ( s_hostLine[0] == 'D' && s_hostLine[1] == '\0' ) {
@@ -541,7 +548,7 @@ static void updateDisplay()
     }
 #endif
     const Rtc::DateTime local = Rtc::addMinutes( time, inputs[2] );
-    s_display.update( local, inputs[2], battery, timeValid || s_scene );
+    s_display.update( local, inputs[2], battery, ( timeValid || s_scene ) && !s_noTime );
     // The clock page's Hijri calendar asks for a month now and then (up to 1 s of computation).
     ClockPages::HijriRequest request = {};
     if ( local.month != 0 && s_display.takeHijriRequest( request ) ) {
@@ -1043,7 +1050,7 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
     }
     const int offsetMinutes = Zones::offsetAt( s_alwaysOnZone, unixTime( time ) );
     const uint64_t sleepUs = s_alwaysOn.update( Rtc::addMinutes( time, offsetMinutes ), unixTime( time ),
-                                                timeRead, batteryPercent, charging );
+                                                timeRead, !oscillatorStopped, batteryPercent, charging );
     // Without the device the readings fail, which the motion check counts as no motion.
     s_motion.init( bus );
 #if CONFIG_WATCH_MOTION_LOG

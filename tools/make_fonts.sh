@@ -2,7 +2,8 @@
 # Generates the LVGL fonts in main/fonts/ from JetBrains Mono (tools/fonts/, SIL Open Font
 # License): Regular 26 and 48 px with ASCII, the degree sign and the Turkish letters (a monospaced
 # font, so that numbers line up in columns), and the large digits of the watch faces (Light 110
-# and 90, and 64 for the arc templates: only 0-9 and the colon). Needs Node.js: npx fetches lv_font_conv.
+# and 90, and 64 for the arc templates: only 0-9, the colon and the dash of "--:--" without a valid
+# time). Needs Node.js: npx fetches lv_font_conv.
 set -e
 cd "$(dirname "$0")/.."
 font=tools/fonts/JetBrainsMono-Regular.ttf
@@ -17,6 +18,6 @@ for spec in Light:110 Light:90 Light:64; do
     weight=${spec%%:*}
     size=${spec##*:}
     name=jetbrains_mono_$(echo "$weight" | tr 'A-Z' 'a-z')_$size
-    npx -y lv_font_conv@1.5.3 --font "tools/fonts/JetBrainsMono-$weight.ttf" --range 0x30-0x3A --size "$size" \
+    npx -y lv_font_conv@1.5.3 --font "tools/fonts/JetBrainsMono-$weight.ttf" --range 0x2D,0x30-0x3A --size "$size" \
         --bpp 4 --no-compress --format lvgl --lv-include lvgl.h --lv-font-name "$name" -o "main/fonts/$name.c"
 done

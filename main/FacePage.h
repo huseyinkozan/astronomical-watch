@@ -41,6 +41,7 @@ private:
 
     lv_obj_t *m_root = nullptr;
     lv_obj_t *m_mono = nullptr;      // HH:MM in JetBrains Mono
+    lv_obj_t *m_noTime = nullptr;    // "--:--" in the analog dial while the clock was never set
     lv_obj_t *m_segments = nullptr;  // HH:MM in seven segments (onDrawSegments)
     lv_obj_t *m_analog = nullptr;    // the analog clock (onDrawAnalog)
     lv_obj_t *m_arcs = nullptr;      // the orbits or the paths and the Milky Way (onDrawArcs)

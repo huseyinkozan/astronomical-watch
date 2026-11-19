@@ -1,7 +1,7 @@
 /*******************************************************************************
  * Size: 90 px
  * Bpp: 4
- * Opts: --font tools/fonts/JetBrainsMono-Light.ttf --range 0x30-0x3A --size 90 --bpp 4 --no-compress --format lvgl --lv-include lvgl.h --lv-font-name jetbrains_mono_light_90 -o main/fonts/jetbrains_mono_light_90.c
+ * Opts: --font tools/fonts/JetBrainsMono-Light.ttf --range 0x2D,0x30-0x3A --size 90 --bpp 4 --no-compress --format lvgl --lv-include lvgl.h --lv-font-name jetbrains_mono_light_90 -o main/fonts/jetbrains_mono_light_90.c
  ******************************************************************************/
 
 #ifdef LV_LVGL_H_INCLUDE_SIMPLE
@@ -22,6 +22,22 @@
 
 /*Store the image of the glyphs*/
 static LV_ATTRIBUTE_LARGE_CONST const uint8_t glyph_bitmap[] = {
+    /* U+002D "-" */
+    0x26, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
+    0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x62, 0x6f,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xf6, 0x6f, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xf6, 0x6f, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xf6, 0x6f, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xf6, 0x6f, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xf6, 0x6f, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xf6,
+
     /* U+0030 "0" */
     0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
     0x1, 0x22, 0x22, 0x10, 0x0, 0x0, 0x0, 0x0,
@@ -1836,31 +1852,35 @@ static LV_ATTRIBUTE_LARGE_CONST const uint8_t glyph_bitmap[] = {
 
 static const lv_font_fmt_txt_glyph_dsc_t glyph_dsc[] = {
     {.bitmap_index = 0, .adv_w = 0, .box_w = 0, .box_h = 0, .ofs_x = 0, .ofs_y = 0} /* id = 0 reserved */,
-    {.bitmap_index = 0, .adv_w = 864, .box_w = 40, .box_h = 69, .ofs_x = 7, .ofs_y = -1},
-    {.bitmap_index = 1380, .adv_w = 864, .box_w = 41, .box_h = 67, .ofs_x = 8, .ofs_y = 0},
-    {.bitmap_index = 2754, .adv_w = 864, .box_w = 41, .box_h = 68, .ofs_x = 7, .ofs_y = 0},
-    {.bitmap_index = 4148, .adv_w = 864, .box_w = 40, .box_h = 68, .ofs_x = 6, .ofs_y = -1},
-    {.bitmap_index = 5508, .adv_w = 864, .box_w = 38, .box_h = 67, .ofs_x = 6, .ofs_y = 0},
-    {.bitmap_index = 6781, .adv_w = 864, .box_w = 39, .box_h = 68, .ofs_x = 7, .ofs_y = -1},
-    {.bitmap_index = 8107, .adv_w = 864, .box_w = 42, .box_h = 68, .ofs_x = 6, .ofs_y = -1},
-    {.bitmap_index = 9535, .adv_w = 864, .box_w = 42, .box_h = 67, .ofs_x = 7, .ofs_y = 0},
-    {.bitmap_index = 10942, .adv_w = 864, .box_w = 42, .box_h = 69, .ofs_x = 6, .ofs_y = -1},
-    {.bitmap_index = 12391, .adv_w = 864, .box_w = 42, .box_h = 68, .ofs_x = 6, .ofs_y = 0},
-    {.bitmap_index = 13819, .adv_w = 864, .box_w = 16, .box_h = 52, .ofs_x = 19, .ofs_y = -1}
+    {.bitmap_index = 0, .adv_w = 864, .box_w = 30, .box_h = 7, .ofs_x = 12, .ofs_y = 27},
+    {.bitmap_index = 105, .adv_w = 864, .box_w = 40, .box_h = 69, .ofs_x = 7, .ofs_y = -1},
+    {.bitmap_index = 1485, .adv_w = 864, .box_w = 41, .box_h = 67, .ofs_x = 8, .ofs_y = 0},
+    {.bitmap_index = 2859, .adv_w = 864, .box_w = 41, .box_h = 68, .ofs_x = 7, .ofs_y = 0},
+    {.bitmap_index = 4253, .adv_w = 864, .box_w = 40, .box_h = 68, .ofs_x = 6, .ofs_y = -1},
+    {.bitmap_index = 5613, .adv_w = 864, .box_w = 38, .box_h = 67, .ofs_x = 6, .ofs_y = 0},
+    {.bitmap_index = 6886, .adv_w = 864, .box_w = 39, .box_h = 68, .ofs_x = 7, .ofs_y = -1},
+    {.bitmap_index = 8212, .adv_w = 864, .box_w = 42, .box_h = 68, .ofs_x = 6, .ofs_y = -1},
+    {.bitmap_index = 9640, .adv_w = 864, .box_w = 42, .box_h = 67, .ofs_x = 7, .ofs_y = 0},
+    {.bitmap_index = 11047, .adv_w = 864, .box_w = 42, .box_h = 69, .ofs_x = 6, .ofs_y = -1},
+    {.bitmap_index = 12496, .adv_w = 864, .box_w = 42, .box_h = 68, .ofs_x = 6, .ofs_y = 0},
+    {.bitmap_index = 13924, .adv_w = 864, .box_w = 16, .box_h = 52, .ofs_x = 19, .ofs_y = -1}
 };
 
 /*---------------------
  *  CHARACTER MAPPING
  *--------------------*/
 
-
+static const uint8_t glyph_id_ofs_list_0[] = {
+    0, 0, 0, 1, 2, 3, 4, 5,
+    6, 7, 8, 9, 10, 11
+};
 
 /*Collect the unicode lists and glyph_id offsets*/
 static const lv_font_fmt_txt_cmap_t cmaps[] =
 {
     {
-        .range_start = 48, .range_length = 11, .glyph_id_start = 1,
-        .unicode_list = NULL, .glyph_id_ofs_list = NULL, .list_length = 0, .type = LV_FONT_FMT_TXT_CMAP_FORMAT0_TINY
+        .range_start = 45, .range_length = 14, .glyph_id_start = 1,
+        .unicode_list = NULL, .glyph_id_ofs_list = glyph_id_ofs_list_0, .list_length = 14, .type = LV_FONT_FMT_TXT_CMAP_FORMAT0_FULL
     }
 };
 

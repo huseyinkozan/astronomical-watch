@@ -54,6 +54,17 @@ int main()
     check( "digits in order", x[0] == 0 && x[1] > x[0] + width && x[2] > colonX && x[3] > x[2] + width );
     check( "last digit ends at the block's width", std::fabs( x[3] + width - SevenSegment::timeWidth( height ) ) < 0.01f );
 
+    // Without a valid time the clock shows dashes: the middle segment alone.
+    check( "a dash lights one segment", SevenSegment::segments( SevenSegment::Dash, height, hexagons ) == 1 );
+    float dashTop = height;
+    float dashBottom = 0;
+    for ( int p = 0; p < 6; ++p ) {
+        dashTop = std::fmin( dashTop, hexagons[0].p[p].y );
+        dashBottom = std::fmax( dashBottom, hexagons[0].p[p].y );
+    }
+    check( "the dash is the middle segment", std::fabs( ( dashTop + dashBottom ) / 2 - height / 2 ) < 0.5f );
+    check( "a value beyond the dash lights nothing", SevenSegment::segments( 11, height, hexagons ) == 0 );
+
     printf( "Seven segment: %d checks, %d failures\n", s_checks, s_failures );
     return s_failures == 0 ? 0 : 1;
 }

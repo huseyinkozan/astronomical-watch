@@ -175,15 +175,19 @@ static void addSmallText( AlwaysOn::Face &face, const char *text, int centreX, i
     }
 }
 
-// HH:MM of the page's digit style, centred on the template's clock line `centreY`.
-static void addClock( AlwaysOn::Face &face, const AodStyle &style, int centreY, const Rtc::DateTime &time )
+// HH:MM of the page's digit style, centred on the template's clock line `centreY`; "--:--" when
+// the clock was never set.
+static void addClock( AlwaysOn::Face &face, const AodStyle &style, int centreY, const Rtc::DateTime &time, bool timeSet )
 {
     // Even, so that the dots of the seven segments fall on the same grid in every minute.
     const int left = ( FaceConfig::CentreX - style.width / 2 ) & ~1;
     const int top = ( centreY - style.height / 2 ) & ~1;
-    const int digits[4] = { time.hour / 10, time.hour % 10, time.minute / 10, time.minute % 10 };
+    int digits[4] = { time.hour / 10, time.hour % 10, time.minute / 10, time.minute % 10 };
     const int places[4] = { 0, 1, 3, 4 };
     for ( int i = 0; i < 4; ++i ) {
+        if ( !timeSet ) {
+            digits[i] = AOD_DASH;
+        }
         addSprite( face, left + style.x[places[i]], top + style.y[places[i]], &style.digits[digits[i]],
                    AlwaysOn::White );
     }
@@ -210,8 +214,10 @@ static void addWeekday( AlwaysOn::Face &face, int cx, int cy, int weekday )
     addSmallText( face, letter, cx, cy, AlwaysOn::White );
 }
 
-// The analog clock of the page's style without the seconds hand (one bit per colour: all white).
-static void addAnalog( AlwaysOn::Face &face, int style, const FaceConfig::ClockPlace &place, const Rtc::DateTime &time )
+// The analog clock of the page's style without the seconds hand (one bit per colour: all white);
+// the marks and "--:--" when the clock was never set.
+static void addAnalog( AlwaysOn::Face &face, int style, const FaceConfig::ClockPlace &place, const Rtc::DateTime &time,
+                       bool timeSet )
 {
     AnalogClock::Segment segments[AnalogClock::MaxSegments];
     const int count = AnalogClock::segments( style, static_cast<float>( place.analogRadius ), time.hour, time.minute, 0,
@@ -220,9 +226,17 @@ static void addAnalog( AlwaysOn::Face &face, int style, const FaceConfig::ClockP
     const int cy = place.centreY;
     for ( int i = 0; i < count; ++i ) {
         const AnalogClock::Segment &segment = segments[i];
+        const bool mark = segment.role == AnalogClock::MajorMark || segment.role == AnalogClock::MinorMark;
+        if ( !mark && !timeSet ) {
+            continue;
+        }
         addShape( face, AlwaysOn::LineShape, AlwaysOn::White, cx + static_cast<int>( lroundf( segment.x0 ) ),
                   cy + static_cast<int>( lroundf( segment.y0 ) ), 0, static_cast<int>( segment.width ),
                   cx + static_cast<int>( lroundf( segment.x1 ) ), cy + static_cast<int>( lroundf( segment.y1 ) ) );
+    }
+    if ( !timeSet ) {
+        addSmallText( face, "--:--", cx, cy, AlwaysOn::White );
+        return;
     }
     addShape( face, AlwaysOn::DiscShape, AlwaysOn::White, cx, cy, 6 );
 }
@@ -376,7 +390,8 @@ static bool usesItem( const FaceConfig::Page &page, int textItem, int cornerItem
     return false;
 }
 
-const AlwaysOn::Face &AlwaysOn::layout( const Look &look, const Rtc::DateTime &time, int64_t utcNow, int batteryPercent )
+const AlwaysOn::Face &AlwaysOn::layout( const Look &look, const Rtc::DateTime &time, int64_t utcNow, int batteryPercent,
+                                        bool timeSet )
 {
     Language::set( look.language );
     Face &face = s_face;
@@ -394,13 +409,13 @@ const AlwaysOn::Face &AlwaysOn::layout( const Look &look, const Rtc::DateTime &t
     }
     const int size = page.layout == FaceConfig::Large ? AOD_SIZE_LARGE : AOD_SIZE_MEDIUM;
     if ( page.clock == FaceConfig::DigitalClock && page.digital < 2 ) {
-        addClock( face, aodStyles[size * 2 + page.digital], place.centreY, time );
+        addClock( face, aodStyles[size * 2 + page.digital], place.centreY, time, timeSet );
     } else if ( page.clock == FaceConfig::AnalogClock ) {
-        addAnalog( face, page.analog, place, time );
+        addAnalog( face, page.analog, place, time, timeSet );
     }
 
     FaceText::Inputs in = {};
-    in.timeValid = dateValid( time );
+    in.timeValid = timeSet && dateValid( time );
     in.year = time.year;
     in.month = time.month;
     in.day = time.day;
@@ -730,11 +745,11 @@ static void computeGauges( const AlwaysOn::Look &look, int64_t utcNow, int offse
 }
 
 #if CONFIG_WATCH_DEV_LOGGING
-void AlwaysOn::capture( const Look &look, int page )
+void AlwaysOn::capture( const Look &look, int page, bool timeSet )
 {
     const Rtc::DateTime time = { 2026, 6, 21, 19, 19, 0 };
     const int64_t utcNow = static_cast<int64_t>( Dates::dayNumber( 2026, 6, 21 ) ) * 86400 + ( 19 * 60 + 19 - 180 ) * 60;
-    const Face &face = layout( look, time, utcNow, 92 );
+    const Face &face = layout( look, time, utcNow, 92, timeSet );
     // The chosen gauges at the scene's moment, the battery at 92 %.
     Corners::Gauge gauges[Corners::CornerCount] = {};
     computeGauges( look, utcNow, 180, 92, false, gauges );
@@ -783,7 +798,7 @@ int AlwaysOn::minutes() const
     return s_minutes;
 }
 
-uint64_t AlwaysOn::update( const Rtc::DateTime &time, int64_t utcNow, bool timeRead, int batteryPercent,
+uint64_t AlwaysOn::update( const Rtc::DateTime &time, int64_t utcNow, bool timeRead, bool timeSet, int batteryPercent,
                            bool charging )
 {
     // A failed or corrupt read must not turn into a long sleep: try again in a minute.
@@ -839,7 +854,7 @@ uint64_t AlwaysOn::update( const Rtc::DateTime &time, int64_t utcNow, bool timeR
         s_screenCleared = true;
     }
 
-    const Face &face = layout( look, shown, shownUtc, batteryPercent );
+    const Face &face = layout( look, shown, shownUtc, batteryPercent, timeSet );
 #if CONFIG_WATCH_AOD_CYCLE_MIN > 0
     // System time runs from power-on through deep sleep, as in the battery samples.
     timeval now = {};

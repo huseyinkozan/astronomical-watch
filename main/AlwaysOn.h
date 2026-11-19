@@ -111,9 +111,10 @@ public:
     };
 
     // Places the face's bitmaps and shapes for the local time `time` (`utcNow` the same moment as
-    // Unix time; `batteryPercent` < 0: unknown). The face is kept in a static buffer until the
-    // next call (it is too large for the main task's stack).
-    static const Face &layout( const Look &look, const Rtc::DateTime &time, int64_t utcNow, int batteryPercent );
+    // Unix time; `batteryPercent` < 0: unknown; `timeSet` false: the clock shows "--:--"). The face
+    // is kept in a static buffer until the next call (it is too large for the main task's stack).
+    static const Face &layout( const Look &look, const Rtc::DateTime &time, int64_t utcNow, int batteryPercent,
+                               bool timeSet );
 
     // The idle-mode colour of a corner gauge, or -1 when it draws nothing.
     static int gaugeColour( Corners::Kind kind );
@@ -133,9 +134,11 @@ public:
     // Timer wake: draws the face for `time` (local; `utcNow` the same moment as Unix time) and
     // returns the microseconds until just after the next minute, or 0 when the face cannot go on
     // (the panel failed, or no valid time for s_maxFailedMinutes). Without a valid time it draws
-    // nothing and asks for another wake in a minute. `batteryPercent` < 0: unknown; `charging`
-    // draws the battery gauge's part above its value white.
-    uint64_t update( const Rtc::DateTime &time, int64_t utcNow, bool timeRead, int batteryPercent, bool charging );
+    // nothing and asks for another wake in a minute. `timeSet` false: the clock runs but was never
+    // set (its oscillator stopped, as after the battery was unplugged): the face shows "--:--".
+    // `batteryPercent` < 0: unknown; `charging` draws the battery gauge's part above its value white.
+    uint64_t update( const Rtc::DateTime &time, int64_t utcNow, bool timeRead, bool timeSet, int batteryPercent,
+                     bool charging );
 
 #if CONFIG_WATCH_AOD_CYCLE_MIN > 0
     // Battery run V: 0 when the face is shown `seconds` after power-on, -1 for the blank face.
@@ -146,7 +149,7 @@ public:
     // Development screenshot (tools/screenshot.py): `look` (face page `page`) at 19:19 on Sunday
     // 21 June, with the corner gauges of that moment in Istanbul and the battery at 92 %, written
     // to the console instead of drawn. A fixed scene keeps the published picture unchanged.
-    static void capture( const Look &look, int page );
+    static void capture( const Look &look, int page, bool timeSet );
 
     // The galactic centre's altitude and azimuth and the Sun's altitude for the Milky Way from
     // now on (a picture of the band; the fixed scene's centre is below the horizon).

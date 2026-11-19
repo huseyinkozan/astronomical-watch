@@ -32,7 +32,8 @@ LARGE_HEIGHT = 122
 # The arc templates' digits (FaceConfig::clockPlace).
 MEDIUM_HEIGHT = 64
 
-SEGMENTS = [0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F]
+# 0 to 9, then the dash of "--:--" (no valid time), as main/SevenSegment.cpp.
+SEGMENTS = [0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F, 0x40]
 
 
 def font(weight, size):
@@ -67,7 +68,7 @@ def monoStyle(weight, size):
     """HH:MM in monospaced cells, as an LVGL label of the same font shows it."""
     fnt = font(weight, size)
     origin = (size // 2, size * 3 // 2)
-    digits, box = renderText(fnt, '0123456789')
+    digits, box = renderText(fnt, '0123456789-')
     colonImage = Image.new('L', (size * 2, size * 2), 0)
     ImageDraw.Draw(colonImage).text(origin, ':', font=fnt, fill=255, anchor='ls')
     colonImage = threshold(colonImage)
@@ -155,7 +156,7 @@ def segmentStyle(h):
     pairGap = 0.16 * w
     colonGap = 0.18 * w
     side = h / 11
-    digits = [segmentDigit(d, h) for d in range(10)]
+    digits = [segmentDigit(d, h) for d in range(11)]
     colon = segmentColon(h)
     x2 = 2 * w + pairGap + 2 * colonGap + side
     x = [0, even(w + pairGap), even(2 * w + pairGap + colonGap), even(x2), even(x2 + w + pairGap)]
