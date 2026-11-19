@@ -699,7 +699,16 @@ speaker's impedance, size and response are published nowhere (Waveshare: "onboar
     positions. The speaker gives about 12 dB more at 1–1.5 kHz than at 2.7 kHz for the same
     signal (the phone's microphone response is not known; the ear is a few dB more sensitive
     at 3–4 kHz).
-  - Battery currents not yet measured (meter not connected).
+- Battery current while playing [HW] (2026-11-19, meter in the battery's + lead, development
+  build, active mode with the display on, `CONFIG_WATCH_SOUND_TEST`): on the 200 mA range the
+  base 37.6 mA, the codec started (DAC, ADC side off) 51.6 mA (+14.0), the amplifier on without
+  signal 57.8 mA (+6.2), 2700 Hz at -30/-24/-18/-12 dB 64.6/66.3/72.6/96.8 mA; at -6 dB the
+  screen flickered and the board browned out (the 200 mA range's burden voltage). On the 10 A
+  input (resolution 10 mA): base 0.03 A, 2700 Hz -12 dB 0.08 A, -6 dB **0.17 A**, and 0 dB
+  browned the board out twice. The owner's clip leads are of doubtful resistance, so the series
+  path had more than the cell's own resistance; the owner advised against further readings with
+  them. Conclusions: full scale is not safe on this board; a ringing of 60 s at -6 dB costs about
+  2-2.5 mAh (estimate), and the current peak, not the energy, limits the level at a low cell.
 - The alarm sound (`main/Ringer.*`, chosen from these measurements, 2026-11-19): beeps of 100 ms
   every 250 ms alternating 1000 and 1500 Hz, from -18 dB rising 3 dB every 2 s to -6 dB, at most
   60 s, the codec's ADC side powered down (0x0E `0x6A`, 0x0D `0x31` read back after start), the

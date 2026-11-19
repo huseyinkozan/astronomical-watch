@@ -1639,42 +1639,32 @@ static void soundTest()
     soundSweep( sound );
     return;
 #endif
+    // Second meter run (10 A input; 2026-11-19 the 200 mA range's burden voltage browned the
+    // board out at -6 dB): the loud steps, with two steps of the first run to compare.
     showTestStep( "1 base" );
     vTaskDelay( pdMS_TO_TICKS( s_stepMs ) );
-    showTestStep( "2 codec" );
     if ( sound.start() != ESP_OK ) {
         showTestStep( "no codec" );
         vTaskDelay( pdMS_TO_TICKS( 5000 ) );
         return;
     }
-    sound.silence( s_stepMs );
-    showTestStep( "3 amp" );
     sound.setAmplifier( true );
-    sound.silence( s_stepMs );
-    // Quiet first, full scale last of the levels: 0 dB rang in the owner's ears across the room.
-    testTone( sound, "4 2700 -30dB", 2700, 0x83, false );
-    testTone( sound, "5 2700 -24dB", 2700, 0x8F, false );
-    testTone( sound, "6 2700 -18dB", 2700, 0x9B, false );
-    testTone( sound, "7 2700 -12dB", 2700, 0xA7, false );
-    testTone( sound, "8 2700 -6dB", 2700, 0xB3, false );
-    testTone( sound, "9 2700 0dB", 2700, 0xBF, false );
-    testTone( sound, "10 square -12", 2700, 0xA7, true );
-    testTone( sound, "11 1000 -12", 1000, 0xA7, false );
-    testTone( sound, "12 2000 -12", 2000, 0xA7, false );
-    testTone( sound, "13 3500 -12", 3500, 0xA7, false );
-    testTone( sound, "14 4000 -12", 4000, 0xA7, false );
-    showTestStep( "15 beeps -12" );
-    sound.setVolume( 0xA7 );
-    // Four beeps of 100 ms each second.
-    for ( int second = 0; second < s_stepMs / 1000; ++second ) {
-        for ( int beep = 0; beep < 4; ++beep ) {
-            sound.tone( 2700, 100, false );
-            sound.silence( 150 );
-        }
+    sound.silence( 200 );
+    testTone( sound, "2 2700 -12", 2700, 0xA7, false );
+    testTone( sound, "3 2700 -6", 2700, 0xB3, false );
+    testTone( sound, "4 2700 0dB", 2700, 0xBF, false );
+    // The alarm's own sound at its loudest (Ringer: 1000/1500 Hz beeps, -6 dB).
+    showTestStep( "5 alarm -6" );
+    sound.setVolume( 0xB3 );
+    for ( int beep = 0; beep < s_stepMs / 250; ++beep ) {
+        sound.tone( beep % 2 == 0 ? 1000 : 1500, 100, false );
+        sound.silence( 150 );
     }
-    sound.lowPowerCodec();
-    testTone( sound, "16 low pwr -12", 2700, 0xA7, false );
-    showTestStep( "17 off" );
+    testTone( sound, "6 1000 -6", 1000, 0xB3, false );
+    testTone( sound, "7 1500 -6", 1500, 0xB3, false );
+    testTone( sound, "8 1000 -12", 1000, 0xA7, false );
+    testTone( sound, "9 1500 -12", 1500, 0xA7, false );
+    showTestStep( "10 off" );
     sound.stop();
     vTaskDelay( pdMS_TO_TICKS( s_stepMs ) );
     showTestStep( "end" );
