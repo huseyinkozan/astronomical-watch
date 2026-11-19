@@ -165,6 +165,51 @@ int main( int argc, char **argv )
         failures += ok ? 0 : 1;
     }
 
+    // The places on the arc faces (tests/planet_arcs.csv, tools/make_planet_arcs.py): the faces'
+    // rule for the Sun and the Moon on Skyfield's rise and set times, within 2 degrees (the hour
+    // angle stands for the time, and the planet moves a little meanwhile).
+    FILE *arcs = std::fopen( argc > 3 ? argv[3] : "tests/planet_arcs.csv", "r" );
+    if ( arcs == nullptr ) {
+        printf( "FAIL no arc reference\n" );
+        return 1;
+    }
+    double worstArc = 0;
+    int arcRows = 0;
+    std::fgets( line, sizeof( line ), arcs );
+    while ( std::fgets( line, sizeof( line ), arcs ) != nullptr ) {
+        long long seconds = 0;
+        double latitude = 0;
+        double longitude = 0;
+        char name[16] = {};
+        int up = 0;
+        double full = 0;
+        char half[16] = {};
+        if ( std::sscanf( line, "%lld,%lf,%lf,%15[^,],%d,%lf,%15s", &seconds, &latitude, &longitude, name, &up, &full, half ) != 7 ) {
+            continue;
+        }
+        const Planets::Body body = static_cast<Planets::Body>( bodyOf( name ) );
+        const Astronomy::Observer observer = { latitude, longitude };
+        const Planets::ArcPlace orbit = Planets::arcPlace( body, seconds, observer, true );
+        const Planets::ArcPlace path = Planets::arcPlace( body, seconds, observer, false );
+        ++arcRows;
+        checks += 2;
+        if ( !orbit.known || orbit.up != ( up == 1 ) || path.up != ( up == 1 ) ) {
+            ++failures;
+            printf( "FAIL arc %s %lld: known %d up %d, expected up %d\n", name, seconds, orbit.known, orbit.up, up );
+            continue;
+        }
+        worstArc = std::fmax( worstArc, std::fabs( angleDifference( orbit.angle, full ) ) );
+        if ( up == 1 ) {
+            worstArc = std::fmax( worstArc, std::fabs( angleDifference( path.angle, std::atof( half ) ) ) );
+        }
+    }
+    std::fclose( arcs );
+    {
+        const bool ok = arcRows > 20 && worstArc <= 2;
+        printf( "%s places on the arc faces: %d rows, largest error %.2f deg (limit 2)\n", ok ? "    " : "FAIL", arcRows, worstArc );
+        failures += ok ? 0 : 1;
+    }
+
     // The page's request for a day's rise and set: asked until answered (an answer can be lost
     // when the display is busy), asked again for a new local day or place.
     {

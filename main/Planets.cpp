@@ -299,3 +299,35 @@ void Planets::DayRequest::answered( int64_t localMidnight, const Astronomy::Obse
     m_midnight = localMidnight;
     m_observer = observer;
 }
+
+Planets::ArcPlace Planets::arcPlace( Body body, int64_t time, const Astronomy::Observer &observer, bool orbit )
+{
+    ArcPlace place = {};
+    const Astronomy::Position position = Planets::position( body, time, observer );
+    const double latitude = observer.latitude * s_degree;
+    const double altitude = position.altitude * s_degree;
+    const double azimuth = position.azimuth * s_degree;
+    // Horizontal to the hour angle (west of the meridian positive) and the declination.
+    const double sinDec = std::sin( latitude ) * std::sin( altitude ) + std::cos( latitude ) * std::cos( altitude ) * std::cos( azimuth );
+    const double declination = std::asin( sinDec );
+    const double hourAngle = std::atan2( -std::cos( altitude ) * std::sin( azimuth ),
+                                         std::cos( latitude ) * std::sin( altitude ) -
+                                             std::sin( latitude ) * std::cos( altitude ) * std::cos( azimuth ) ) / s_degree;
+    // The half arc above the horizon (the centre through -0.5667 degrees, as riseSet()).
+    const double cosHalfArc = ( std::sin( -0.5667 * s_degree ) - std::sin( latitude ) * sinDec ) /
+                              ( std::cos( latitude ) * std::cos( declination ) );
+    if ( !( cosHalfArc > -1 && cosHalfArc < 1 ) ) {
+        return place;
+    }
+    const double halfArc = std::acos( cosHalfArc ) / s_degree;
+    place.known = true;
+    place.up = std::fabs( hourAngle ) < halfArc;
+    if ( orbit ) {
+        // The rise and set sit symmetrically about the top (270): the angle is the hour angle.
+        place.angle = static_cast<float>( std::fmod( 270 + hourAngle + 360, 360.0 ) );
+    } else {
+        const double part = ( hourAngle + halfArc ) / ( 2 * halfArc );
+        place.angle = static_cast<float>( observer.latitude < 0 ? 360 - 180 * part : 180 + 180 * part );
+    }
+    return place;
+}
