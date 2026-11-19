@@ -82,10 +82,24 @@ loudness measurements (docs/hardware.md, "Speaker and alarm sound").
 - **On the watch:** a new part "Alarms" on the clock page (after the countdown), with a row per
   defined alarm: its short name ("07:00 Pzt–Cum", "Gün batımı −10", "Yatsı") and on/off; a tap
   switches it and saves. No alarm defined: a line saying that alarms are set in the portal. The
-  part takes part in the clock page's order and hiding in the portal like the others.
+  part takes part in the clock page's order and hiding in the portal like the others. Below the
+  rows a note (the owner's request): an alarm that is on makes the battery last shorter.
+- **Two new corner items** for the face pages' inner corners (the owner's request, 2026-11-19),
+  chosen per page in the portal like the weekday ring, each with its "always-on" box:
+  - **Alarm days:** an alarm symbol in the middle of a ring of seven day notches laid out as the
+    weekday ring's (`WeekdayIcon`); the notch of each day on which the alarm rings is lit, the
+    others dim; the whole icon dim while the alarm is off. *Builder's call:* the slot's
+    parameter chooses the alarm (1–4), as the day counter's does; a "once" alarm lights the day
+    it will ring.
+  - **Alarm pending:** an hourglass, dim while no alarm is on and the countdown stopped, lit
+    while one is on or the countdown runs (*builder's call:* the countdown counts, as it too
+    keeps the watch from powering off).
+  - Both drawn on the active face and the always-on face (idle-mode colours, the always-on
+    bitmaps or shapes); the default pages do not use them.
 - **In the portal:** a box "Alarms" in the Time tab, after the day counters: four entries, each
   with on/off, kind (time or event), the time or the event and the offset, and seven weekday
-  boxes; saved with the page's main Save. The help page explains the alarm pending cost.
+  boxes; saved with the page's main Save. The box says, as the watch does, that an alarm that is
+  on makes the battery last shorter; the help page explains why (the alarm pending sleep).
 - **Event log:** a ringing is logged (which alarm, how it ended: tap, PWR, after 60 s).
 
 ## Non-goals
