@@ -201,6 +201,13 @@ static const char *s_texts[][2] = {
     { "%.1f h", "%.1f sa" },
     { "Alarm", "Alarm" },
     { "Tap to stop", "Durdurmak için dokun" },
+    { "Alarms", "Alarmlar" },
+    { "Alarms are set\nin the setup portal", "Alarmlar kurulum\nportalında kurulur" },
+    { "On", "Açık" },
+    { "Off", "Kapalı" },
+    { "once", "bir kez" },
+    { "daily", "her gün" },
+    { "An alarm that is on\nuses the battery faster", "Açık alarm pili\ndaha çabuk bitirir" },
 };
 // One pair per text: a missing one would shift every text after it.
 static_assert( sizeof( s_texts ) / sizeof( s_texts[0] ) == Language::TextCount, "a text pair per Language::Text" );
@@ -243,6 +250,14 @@ const char *Language::monthName( int month )
 const char *Language::shortMonth( int month )
 {
     return s_shortMonths[s_language][clampIndex( month - 1, 12 )];
+}
+
+// The first letters of the weekdays (Monday first), for a row's chosen days ("P.Ç.C..").
+static const char *s_dayLetters[2][7] = { { "M", "T", "W", "T", "F", "S", "S" }, { "P", "S", "Ç", "P", "C", "C", "P" } };
+
+const char *Language::dayLetter( int weekday )
+{
+    return s_dayLetters[s_language][clampIndex( weekday, 7 )];
 }
 
 // Alarms::Event, short enough for a row with an offset ("Gün batımı -120").

@@ -8,6 +8,7 @@
 #include "Rtc.h"
 #include "StackPage.h"
 #include "Timers.h"
+#include "AlarmStore.h"
 #include "WorldClock.h"
 #include "lvgl.h"
 
@@ -28,6 +29,7 @@ public:
         GregorianPart,
         HijriPart,
         DaysPart,
+        AlarmsPart,  // last: the parts are numbered in the saved orders (PartOrder)
         PartCount
     };
 
@@ -74,6 +76,11 @@ public:
     // calendars as a sideways swipe does.
     bool press( const char *name );
 
+    // The alarms part: the definitions and their next due times (Unix s, 0: none), and a row
+    // tapped since the last call (its alarm to switch on or off).
+    void setAlarms( const AlarmStore::List &alarms, const int64_t *due );
+    bool takeAlarmToggle( int &index );
+
     // The alarms: the countdown's end while it runs (Unix ms; 0: stopped), whether the stopwatch
     // runs, and the countdown stopped at 00:00 after it rang.
     int64_t countdownEndMs() const;
@@ -85,6 +92,8 @@ private:
     static void onStopwatchButton( lv_event_t *event );
     static void onTimerButton( lv_event_t *event );
     static void onGesture( lv_event_t *event );
+    static void onAlarmRow( lv_event_t *event );
+    void showAlarms();
     void stepGregorian( int step );
     void stepHijri( int step );
 
@@ -160,6 +169,14 @@ private:
     lv_obj_t *m_counterValues[DayCounters::MaxCounters] = {};
     DayCounters::Counter m_counters[DayCounters::MaxCounters] = {};
     int m_counterCount = 0;
+    lv_obj_t *m_alarmNames[Alarms::MaxAlarms] = {};
+    lv_obj_t *m_alarmNext[Alarms::MaxAlarms] = {};
+    lv_obj_t *m_alarmStates[Alarms::MaxAlarms] = {};
+    lv_obj_t *m_alarmRows[Alarms::MaxAlarms] = {};
+    lv_obj_t *m_alarmHint = nullptr;
+    AlarmStore::List m_alarms = {};
+    int64_t m_alarmDue[Alarms::MaxAlarms] = {};
+    volatile int m_alarmToggle = -1;
 
     Calendar m_gregorian = {};
     Calendar m_hijri = {};

@@ -103,6 +103,7 @@ struct Shot
 #endif
     { "orbits", PlanetsPage, PlanetPages::OrbitsPart }, { "sky", PlanetsPage, PlanetPages::SkyPart },
     { "rise-set", PlanetsPage, PlanetPages::RiseSetPart }, { "distance", PlanetsPage, PlanetPages::DistancePart },
+    { "alarms", ClockPage, ClockPages::AlarmsPart },
 };
 [[maybe_unused]] static const int s_shotCount = sizeof( s_shots ) / sizeof( s_shots[0] );
 
@@ -1594,4 +1595,23 @@ void Display::finishCountdown()
     }
     m_clock.finishCountdown();
     bsp_display_unlock();
+}
+
+void Display::setAlarms( const AlarmStore::List &alarms, const int64_t *due )
+{
+    if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
+        return;
+    }
+    m_clock.setAlarms( alarms, due );
+    bsp_display_unlock();
+}
+
+bool Display::takeAlarmToggle( int &index )
+{
+    if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
+        return false;
+    }
+    const bool taken = m_clock.takeAlarmToggle( index );
+    bsp_display_unlock();
+    return taken;
 }

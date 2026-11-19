@@ -51,6 +51,12 @@ int main()
     // A page built again comes back on its part only while that part is still shown.
     check( "keep a shown part", PartOrder::keep( shown, 3, 3 ), 3 );
     check( "a hidden part gives the first shown", PartOrder::keep( shown, 3, 1 ), 2 );
-    printf( "Part order: 20 checks, %d failures\n", failures );
+    // An order saved before a part was added (six fields, the seventh zero) keeps its places,
+    // the new part at the end.
+    const int six[6] = { 5, 3, 1, 0, 2, 4 };
+    check( "older order count", PartOrder::decode( encode( six, 6 ), 0, 7, -1, parts ), 7 );
+    check( "older order kept", parts[0] == 5 && parts[1] == 3 && parts[5] == 4, 1 );
+    check( "older order new part last", parts[6], 6 );
+    printf( "Part order: 23 checks, %d failures\n", failures );
     return failures == 0 ? 0 : 1;
 }

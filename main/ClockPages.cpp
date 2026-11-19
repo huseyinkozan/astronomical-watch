@@ -140,6 +140,32 @@ void ClockPages::build( lv_obj_t *tile )
                                     118 + i * 74, "" );
     }
 
+    lv_obj_t *alarms = m_stack.part( AlarmsPart );
+    title( alarms, Language::text( Language::AlarmsPartName ) );
+    m_alarmHint = label( alarms, &jetbrains_mono_26, s_dim, LV_ALIGN_TOP_MID, 0, 180, Language::text( Language::AlarmsHint ) );
+    lv_obj_set_style_text_align( m_alarmHint, LV_TEXT_ALIGN_CENTER, 0 );
+    for ( int i = 0; i < Alarms::MaxAlarms; ++i ) {
+        const int y = 76 + i * 70;
+        // The whole row is the tap area; a finger sliding off it cancels the tap.
+        lv_obj_t *row = lv_obj_create( alarms );
+        lv_obj_remove_style_all( row );
+        lv_obj_set_pos( row, s_left - 6, y - 4 );
+        lv_obj_set_size( row, s_right - s_left + 12, 64 );
+        lv_obj_set_scrollable( row, false );
+        lv_obj_set_style_bg_color( row, lv_color_hex( 0x303030 ), LV_STATE_PRESSED );
+        lv_obj_set_style_bg_opa( row, LV_OPA_COVER, LV_STATE_PRESSED );
+        lv_obj_add_event_cb( row, onAlarmRow, LV_EVENT_CLICKED, this );
+        lv_obj_set_hidden( row, true );
+        m_alarmRows[i] = row;
+        m_alarmNames[i] = label( alarms, &jetbrains_mono_26, lv_color_white(), LV_ALIGN_TOP_LEFT, s_left, y, "" );
+        m_alarmNext[i] = label( alarms, &jetbrains_mono_26, s_grey, LV_ALIGN_TOP_LEFT, s_left, y + 28, "" );
+        m_alarmStates[i] = label( alarms, &jetbrains_mono_26, s_grey, LV_ALIGN_TOP_RIGHT, s_right - Panel::WIDTH, y + 28, "" );
+    }
+    lv_obj_t *note = label( alarms, &jetbrains_mono_26, s_dim, LV_ALIGN_TOP_MID, 0, 364,
+                            Language::text( Language::AlarmBatteryNote ) );
+    lv_obj_set_style_text_align( note, LV_TEXT_ALIGN_CENTER, 0 );
+    showAlarms();
+
     // After StackPage's handler: it takes the vertical swipes, this one the sideways ones.
     lv_obj_add_event_cb( tile, onGesture, LV_EVENT_GESTURE, this );
     lv_timer_create( onTick, s_tickMs, this );
@@ -750,4 +776,93 @@ bool ClockPages::stopwatchRunning() const
 void ClockPages::finishCountdown()
 {
     m_timers.finishCountdown();
+}
+
+void ClockPages::setAlarms( const AlarmStore::List &alarms, const int64_t *due )
+{
+    m_alarms = alarms;
+    for ( int i = 0; i < Alarms::MaxAlarms; ++i ) {
+        m_alarmDue[i] = due[i];
+    }
+    showAlarms();
+}
+
+bool ClockPages::takeAlarmToggle( int &index )
+{
+    if ( m_alarmToggle < 0 ) {
+        return false;
+    }
+    index = m_alarmToggle;
+    m_alarmToggle = -1;
+    return true;
+}
+
+void ClockPages::onAlarmRow( lv_event_t *event )
+{
+    ClockPages *self = static_cast<ClockPages *>( lv_event_get_user_data( event ) );
+    lv_obj_t *row = static_cast<lv_obj_t *>( lv_event_get_target( event ) );
+    for ( int i = 0; i < Alarms::MaxAlarms; ++i ) {
+        if ( self->m_alarmRows[i] == row ) {
+            self->m_alarmToggle = i;
+        }
+    }
+}
+
+// A row: "07:00 P.Ç.C.." or "Gün batımı -10", below it the next ringing ("Cum 17:21") and on/off.
+void ClockPages::showAlarms()
+{
+    if ( m_alarmHint == nullptr ) {
+        return;
+    }
+    lv_obj_set_hidden( m_alarmHint, m_alarms.count > 0 );
+    for ( int i = 0; i < Alarms::MaxAlarms; ++i ) {
+        const bool used = i < m_alarms.count;
+        lv_obj_set_hidden( m_alarmRows[i], !used );
+        if ( !used ) {
+            setText( m_alarmNames[i], "" );
+            setText( m_alarmNext[i], "" );
+            setText( m_alarmStates[i], "" );
+            continue;
+        }
+        const Alarms::Definition &alarm = m_alarms.alarms[i];
+        char name[48];
+        if ( alarm.kind == Alarms::SkyEvent ) {
+            if ( alarm.offsetMinutes == 0 ) {
+                snprintf( name, sizeof( name ), "%s", Language::alarmEvent( alarm.event ) );
+            } else {
+                snprintf( name, sizeof( name ), "%s %+d", Language::alarmEvent( alarm.event ), alarm.offsetMinutes );
+            }
+        } else {
+            char days[24] = {};
+            if ( alarm.days == 0 ) {
+                snprintf( days, sizeof( days ), "%s", Language::text( Language::AlarmOnce ) );
+            } else if ( alarm.days == 0x7F ) {
+                snprintf( days, sizeof( days ), "%s", Language::text( Language::AlarmDaily ) );
+            } else if ( alarm.days == 0x1F ) {
+                snprintf( days, sizeof( days ), "%s-%s", Language::shortDay( 0 ), Language::shortDay( 4 ) );
+            } else {
+                // Positional: a letter for each chosen day, a dot for the others.
+                int used = 0;
+                for ( int d = 0; d < 7; ++d ) {
+                    used += snprintf( days + used, sizeof( days ) - used, "%s",
+                                      ( alarm.days & ( 1 << d ) ) != 0 ? Language::dayLetter( d ) : "." );
+                }
+            }
+            snprintf( name, sizeof( name ), "%02d:%02d %s", alarm.hour, alarm.minute, days );
+        }
+        setText( m_alarmNames[i], name );
+        char next[24] = "";
+        const int64_t due = m_alarmDue[i];
+        if ( alarm.on && due != 0 ) {
+            const int64_t local = due + static_cast<int64_t>( m_offsetMinutes ) * 60;
+            const int day = static_cast<int>( local / 86400 );
+            snprintf( next, sizeof( next ), "%s %02d:%02d", Language::shortDay( Dates::weekday( day ) ),
+                      static_cast<int>( local / 3600 % 24 ), static_cast<int>( local / 60 % 60 ) );
+        } else if ( alarm.on ) {
+            snprintf( next, sizeof( next ), "--:--" );
+        }
+        setText( m_alarmNext[i], next );
+        setText( m_alarmStates[i], Language::text( alarm.on ? Language::AlarmOn : Language::AlarmOff ) );
+        lv_obj_set_style_text_color( m_alarmStates[i], alarm.on ? lv_color_hex( 0xFFB040 ) : s_dim, 0 );
+    }
 }

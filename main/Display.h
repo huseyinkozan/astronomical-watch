@@ -123,6 +123,10 @@ public:
     void setCities( const WorldClock &worldClock );
     void setCounters( const DayCounters &counters );
 
+    // The clock page's alarms part (ClockPages::setAlarms, takeAlarmToggle).
+    void setAlarms( const AlarmStore::List &alarms, const int64_t *due );
+    bool takeAlarmToggle( int &index );
+
     // The clock page's timers for the alarms (ClockPages): false when the lock was busy.
     bool timers( int64_t &countdownEndMs, bool &stopwatchRunning );
     void finishCountdown();

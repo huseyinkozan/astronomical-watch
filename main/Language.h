@@ -27,6 +27,7 @@ public:
     static const char *shortMonth( int month );      // Jun, Haz
     static const char *hijriMonth( int month );      // Muharram, Muharrem
     static const char *alarmEvent( int event );      // Alarms::Event: Sunset, Gün batımı
+    static const char *dayLetter( int weekday );     // M, P
 
     // A date in the order of the language: "Sunday 21 June" / "21 Haziran Pazar" (weekday < 0:
     // none), "21 June" / "21 Haziran".
@@ -208,6 +209,13 @@ public:
         // Alarms.
         AlarmTitle,
         TapToStop,
+        AlarmsPartName,
+        AlarmsHint,
+        AlarmOn,
+        AlarmOff,
+        AlarmOnce,
+        AlarmDaily,
+        AlarmBatteryNote,
         TextCount
     };
 

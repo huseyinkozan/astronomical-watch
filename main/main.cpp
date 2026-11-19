@@ -1081,8 +1081,17 @@ static void serviceAlarms()
         }
         return;
     }
+    // A row of the clock page's alarms part switches its alarm on or off.
+    int toggled = -1;
+    if ( s_display.takeAlarmToggle( toggled ) && toggled < s_alarms.count ) {
+        s_alarms.alarms[toggled].on = !s_alarms.alarms[toggled].on;
+        AlarmStore::save( s_alarms );
+        s_alarmsChanged = true;
+        ESP_LOGI( TAG, "Alarm %d switched %s", toggled, s_alarms.alarms[toggled].on ? "on" : "off" );
+    }
     planAlarms( s_alarmsChanged );
     s_alarmsChanged = false;
+    s_display.setAlarms( s_alarms, s_plan.due );
 #if CONFIG_WATCH_DEV_LOGGING
     if ( s_testDue != 0 && Alarms::check( s_testDue, s_rtcNow ) == Alarms::Ring ) {
         s_testDue = 0;
