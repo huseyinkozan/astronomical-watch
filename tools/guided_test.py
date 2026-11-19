@@ -13,7 +13,6 @@ import argparse
 import datetime
 import os
 import re
-import subprocess
 import sys
 import threading
 import time
@@ -298,19 +297,7 @@ TESTS = {
 NO_RESET_TESTS = {'battery', 'motionhand', 'mirror'}
 
 
-def notify(title, instruction):
-    """Desktop notification for the tester away from the terminal. It stays until it is closed
-    (a timed one was missed), apart from the short USB plug notifications."""
-    try:
-        subprocess.run(['notify-send', '-t', '0', '-a', 'Watch test', title, instruction],
-                       timeout=5, check=False)
-    except (OSError, subprocess.TimeoutExpired):
-        pass
-
-
 def printInstruction(kind, instruction):
-    if kind != WAIT:
-        notify({ACT: 'Action', QUIET: 'Check', ASK: 'Question'}.get(kind, 'Watch test'), instruction)
     if kind == ACT:
         print(f'\n\a{ACT_STYLE}ACTION: {instruction}{RESET}')
     elif kind == QUIET:
