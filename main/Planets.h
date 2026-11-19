@@ -45,4 +45,15 @@ public:
 
     // Topocentric altitude and azimuth (from north through east), without refraction.
     static Astronomy::Position position( Body body, int64_t time, const Astronomy::Observer &observer );
+
+    // The first rise and set of the planet's centre through -0.5667 degrees (refraction, no
+    // semi-diameter) in the local day from `localMidnight`; not for the Earth.
+    static Astronomy::Crossings riseSet( Body body, int64_t localMidnight, const Astronomy::Observer &observer );
+
+    // The five planets' rise and set of a local day (the Earth's entry stays empty).
+    struct Day
+    {
+        Astronomy::Crossings riseSet[BodyCount];
+    };
+    static Day day( int64_t localMidnight, const Astronomy::Observer &observer );
 };

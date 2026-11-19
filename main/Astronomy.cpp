@@ -219,7 +219,6 @@ Astronomy::Position Astronomy::moonPosition( int64_t time, const Observer &obser
 
 // Altitude above the threshold of rise and set: the Sun's centre at -0.833 degrees (refraction
 // and semi-diameter); the Moon's geocentric centre at 0.7275 parallax - 0.5667 degrees (Meeus 15).
-typedef double ( *AltitudeFunction )( int64_t time, const Astronomy::Observer &observer );
 
 static double sunAltitude( int64_t time, const Astronomy::Observer &observer )
 {
@@ -234,9 +233,20 @@ static double moonRiseAltitude( int64_t time, const Astronomy::Observer &observe
     return toHorizontal( moon, time, observer ).altitude - threshold;
 }
 
+// The two altitudes above in the form dayCrossings() takes.
+static double sunAltitudeOf( int64_t time, const Astronomy::Observer &observer, int )
+{
+    return sunAltitude( time, observer );
+}
+
+static double moonRiseAltitudeOf( int64_t time, const Astronomy::Observer &observer, int )
+{
+    return moonRiseAltitude( time, observer );
+}
+
 // First rising and setting through `threshold` between the samples, refined by bisection to one
 // second. samples[i] is the altitude at start + i * s_sampleStepS.
-static Astronomy::Crossings findCrossings( AltitudeFunction altitude, const double *samples, int64_t start,
+static Astronomy::Crossings findCrossings( Astronomy::Altitude altitude, int body, const double *samples, int64_t start,
                                            const Astronomy::Observer &observer, double threshold )
 {
     Astronomy::Crossings crossings = {};
@@ -263,7 +273,7 @@ static Astronomy::Crossings findCrossings( AltitudeFunction altitude, const doub
         int64_t high = low + s_sampleStepS;
         while ( high - low > 1 ) {
             const int64_t middle = ( low + high ) / 2;
-            if ( ( altitude( middle, observer ) > threshold ) == aboveBefore ) {
+            if ( ( altitude( middle, observer, body ) > threshold ) == aboveBefore ) {
                 low = middle;
             } else {
                 high = middle;
@@ -277,25 +287,33 @@ static Astronomy::Crossings findCrossings( AltitudeFunction altitude, const doub
     return crossings;
 }
 
-static void sampleDay( AltitudeFunction altitude, int64_t start, const Astronomy::Observer &observer,
+static void sampleDay( Astronomy::Altitude altitude, int body, int64_t start, const Astronomy::Observer &observer,
                        double *samples )
 {
     for ( int i = 0; i < s_sampleCount; ++i ) {
-        samples[i] = altitude( start + static_cast<int64_t>( i ) * s_sampleStepS, observer );
+        samples[i] = altitude( start + static_cast<int64_t>( i ) * s_sampleStepS, observer, body );
     }
+}
+
+Astronomy::Crossings Astronomy::dayCrossings( Altitude altitude, int body, int64_t localMidnight, const Observer &observer,
+                                              double threshold )
+{
+    double samples[s_sampleCount];
+    sampleDay( altitude, body, localMidnight, observer, samples );
+    return findCrossings( altitude, body, samples, localMidnight, observer, threshold );
 }
 
 Astronomy::SunDay Astronomy::sunDay( int64_t localMidnight, const Observer &observer )
 {
     double samples[s_sampleCount];
-    sampleDay( sunAltitude, localMidnight, observer, samples );
+    sampleDay( sunAltitudeOf, 0, localMidnight, observer, samples );
     SunDay day = {};
-    day.riseSet = findCrossings( sunAltitude, samples, localMidnight, observer, -0.833 );
-    day.civil = findCrossings( sunAltitude, samples, localMidnight, observer, -6.0 );
-    day.nautical = findCrossings( sunAltitude, samples, localMidnight, observer, -12.0 );
-    day.astronomical = findCrossings( sunAltitude, samples, localMidnight, observer, -18.0 );
-    day.goldenHour = findCrossings( sunAltitude, samples, localMidnight, observer, 6.0 );
-    day.blueHour = findCrossings( sunAltitude, samples, localMidnight, observer, -4.0 );
+    day.riseSet = findCrossings( sunAltitudeOf, 0, samples, localMidnight, observer, -0.833 );
+    day.civil = findCrossings( sunAltitudeOf, 0, samples, localMidnight, observer, -6.0 );
+    day.nautical = findCrossings( sunAltitudeOf, 0, samples, localMidnight, observer, -12.0 );
+    day.astronomical = findCrossings( sunAltitudeOf, 0, samples, localMidnight, observer, -18.0 );
+    day.goldenHour = findCrossings( sunAltitudeOf, 0, samples, localMidnight, observer, 6.0 );
+    day.blueHour = findCrossings( sunAltitudeOf, 0, samples, localMidnight, observer, -4.0 );
 
     // Transit: the hour angle is zero. The Sun's hour angle grows by about 360 degrees a day.
     int64_t noon = localMidnight + s_dayS / 2;
@@ -327,8 +345,8 @@ Astronomy::SunDay Astronomy::sunDay( int64_t localMidnight, const Observer &obse
 Astronomy::Crossings Astronomy::moonDay( int64_t localMidnight, const Observer &observer )
 {
     double samples[s_sampleCount];
-    sampleDay( moonRiseAltitude, localMidnight, observer, samples );
-    return findCrossings( moonRiseAltitude, samples, localMidnight, observer, 0.0 );
+    sampleDay( moonRiseAltitudeOf, 0, localMidnight, observer, samples );
+    return findCrossings( moonRiseAltitudeOf, 0, samples, localMidnight, observer, 0.0 );
 }
 
 bool Astronomy::moonsetWithin( int64_t start, int span, const Observer &observer, int64_t &moonset )

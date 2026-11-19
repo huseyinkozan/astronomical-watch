@@ -221,3 +221,24 @@ Astronomy::Position Planets::position( Body body, int64_t time, const Astronomy:
     const Geocentric geo = geocentric( body, time );
     return Astronomy::starPosition( geo.raHours, geo.decDegrees, time, observer );
 }
+
+static double planetAltitude( int64_t time, const Astronomy::Observer &observer, int body )
+{
+    return Planets::position( static_cast<Planets::Body>( body ), time, observer ).altitude;
+}
+
+Astronomy::Crossings Planets::riseSet( Body body, int64_t localMidnight, const Astronomy::Observer &observer )
+{
+    return Astronomy::dayCrossings( planetAltitude, body, localMidnight, observer, -0.5667 );
+}
+
+Planets::Day Planets::day( int64_t localMidnight, const Astronomy::Observer &observer )
+{
+    Day result = {};
+    for ( int i = 0; i < BodyCount; ++i ) {
+        if ( i != Earth ) {
+            result.riseSet[i] = riseSet( static_cast<Body>( i ), localMidnight, observer );
+        }
+    }
+    return result;
+}

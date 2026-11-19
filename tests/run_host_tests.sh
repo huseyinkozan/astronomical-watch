@@ -34,7 +34,7 @@ build-host/aod_small_test main/AodGlyphs.c
 build-host/analog_clock_test
 build-host/milky_way_test
 build-host/table_text_test
-build-host/planets_test tests/planet_reference.csv
+build-host/planets_test tests/planet_reference.csv tests/planet_risings.csv
 # main/CornerTable.c must be what the corner geometry gives today.
 build-host/make_corner_table > build-host/CornerTable.c
 if cmp -s build-host/CornerTable.c main/CornerTable.c; then

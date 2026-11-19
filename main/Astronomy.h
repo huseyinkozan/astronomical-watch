@@ -74,6 +74,14 @@ public:
 
     static SunDay sunDay( int64_t localMidnight, const Observer &observer );
 
+    // An altitude in degrees at `time`; `body` tells the function whose (the caller's numbering).
+    typedef double ( *Altitude )( int64_t time, const Observer &observer, int body );
+
+    // The first rising and setting of `altitude` through `threshold` in the day from
+    // `localMidnight`: samples every 10 min, then bisection to one second (as the Sun's).
+    static Crossings dayCrossings( Altitude altitude, int body, int64_t localMidnight, const Observer &observer,
+                                   double threshold );
+
     // Moonrise and moonset: the upper limb on the horizon, with refraction and parallax.
     static Crossings moonDay( int64_t localMidnight, const Observer &observer );
 

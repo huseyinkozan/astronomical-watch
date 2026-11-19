@@ -113,6 +113,57 @@ int main( int argc, char **argv )
                 ok ? "    " : "FAIL", s_names[i], s_angle[i], angleLimit, s_distance[i], distanceLimit, s_sky[i], skyLimit );
         failures += ok ? 0 : 1;
     }
+    // Rise and set times (tests/planet_risings.csv, tools/make_planet_risings.py): within 2 min
+    // at middle and low latitudes; a day without a rise or a set must say so.
+    FILE *risings = std::fopen( argc > 2 ? argv[2] : "tests/planet_risings.csv", "r" );
+    if ( risings == nullptr ) {
+        printf( "FAIL no rise and set reference\n" );
+        return 1;
+    }
+    double worst[2] = {};  // middle and low latitudes, high latitudes (Tromso, Reykjavik)
+    std::fgets( line, sizeof( line ), risings );
+    while ( std::fgets( line, sizeof( line ), risings ) != nullptr ) {
+        char place[16] = {};
+        double latitude = 0;
+        double longitude = 0;
+        long long midnight = 0;
+        char name[16] = {};
+        char event[8] = {};
+        char value[24] = {};
+        if ( std::sscanf( line, "%15[^,],%lf,%lf,%lld,%15[^,],%7[^,],%23s", place, &latitude, &longitude, &midnight, name, event,
+                          value ) != 7 ) {
+            continue;
+        }
+        const int body = bodyOf( name );
+        if ( body < 0 ) {
+            continue;
+        }
+        ++checks;
+        const Astronomy::Crossings crossings =
+            Planets::riseSet( static_cast<Planets::Body>( body ), midnight, Astronomy::Observer { latitude, longitude } );
+        const Astronomy::Event &found = event[0] == 'r' ? crossings.rising : crossings.setting;
+        const bool none = std::strcmp( value, "none" ) == 0;
+        if ( none != !found.occurs ) {
+            ++failures;
+            printf( "FAIL %s %s %s %lld: expected %s, got %s\n", place, name, event, midnight, value,
+                    found.occurs ? "a time" : "none" );
+            continue;
+        }
+        if ( none ) {
+            continue;
+        }
+        const bool high = std::fabs( latitude ) > 60;
+        worst[high ? 1 : 0] = std::fmax( worst[high ? 1 : 0], std::fabs( static_cast<double>( found.time - std::atoll( value ) ) ) );
+    }
+    std::fclose( risings );
+    const double limits[2] = { 120, 120 };
+    for ( int i = 0; i < 2; ++i ) {
+        const bool ok = worst[i] <= limits[i];
+        printf( "%s rise and set, %s latitudes: largest error %.0f s (limit %.0f s)\n", ok ? "    " : "FAIL",
+                i == 0 ? "middle and low" : "high", worst[i], limits[i] );
+        failures += ok ? 0 : 1;
+    }
+
     printf( "Planets: %d checks, %d failures\n", checks, failures );
     return failures == 0 ? 0 : 1;
 }
