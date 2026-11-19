@@ -15,7 +15,7 @@ public:
     {
         Boot = 1,           // power-on or reset; code: esp_reset_reason_t
         ActiveEnd = 2,      // code: 1 display timeout, 2 PWR press
-        AlwaysOnEnd = 3,    // code: 1 PWR press
+        AlwaysOnEnd = 3,    // code: 1 PWR press, 2 an alarm due
         PowerOff = 4,       // code: PowerOffReason
         AlwaysOnStatus = 5,  // development mode: every 30 min of always-on
         Alarm = 6            // code: the alarm (0-3, 4 the countdown); touches: how it ended (AlarmEnd)

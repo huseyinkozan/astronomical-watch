@@ -1575,3 +1575,23 @@ bool Display::alarmTapped() const
 {
     return m_alarmTapped;
 }
+
+bool Display::timers( int64_t &countdownEndMs, bool &stopwatchRunning )
+{
+    if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
+        return false;
+    }
+    countdownEndMs = m_clock.countdownEndMs();
+    stopwatchRunning = m_clock.stopwatchRunning();
+    bsp_display_unlock();
+    return true;
+}
+
+void Display::finishCountdown()
+{
+    if ( !m_started || !bsp_display_lock( 1000 ) ) {
+        return;
+    }
+    m_clock.finishCountdown();
+    bsp_display_unlock();
+}

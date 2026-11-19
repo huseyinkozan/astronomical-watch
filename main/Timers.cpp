@@ -139,3 +139,10 @@ void Timers::resetCountdown()
     m_state.countdown = {};
     save();
 }
+
+void Timers::finishCountdown()
+{
+    m_state.countdown.running = false;
+    m_state.countdown.remainingMs = 0;
+    save();
+}

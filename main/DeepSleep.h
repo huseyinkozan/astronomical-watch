@@ -39,4 +39,8 @@ public:
     uint32_t bootCount() const;
     uint32_t longestTimerWakeMs() const;
     void clearLongestTimerWake();
+
+    // A timer wake that starts active mode (an alarm): its session is not a short timer wake,
+    // so it stays out of the timer wake statistics and flushes the console like a PWR wake.
+    void activeModeStarted();
 };

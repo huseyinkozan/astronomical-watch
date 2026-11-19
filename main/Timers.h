@@ -44,6 +44,8 @@ public:
     void addMinutes( int minutes );
     void startPauseCountdown( int64_t nowMs );
     void resetCountdown();
+    // After it rang: stopped at 00:00, its duration kept for the next start.
+    void finishCountdown();
 
 private:
     void save();

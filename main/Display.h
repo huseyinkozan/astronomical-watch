@@ -122,6 +122,10 @@ public:
     // The world clock's cities (a copy), at the start and after the setup portal.
     void setCities( const WorldClock &worldClock );
     void setCounters( const DayCounters &counters );
+
+    // The clock page's timers for the alarms (ClockPages): false when the lock was busy.
+    bool timers( int64_t &countdownEndMs, bool &stopwatchRunning );
+    void finishCountdown();
     void showHijriMonth( const Hijri::Month &month, int today, int method );
 
     // The Request bits tapped since the last call.

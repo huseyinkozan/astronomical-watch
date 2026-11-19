@@ -735,3 +735,19 @@ void ClockPages::setScene( bool scene )
     setText( m_timerButtons[4], Language::text( Language::Pause ) );
     lv_obj_set_style_text_color( m_timerButtons[4], s_amber, 0 );
 }
+
+int64_t ClockPages::countdownEndMs() const
+{
+    const Timers::Countdown &countdown = m_timers.countdown();
+    return countdown.running ? countdown.endMs : 0;
+}
+
+bool ClockPages::stopwatchRunning() const
+{
+    return m_timers.stopwatch().running;
+}
+
+void ClockPages::finishCountdown()
+{
+    m_timers.finishCountdown();
+}

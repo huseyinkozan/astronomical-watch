@@ -74,6 +74,12 @@ public:
     // calendars as a sideways swipe does.
     bool press( const char *name );
 
+    // The alarms: the countdown's end while it runs (Unix ms; 0: stopped), whether the stopwatch
+    // runs, and the countdown stopped at 00:00 after it rang.
+    int64_t countdownEndMs() const;
+    bool stopwatchRunning() const;
+    void finishCountdown();
+
 private:
     static void onTick( lv_timer_t *timer );
     static void onStopwatchButton( lv_event_t *event );

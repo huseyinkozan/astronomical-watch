@@ -56,6 +56,7 @@ RTC_DATA_ATTR static uint32_t s_eventCount;
 RTC_DATA_ATTR static bool s_powerKeyPullUp;
 
 static DeepSleep::Event s_currentWake = DeepSleep::Event::PowerOn;
+static bool s_activeSession = false;
 
 static const char *eventName( DeepSleep::Event event )
 {
@@ -224,7 +225,7 @@ void DeepSleep::enter( uint64_t timerUs )
     // esp_timer starts after the bootloader, so this misses about 250 ms of boot time.
     s_stats.lastAwakeMs = static_cast<uint32_t>( esp_timer_get_time() / 1000 );
     s_stats.totalAwakeMs += s_stats.lastAwakeMs;
-    if ( s_currentWake == Event::WakeTimer ) {
+    if ( s_currentWake == Event::WakeTimer && !s_activeSession ) {
         s_stats.lastTimerAwakeMs = s_stats.lastAwakeMs;
         if ( s_stats.lastAwakeMs > s_stats.longestTimerAwakeMs ) {
             s_stats.longestTimerAwakeMs = s_stats.lastAwakeMs;
@@ -236,7 +237,7 @@ void DeepSleep::enter( uint64_t timerUs )
     ESP_LOGI( TAG, "Entering deep sleep after %" PRIu32 " ms (wake: %s)", s_stats.lastAwakeMs,
               keyReleased ? "PWR key" : "60 s timer, key still high" );
 #if CONFIG_WATCH_DEV_LOGGING
-    if ( s_currentWake != Event::WakeTimer ) {
+    if ( s_currentWake != Event::WakeTimer || s_activeSession ) {
         flushConsole();
     }
 #endif
@@ -258,4 +259,9 @@ void DeepSleep::clearLongestTimerWake()
     s_stats.longestTimerAwakeMs = 0;
     s_stats.sessionTimerWakes = 0;
     s_stats.sessionTimerAwakeMs = 0;
+}
+
+void DeepSleep::activeModeStarted()
+{
+    s_activeSession = true;
 }

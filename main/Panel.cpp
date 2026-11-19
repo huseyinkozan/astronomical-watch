@@ -8,6 +8,8 @@
 #include "driver/spi_master.h"
 #include "esp_lcd_sh8601.h"
 #include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 static const char *TAG = "panel";
 
@@ -15,6 +17,9 @@ static const char *TAG = "panel";
 static const int PANEL_CMD_BRIGHTNESS = ( 0x02 << 24 ) | ( 0x51 << 8 );
 static const int PANEL_CMD_IDLE_ON = ( 0x02 << 24 ) | ( 0x39 << 8 );
 static const int PANEL_CMD_NOP = ( 0x02 << 24 ) | ( 0x00 << 8 );
+static const int PANEL_CMD_DISPLAY_OFF = ( 0x02 << 24 ) | ( 0x28 << 8 );
+static const int PANEL_CMD_SLEEP_IN = ( 0x02 << 24 ) | ( 0x10 << 8 );
+static const int PANEL_CMD_DEEP_STANDBY = ( 0x02 << 24 ) | ( 0x4F << 8 );
 // The panel's columns start 22 pixels into its memory (BSP: esp_lcd_panel_set_gap 0x16).
 static const int s_columnGap = 22;
 
@@ -196,6 +201,19 @@ void Panel::setIdleMode()
     if ( m_io != nullptr ) {
         esp_lcd_panel_io_tx_param( m_io, PANEL_CMD_IDLE_ON, nullptr, 0 );
     }
+}
+
+void Panel::sleep()
+{
+    if ( m_io == nullptr ) {
+        return;
+    }
+    esp_lcd_panel_io_tx_param( m_io, PANEL_CMD_DISPLAY_OFF, nullptr, 0 );
+    esp_lcd_panel_io_tx_param( m_io, PANEL_CMD_SLEEP_IN, nullptr, 0 );
+    // The sleep-in sequence must finish before the next command (120 ms, as after a reset).
+    vTaskDelay( pdMS_TO_TICKS( 120 ) );
+    const uint8_t enter = 0x01;
+    esp_lcd_panel_io_tx_param( m_io, PANEL_CMD_DEEP_STANDBY, &enter, 1 );
 }
 
 void Panel::holdPins()

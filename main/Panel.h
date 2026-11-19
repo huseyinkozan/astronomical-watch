@@ -52,6 +52,11 @@ public:
     // Idle mode on (39h): 8 colours from the MSB of R, G and B; a reset turns it off.
     void setIdleMode();
 
+    // Display off, sleep in, then deep standby (CO5300 datasheet 7.5.37: from sleep in only;
+    // about 3 uA), for the alarm pending sleep without a face. Only a reset (RESX) leaves it,
+    // which every active start does.
+    void sleep();
+
     // Holds CS high and the clock and data lines low through deep sleep, so the panel sees no
     // command while the ESP32 pads would otherwise float.
     static void holdPins();
