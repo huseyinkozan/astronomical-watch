@@ -79,6 +79,19 @@ public:
     // What to do with `due` at `now` (0: nothing due, Wait).
     static Due check( int64_t due, int64_t now );
 
+    // Where a plan searches from (next()'s `after`): LateSeconds back, so that a due time missed by
+    // a reset still rings, but not before `handled`, the last due time rung or skipped, or the
+    // moment the alarm was switched on or saved (so that an alarm switched on just after its
+    // time waits for the next one). A handled time more than a day ahead (the clock was
+    // corrected back) no longer counts.
+    static int64_t planFrom( int64_t now, int64_t handled );
+
+    // Seconds of deep sleep before `due`: early by 2 s and 0.2 % of the sleep (the RC timer
+    // drifts seconds a day; the PCF85063 gives the time at the wake), at most an hour (the
+    // battery check), 3600 without a due time; 0 only when it is due within 3 s (active mode then
+    // rings it), never otherwise.
+    static int64_t sleepBefore( int64_t due, int64_t now );
+
     // A checksum of the place: a cached due time holds only for the key it was computed with.
     static uint32_t placeKey( const Place &place );
 

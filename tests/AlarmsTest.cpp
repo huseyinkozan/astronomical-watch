@@ -168,6 +168,23 @@ int main()
     check( "no due waits", Alarms::check( 0, due ) == Alarms::Wait );
     check( "rung not found again", Alarms::next( weekdays, due, istanbul ) > due );
 
+    // Where a plan searches from: 10 min back after a boot, but not before the last handled time;
+    // a handled time more than a day ahead (a clock corrected back) no longer counts.
+    const int64_t now = due + 3600;
+    check( "planFrom look-back", Alarms::planFrom( now, 0 ) == now - Alarms::LateSeconds - 1 );
+    check( "planFrom handled", Alarms::planFrom( now, now - 60 ) == now - 60 );
+    check( "planFrom clock corrected back", Alarms::planFrom( now, now + 2 * 86400 ) == now - Alarms::LateSeconds - 1 );
+    // An alarm switched on (or saved) at 07:05 does not ring for 07:00: the switch counts as
+    // handled at that moment.
+    check( "switched on after its time", Alarms::next( weekdays, Alarms::planFrom( due + 300, due + 300 ), istanbul ) > due + 300 );
+    // The sleep before a due time: never 0 unless it is due within 3 s, at most an hour.
+    check( "sleepBefore none", Alarms::sleepBefore( 0, now ) == 3600 );
+    check( "sleepBefore due now", Alarms::sleepBefore( now + 3, now ) == 0 );
+    check( "sleepBefore past", Alarms::sleepBefore( now - 100, now ) == 0 );
+    check( "sleepBefore early", Alarms::sleepBefore( now + 1000, now ) == 1000 - 2 - 2 );
+    check( "sleepBefore at least 1", Alarms::sleepBefore( now + 4, now ) >= 1 );
+    check( "sleepBefore hour", Alarms::sleepBefore( now + 86400, now ) == 3600 );
+
     // The cache key follows every input.
     const uint32_t key = Alarms::placeKey( istanbul );
     Alarms::Place changed = istanbul;

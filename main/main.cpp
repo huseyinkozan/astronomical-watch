@@ -104,6 +104,7 @@ RTC_DATA_ATTR static AlarmPlan s_plan;
 // after a power-on), so that an alarm due in that minute rings once and is not lost.
 RTC_NOINIT_ATTR static int64_t s_handled[s_dueCount];
 RTC_NOINIT_ATTR static uint32_t s_handledCheck;
+static void storeHandled( int which, int64_t due );
 // What a timer wake is for when the always-on face is not running.
 enum WakePurpose : uint8_t
 {
@@ -343,6 +344,7 @@ static bool pollHostCommands()
                 }
                 AlarmStore::save( s_alarms );
                 s_alarmsChanged = true;
+                storeHandled( alarmIndex, s_rtcNow );
             }
             ESP_LOGI( TAG, "Alarm %d: %s", alarmIndex, alarmText );
             continue;
@@ -829,6 +831,10 @@ static void applyPortalData( const Portal::Received &received )
         s_alarms = received.alarms;
         AlarmStore::save( s_alarms );
         s_alarmsChanged = true;
+        // New definitions (their places may have moved) wait for their next due time.
+        for ( int i = 0; i < Alarms::MaxAlarms; ++i ) {
+            storeHandled( i, s_rtcNow );
+        }
     }
     if ( received.countersValid ) {
         s_dayCounters.set( received.counters, received.counterCount, localDayNow( received ) );
@@ -1066,13 +1072,7 @@ static void planAlarms( bool force )
             if ( s_alarms.alarms[i].kind == Alarms::SkyEvent && !located ) {
                 continue;
             }
-            // From LateSeconds back, so that a due time missed by a reset still rings, but not
-            // before the last one handled.
-            int64_t after = s_rtcNow - Alarms::LateSeconds - 1;
-            if ( s_handled[i] > after ) {
-                after = s_handled[i];
-            }
-            s_plan.due[i] = Alarms::next( s_alarms.alarms[i], after, place );
+            s_plan.due[i] = Alarms::next( s_alarms.alarms[i], Alarms::planFrom( s_rtcNow, s_handled[i] ), place );
         }
         s_plan.key = key;
         s_plan.computedAt = s_rtcNow;
@@ -1115,6 +1115,8 @@ static void serviceAlarms()
     int toggled = -1;
     if ( s_display.takeAlarmToggle( toggled ) && toggled < s_alarms.count ) {
         s_alarms.alarms[toggled].on = !s_alarms.alarms[toggled].on;
+        // Switched on after its time today: it waits for the next one (Alarms::planFrom).
+        storeHandled( toggled, s_rtcNow );
         AlarmStore::save( s_alarms );
         s_alarmsChanged = true;
         ESP_LOGI( TAG, "Alarm %d switched %s", toggled, s_alarms.alarms[toggled].on ? "on" : "off" );
@@ -1152,11 +1154,12 @@ static void serviceAlarms()
             AlarmStore::save( s_alarms );
         }
     }
-    if ( handled ) {
-        planAlarms( true );
-    }
+    // The sound first: planning the sky events again can take a few tenths of a second.
     if ( ring >= 0 ) {
         startRinging( ring );
+    }
+    if ( handled ) {
+        planAlarms( true );
     }
 }
 
@@ -1391,22 +1394,6 @@ static bool batteryAtFloor( uint16_t millivolts, uint8_t percent )
     return ( percent <= 2 && millivolts <= 3500 ) || millivolts <= 3400;
 }
 
-// Seconds of deep sleep before `due`: early by 2 s and 0.2 % of the sleep (the RC timer drifts
-// seconds a day; the PCF85063 gives the time at the wake), at most an hour (the battery check);
-// 0 when it is due within 3 s, which active mode then waits for.
-static int64_t sleepBefore( int64_t due, int64_t now )
-{
-    if ( due == 0 ) {
-        return 3600;
-    }
-    const int64_t left = due - now;
-    if ( left <= 3 ) {
-        return 0;
-    }
-    const int64_t sleep = left - 2 - left / 500;
-    return sleep < 3600 ? sleep : 3600;
-}
-
 // To the pending sleep without a face, from active mode or always-on: a wake half a second later
 // puts the panel to deep standby from a fresh start, as always-on's first drawing does.
 static void enterPendingSleep( i2c_master_bus_handle_t bus )
@@ -1448,7 +1435,7 @@ static void pendingTick( i2c_master_bus_handle_t bus, bool pmuReady )
     const bool timeRead = s_rtc.init( bus ) == ESP_OK && s_rtc.read( time, oscillatorStopped ) == ESP_OK &&
                           !oscillatorStopped;
     // Without the time nothing can be scheduled: check again in an hour.
-    const int64_t seconds = timeRead ? sleepBefore( nextDue(), unixTime( time ) ) : 3600;
+    const int64_t seconds = timeRead ? Alarms::sleepBefore( nextDue(), unixTime( time ) ) : 3600;
     if ( seconds == 0 ) {
         ESP_LOGI( TAG, "Alarm due: active mode" );
         return;
@@ -1489,7 +1476,7 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
     }
     // An alarm due within seconds: active mode rings it (app_main goes on from here).
     const int64_t due = nextDue();
-    if ( timeRead && !oscillatorStopped && due != 0 && sleepBefore( due, unixTime( time ) ) == 0 ) {
+    if ( timeRead && !oscillatorStopped && due != 0 && Alarms::sleepBefore( due, unixTime( time ) ) == 0 ) {
         ESP_LOGI( TAG, "Alarm due: always-on ends" );
         return;
     }
@@ -1512,10 +1499,11 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
         }
         powerOff( pmuReady, still ? EventLog::NoMotion : EventLog::FaceFailed );
     }
-    // Not past the next due time.
-    if ( due != 0 && timeRead ) {
-        const uint64_t dueUs = static_cast<uint64_t>( sleepBefore( due, unixTime( time ) ) ) * 1000000;
-        if ( dueUs < sleepUs ) {
+    // Not past the next due time (a stopped oscillator's time cannot shorten it: a sleep of 0
+    // would arm no timer at all).
+    if ( due != 0 && timeRead && !oscillatorStopped ) {
+        const uint64_t dueUs = static_cast<uint64_t>( Alarms::sleepBefore( due, unixTime( time ) ) ) * 1000000;
+        if ( dueUs > 0 && dueUs < sleepUs ) {
             sleepUs = dueUs;
         }
     }

@@ -1532,7 +1532,11 @@ void Display::onAlarmPressed( lv_event_t *event )
 
 void Display::showAlarm( const char *name, const char *time )
 {
-    if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
+    // A tap of an earlier ringing must not stop this one, even if the lock is not taken.
+    m_alarmTapped = false;
+    // Longer than the other updates: the first frames after a wake take over 100 ms, and without
+    // the overlay nothing shows what rings or takes the tap.
+    if ( !m_started || !bsp_display_lock( 1000 ) ) {
         return;
     }
     if ( m_alarm == nullptr ) {
@@ -1563,6 +1567,7 @@ void Display::showAlarm( const char *name, const char *time )
 
 void Display::hideAlarm()
 {
+    m_alarmTapped = false;
     if ( m_alarm == nullptr || !bsp_display_lock( 1000 ) ) {
         return;
     }

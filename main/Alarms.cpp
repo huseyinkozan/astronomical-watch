@@ -80,6 +80,31 @@ int64_t Alarms::next( const Definition &alarm, int64_t after, const Place &place
     return 0;
 }
 
+int64_t Alarms::planFrom( int64_t now, int64_t handled )
+{
+    const int64_t lookBack = now - LateSeconds - 1;
+    if ( handled > lookBack && handled <= now + s_day ) {
+        return handled;
+    }
+    return lookBack;
+}
+
+int64_t Alarms::sleepBefore( int64_t due, int64_t now )
+{
+    if ( due == 0 ) {
+        return 3600;
+    }
+    const int64_t left = due - now;
+    if ( left <= 3 ) {
+        return 0;
+    }
+    const int64_t sleep = left - 2 - left / 500;
+    if ( sleep < 1 ) {
+        return 1;
+    }
+    return sleep < 3600 ? sleep : 3600;
+}
+
 Alarms::Due Alarms::check( int64_t due, int64_t now )
 {
     if ( due == 0 || now < due ) {
