@@ -211,7 +211,7 @@ Each step is built, verified on the board and documented before the next one sta
     arcs templates with both digital clocks and five analog styles, the Milky Way band, the
     slots, the corner gauges chosen from a catalogue, and the always-on face drawn from the page
     (minute wake 0.25 s of app time on average); the picture mirrored for the other wrist.
-14. **Planets page** (done, unreleased): the solar system, the sky, rise and set and distances
+14. **Planets page** (done): the solar system, the sky, rise and set and distances
     of the seven planets, computed on the watch within a few arcminutes of JPL's DE421
     ephemeris; the planets on the Full arcs and Half arcs faces too.
 15. Vibration motor.
