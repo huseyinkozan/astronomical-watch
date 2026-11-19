@@ -71,6 +71,16 @@ the watch from the date, time and location, no network.
 - Heap measured with the page built and with the portal on; stack margins from the event log;
   screenshots (fixed scene) for the published pages.
 
+## Result (2026-11-19)
+
+Built on branch `planets` (not pushed). Positions against Skyfield (DE421) over 2000–2050:
+Mercury 0.6′, Venus 0.5′, Mars 1.7′ (seen near opposition), Jupiter 0.9′, Saturn 1.7′ and
+0.018 AU; Jupiter and Saturn needed Schlyter's elements with the great-inequality terms (JPL's
+Table 1 alone: 5′ and 9′). Rise and set within 5 s at middle latitudes and 9 s at Tromsø and
+Reykjavik, the days without a rise or set matching. Interpolating the places through the day
+brought the day's computation from 1.7 s to 0.31 s on the watch. The page takes 3.3 KB of heap.
+The Turkish page name is "Gezegen": "Gezegenler" did not fit between the header line's bends.
+
 ## Decided by the builder (2026-11-19, for the owner to check)
 
 - **Order and hiding:** the planets page's parts get an order and hidden parts set in the portal,

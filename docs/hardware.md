@@ -600,6 +600,9 @@ PSRAM is not enabled; LVGL and Wi-Fi share the internal heap.
   portal on** (49 KB before these changes), the lowest of a session 75 KB. After the portal has
   run once, the largest free block stays at 37–43 KB (94 KB before); a free-and-build round of
   the pages without the portal leaves it unchanged, so the Wi-Fi start and stop cause it.
+- 2026-11-19, the planets page (`main/PlanetPages.*`): 3.3 KB of heap when built; a session that
+  built it and ran the portal had 69 KB free at its lowest. The day's rise and set of the five
+  planets take 0.31 s in the main task (1.7 s before the places were interpolated through the day).
 
 ### Astronomy computation time [HW] (M10, 2026-11-12; `main/Astronomy.*`, `main/Hijri.*`)
 The ESP32-S3 has a single-precision FPU only; the astronomy code uses `double`, done in software.

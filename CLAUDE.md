@@ -207,9 +207,10 @@ in its flash partition. Read both over USB: `python tools/read_events.py`, then
 
 - Small, focused modules; no layers or abstractions without a clear benefit.
 - Astronomy code is independent of UI and ESP-IDF so it can be tested on the host
-  (`main/Astronomy.*`, `main/Hijri.*`, `main/Sky.*`, `main/Corners.*`; `sh tests/run_host_tests.sh`). Its
-  reference values come from Skyfield with the JPL DE421 ephemeris
-  (`tools/make_astronomy_reference.py`); the Diyanet Hijri method is checked against Diyanet's
+  (`main/Astronomy.*`, `main/Hijri.*`, `main/Sky.*`, `main/Corners.*`, `main/Planets.*`;
+  `sh tests/run_host_tests.sh`). Its reference values come from Skyfield with the JPL DE421 ephemeris
+  (`tools/make_astronomy_reference.py`, `tools/make_planet_reference.py`,
+  `tools/make_planet_risings.py`); the Diyanet Hijri method is checked against Diyanet's
   published month starts (`tests/diyanet_month_starts.csv`). Change the code only with the tests
   passing; a new tolerance or known difference needs a reason in the test.
 - Hijri months start by local crescent visibility (Odeh's criterion at the watch's location) or
@@ -218,11 +219,14 @@ in its flash partition. Read both over USB: `python tools/read_events.py`, then
   `main/Settings.*`); the Kconfig values are their defaults. Test builds that need other values
   set `CONFIG_WATCH_TEST_SETTINGS`, which ignores the saved settings.
 - Touch input: rows of 7.8 x 26 mm inside the corner gauges, one tap steps a value; no vertical scrolling
-  inside the swiped pages; sliding off a row cancels the tap. Four pages side by side:
+  inside the swiped pages; sliding off a row cancels the tap. Five pages side by side:
   watch face, clock (world clock, stopwatch, countdown, Gregorian and Hijri
   calendars, day counters; `main/ClockPages.*`), information (sun, twilight, prayer times, moon,
-  compass, time, battery, about) and settings (settings, more settings, what the portal set,
-  setup portal, its QR code). A vertical swipe steps the face page on the watch face and the part on
+  compass, time, battery, about), planets (the solar system on a square-root scale, the sky seen
+  from the south, the day's rise and set, distances; `main/PlanetPages.*`, the day's rise and set
+  computed in the main task on the page's request, 0.3 s; design:
+  `docs/superpowers/specs/2026-11-19-planets-design.md`) and settings (settings, more settings,
+  what the portal set, setup portal, its QR code). A vertical swipe steps the face page on the watch face and the part on
   the stacked pages (`main/StackPage.*`); the pages keep `LV_EVENT_GESTURE` and do not scroll, and
   the new page or part slides in. The stacked pages show their name at the top between the
   upper corner gauges, over a line bending up to them; their parts start `StackPage::HeaderPad`

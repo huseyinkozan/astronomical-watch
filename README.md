@@ -15,6 +15,8 @@ and the PWR key turns it on again.
 - Time and date
 - Sunrise, sunset, solar noon, civil/nautical/astronomical twilight, day length
 - Moon phase, illumination, age, moonrise and moonset
+- Planets: Mercury, Venus, Mars, Jupiter and Saturn in the solar system and in the sky, their rise
+  and set, their distance and light time
 - Gauges in the four screen corners, chosen in the setup portal: the battery, the day or night,
   the Moon's time above or below the horizon, its phase, the time to the next prayer, sunrise,
   sunset, moonrise or moonset, the week, month, Hijri month or year, a day counter, the Sun's
@@ -125,8 +127,8 @@ astronomical-watch/
 ## Status
 
 Restarted on ESP-IDF with C++17. The watch puts the unused peripherals into their lowest-power
-state. A PWR press starts active mode: four pages swiped sideways show the watch face, the clock, the
-information and the settings. The watch face is a set of pages composed in the setup portal: a
+state. A PWR press starts active mode: five pages swiped sideways show the watch face, the clock, the
+information, the planets and the settings. The watch face is a set of pages composed in the setup portal: a
 clock (JetBrains Mono or seven-segment digits, or analog in five styles), large or among the
 Sun's and the Moon's orbits or their paths over the horizon with the Milky Way, with up to four lines and four corners of
 information around it (the date, Hijri date, next prayer time or sunrise or sunset with the time
@@ -209,8 +211,11 @@ Each step is built, verified on the board and documented before the next one sta
     arcs templates with both digital clocks and five analog styles, the Milky Way band, the
     slots, the corner gauges chosen from a catalogue, and the always-on face drawn from the page
     (minute wake 0.25 s of app time on average); the picture mirrored for the other wrist.
-14. Vibration motor.
-15. Alarms (clock time and sun/moon events) and countdown timer, also set through the portal.
+14. **Planets page** (done, unreleased): the solar system, the sky, rise and set and distances
+    of the five bright planets, computed on the watch within about an arcminute of JPL's DE421
+    ephemeris.
+15. Vibration motor.
+16. Alarms (clock time and sun/moon events) and countdown timer, also set through the portal.
 
 ## License
 
