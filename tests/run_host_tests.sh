@@ -27,7 +27,7 @@ build-host/zones_test
 build-host/sky_test
 build-host/prayer_test
 build-host/part_order_test
-build-host/face_config_test
+build-host/face_config_test tools/portal_preview.py
 build-host/face_text_test
 build-host/seven_segment_test
 build-host/aod_small_test main/AodGlyphs.c

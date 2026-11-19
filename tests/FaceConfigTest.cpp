@@ -17,7 +17,7 @@ static void check( const char *name, bool condition )
     }
 }
 
-int main()
+int main( int argc, char **argv )
 {
     FaceConfig::Pages pages = {};
     FaceConfig::defaults( pages );
@@ -149,6 +149,25 @@ int main()
     check( "valid: corner out of range", !FaceConfig::valid( bad ) );
     FaceConfig::clamp( bad );
     check( "clamp: corner to none", bad.pages[0].items[FaceConfig::TopLeft] == FaceConfig::NoCorner );
+
+    // The portal preview's fake watch (argv[1]: tools/portal_preview.py) sends the defaults as
+    // the watch encodes them, so that the published portal pictures show the watch's boxes.
+    if ( argc > 1 ) {
+        char encoded[512] = {};
+        FaceConfig::Pages defaults = {};
+        FaceConfig::defaults( defaults );
+        FaceConfig::encode( defaults, encoded, sizeof( encoded ) );
+        char wanted[600] = {};
+        snprintf( wanted, sizeof( wanted ), "'faceDefaults': '%s'", encoded );
+        static char preview[65536] = {};
+        FILE *file = fopen( argv[1], "r" );
+        const size_t length = file != nullptr ? fread( preview, 1, sizeof( preview ) - 1, file ) : 0;
+        if ( file != nullptr ) {
+            fclose( file );
+        }
+        preview[length] = 0;
+        check( "portal preview: faceDefaults as encode() writes them", strstr( preview, wanted ) != nullptr );
+    }
 
     printf( "Face config: %d checks, %d failures\n", s_checks, s_failures );
     return s_failures == 0 ? 0 : 1;
