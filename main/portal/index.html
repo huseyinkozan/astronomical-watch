@@ -533,7 +533,7 @@ const faceCorners = [['Nothing', 'Boş'], ['Moon phase', 'Ay evresi'], ['Weekday
   ['Hour', 'Saat'], ['Minute', 'Dakika'], ['Second', 'Saniye']];
 const slotNames = [['Top edge', 'Üst kenar'], ['Top', 'Üst'], ['Bottom', 'Alt'], ['Bottom edge', 'Alt kenar'],
   ['Top left', 'Sol üst'], ['Top right', 'Sağ üst'], ['Bottom left', 'Sol alt'], ['Bottom right', 'Sağ alt']];
-const CityTime = 8, DayCounter = 9, SecondsHand = 1, MilkyWay = 2, Hidden = 128, MaxFaces = 8;
+const CityTime = 8, DayCounter = 9, SecondsHand = 1, MilkyWay = 2, PlanetsOnArcs = 4, Hidden = 128, MaxFaces = 8;
 let faces = [];
 let faceLimits = [faceTexts.length, faceCorners.length];
 
@@ -672,10 +672,12 @@ function drawFaces() {
   page.appendChild(labelOf(t('Template', 'Şablon')));
   page.appendChild(selectOf([['Large', 'Büyük'], ['Full arcs', 'Tam yay'], ['Half arcs', 'Yarım yay']], 3, v[0],
                             (n) => { v[0] = n; drawFaces(); }));
-  // The Milky Way band over the half arcs' horizon (FaceConfig::MilkyWayFlag).
+  // The Milky Way band and the planets between the arcs (FaceConfig::MilkyWayFlag, PlanetsFlag).
   if (v[0] === 1 || v[0] === 2) {
     page.appendChild(checkOf(t('Milky Way', 'Samanyolu'), (v[4] & MilkyWay) !== 0,
                              (on) => { v[4] = on ? v[4] | MilkyWay : v[4] & ~MilkyWay; }));
+    page.appendChild(checkOf(t('Planets', 'Gezegenler'), (v[4] & PlanetsOnArcs) !== 0,
+                             (on) => { v[4] = on ? v[4] | PlanetsOnArcs : v[4] & ~PlanetsOnArcs; }));
   }
   page.appendChild(labelOf(t('Clock', 'Saat')));
   // Choosing the Classic analog clock turns its seconds hand on, as on the default page.

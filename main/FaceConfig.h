@@ -108,6 +108,7 @@ public:
     // Bits of Page::flags.
     static const uint8_t SecondsHandFlag = 0x01;
     static const uint8_t MilkyWayFlag = 0x02;
+    static const uint8_t PlanetsFlag = 0x04;  // the planets between the arcs
     static const uint8_t HiddenFlag = 0x80;
 
     // The number of cities and day counters a slot can name (WorldClock::ShownCities,

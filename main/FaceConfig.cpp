@@ -57,14 +57,14 @@ void FaceConfig::defaults( Pages &pages )
     full = segments;
     full.layout = FullArcs;
     full.items[TopRight] = NoCorner;
-    full.flags = MilkyWayFlag;
+    full.flags = MilkyWayFlag | PlanetsFlag;
 
     // Page 2: the paths over the horizon with the Milky Way, JetBrains Mono digits below.
     Page &half = pages.pages[1];
     half = segments;
     half.layout = HalfArcs;
     half.digital = MonoDigits;
-    half.flags = MilkyWayFlag;
+    half.flags = MilkyWayFlag | PlanetsFlag;
 
     pages.pages[2] = segments;
 

@@ -44,6 +44,10 @@ int main()
            memcmp( analog.items, first.items, sizeof( analog.items ) ) == 0 && analog.alwaysOn == first.alwaysOn );
     check( "defaults: full arcs without the top right corner", full.items[FaceConfig::TopRight] == FaceConfig::NoCorner );
     check( "defaults: full arcs with the Milky Way", ( full.flags & FaceConfig::MilkyWayFlag ) != 0 );
+    check( "defaults: full and half arcs with the planets",
+           ( full.flags & FaceConfig::PlanetsFlag ) != 0 && ( half.flags & FaceConfig::PlanetsFlag ) != 0 );
+    check( "defaults: large pages without the planets",
+           ( first.flags & FaceConfig::PlanetsFlag ) == 0 && ( analog.flags & FaceConfig::PlanetsFlag ) == 0 );
     check( "defaults: Mono last", pages.pages[4].layout == FaceConfig::Large && pages.pages[4].digital == FaceConfig::MonoDigits );
 
     // The clock's place and size by template.
