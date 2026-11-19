@@ -107,3 +107,21 @@ name is "Gezegen": "Gezegenler" did not fit between the header line's bends.
 The exact sample step of the rise and set search, the dot sizes and the dim tone, the placement of
 the "E"/"W" letters, where the per-day computation runs (main task or LVGL task) as long as the
 first view of the page does not freeze the swipe noticeably.
+
+## Planets on the arc faces (2026-11-19, the owner's decisions after a preview)
+
+- An option per face page, "Planets" beside "Milky Way" in the portal (`FaceConfig::PlanetsFlag`),
+  on by default on the default Full arcs and Half arcs pages.
+- The seven planets sit between the Sun's and the Moon's arcs (Full arcs r 136, between 150 and
+  122; Half arcs r 127, between 150 and 105), placed by the faces' rule for the Sun and the Moon
+  (`Corners::arcPlace`): the share of their way from rise to set (and on the Full arcs, below
+  the horizon, from set to rise). Computed from the hour angle and the semi-diurnal arc
+  (closed form, no search), so that a wake pays a few milliseconds, not the 0.4 s of the
+  planets page's rise and set.
+- Dots in the planets page's colours and sizes for a face (Jupiter 5 px, Venus and Saturn 4,
+  Mercury and Mars 3, Uranus and Neptune 2; Saturn with a short ring line), drawn from the largest
+  to the smallest, so that a small one stays visible on a large one.
+- Full arcs: below the horizon in the dim tone, as the Sun and the Moon; Half arcs: only above
+  the horizon. The always-on face: the idle-mode colours (Mercury white; Venus, Jupiter, Saturn
+  yellow; Mars red; Uranus cyan; Neptune blue); below the horizon every second pixel lit.
+- Cost to measure: the minute wake with the option on (estimate +20 ms).
