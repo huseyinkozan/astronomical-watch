@@ -30,6 +30,8 @@ STATE = {
     'zone': 'Europe/Istanbul', 'place': 'Istanbul',
     'cities': [['London', 'Europe/London'], ['New York', 'America/New_York']],
     'days': [['Trip home', '2026-07-03']],
+    # Alarms::encode: a weekday clock alarm and "10 min before sunset", every day.
+    'alarms': ['0|7|0|0|0|31|1', '1|0|0|1|-10|127|1'],
     # FaceConfig::defaults, as FaceConfig::encode writes them, and the catalogues' sizes.
     'faces': '1,0,1,0,6,2,5,0,9,2,0,1,4,0,0,0,0,0,0,0,0,209;2,0,0,0,6,2,5,0,9,2,8,1,4,0,0,0,0,0,0,0,0,209;0,0,1,0,0,2,5,0,9,2,8,1,4,0,0,0,0,0,0,0,0,209;0,1,1,0,1,2,5,0,9,2,8,1,4,0,0,0,0,0,0,0,0,209;0,0,0,0,0,0,1,3,0,0,0,0,0,0,0,0,0,0,0,0,0,6/1,2,3,4,0,0,0,0',
     'faceItems': [12, 13],

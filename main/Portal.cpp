@@ -111,7 +111,7 @@ void Portal::newPassword()
 }
 
 esp_err_t Portal::start( const Settings &settings, const WorldClock &worldClock, const DayCounters &counters,
-                         const FaceConfig::Pages &faces )
+                         const FaceConfig::Pages &faces, const AlarmStore::List &alarms )
 {
     if ( isRunning() ) {
         return ESP_OK;
@@ -119,6 +119,7 @@ esp_err_t Portal::start( const Settings &settings, const WorldClock &worldClock,
     m_settings = &settings;
     m_worldClock = &worldClock;
     m_counters = &counters;
+    m_alarms = &alarms;
     m_faces = &faces;
     m_hasCoreDump = esp_core_dump_image_check() == ESP_OK;
     esp_err_t err = ESP_OK;
@@ -392,6 +393,15 @@ esp_err_t Portal::onState( httpd_req_t *request )
         const int used = strlen( json );
         snprintf( json + used, jsonSize - used, "%s[\"%s\",\"%04d-%02d-%02d\"]", i == 0 ? "" : ",",
                   counters.counter( i ).name, fields.tm_year + 1900, fields.tm_mon + 1, fields.tm_mday );
+    }
+    strlcat( json, "],\"alarms\":[", jsonSize );
+    const AlarmStore::List &alarms = *portal->m_alarms;
+    for ( int i = 0; i < alarms.count; ++i ) {
+        char text[48];
+        if ( Alarms::encode( alarms.alarms[i], text, sizeof( text ) ) ) {
+            const int used = strlen( json );
+            snprintf( json + used, jsonSize - used, "%s\"%s\"", i == 0 ? "" : ",", text );
+        }
     }
     // The page's lists may be longer than this version's catalogues: it offers only these.
     if ( FaceConfig::encode( *portal->m_faces, s_faces, sizeof( s_faces ) ) < 0 ) {
@@ -678,6 +688,24 @@ esp_err_t Portal::onSave( httpd_req_t *request )
             strlcpy( counter.name, text, sizeof( counter.name ) );
             // The firmware never sets TZ, so mktime() works in UTC.
             counter.day = static_cast<int>( mktime( &fields ) / 86400 );
+        }
+    }
+    // The alarms: "a0".."a3" = Alarms::encode's text, URL-encoded.
+    if ( httpd_query_key_value( body, "alarms", value, sizeof( value ) ) == ESP_OK ) {
+        received.alarmsValid = true;
+        const int count = static_cast<int>( strtol( value, nullptr, 10 ) );
+        for ( int i = 0; i < count && i < Alarms::MaxAlarms; ++i ) {
+            char key[4] = { 'a', static_cast<char>( '0' + i ), '\0', '\0' };
+            char text[48];
+            if ( httpd_query_key_value( body, key, text, sizeof( text ) ) != ESP_OK ) {
+                continue;
+            }
+            urlDecode( text );
+            if ( Alarms::decode( text, received.alarms.alarms[received.alarms.count] ) ) {
+                ++received.alarms.count;
+            } else {
+                ESP_LOGW( TAG, "Setup page: alarm refused: %s", text );
+            }
         }
     }
     // The face pages: FaceConfig::encode's text, URL-encoded.

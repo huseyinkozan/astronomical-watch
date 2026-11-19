@@ -3,6 +3,7 @@
 #include <cstdint>
 
 #include "Settings.h"
+#include "AlarmStore.h"
 #include "DayCounters.h"
 #include "FaceConfig.h"
 #include "WorldClock.h"
@@ -37,6 +38,9 @@ public:
         bool countersValid;
         int counterCount;
         DayCounters::Counter counters[DayCounters::MaxCounters];
+        // The alarms; alarmsValid: the page sent them (invalid entries are left out).
+        bool alarmsValid;
+        AlarmStore::List alarms;
         // The face pages; facesValid: the page sent them and they decoded.
         bool facesValid;
         FaceConfig::Pages faces;
@@ -51,7 +55,7 @@ public:
     // Starts the soft AP, DHCP, DNS and HTTP servers. The page reads the current values from
     // `settings` while the portal runs.
     esp_err_t start( const Settings &settings, const WorldClock &worldClock, const DayCounters &counters,
-                     const FaceConfig::Pages &faces );
+                     const FaceConfig::Pages &faces, const AlarmStore::List &alarms );
 
     // Stops everything start() started; safe to call when not running.
     void stop();
@@ -98,6 +102,7 @@ private:
     const Settings *m_settings = nullptr;
     const WorldClock *m_worldClock = nullptr;
     const DayCounters *m_counters = nullptr;
+    const AlarmStore::List *m_alarms = nullptr;
     const FaceConfig::Pages *m_faces = nullptr;
     esp_netif_t *m_netif = nullptr;
     httpd_handle_t m_server = nullptr;

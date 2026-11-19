@@ -30,6 +30,7 @@
 #include "Sound.h"
 #include "Fonts.h"
 #include "DayCounters.h"
+#include "AlarmStore.h"
 #include "Language.h"
 #include "WorldClock.h"
 #include "Zones.h"
@@ -68,6 +69,9 @@ static Motion s_motion;
 static Settings s_settings;
 static WorldClock s_worldClock;
 static DayCounters s_dayCounters;
+// The alarms' definitions (NVS); s_alarmsChanged: their due times must be computed again.
+static AlarmStore::List s_alarms;
+static bool s_alarmsChanged = false;
 #if CONFIG_WATCH_SETUP_PORTAL
 static Portal s_portal;
 #endif
@@ -721,6 +725,11 @@ static void applyPortalData( const Portal::Received &received )
     s_settings.save();
     s_display.refreshSettings();
     s_languageChanged = s_settings.value( Settings::Language ) != language;
+    if ( received.alarmsValid ) {
+        s_alarms = received.alarms;
+        AlarmStore::save( s_alarms );
+        s_alarmsChanged = true;
+    }
     if ( received.countersValid ) {
         s_dayCounters.set( received.counters, received.counterCount, localDayNow( received ) );
         s_display.setCounters( s_dayCounters );
@@ -775,7 +784,7 @@ static bool servicePortal( bool everySecond )
         if ( s_portal.isRunning() ) {
             s_portal.stop();
         } else {
-            s_portal.start( s_settings, s_worldClock, s_dayCounters, s_facePages );
+            s_portal.start( s_settings, s_worldClock, s_dayCounters, s_facePages, s_alarms );
             s_portalUsed = true;
         }
     }
@@ -1391,6 +1400,7 @@ extern "C" void app_main( void )
         s_worldClock.load();
         s_display.setCities( s_worldClock );
         s_dayCounters.load();
+        AlarmStore::load( s_alarms );
         s_display.setCounters( s_dayCounters );
         showSetupInfo();
 #endif

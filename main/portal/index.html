@@ -45,6 +45,13 @@
   .slot input { width: auto; }
   #faceDefaults { margin-top: 12px; font-size: 1em; padding: 8px; background: #333; }
   .showOnWatch { margin-top: 8px; font-size: 1em; padding: 8px; background: #2d4f73; }
+  .alarm { border-top: 1px solid #444; padding: 6px 0; }
+  #alarmEditor > button { margin-top: 6px; font-size: 1em; padding: 8px; background: #333; }
+  .alarm .slot input[type=number] { width: 5em; }
+  .alarm .days { display: flex; flex-wrap: wrap; gap: 2px 8px; }
+  .alarm .days label { margin: 0; }
+  .alarm .days input, .alarm .slot input[type=checkbox] { width: auto; }
+  .alarm button { width: auto; padding: 4px 12px; font-size: 1em; background: #333; }
   .suggest button { display: block; text-align: left; margin: 2px 0; padding: 10px; font-size: 1em;
                     background: #2a2a2a; }
 </style>
@@ -115,6 +122,14 @@
   <div class="row"><div><input id="dn1" maxlength="20" placeholder="Name" data-tr-ph="Ad"></div><div><input id="dd1" type="date"></div></div>
   <div class="row"><div><input id="dn2" maxlength="20" placeholder="Name" data-tr-ph="Ad"></div><div><input id="dd2" type="date"></div></div>
   <div class="row"><div><input id="dn3" maxlength="20" placeholder="Name" data-tr-ph="Ad"></div><div><input id="dd3" type="date"></div></div>
+</fieldset>
+
+<fieldset>
+  <legend data-tr="Alarmlar">Alarms</legend>
+  <small data-tr="Bir saatte ya da bir gök olayına göre (en çok dört); saatte saat sayfasında açılıp kapatılır. Hiç gün seçilmezse bir kez çalar.">At a clock time or by a sky event (up to four); switched on and off on the watch's clock
+  page. With no day chosen an alarm rings once.</small>
+  <div id="alarmEditor"></div>
+  <small data-tr="Açık bir alarm saatin kendini kapatmasını engeller: pil daha çabuk biter.">An alarm that is on keeps the watch from switching itself off: the battery lasts shorter.</small>
 </fieldset>
 </section>
 
@@ -630,6 +645,72 @@ $('faceDefaults').addEventListener('click', () => {
   drawGauges();
 });
 
+// The alarms, each [kind, hour, minute, event, offset, days, on] as Alarms::encode writes them
+// (main/Alarms.h): kind 0 a clock time, 1 a sky event; days bit 0 Monday; none: once.
+const alarmEvents = [['Sunrise', 'Gün doğumu'], ['Sunset', 'Gün batımı'], ['Civil dawn', 'Sivil şafak'],
+  ['Civil dusk', 'Sivil alacakaranlık'], ['Nautical dawn', 'Denizci şafağı'], ['Nautical dusk', 'Denizci alacakaranlığı'],
+  ['Astronomical dawn', 'Astronomik şafak'], ['Astronomical dusk', 'Astronomik alacakaranlık'], ['Solar noon', 'Güneş öğlesi'],
+  ['Moonrise', 'Ay doğuşu'], ['Moonset', 'Ay batışı'], ['Imsak', 'İmsak'], ['Sunrise (prayer)', 'Güneş (vakit)'],
+  ['Dhuhr', 'Öğle'], ['Asr', 'İkindi'], ['Maghrib', 'Akşam'], ['Isha', 'Yatsı']];
+const alarmDays = [['Mon', 'Pzt'], ['Tue', 'Sal'], ['Wed', 'Çar'], ['Thu', 'Per'], ['Fri', 'Cum'], ['Sat', 'Cmt'], ['Sun', 'Paz']];
+const MaxAlarms = 4;
+let alarms = [];
+function decodeAlarm(text) {
+  const v = String(text).split('|').map(Number);
+  return v.length === 7 && v.every(Number.isInteger) ? v : null;
+}
+function drawAlarms() {
+  const box = $('alarmEditor');
+  box.innerHTML = '';
+  alarms.forEach((v, a) => {
+    const entry = document.createElement('div');
+    entry.className = 'alarm';
+    const head = document.createElement('div');
+    head.className = 'slot';
+    head.appendChild(checkOf(t('On', 'Açık'), v[6] === 1, (on) => { v[6] = on ? 1 : 0; }));
+    head.appendChild(selectOf([['Clock time', 'Saat'], ['Sky event', 'Gök olayı']], 2, v[0], (n) => { v[0] = n; drawAlarms(); }));
+    head.appendChild(headButton('✕', false, () => { alarms.splice(a, 1); drawAlarms(); }));
+    entry.appendChild(head);
+    const when = document.createElement('div');
+    when.className = 'slot';
+    if (v[0] === 0) {
+      const time = document.createElement('input');
+      time.type = 'time';
+      time.value = String(v[1]).padStart(2, '0') + ':' + String(v[2]).padStart(2, '0');
+      time.addEventListener('change', () => {
+        const [h, m] = time.value.split(':').map(Number);
+        if (Number.isInteger(h) && Number.isInteger(m)) { v[1] = h; v[2] = m; }
+      });
+      when.appendChild(time);
+    } else {
+      when.appendChild(selectOf(alarmEvents, alarmEvents.length, v[3], (n) => { v[3] = n; }));
+      const offset = document.createElement('input');
+      offset.type = 'number';
+      offset.min = '-120';
+      offset.max = '120';
+      offset.value = String(v[4]);
+      offset.title = t('Minutes before (-) or after (+) the event', 'Olaydan önce (-) ya da sonra (+) dakika');
+      offset.addEventListener('change', () => {
+        v[4] = Math.max(-120, Math.min(120, Math.round(Number(offset.value) || 0)));
+        offset.value = String(v[4]);
+      });
+      when.appendChild(offset);
+      when.appendChild(labelOf(t('min', 'dk')));
+    }
+    entry.appendChild(when);
+    const days = document.createElement('div');
+    days.className = 'days';
+    alarmDays.forEach((names, d) => {
+      days.appendChild(checkOf(names[L], (v[5] & (1 << d)) !== 0, (on) => { v[5] = on ? v[5] | (1 << d) : v[5] & ~(1 << d); }));
+    });
+    entry.appendChild(days);
+    box.appendChild(entry);
+  });
+  if (alarms.length < MaxAlarms) {
+    box.appendChild(headButton(t('+ Alarm', '+ Alarm'), false, () => { alarms.push([0, 7, 0, 0, 0, 0b0011111, 1]); drawAlarms(); }));
+  }
+}
+
 // One page at a time: a list chooses the page, the fields below belong to it.
 let facePage = 0;
 function headButton(text, disabled, onClick) {
@@ -775,6 +856,7 @@ function setLanguage(language) {
   drawOrders();
   drawFaces();
   drawGauges();
+  drawAlarms();
   showZone();
 }
 $('language').addEventListener('change', () => setLanguage(Number($('language').value)));
@@ -801,6 +883,8 @@ fetch('/api/state').then((r) => r.json()).then((s) => {
     const index = cities.findIndex((c) => c[4] === zone && watchName(c[1]) === name);
     if (index >= 0 && w < 3) $('w' + w).value = cityText(cities[index]);
   });
+  alarms = (s.alarms || []).map(decodeAlarm).filter((v) => v !== null).slice(0, MaxAlarms);
+  drawAlarms();
   (s.days || []).forEach(([name, date], i) => {
     if (i < 4) { $('dn' + i).value = name; $('dd' + i).value = date; }
   });
@@ -840,6 +924,8 @@ $('save').addEventListener('click', async () => {
     const days = [0, 1, 2, 3].filter((i) => $('dd' + i).value !== '');
     fields.set('days', String(days.length));
     days.forEach((d, i) => fields.set('d' + i, watchName($('dn' + d).value || t('Day', 'Gün')) + '|' + $('dd' + d).value));
+    fields.set('alarms', String(alarms.length));
+    alarms.forEach((v, i) => fields.set('a' + i, v.join('|')));
     for (const list of orderLists) {
       fields.set(list.order, String(list.parts.reduce((value, part, i) => value | (part << (3 * i)), 0)));
       if (list.hidden) fields.set(list.hidden, String([...list.off].reduce((bits, part) => bits | (1 << part), 0)));

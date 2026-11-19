@@ -194,6 +194,10 @@ int main()
                          back.offsetMinutes == -120 && back.days == 0x55 && back.on );
     check( "decode clock", Alarms::decode( "0|7|30|0|0|31|1", back ) && back.hour == 7 && back.minute == 30 &&
                                back.days == 31 && back.on );
+    // The texts the setup page sends (tools/portal_preview.py's state, the page's v.join('|')).
+    check( "page clock", Alarms::decode( "0|7|0|0|0|31|1", back ) && back.kind == Alarms::ClockTime && back.days == 31 );
+    check( "page event", Alarms::decode( "1|0|0|1|-10|127|1", back ) && back.event == Alarms::Sunset &&
+                             back.offsetMinutes == -10 && back.days == 127 );
     check( "reject hour", !Alarms::decode( "0|24|0|0|0|31|1", back ) );
     check( "reject offset", !Alarms::decode( "1|0|0|3|121|31|1", back ) );
     check( "reject event", !Alarms::decode( "1|0|0|17|0|31|1", back ) );
