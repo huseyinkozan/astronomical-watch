@@ -84,6 +84,15 @@ public:
         DayCounter,
         SunAltitude,
         MoonAltitude,
+        // Added later (saved pages keep their numbers): the clock, and the corners' short items.
+        TimeText,
+        WeekdayText,
+        DayOfMonthText,
+        MonthText,
+        HijriDayText,
+        HijriMonthText,
+        HourText,
+        MinuteText,
         TextItemCount
     };
 
@@ -105,6 +114,7 @@ public:
         AlarmDays,   // the ring of an alarm's days with a bell (parameter: the alarm, 0-3)
         AlarmBell,   // lit while an alarm is on
         TimerGlass,  // lit while the stopwatch or the countdown runs
+        TimeCorner,  // HH:MM
         CornerItemCount
     };
 

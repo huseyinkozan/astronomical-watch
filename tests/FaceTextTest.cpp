@@ -116,6 +116,28 @@ int main()
     FaceText::text( FaceConfig::ShortDate, 0, in, text, sizeof( text ) );
     checkText( "en short date", text, "Jun 21" );
 
+    // The clock as a slot (HH:MM), in a text line and in a corner; the short corner items in a
+    // text line give the corner's text.
+    FaceText::text( FaceConfig::TimeText, 0, in, text, sizeof( text ) );
+    checkText( "time line", text, "19:19" );
+    FaceText::corner( FaceConfig::TimeCorner, in, text, sizeof( text ) );
+    checkText( "time corner", text, "19:19" );
+    const FaceConfig::TextItem lines[7] = { FaceConfig::WeekdayText, FaceConfig::DayOfMonthText, FaceConfig::MonthText,
+                                             FaceConfig::HijriDayText, FaceConfig::HijriMonthText, FaceConfig::HourText,
+                                             FaceConfig::MinuteText };
+    const FaceConfig::CornerItem corners[7] = { FaceConfig::WeekdayShort, FaceConfig::DayOfMonth, FaceConfig::MonthShort,
+                                                FaceConfig::HijriDayOfMonth, FaceConfig::HijriMonthShort,
+                                                FaceConfig::HourCorner, FaceConfig::MinuteCorner };
+    bool sameAsCorner = true;
+    for ( int i = 0; i < 7; ++i ) {
+        char line[32];
+        char corner[32];
+        FaceText::text( lines[i], 0, in, line, sizeof( line ) );
+        FaceText::corner( corners[i], in, corner, sizeof( corner ) );
+        sameAsCorner = sameAsCorner && line[0] != '\0' && strcmp( line, corner ) == 0;
+    }
+    check( "short items in a line as in a corner", sameAsCorner );
+
     // No clock set yet: every slot stays empty.
     FaceText::Inputs none = in;
     none.timeValid = false;

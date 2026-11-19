@@ -132,7 +132,7 @@ state. A PWR press starts active mode: five pages swiped sideways show the watch
 information, the planets and the settings. The watch face is a set of pages composed in the setup portal: a
 clock (JetBrains Mono or seven-segment digits, or analog in five styles), large or among the
 Sun's and the Moon's orbits or their paths over the horizon with the Milky Way and the planets, with up to four lines and four corners of
-information around it (the date, Hijri date, next prayer time or sunrise or sunset with the time
+information around it (the time, the date, Hijri date, next prayer time or sunrise or sunset with the time
 left, a day counter, a world clock city, the battery, the Sun's or the Moon's altitude, the
 weekday ring, the Moon's phase, the hour, minute or second, an alarm's days, the alarm bell, a
 running timer); a vertical swipe steps the face

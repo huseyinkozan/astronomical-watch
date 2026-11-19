@@ -148,6 +148,31 @@ void FaceText::text( FaceConfig::TextItem item, int parameter, const Inputs &in,
     case FaceConfig::Seconds:
         snprintf( out, size, ":%02d", in.second );
         break;
+    // The corners' short items in a line: the corner's text.
+    case FaceConfig::TimeText:
+        corner( FaceConfig::TimeCorner, in, out, size );
+        break;
+    case FaceConfig::WeekdayText:
+        corner( FaceConfig::WeekdayShort, in, out, size );
+        break;
+    case FaceConfig::DayOfMonthText:
+        corner( FaceConfig::DayOfMonth, in, out, size );
+        break;
+    case FaceConfig::MonthText:
+        corner( FaceConfig::MonthShort, in, out, size );
+        break;
+    case FaceConfig::HijriDayText:
+        corner( FaceConfig::HijriDayOfMonth, in, out, size );
+        break;
+    case FaceConfig::HijriMonthText:
+        corner( FaceConfig::HijriMonthShort, in, out, size );
+        break;
+    case FaceConfig::HourText:
+        corner( FaceConfig::HourCorner, in, out, size );
+        break;
+    case FaceConfig::MinuteText:
+        corner( FaceConfig::MinuteCorner, in, out, size );
+        break;
     case FaceConfig::BatteryPercent:
         if ( in.batteryPercent >= 0 ) {
             snprintf( out, size, "%d %%", in.batteryPercent );
@@ -233,6 +258,9 @@ void FaceText::corner( FaceConfig::CornerItem item, const Inputs &in, char *out,
         break;
     case FaceConfig::MinuteCorner:
         snprintf( out, size, "%02d", in.minute );
+        break;
+    case FaceConfig::TimeCorner:
+        snprintf( out, size, "%02d:%02d", in.hour, in.minute );
         break;
     case FaceConfig::SecondCorner:
         snprintf( out, size, "%02d", in.second );
