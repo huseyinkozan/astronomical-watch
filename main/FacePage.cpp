@@ -37,6 +37,23 @@ static const lv_color_t s_moonDim = LV_COLOR_MAKE( 0x50, 0x54, 0x60 );
 static const lv_color_t s_horizon = LV_COLOR_MAKE( 0x60, 0x60, 0x60 );
 static const int s_skyMoonSize = 25;
 
+// The planets between the Sun's and the Moon's arcs, drawn in this order, the largest first, so
+// that a small one stays visible on a large one; colours as the planets page, radii only to tell
+// them apart (docs/superpowers/specs/2026-11-19-planets-design.md).
+struct PlanetDot
+{
+    Planets::Body body;
+    uint32_t colour;
+    int radius;
+};
+static const PlanetDot s_planetDots[] = {
+    { Planets::Jupiter, 0xE1BE8C, 5 }, { Planets::Venus, 0xF0E1AA, 4 },  { Planets::Saturn, 0xDCBE6E, 4 },
+    { Planets::Mercury, 0xAAAAAA, 3 }, { Planets::Mars, 0xE65A3C, 3 },   { Planets::Uranus, 0x96D7E1, 2 },
+    { Planets::Neptune, 0x8C78FF, 2 },
+};
+static const float s_planetOrbitRadius = 136;  // between the Sun's 150 and the Moon's 122
+static const float s_planetPathRadius = 127;   // between 150 and 105
+
 static const int s_moonSize = 37;
 static const int s_weekdayRadius = 20;
 static const int s_weekdayWidth = 4;
@@ -310,10 +327,12 @@ void FacePage::paintMoon()
     paintMoonCanvas( m_skyMoon, s_skyMoonSize, m_moonPercent, m_waxing );
 }
 
-void FacePage::setSky( const Corners::Input &corners, const Sky::Now &now, bool located )
+void FacePage::setSky( const Corners::Input &corners, const Sky::Now &now, const Astronomy::Observer &observer,
+                       bool located )
 {
     m_corners = corners;
     m_sky = now;
+    m_observer = observer;
     if ( located != m_located || now.time / 60 != m_skyMinute ) {
         m_located = located;
         m_skyMinute = now.time / 60;
@@ -335,6 +354,14 @@ void FacePage::placeSky()
         m_bodies[i] = {};
         if ( m_located && m_corners.valid ) {
             m_bodies[i] = Corners::arcPlace( *events[i], m_sky.time, orbits, m_sky.south );
+        }
+    }
+    const bool planets = ( orbits || paths ) && m_located && ( m_page.flags & FaceConfig::PlanetsFlag ) != 0;
+    static_assert( sizeof( s_planetDots ) / sizeof( s_planetDots[0] ) == PlanetCount, "one place per planet" );
+    for ( int i = 0; i < PlanetCount; ++i ) {
+        m_planets[i] = {};
+        if ( planets ) {
+            m_planets[i] = Planets::arcPlace( s_planetDots[i].body, m_sky.time, m_observer, orbits );
         }
     }
     // The Moon's picture on its orbit or path while it is up.
@@ -652,6 +679,41 @@ static void drawDialBand( lv_layer_t *layer, int originX, int originY, const Mil
     }
 }
 
+// The planets on the circle of `radius` around (cx, cy); below the horizon dim (Full arcs) or
+// not at all (Half arcs). Saturn gets a short line through it for its ring.
+static void drawPlanets( lv_layer_t *layer, const Planets::ArcPlace *places, float cx, float cy, float radius,
+                         bool belowShown )
+{
+    const int count = static_cast<int>( sizeof( s_planetDots ) / sizeof( s_planetDots[0] ) );
+    for ( int i = 0; i < count; ++i ) {
+        const Planets::ArcPlace &place = places[i];
+        if ( !place.known || ( !place.up && !belowShown ) ) {
+            continue;
+        }
+        const PlanetDot &dot = s_planetDots[i];
+        lv_color_t colour = lv_color_hex( dot.colour );
+        if ( !place.up ) {
+            // The dim tone of the Sun's and the Moon's orbits below the horizon.
+            colour = lv_color_make( colour.red * 35 / 100, colour.green * 35 / 100, colour.blue * 35 / 100 );
+        }
+        const float a = place.angle * static_cast<float>( M_PI ) / 180.0f;
+        const float x = cx + radius * cosf( a );
+        const float y = cy + radius * sinf( a );
+        if ( dot.body == Planets::Saturn ) {
+            lv_draw_line_dsc_t ring;
+            lv_draw_line_dsc_init( &ring );
+            ring.color = colour;
+            ring.width = 1;
+            ring.p1.x = static_cast<int32_t>( lroundf( x ) ) - dot.radius - 4;
+            ring.p1.y = static_cast<int32_t>( lroundf( y ) );
+            ring.p2.x = static_cast<int32_t>( lroundf( x ) ) + dot.radius + 4;
+            ring.p2.y = ring.p1.y;
+            lv_draw_line( layer, &ring );
+        }
+        drawDot( layer, x, y, colour, dot.radius );
+    }
+}
+
 // The orbits (Full arcs) or the paths over the horizon (Half arcs), the Sun, and the Moon below
 // the horizon; the Moon above it is its own object (m_skyMoon).
 void FacePage::onDrawArcs( lv_event_t *event )
@@ -705,6 +767,7 @@ void FacePage::onDrawArcs( lv_event_t *event )
             const float a = moon.angle * static_cast<float>( M_PI ) / 180.0f;
             drawDot( layer, cx + s_orbitRadius[1] * cosf( a ), cy + s_orbitRadius[1] * sinf( a ), s_moonDim, 8 );
         }
+        drawPlanets( layer, face->m_planets, cx, cy, s_planetOrbitRadius, true );
         return;
     }
     if ( face->m_page.layout != FaceConfig::HalfArcs ) {
@@ -731,4 +794,5 @@ void FacePage::onDrawArcs( lv_event_t *event )
         const float a = sun.angle * static_cast<float>( M_PI ) / 180.0f;
         drawDot( layer, cx + s_pathRadius[0] * cosf( a ), cy + s_pathRadius[0] * sinf( a ), s_amber, 8 );
     }
+    drawPlanets( layer, face->m_planets, cx, cy, s_planetPathRadius, false );
 }

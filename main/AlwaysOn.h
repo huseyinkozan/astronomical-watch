@@ -48,7 +48,8 @@ public:
         Green,
         Blue,
         // Idle mode has no grey: white on every second pixel, which looks grey on this panel.
-        Grey
+        Grey,
+        Cyan
     };
 
     // One bitmap of the face, its top-left corner at (x, y) on the screen before the burn-in
@@ -72,7 +73,7 @@ public:
     enum ShapeKind : uint8_t
     {
         DotShape,
-        DiscShape,
+        DiscShape,  // `width` 1: every second pixel lit (a planet below the horizon)
         RingShape,
         LineShape,
         BandShape,
@@ -94,7 +95,8 @@ public:
         int16_t y1;
     };
 
-    // The dots of both orbits (up to about 350), sixty marks, two hands, the centre, a weekday ring.
+    // The dots of both orbits (up to about 350), sixty marks, two hands, the centre, a weekday ring,
+    // eight for the planets.
     static const int MaxShapes = 440;
 
     // The sprites and shapes, and the box on the screen that holds them before the burn-in shift.

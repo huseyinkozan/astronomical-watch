@@ -4,6 +4,7 @@
 #include "FaceConfig.h"
 #include "FaceText.h"
 #include "MilkyWay.h"
+#include "Planets.h"
 #include "Sky.h"
 #include "lvgl.h"
 
@@ -26,8 +27,9 @@ public:
 
     // The arc templates' data: the Sun's and the Moon's rises and sets, this moment's sky (the
     // galactic centre, the Sun's altitude, the hemisphere); `located` false: no location set
-    // (no bodies, no band). Once a second; the arcs are placed again when the minute changes.
-    void setSky( const Corners::Input &corners, const Sky::Now &now, bool located );
+    // (no bodies, no band). Once a second; the arcs are placed again when the minute changes,
+    // the planets too (FaceConfig::PlanetsFlag).
+    void setSky( const Corners::Input &corners, const Sky::Now &now, const Astronomy::Observer &observer, bool located );
 
 private:
     static void onDrawSegments( lv_event_t *event );
@@ -67,6 +69,9 @@ private:
     bool m_located = false;
     int64_t m_skyMinute = -1;
     Corners::ArcPlace m_bodies[2] = {};  // the Sun, the Moon
+    Astronomy::Observer m_observer = {};
+    static const int PlanetCount = 7;
+    Planets::ArcPlace m_planets[PlanetCount] = {};  // in s_planetDots' order
     MilkyWay::Band m_band = {};
     MilkyWay::DialBand m_dialBand = {};  // the Full arcs' band
     bool m_bandShown = false;

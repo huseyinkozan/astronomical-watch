@@ -426,7 +426,7 @@ static void updateSky( int64_t now, const int inputs[5] )
     if ( s_faceTableStale || s_faceTable.localDay != s_skyDay.day ) {
         buildFaceTable( observer, offsetMinutes, inputs[4] );
     }
-    s_display.showSky( s_skyDay, Sky::computeNow( now, s_skyDay, observer ), offsetMinutes, s_faceTable,
+    s_display.showSky( s_skyDay, Sky::computeNow( now, s_skyDay, observer ), observer, offsetMinutes, s_faceTable,
                        inputs[0] != 0 || inputs[1] != 0 );
     s_display.showPlanets( now, observer, offsetMinutes, inputs[0] != 0 || inputs[1] != 0 );
     // The planets page asks for its day's rise and set when it is built or a new day begins.

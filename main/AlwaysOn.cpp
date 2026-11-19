@@ -13,6 +13,7 @@
 #include "FaceText.h"
 #include "Language.h"
 #include "Panel.h"
+#include "Planets.h"
 #include "esp_attr.h"
 #include "sdkconfig.h"
 
@@ -24,7 +25,7 @@ static const bool s_idleMode = false;
 
 // AlwaysOn::Colour in RGB565 with the bytes swapped, as the panel takes them (Panel::buffer()).
 // Idle mode shows each channel on or off, so only full colours are used.
-static const uint16_t s_colours[6] = { 0xFFFF, 0xE0FF, 0x00F8, 0xE007, 0x1F00, 0xFFFF };
+static const uint16_t s_colours[7] = { 0xFFFF, 0xE0FF, 0x00F8, 0xE007, 0x1F00, 0xFFFF, 0xFF07 };
 
 static const int s_moonRadius = 18;  // the corner moon, as large as the active face's
 static const int s_moonSize = 2 * s_moonRadius + 1;
@@ -40,6 +41,8 @@ static const int s_orbitY = 251;
 static const float s_orbitRadius[2] = { 150, 122 };  // the Sun, the Moon
 static const int s_horizonY = 232;
 static const float s_pathRadius[2] = { 150, 105 };
+static const float s_planetOrbitRadius = 136;  // the planets, between the Sun and the Moon
+static const float s_planetPathRadius = 127;
 static const int s_bandClip = 160;
 static const int s_bandWidth = 16;
 static const int s_skyMoonRadius = 10;
@@ -372,6 +375,36 @@ static void addArcs( AlwaysOn::Face &face, const AlwaysOn::Look &look, int64_t u
             addShape( face, AlwaysOn::RingShape, AlwaysOn::White, x, y, s_skyMoonRadius, 2 );
         }
     }
+    // The planets between the arcs, the largest first (FacePage's s_planetDots in idle-mode
+    // colours); below the horizon (Full arcs) every second pixel, Saturn without its ring there.
+    struct PlanetDot
+    {
+        Planets::Body body;
+        AlwaysOn::Colour colour;
+        int radius;
+    };
+    static const PlanetDot planets[] = {
+        { Planets::Jupiter, AlwaysOn::Yellow, 5 }, { Planets::Venus, AlwaysOn::Yellow, 4 }, { Planets::Saturn, AlwaysOn::Yellow, 4 },
+        { Planets::Mercury, AlwaysOn::White, 3 },  { Planets::Mars, AlwaysOn::Red, 3 },     { Planets::Uranus, AlwaysOn::Cyan, 2 },
+        { Planets::Neptune, AlwaysOn::Blue, 2 },
+    };
+    if ( look.skyValid && ( look.page.flags & FaceConfig::PlanetsFlag ) != 0 ) {
+        const float r = orbits ? s_planetOrbitRadius : s_planetPathRadius;
+        for ( int i = 0; i < static_cast<int>( sizeof( planets ) / sizeof( planets[0] ) ); ++i ) {
+            const Planets::ArcPlace place = Planets::arcPlace( planets[i].body, utcNow, look.observer, orbits );
+            if ( !place.known || ( !place.up && !orbits ) ) {
+                continue;
+            }
+            const float a = place.angle * static_cast<float>( M_PI ) / 180.0f;
+            const int x = static_cast<int>( lroundf( cx + r * cosf( a ) ) );
+            const int y = static_cast<int>( lroundf( cy + r * sinf( a ) ) );
+            if ( planets[i].body == Planets::Saturn && place.up ) {
+                addShape( face, AlwaysOn::LineShape, planets[i].colour, x - planets[i].radius - 4, y, 0, 1,
+                          x + planets[i].radius + 4, y );
+            }
+            addShape( face, AlwaysOn::DiscShape, planets[i].colour, x, y, planets[i].radius, place.up ? 0 : 1 );
+        }
+    }
     if ( !orbits ) {
         for ( int x = 40; x <= 370; x += 6 ) {
             addShape( face, AlwaysOn::DotShape, AlwaysOn::White, x, s_horizonY );
@@ -565,13 +598,14 @@ static void drawShape( uint16_t *pixels, int bandTop, int rows, int left, int wi
             break;
         }
         const int inner = shape.kind == AlwaysOn::RingShape ? r - shape.width : -1;
+        const bool halftone = shape.kind == AlwaysOn::DiscShape && shape.width == 1;
         for ( int y = y0 - r; y <= y0 + r; ++y ) {
             if ( y < bandTop || y >= bandTop + rows ) {
                 continue;
             }
             for ( int x = x0 - r; x <= x0 + r; ++x ) {
                 const int d = ( x - x0 ) * ( x - x0 ) + ( y - y0 ) * ( y - y0 );
-                if ( d <= r * r && ( inner < 0 || d > inner * inner ) ) {
+                if ( d <= r * r && ( inner < 0 || d > inner * inner ) && ( !halftone || ( ( x + y ) & 1 ) == 0 ) ) {
                     putPixel( pixels, bandTop, rows, left, width, x, y, colour );
                 }
             }

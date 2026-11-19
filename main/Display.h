@@ -102,8 +102,8 @@ public:
     // The astronomy pages: values of the local day and of this moment; the face's events,
     // counters and cities. Also updates the face with the time of the last update(); `located`
     // false: no location set yet (the face's sky slots stay empty).
-    void showSky( const Sky::Day &day, const Sky::Now &now, int utcOffsetMinutes, const FaceTable &table,
-                  bool located );
+    void showSky( const Sky::Day &day, const Sky::Now &now, const Astronomy::Observer &observer, int utcOffsetMinutes,
+                  const FaceTable &table, bool located );
 
     // The corner gauges, on every page.
     // `night`: the Sun is down (the brightness control names the night level).

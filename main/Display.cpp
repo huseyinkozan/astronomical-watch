@@ -780,8 +780,8 @@ void Display::applySetup()
     }
 }
 
-void Display::showSky( const Sky::Day &day, const Sky::Now &now, int utcOffsetMinutes, const FaceTable &table,
-                       bool located )
+void Display::showSky( const Sky::Day &day, const Sky::Now &now, const Astronomy::Observer &observer,
+                       int utcOffsetMinutes, const FaceTable &table, bool located )
 {
     if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
         return;
@@ -801,12 +801,12 @@ void Display::showSky( const Sky::Day &day, const Sky::Now &now, int utcOffsetMi
         shown.galacticCentre.altitude = m_overrideAltitude;
         shown.galacticCentre.azimuth = m_overrideAzimuth;
         shown.sun.altitude = m_overrideSunAltitude;
-        m_face.setSky( Corners::fromSky( day ), shown, located );
+        m_face.setSky( Corners::fromSky( day ), shown, observer, located );
     } else {
-        m_face.setSky( Corners::fromSky( day ), now, located );
+        m_face.setSky( Corners::fromSky( day ), now, observer, located );
     }
 #else
-    m_face.setSky( Corners::fromSky( day ), now, located );
+    m_face.setSky( Corners::fromSky( day ), now, observer, located );
 #endif
     m_faceTable = table;
     FaceText::Inputs inputs = {};
