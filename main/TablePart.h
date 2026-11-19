@@ -33,6 +33,9 @@ public:
         int valueX;
         int valueWidth;  // of one value column
         int dotsLetters; // > 0: a longer one-value text ends in dots after this many letters
+        // Centred tables: wrapped rows keep their lines only while the column stays this high
+        // at most (0: no limit); the rest of a row is cut.
+        int maxHeight;
     };
 
     // The table fills `parent`'s content area.

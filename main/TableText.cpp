@@ -152,3 +152,17 @@ int TableText::columnTops( int titleHeight, const int *heights, int count, int g
     }
     return top;
 }
+
+void TableText::limitHeights( int *heights, int count, int lineHeight, int room )
+{
+    for ( int i = 0; i < count; ++i ) {
+        const int extra = heights[i] - lineHeight;
+        if ( extra <= 0 ) {
+            continue;
+        }
+        // As many of its extra lines as the room takes.
+        const int fits = extra <= room ? extra : room - room % lineHeight;
+        heights[i] = lineHeight + fits;
+        room -= fits;
+    }
+}

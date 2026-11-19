@@ -40,6 +40,10 @@ public:
     // Returns the title's top and writes each row's top to `tops`.
     static int columnTops( int titleHeight, const int *heights, int count, int gap, int areaHeight, int *tops );
 
+    // Rows wrapped onto more lines (`heights` above `lineHeight`) keep them, in row order, as far
+    // as their extra lines fit in `room`; the rest of a row is cut.
+    static void limitHeights( int *heights, int count, int lineHeight, int room );
+
     // `text` cut to `maxLetters` letters with "..." at the end when it is longer, as LVGL's dots
     // mode shows it.
     static void fitWithDots( const char *text, int maxLetters, char *out, size_t size );

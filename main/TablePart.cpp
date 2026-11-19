@@ -108,6 +108,10 @@ void TablePart::onDraw( lv_event_t *event )
         heights[row] = centred ? self->rowHeight( row ) : lineHeight;
         tops[row] = layout.top + layout.titleGap + row * layout.pitch;
     }
+    if ( centred && layout.maxHeight > 0 ) {
+        const int natural = lineHeight + layout.rowCount * layout.pitch;
+        TableText::limitHeights( heights, layout.rowCount, lineHeight, layout.maxHeight - natural );
+    }
     if ( centred ) {
         top = TableText::columnTops( lineHeight, heights, layout.rowCount, layout.pitch - lineHeight,
                                      lv_area_get_height( &coords ), tops );

@@ -13,8 +13,10 @@ static const int s_compassCentreY = 230;
 static const int s_arrowLength = 110;
 
 
-// The columns of today's label rows: a 160 px name and two 105 px values, centred.
-static const TablePart::Layout s_tableLayout = { nullptr, 0, {}, -1, 38, 38, 20, 160, 180, 105, 0 };
+// The columns of today's label rows: a 160 px name and two 105 px values, centred. A long place
+// may wrap onto a second line while the column stays within the tallest table (the title and
+// nine rows), clear of the lower corners.
+static const TablePart::Layout s_tableLayout = { nullptr, 0, {}, -1, 38, 38, 20, 160, 180, 105, 0, 32 + 9 * 38 };
 static const uint32_t s_amberRgb = 0xFFB040;
 
 static TablePart::Layout tableLayout( const char *title, int rowCount, const TablePart::RowKind *kinds )

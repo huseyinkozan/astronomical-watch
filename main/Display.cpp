@@ -408,7 +408,7 @@ void Display::buildSettingsPage()
                                                                Language::ClockSet };
     // Names from x 30, values right-aligned in 220 px ending 30 px from the edge; a long value
     // ends in dots (13 letters of 16 px).
-    TablePart::Layout layout = { Language::text( Language::SetupTitle ), SetupInfoRows, {}, 76, 40, 36, 30, 350, 160, 110, 13 };
+    TablePart::Layout layout = { Language::text( Language::SetupTitle ), SetupInfoRows, {}, 76, 40, 36, 30, 350, 160, 110, 13, 0 };
     for ( int i = 0; i < SetupInfoRows; ++i ) {
         layout.kinds[i] = TablePart::OneValue;
         m_setupTable.text().set( i, 0, Language::text( s_setupNames[i] ) );

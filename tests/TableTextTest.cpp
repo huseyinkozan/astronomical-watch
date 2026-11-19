@@ -78,6 +78,21 @@ int main()
     check( "a wrapped line: the title moves up", TableText::columnTops( 32, heights, 8, 6, 490, tops ) == 61 );
     check( "a wrapped line: the next row moves down", tops[6] == 327 && tops[7] == 397 );
 
+    // Wrapped rows keep their lines only while the column has room; later ones are cut to one.
+    int wrapped[5] = { 32, 32, 64, 32, 96 };
+    TableText::limitHeights( wrapped, 5, 32, 32 );
+    check( "room for one more line: the first wrapped row keeps it", wrapped[2] == 64 );
+    check( "no room left: the next wrapped row is cut to one line", wrapped[4] == 32 );
+    int noRoom[2] = { 64, 32 };
+    TableText::limitHeights( noRoom, 2, 32, 0 );
+    check( "no room: every row one line", noRoom[0] == 32 );
+    int partly[1] = { 96 };
+    TableText::limitHeights( partly, 1, 32, 40 );
+    check( "room for one of two extra lines: two lines shown", partly[0] == 64 );
+    int plenty[2] = { 64, 96 };
+    TableText::limitHeights( plenty, 2, 32, 100 );
+    check( "enough room: rows keep their lines", plenty[0] == 64 && plenty[1] == 96 );
+
     printf( "Table text: %d checks, %d failures\n", s_checks, s_failures );
     return s_failures == 0 ? 0 : 1;
 }
