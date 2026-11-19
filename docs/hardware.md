@@ -21,7 +21,7 @@ examples, SensorLib/XPowersLib, Rust watch firmwares), **[HW]** validated on thi
 | 13 | LCD_TE | [SCH] | – |
 | 14 / 15 | I2C SCL / SDA (shared) | 2.2k pull-ups (R49 / R23) to **VCC3V3**; a line held low would draw ~1.5 mA; BSP: port 1, 400 kHz [SCH][REF] | – |
 | 16 / 40 / 41 / 42 / 45 | I2S MCLK / DSDIN / SCLK / ASDOUT / LRCK | [SCH] | – |
-| 18 | Vibration motor | NPN low-side, motor supply = ALDO3 [SCH] | – |
+| 18 | Vibration motor | NPN low-side, motor supply = ALDO3 [SCH]; **not fitted on this board**: the place marked "motor" is empty (owner, watch opened 2026-11-19) [HW] | – |
 | 19 / 20 | USB D− / D+ | native USB-Serial-JTAG [SCH] | – |
 | **21** | **QMI8658 INT1** | push-pull when enabled [SCH][DS] | **yes** |
 | 38 | Touch INT | [SCH] | **no** (light sleep only) |
