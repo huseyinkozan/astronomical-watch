@@ -62,7 +62,7 @@ Saatin beş sayfası yan yana; yana kaydırma aralarında geçer. Yukarı ya da 
 <td></td>
 </tr>
 <tr>
-<td></td>
+<td><img src="24-alarms.png" width="150" alt="24-alarms"></td>
 <td></td>
 <td></td>
 <td><img src="13-battery.png" width="150" alt="13-battery"></td>

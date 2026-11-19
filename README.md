@@ -217,7 +217,7 @@ Each step is built, verified on the board and documented before the next one sta
 14. **Planets page** (done): the solar system, the sky, rise and set and distances
     of the seven planets, computed on the watch within a few arcminutes of JPL's DE421
     ephemeris; the planets on the Full arcs and Half arcs faces too.
-15. **Alarms** (done, unreleased): clock time and sky event alarms set through the portal and
+15. **Alarms** (done): clock time and sky event alarms set through the portal and
     switched on the clock page, the countdown's signal, beeps through the speaker (no vibration
     motor is fitted), the watch asleep instead of off while one is pending, and corner icons for
     an alarm's days, the alarm bell and a running timer.
