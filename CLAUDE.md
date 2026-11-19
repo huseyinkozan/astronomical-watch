@@ -384,7 +384,8 @@ power-on state, unplug USB for the run, then plug it in and read the log with
 
 ## Documentation
 
-- `README.md`: human-facing and concise (purpose, features, hardware, build, status).
+- `README.md`: human-facing and concise (purpose, features, screenshots, install, hardware, build);
+  no status or roadmap (the release notes and the git history keep them).
 - `CLAUDE.md`: durable development rules and agent instructions.
 - `docs/hardware.md`: hardware facts with sources.
 
