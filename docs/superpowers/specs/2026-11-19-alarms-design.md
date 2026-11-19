@@ -84,16 +84,17 @@ loudness measurements (docs/hardware.md, "Speaker and alarm sound").
   switches it and saves. No alarm defined: a line saying that alarms are set in the portal. The
   part takes part in the clock page's order and hiding in the portal like the others. Below the
   rows a note (the owner's request): an alarm that is on makes the battery last shorter.
-- **Two new corner items** for the face pages' inner corners (the owner's request, 2026-11-19),
+- **Three new corner items** for the face pages' inner corners (the owner's request, 2026-11-19),
   chosen per page in the portal like the weekday ring, each with its "always-on" box:
-  - **Alarm days:** an alarm symbol in the middle of a ring of seven day notches laid out as the
+  - **Alarm days:** a bell in the middle of a ring of seven day notches laid out as the
     weekday ring's (`WeekdayIcon`); the notch of each day on which the alarm rings is lit, the
     others dim; the whole icon dim while the alarm is off. *Builder's call:* the slot's
     parameter chooses the alarm (1–4), as the day counter's does; a "once" alarm lights the day
     it will ring.
-  - **Alarm pending:** an hourglass, dim while no alarm is on and the countdown stopped, lit
-    while one is on or the countdown runs (*builder's call:* the countdown counts, as it too
-    keeps the watch from powering off).
+  - **Alarm on:** a bell, lit while at least one alarm is on, dim otherwise (the owner
+    preferred a bell to an hourglass for alarms).
+  - **Timer running:** an hourglass, lit while the stopwatch or the countdown runs, dim
+    otherwise (the owner's choice).
   - Both drawn on the active face and the always-on face (idle-mode colours, the always-on
     bitmaps or shapes); the default pages do not use them.
 - **In the portal:** a box "Alarms" in the Time tab, after the day counters: four entries, each
