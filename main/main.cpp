@@ -207,6 +207,16 @@ static bool pollHostCommands()
         s_hostLine[s_hostLineLength] = '\0';
         s_hostLineLength = 0;
         received = true;
+        // "M": the saved face pages as FaceConfig::encode writes them (for FaceConfig::defaults).
+        if ( s_hostLine[0] == 'M' && s_hostLine[1] == '\0' ) {
+            FaceConfig::Pages saved = {};
+            FaceStore::load( saved );
+            static char s_encoded[( FaceConfig::MaxPages * 22 + 8 ) * 6 + 16];
+            if ( FaceConfig::encode( saved, s_encoded, sizeof( s_encoded ) ) > 0 ) {
+                printf( "FACES %s\n", s_encoded );
+            }
+            continue;
+        }
         if ( s_hostLine[0] == 'E' && s_hostLine[1] == '\0' ) {
             EventLog::print( s_settings.value( Settings::UtcOffset ) );
             continue;

@@ -21,8 +21,8 @@ int main( int argc, char **argv )
 {
     FaceConfig::Pages pages = {};
     FaceConfig::defaults( pages );
-    // The spec's four pages first (Full arcs, Half arcs with the Milky Way, Large seven segment,
-    // Large analog Classic), then Large JetBrains Mono.
+    // The owner's pages of 2026-11-19: Full arcs, Half arcs, Large seven segment, Full arcs with an
+    // analog Classic clock and the time on top, Large JetBrains Mono.
     check( "defaults: five pages", pages.count == 5 );
     check( "defaults: valid", FaceConfig::valid( pages ) );
     const FaceConfig::Page &full = pages.pages[0];
@@ -37,18 +37,22 @@ int main( int argc, char **argv )
     check( "defaults: seven segment", first.digital == FaceConfig::SevenSegment );
     check( "defaults: weekday icon top left", first.items[FaceConfig::TopLeft] == FaceConfig::WeekdayIcon );
     const FaceConfig::Page &analog = pages.pages[3];
-    check( "defaults: large analog Classic", analog.layout == FaceConfig::Large && analog.clock == FaceConfig::AnalogClock &&
-                                                 analog.analog == FaceConfig::ClassicHands );
+    check( "defaults: full arcs analog Classic", analog.layout == FaceConfig::FullArcs && analog.clock == FaceConfig::AnalogClock &&
+                                                     analog.analog == FaceConfig::ClassicHands );
     check( "defaults: Classic with the seconds hand", ( analog.flags & FaceConfig::SecondsHandFlag ) != 0 );
-    check( "defaults: analog page's slots as the seven segment page's",
-           memcmp( analog.items, first.items, sizeof( analog.items ) ) == 0 && analog.alwaysOn == first.alwaysOn );
+    check( "defaults: the time on the analog page's top edge", analog.items[FaceConfig::TopEdge] == FaceConfig::TimeText );
+    check( "defaults: the analog page shows alarm 1's days", analog.items[FaceConfig::TopRight] == FaceConfig::AlarmDays &&
+                                                                 analog.parameters[FaceConfig::TopRight] == 0 );
     check( "defaults: full arcs without the top right corner", full.items[FaceConfig::TopRight] == FaceConfig::NoCorner );
     check( "defaults: full arcs with the Milky Way", ( full.flags & FaceConfig::MilkyWayFlag ) != 0 );
     check( "defaults: full and half arcs with the planets",
            ( full.flags & FaceConfig::PlanetsFlag ) != 0 && ( half.flags & FaceConfig::PlanetsFlag ) != 0 );
-    check( "defaults: large pages without the planets",
-           ( first.flags & FaceConfig::PlanetsFlag ) == 0 && ( analog.flags & FaceConfig::PlanetsFlag ) == 0 );
+    check( "defaults: large pages without the planets", ( first.flags & FaceConfig::PlanetsFlag ) == 0 );
     check( "defaults: Mono last", pages.pages[4].layout == FaceConfig::Large && pages.pages[4].digital == FaceConfig::MonoDigits );
+    check( "defaults: today's corner gauges", pages.gauges[0] == FaceConfig::DayNightGauge &&
+                                                  pages.gauges[1] == FaceConfig::BatteryGauge &&
+                                                  pages.gauges[2] == FaceConfig::MoonPassGauge &&
+                                                  pages.gauges[3] == FaceConfig::MoonPhaseGauge );
 
     // The clock's place and size by template.
     const FaceConfig::ClockPlace large = FaceConfig::clockPlace( FaceConfig::Large );
@@ -159,15 +163,6 @@ int main( int argc, char **argv )
     check( "alarm icons valid", FaceConfig::valid( alarmPages ) );
     alarmPages.pages[2].parameters[FaceConfig::TopLeft] = 4;
     check( "alarm days: alarm 5 invalid", !FaceConfig::valid( alarmPages ) );
-    bool defaultsUseAlarms = false;
-    for ( int p = 0; p < pages.count; ++p ) {
-        for ( int slot = FaceConfig::TextSlotCount; slot < FaceConfig::SlotCount; ++slot ) {
-            const int item = pages.pages[p].items[slot];
-            defaultsUseAlarms = defaultsUseAlarms || item == FaceConfig::AlarmDays || item == FaceConfig::AlarmBell ||
-                                item == FaceConfig::TimerGlass;
-        }
-    }
-    check( "defaults use no alarm icon", !defaultsUseAlarms );
 
     // The portal preview's fake watch (argv[1]: tools/portal_preview.py) sends the defaults as
     // the watch encodes them, so that the published portal pictures show the watch's boxes.

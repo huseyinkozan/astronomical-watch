@@ -29,64 +29,36 @@ static int parameterLimit( int slot, int item )
     return 1;
 }
 
+// The owner's pages of 2026-11-19, as encode() writes them (read from the watch with the
+// development command "M"):
+// 1. Full arcs, seven-segment digits, Milky Way and planets; short date, next sunrise or sunset,
+//    day counter; the weekday ring, the Moon's phase and the day of the month in the corners.
+// 2. Half arcs, JetBrains Mono, Milky Way and planets; a day counter; the weekday ring, the Sun's
+//    altitude, the Moon's phase, the day of the month.
+// 3. Large seven-segment digits with the slots of earlier versions.
+// 4. Full arcs around an analog Classic clock with the seconds hand, Milky Way and planets; the
+//    time on the top edge, the short date on the bottom edge; the weekday ring, alarm 1's days,
+//    the Moon's phase, the Hijri day.
+// 5. Large JetBrains Mono, the short date and the next sunrise or sunset below, no corners.
+// The corner gauges: the day or night, the battery, the Moon's pass and its phase.
+static const char *const s_defaultPages =
+    "1,0,1,0,6,2,4,0,9,2,0,1,4,0,0,0,0,0,0,0,0,17;"
+    "2,0,0,0,6,0,0,0,9,2,8,1,4,0,0,0,0,0,0,0,0,80;"
+    "0,0,1,0,0,2,5,0,9,2,8,1,4,0,0,0,0,0,0,0,0,209;"
+    "1,1,1,0,7,12,0,0,2,2,13,1,5,0,0,0,0,0,0,0,0,25;"
+    "0,0,0,0,0,0,2,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
+    "/1,2,3,4,0,0,0,0";
+
 void FaceConfig::defaults( Pages &pages )
 {
     pages = {};
-    pages.count = 5;
-    // Today's four gauges: the day or night, the battery, the Moon's pass and its phase.
-    pages.gauges[0] = DayNightGauge;
-    pages.gauges[1] = BatteryGauge;
-    pages.gauges[2] = MoonPassGauge;
-    pages.gauges[3] = MoonPhaseGauge;
-
-    // As the owner's approved mock-up (docs/superpowers/specs/2026-11-18-face-templates/
-    // templates.png, pages 1 to 4, then the classic face): every default text fits its slot
-    // (tests/FaceTextTest.cpp).
-    Page segments = {};
-    segments.layout = Large;
-    segments.clock = DigitalClock;
-    segments.digital = SevenSegment;
-    segments.items[TopEdge] = ShortDate;
-    segments.items[TopInner] = NextPrayer;
-    segments.items[BottomEdge] = DayCounter;
-    segments.items[TopLeft] = WeekdayIcon;
-    segments.items[TopRight] = SunAltitudeCorner;
-    segments.items[BottomLeft] = MoonIcon;
-    segments.items[BottomRight] = DayOfMonth;
-    segments.alwaysOn = ( 1 << TopEdge ) | ( 1 << TopLeft ) | ( 1 << BottomLeft ) | ( 1 << BottomRight );
-
-    // Page 1: the orbits around small seven-segment digits; the top right corner left free.
-    Page &full = pages.pages[0];
-    full = segments;
-    full.layout = FullArcs;
-    full.items[TopRight] = NoCorner;
-    full.flags = MilkyWayFlag | PlanetsFlag;
-
-    // Page 2: the paths over the horizon with the Milky Way, JetBrains Mono digits below.
-    Page &half = pages.pages[1];
-    half = segments;
-    half.layout = HalfArcs;
-    half.digital = MonoDigits;
-    half.flags = MilkyWayFlag | PlanetsFlag;
-
-    pages.pages[2] = segments;
-
-    // Page 4: the same slots around a Classic analog clock with the seconds hand.
-    Page &analog = pages.pages[3];
-    analog = segments;
-    analog.clock = AnalogClock;
-    analog.analog = ClassicHands;
-    analog.flags = SecondsHandFlag;
-
-    // Like the classic face of earlier versions; no corners, so that the inner slots take the
-    // long dates.
-    Page &mono = pages.pages[4];
-    mono.layout = Large;
-    mono.clock = DigitalClock;
-    mono.digital = MonoDigits;
-    mono.items[TopInner] = LongDate;
-    mono.items[BottomInner] = HijriDate;
-    mono.alwaysOn = ( 1 << TopInner ) | ( 1 << BottomInner );
+    if ( !decode( s_defaultPages, pages ) ) {
+        // Not reached while the host tests pass: one Large page with the Mono digits.
+        pages = {};
+        pages.count = 1;
+        pages.pages[0].layout = Large;
+        pages.pages[0].clock = DigitalClock;
+    }
 }
 
 FaceConfig::ClockPlace FaceConfig::clockPlace( int layout )
@@ -263,12 +235,12 @@ bool FaceConfig::decode( const char *text, Pages &pages )
             break;
         }
     }
-    // The corner gauges; an older string without them gets today's four.
-    Pages defaultPages = {};
-    defaults( defaultPages );
+    // The corner gauges; an older string without them gets the default four (named here: the
+    // defaults themselves are decoded from a string).
+    static const uint8_t s_defaultGauges[4] = { DayNightGauge, BatteryGauge, MoonPassGauge, MoonPhaseGauge };
     for ( int i = 0; i < 4; ++i ) {
-        result.gauges[i] = defaultPages.gauges[i];
-        result.gaugeParameters[i] = defaultPages.gaugeParameters[i];
+        result.gauges[i] = s_defaultGauges[i];
+        result.gaugeParameters[i] = 0;
     }
     if ( *cursor == '/' ) {
         ++cursor;

@@ -214,8 +214,10 @@ int main()
     FaceText::text( FaceConfig::HijriDate, 0, lastDayIn, text, sizeof( text ) );
     checkText( "after midnight past day 29: an O", text, "O Muharram 1448" );
 
-    // The default pages' texts fit their slots in both languages: a cut text is for pages the
-    // owner composes, not for the defaults.
+    // The default pages' texts fit their slots in both languages, except a name before a number
+    // (the next event or prayer, a city, a day counter), which loses letters of its name only: the
+    // defaults are the owner's own pages (2026-11-19), whose first page cuts "Gün batımı" in
+    // Turkish.
     FaceConfig::Pages defaults = {};
     FaceConfig::defaults( defaults );
     const Language::Id languages[2] = { Language::English, Language::Turkish };
@@ -229,7 +231,10 @@ int main()
                 const int width = FaceConfig::textWidth( page, slot );
                 char name[96];
                 snprintf( name, sizeof( name ), "default page %d slot %d fits (%s)", p, slot, text );
-                check( name, FaceText::fit( text, 16, width ) == static_cast<int>( strlen( text ) ) );
+                const int item = page.items[slot];
+                const bool namedNumber = item == FaceConfig::NextSunEvent || item == FaceConfig::NextPrayer ||
+                                         item == FaceConfig::CityTime || item == FaceConfig::DayCounter;
+                check( name, namedNumber || FaceText::fit( text, 16, width ) == static_cast<int>( strlen( text ) ) );
             }
         }
     }
