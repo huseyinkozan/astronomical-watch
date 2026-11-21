@@ -8,6 +8,9 @@ drawn without LVGL, as rectangles ("SHOT RECT <x> <y> <width> <height> <0|1>", b
 rows; it is shown here at full brightness, dimmer on the watch. Opening the port does not reset
 the board; the tool waits for active mode (a PWR press).
 
+The page numbers are Display.cpp's shot table (s_shots): the face, then each stacked page's part
+opened from the launcher (numbers kept from the five side-by-side pages), the launcher last (25).
+
 Run inside the ESP-IDF environment, which provides pyserial:
     python tools/screenshot.py [--port /dev/ttyACM0] [--out docs/screenshots] [pages...]
 

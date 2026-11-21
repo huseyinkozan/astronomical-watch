@@ -73,9 +73,14 @@ static void setText( lv_obj_t *object, const char *text )
     }
 }
 
-void ClockPages::build( lv_obj_t *tile )
+void ClockPages::loadTimers()
 {
     m_timers.load();
+}
+
+void ClockPages::build( lv_obj_t *tile )
+{
+    m_tile = tile;
     m_stack.build( tile, PartCount, Language::text( Language::ClockPageName ) );
 
     lv_obj_t *world = m_stack.part( WorldPart );
@@ -168,7 +173,37 @@ void ClockPages::build( lv_obj_t *tile )
 
     // After StackPage's handler: it takes the vertical swipes, this one the sideways ones.
     lv_obj_add_event_cb( tile, onGesture, LV_EVENT_GESTURE, this );
-    lv_timer_create( onTick, s_tickMs, this );
+    m_tick = lv_timer_create( onTick, s_tickMs, this );
+    m_built = true;
+
+    // A page built again: the calendars start from the anchor day's month (the Hijri one is
+    // asked for again when seen), and the values kept meanwhile are shown at once.
+    memset( m_gregorianShown, 0, sizeof( m_gregorianShown ) );
+    m_gregorianStep = 0;
+    m_hijriStep = 0;
+    m_hijriAnchor = -1;
+    lv_obj_set_hidden( m_cityHint, m_cityCount > 0 );
+    lv_obj_set_hidden( m_counterHint, m_counterCount > 0 );
+    if ( m_scene ) {
+        setScene( true );
+    }
+    showTime();
+}
+
+void ClockPages::forget()
+{
+    if ( m_tile != nullptr ) {
+        lv_obj_remove_event_cb_with_user_data( m_tile, onGesture, this );
+    }
+    m_stack.forget();
+    if ( m_tick != nullptr ) {
+        lv_timer_delete( m_tick );
+        m_tick = nullptr;
+    }
+    m_tile = nullptr;
+    m_built = false;
+    // showAlarms() checks it; the other objects are used only while built.
+    m_alarmHint = nullptr;
 }
 
 StackPage &ClockPages::stack()
@@ -374,7 +409,17 @@ void ClockPages::update( int64_t utcSeconds, int utcOffsetMinutes, const Rtc::Da
         m_baseUs = esp_timer_get_time();
     }
     m_today = Dates::dayNumber( localTime.year, localTime.month, localTime.day );
+    m_utcSeconds = utcSeconds;
+    showTime();
+}
 
+void ClockPages::showTime()
+{
+    const Rtc::DateTime &localTime = m_local;
+    if ( !m_built || localTime.month == 0 ) {
+        return;
+    }
+    const int utcOffsetMinutes = m_offsetMinutes;
     char text[32];
     snprintf( text, sizeof( text ), "%02d:%02d", localTime.hour, localTime.minute );
     setText( m_homeTime, text );
@@ -393,7 +438,7 @@ void ClockPages::update( int64_t utcSeconds, int utcOffsetMinutes, const Rtc::Da
         snprintf( text, sizeof( text ), "UTC%c%d:%02d", utcOffsetMinutes < 0 ? '-' : '+', offset / 60, offset % 60 );
     }
     setText( m_homeZone, text );
-    showCities( utcSeconds );
+    showCities( m_utcSeconds );
     showCounters();
 
     // A calendar left alone returns to the month of the chosen day, else of today.
@@ -418,6 +463,9 @@ void ClockPages::setCities( const WorldClock &worldClock )
     for ( int i = 0; i < m_cityCount; ++i ) {
         m_cities[i] = worldClock.city( i );
     }
+    if ( !m_built ) {
+        return;
+    }
     lv_obj_set_hidden( m_cityHint, m_cityCount > 0 );
     for ( int i = m_cityCount; i < WorldClock::ShownCities; ++i ) {
         setText( m_cityNames[i], "" );
@@ -431,6 +479,9 @@ void ClockPages::setCounters( const DayCounters &counters )
     m_counterCount = counters.count();
     for ( int i = 0; i < m_counterCount; ++i ) {
         m_counters[i] = counters.counter( i );
+    }
+    if ( !m_built ) {
+        return;
     }
     lv_obj_set_hidden( m_counterHint, m_counterCount > 0 );
     for ( int i = m_counterCount; i < DayCounters::MaxCounters; ++i ) {
@@ -505,8 +556,11 @@ void ClockPages::showHijriMonth( const Hijri::Month &month, int today, int metho
     if ( m_hijriRequest.step == 0 ) {
         m_hijriAnchor = m_hijriRequest.fromDay;
     }
-    lv_label_set_text_fmt( m_hijri.title, "%s %d", SkyPages::hijriMonthName( month.month ), month.year );
     m_today = today;
+    if ( !m_built ) {
+        return;
+    }
+    lv_label_set_text_fmt( m_hijri.title, "%s %d", SkyPages::hijriMonthName( month.month ), month.year );
     showHijriMarks();
     lv_label_set_text( m_hijri.footer, Language::text( method == Hijri::Diyanet ? Language::DiyanetMethod : Language::LocalCrescent ) );
 }
@@ -678,6 +732,9 @@ bool ClockPages::press( const char *name )
 {
     // Development: the buttons and tap areas by name, as a finger would press them; "gd<n>" and
     // "hd<n>" choose day n of the Gregorian or Hijri month shown.
+    if ( !m_built ) {
+        return false;
+    }
     if ( ( name[0] == 'g' || name[0] == 'h' ) && name[1] == 'd' ) {
         const int day = atoi( name + 2 );
         if ( name[0] == 'g' && day >= 1 && day <= m_gregorian.length ) {
@@ -724,7 +781,8 @@ const int ClockPages::SceneCounterDays[4] = { 12, 232, 143, -4212 };
 void ClockPages::setScene( bool scene )
 {
     m_scene = scene;
-    if ( !scene ) {
+    // build() calls it again.
+    if ( !scene || !m_built ) {
         return;
     }
     // Sample states for the screenshots; the saved timers and cities stay as they are. The

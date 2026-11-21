@@ -12,8 +12,8 @@
 #include "WorldClock.h"
 #include "lvgl.h"
 
-// The clock page, right of the watch face: world clock, stopwatch, countdown, and the Gregorian
-// and Hijri month calendars, one over the other (StackPage). On a calendar a sideways swipe shows
+// The clock page: world clock, stopwatch, countdown, and the Gregorian and Hijri month
+// calendars, one over the other (StackPage). On a calendar a sideways swipe shows
 // the month before or after, so the pages do not move then (swipesSideways()); "<" and ">" at the
 // bottom say so. Display builds it and calls it with the display lock
 // held; the Hijri months are computed by the main task (up to 0.5 s each with the local crescent
@@ -33,7 +33,15 @@ public:
         PartCount
     };
 
+    // The stopwatch and the countdown, once at the start: the alarms read the countdown even
+    // while the page is not built.
+    void loadTimers();
+
     void build( lv_obj_t *tile );
+
+    // The objects were deleted with the tile's contents (another page opened): the values, the
+    // timers and the part shown stay for the next build.
+    void forget();
 
     StackPage &stack();
 
@@ -96,6 +104,8 @@ private:
     void showAlarms();
     void stepGregorian( int step );
     void stepHijri( int step );
+    // The labels of the time, the cities and the counters (update(), and a new build).
+    void showTime();
 
     // A calendar: title, footer, and one object that draws the weekday row, up to six weeks of
     // days, a ring around today and one around the chosen day (labels for each day took 20 KB of
@@ -131,7 +141,12 @@ private:
     void formatLocal( char *text, int size, int64_t unixMs ) const;
 
     StackPage m_stack;
+    lv_obj_t *m_tile = nullptr;
+    lv_timer_t *m_tick = nullptr;
+    // The objects exist (build() to forget()); the values below are kept without them.
+    bool m_built = false;
     Timers m_timers;
+    int64_t m_utcSeconds = 0;
     bool m_scene = false;
     int m_offsetMinutes = 0;
     Rtc::DateTime m_local = {};

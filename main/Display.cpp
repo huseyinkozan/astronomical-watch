@@ -15,6 +15,7 @@
 #include "bsp/display.h"
 #include "bsp/esp32_s3_touch_amoled_2_06.h"
 #include "bsp/touch.h"
+#include "esp_attr.h"
 #include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "esp_timer.h"
@@ -51,17 +52,25 @@ static const Language::Text s_settingNames[Settings::PageItemCount] = {
 // Four rows fit on a part; the next ones go to the part below.
 static const int s_rowsPerPart = 4;
 
-// Page order, left to right.
+// The tiles, left to right.
+enum Tile
+{
+    FaceTile,
+    LauncherTile,  // the stacked pages and their parts, a tap opens one in the App tile
+    AppTile,       // the stacked page last opened from the launcher
+    TileCount
+};
+static_assert( TileCount == Display::TileCount, "Display.h sizes m_tiles for the tiles" );
+
+// The stacked pages, in the launcher's order; the App tile holds one of them at a time.
 enum Page
 {
-    FacePage,
     ClockPage,     // world clock, timers and calendars, one over the other (ClockPages)
     InfoPage,      // the information parts, one over the other (InfoPart)
     PlanetsPage,   // the solar system, the sky, rise and set, distances (PlanetPages)
     SettingsPage,  // the settings, and under them the setup portal
     PageCount
 };
-static_assert( PageCount == Display::PageSlots, "Display.h sizes m_tiles and m_built for the pages" );
 
 enum SettingsPart
 {
@@ -75,16 +84,65 @@ enum SettingsPart
     SettingsPartCount
 };
 
-// The development screenshots keep one number per screen: the pages, with the information page's
-// parts in their own places. Part -1: no part.
+// The launcher's rows: each page's name, then its parts' names (in part number order).
+static const Language::Text s_clockParts[ClockPages::PartCount] = {
+    Language::WorldClock, Language::Stopwatch, Language::Timer, Language::PartCalendar, Language::PartHijriCalendar,
+    Language::Days, Language::AlarmsPartName };
+static const Language::Text s_infoParts[Display::InfoCount] = {
+    Language::Sun, Language::Twilight, Language::PrayerTimes, Language::Moon, Language::SunCompass, Language::Time,
+    Language::Battery, Language::PartAbout };
+static const Language::Text s_planetsParts[PlanetPages::PartCount] = {
+    Language::PartSolarSystem, Language::PartSky, Language::RiseAndSet, Language::Distance };
+static const Language::Text s_settingsParts[SettingsPartCount] = {
+    Language::PartSettings, Language::PartMoreSettings, Language::PartSetupInfo,
+#if CONFIG_WATCH_SETUP_PORTAL
+    Language::PartSetup, Language::PartQrCode
+#endif
+};
+struct PageEntry
+{
+    Language::Text name;
+    const Language::Text *parts;
+    int partCount;
+    Settings::Item order;   // PartOrder's settings of the page
+    Settings::Item hidden;
+};
+static const PageEntry s_pageEntries[PageCount] = {
+    { Language::ClockPageName, s_clockParts, ClockPages::PartCount, Settings::ClockOrder, Settings::ClockHidden },
+    { Language::InfoPageName, s_infoParts, Display::InfoCount, Settings::InfoOrder, Settings::InfoHidden },
+    { Language::PlanetsPageName, s_planetsParts, PlanetPages::PartCount, Settings::PlanetsOrder, Settings::PlanetsHidden },
+    { Language::SettingsPageName, s_settingsParts, SettingsPartCount, Settings::SettingsOrder, Settings::SettingsHidden } };
+
+// The page and part last opened from the launcher, for the App tile: kept over the always-on
+// wakes in RTC memory and lost at power-off (then the clock page's first part shown; -1).
+RTC_DATA_ATTR static int s_appPage = ClockPage;
+RTC_DATA_ATTR static int s_appPart = -1;
+
+// The launcher's list starts under the page name. Six part rows fit between it and the bottom
+// edge; the rows keep one width, inside the corner gauges at the middle of the screen, and the
+// list scrolls under the corners (CornerView paints the gauges over every band).
+static const int s_listTop = 44;
+static const int s_listPad = 8;
+static const int s_launcherNameHeight = 44;
+static const int s_launcherRowGap = 8;
+static const int s_launcherNameX = 36;
+static const int s_launcherRowX = 52;
+
+// The development screenshots keep one number per screen: the face, the stacked pages' parts as
+// opened from the launcher, the launcher last. Part -1: no part.
+enum
+{
+    FaceShot = -1,
+    LauncherShot = -2
+};
 struct Shot
 {
     const char *name;
-    int page;
+    int page;  // a Page, FaceShot or LauncherShot
     int part;
 };
 [[maybe_unused]] static const Shot s_shots[] = {
-    { "face", FacePage, -1 },
+    { "face", FaceShot, -1 },
     { "world", ClockPage, ClockPages::WorldPart }, { "stopwatch", ClockPage, ClockPages::StopwatchPart },
     { "timer", ClockPage, ClockPages::TimerPart }, { "gregorian", ClockPage, ClockPages::GregorianPart },
     { "hijri", ClockPage, ClockPages::HijriPart }, { "days", ClockPage, ClockPages::DaysPart },
@@ -105,6 +163,7 @@ struct Shot
     { "orbits", PlanetsPage, PlanetPages::OrbitsPart }, { "sky", PlanetsPage, PlanetPages::SkyPart },
     { "rise-set", PlanetsPage, PlanetPages::RiseSetPart }, { "distance", PlanetsPage, PlanetPages::DistancePart },
     { "alarms", ClockPage, ClockPages::AlarmsPart },
+    { "launcher", LauncherShot, -1 },
 };
 [[maybe_unused]] static const int s_shotCount = sizeof( s_shots ) / sizeof( s_shots[0] );
 
@@ -283,17 +342,13 @@ bool Display::start( Settings &settings )
     m_pages = pages;
     lv_obj_set_style_bg_color( pages, lv_color_black(), 0 );
     lv_obj_set_scrollbar_mode( pages, LV_SCROLLBAR_MODE_OFF );
-    lv_obj_t *tiles[PageCount] = {};
-    for ( int i = 0; i < PageCount; ++i ) {
-        const lv_dir_t direction = i == 0 ? LV_DIR_RIGHT : ( i == PageCount - 1 ? LV_DIR_LEFT : LV_DIR_HOR );
-        tiles[i] = lv_tileview_add_tile( pages, static_cast<uint8_t>( i ), 0, direction );
-        m_tiles[i] = tiles[i];
+    for ( int i = 0; i < TileCount; ++i ) {
+        const lv_dir_t direction = i == 0 ? LV_DIR_RIGHT : ( i == TileCount - 1 ? LV_DIR_LEFT : LV_DIR_HOR );
+        m_tiles[i] = lv_tileview_add_tile( pages, static_cast<uint8_t>( i ), 0, direction );
     }
-    // The watch face and its neighbours now; the other pages when a neighbour is shown, so that
-    // a glance at the time builds no more than it shows (ensureBuilt).
-    m_built[FacePage] = true;
-    m_built[ClockPage] = true;
-    lv_obj_t *facePage = tiles[FacePage];
+    // The watch face and the launcher now; the opened page when the launcher is shown, so that
+    // a glance at the time builds no more than it shows (keepPages).
+    lv_obj_t *facePage = m_tiles[FaceTile];
     m_faceTile = facePage;
     // A vertical swipe on the face steps the face page; the pages themselves only swipe sideways.
     // LVGL sends a gesture to the first ancestor that does not pass it on, so the face keeps it.
@@ -301,7 +356,7 @@ bool Display::start( Settings &settings )
     // Content sliding past the edges must not make the pages scroll.
     lv_obj_set_scrollable( m_faceTile, false );
     lv_obj_add_event_cb( m_faceTile, onGesture, LV_EVENT_GESTURE, this );
-    lv_tileview_set_tile_by_index( pages, FacePage, 0, LV_ANIM_OFF );
+    lv_tileview_set_tile_by_index( pages, FaceTile, 0, LV_ANIM_OFF );
     lv_obj_add_event_cb( pages, onPageChanged, LV_EVENT_VALUE_CHANGED, this );
     m_corners.build();
     buildBrightnessControl();
@@ -310,18 +365,17 @@ bool Display::start( Settings &settings )
     lv_obj_add_event_cb( m_faceTile, onBrightnessDrag, LV_EVENT_PRESSING, this );
     lv_obj_add_event_cb( m_faceTile, onBrightnessDrag, LV_EVENT_RELEASED, this );
     lv_obj_add_event_cb( m_faceTile, onBrightnessDrag, LV_EVENT_PRESS_LOST, this );
-    m_clock.build( tiles[ClockPage] );
-    m_clockTile = tiles[ClockPage];
-    lv_obj_add_event_cb( m_clockTile, onClockPartChanged, LV_EVENT_VALUE_CHANGED, this );
+    m_clock.loadTimers();
+    lv_obj_add_event_cb( m_tiles[AppTile], onAppPartChanged, LV_EVENT_VALUE_CHANGED, this );
+    buildLauncher();
 
     m_face.build( facePage );
     // Over the page contents, shown only for a moment after a step.
     m_faceMarks.build( facePage, FaceConfig::MaxPages );
     m_faceMarks.setVisible( false );
     showFacePage( 0 );
-    applyOrders();
     // On the top layer, so that they stay in place while the pages move.
-    m_pageMarks.build( lv_layer_top(), PageCount, true );
+    m_pageMarks.build( lv_layer_top(), TileCount, true );
     m_pageMarks.setVisible( false );
     lv_obj_add_event_cb( pages, onPagesScrolled, LV_EVENT_SCROLL, this );
 
@@ -352,11 +406,11 @@ bool Display::start( Settings &settings )
     return true;
 }
 
-// The information page: built when a neighbouring page is shown (see onPageChanged), then
-// filled with the values kept since the start.
+// The information page: built in the App tile (ensureApp), then filled with the values kept
+// since the start.
 void Display::buildInfoPage()
 {
-    lv_obj_t *tile = m_tiles[InfoPage];
+    lv_obj_t *tile = m_tiles[AppTile];
     m_info.build( tile, InfoCount, Language::text( Language::InfoPageName ) );
     m_sky.build( m_info.part( InfoSun ), m_info.part( InfoTwilight ), m_info.part( InfoPrayer ),
                  m_info.part( InfoMoon ), m_info.part( InfoCompass ), m_info.part( InfoTime ) );
@@ -379,13 +433,12 @@ void Display::buildInfoPage()
 // The settings page, built like the information page.
 void Display::buildSettingsPage()
 {
-    lv_obj_t *tile = m_tiles[SettingsPage];
+    lv_obj_t *tile = m_tiles[AppTile];
     m_settingsPage.build( tile, SettingsPartCount, Language::text( Language::SettingsPageName ) );
     lv_obj_t *settingsParts[2] = { m_settingsPage.part( SettingsRows ), m_settingsPage.part( SettingsMoreRows ) };
 #if CONFIG_WATCH_SETUP_PORTAL
     buildSetupPage( m_settingsPage.part( SetupPart ) );
     buildSetupCodePage( m_settingsPage.part( SetupCodePart ) );
-    lv_obj_add_event_cb( tile, onSettingsPartChanged, LV_EVENT_VALUE_CHANGED, this );
 #endif
     for ( int i = 0; i < 2; ++i ) {
         lv_obj_set_flex_flow( settingsParts[i], LV_FLEX_FLOW_COLUMN );
@@ -442,7 +495,24 @@ void Display::showFaceTile()
     if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
         return;
     }
-    lv_tileview_set_tile_by_index( m_pages, FacePage, 0, LV_ANIM_ON );
+    lv_tileview_set_tile_by_index( m_pages, FaceTile, 0, LV_ANIM_ON );
+    bsp_display_unlock();
+}
+
+void Display::back()
+{
+    if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
+        return;
+    }
+    const int tile = activeTile();
+    if ( m_adjusting ) {
+        endAdjust();
+    } else if ( tile == AppTile ) {
+        lv_tileview_set_tile_by_index( m_pages, LauncherTile, 0, LV_ANIM_ON );
+    } else if ( tile == LauncherTile ) {
+        lv_tileview_set_tile_by_index( m_pages, FaceTile, 0, LV_ANIM_ON );
+    }
+    lv_display_trigger_activity( nullptr );
     bsp_display_unlock();
 }
 
@@ -460,99 +530,122 @@ void Display::showFacePage( int direction )
     m_face.show( m_facePages.pages[page], direction );
 }
 
+int Display::decodeOrder( int page, int parts[PartOrder::MaxParts] ) const
+{
+#if CONFIG_WATCH_SETUP_PORTAL
+    // Without the setup part the portal could not be started again.
+    const int alwaysShown = page == SettingsPage ? SetupPart : -1;
+#else
+    const int alwaysShown = -1;
+#endif
+    const PageEntry &entry = s_pageEntries[page];
+    return PartOrder::decode( m_settings->value( entry.order ), m_settings->value( entry.hidden ), entry.partCount,
+                              alwaysShown, parts );
+}
+
+StackPage &Display::stack( int page )
+{
+    if ( page == ClockPage ) {
+        return m_clock.stack();
+    }
+    if ( page == InfoPage ) {
+        return m_info;
+    }
+    if ( page == PlanetsPage ) {
+        return m_planets.stack();
+    }
+    return m_settingsPage;
+}
+
 void Display::applyOrders()
 {
-    int parts[PartOrder::MaxParts] = {};
-    int shown = PartOrder::decode( m_settings->value( Settings::ClockOrder ), m_settings->value( Settings::ClockHidden ),
-                                   ClockPages::PartCount, -1, parts );
-    m_clock.stack().setOrder( parts, shown );
-    if ( m_built[InfoPage] ) {
-        shown = PartOrder::decode( m_settings->value( Settings::InfoOrder ), m_settings->value( Settings::InfoHidden ),
-                                   InfoCount, -1, parts );
-        m_info.setOrder( parts, shown );
-    }
-    if ( m_built[PlanetsPage] ) {
-        shown = PartOrder::decode( m_settings->value( Settings::PlanetsOrder ), m_settings->value( Settings::PlanetsHidden ),
-                                   PlanetPages::PartCount, -1, parts );
-        m_planets.stack().setOrder( parts, shown );
-    }
-    if ( m_built[SettingsPage] ) {
-#if CONFIG_WATCH_SETUP_PORTAL
-        const int alwaysShown = SetupPart;
-#else
-        const int alwaysShown = -1;
-#endif
-        shown = PartOrder::decode( m_settings->value( Settings::SettingsOrder ), m_settings->value( Settings::SettingsHidden ),
-                                   SettingsPartCount, alwaysShown, parts );
-        m_settingsPage.setOrder( parts, shown );
-    }
-}
-
-// Builds a page that is not built yet; the watch face and its neighbours are built at the start.
-void Display::ensureBuilt( int page )
-{
-    if ( page < 0 || page >= PageCount || m_built[page] ) {
+    if ( m_appPage < 0 ) {
         return;
     }
-    m_built[page] = true;
-    if ( page == InfoPage ) {
-        buildInfoPage();
-        if ( m_freedPart[page] >= 0 ) {
-            m_info.restore( m_freedPart[page] );
-        }
-    } else if ( page == PlanetsPage ) {
-        m_planets.build( m_tiles[PlanetsPage] );
-        applyOrders();
-        if ( m_freedPart[page] >= 0 ) {
-            m_planets.stack().restore( m_freedPart[page] );
-        }
-    } else if ( page == SettingsPage ) {
-        buildSettingsPage();
-        if ( m_freedPart[page] >= 0 ) {
-            m_settingsPage.restore( m_freedPart[page] );
-        }
-    }
+    int parts[PartOrder::MaxParts] = {};
+    const int shown = decodeOrder( m_appPage, parts );
+    stack( m_appPage ).setOrder( parts, shown );
 }
 
-int Display::activePage() const
+void Display::ensureApp()
+{
+    // RTC memory left by another firmware.
+    if ( s_appPage < 0 || s_appPage >= PageCount ) {
+        s_appPage = ClockPage;
+        s_appPart = -1;
+    }
+    const int page = s_appPage;
+    if ( page == m_appPage ) {
+        return;
+    }
+    freeApp();
+    const int64_t buildStartUs = esp_timer_get_time();
+    m_appPage = page;
+    if ( page == ClockPage ) {
+        m_clock.build( m_tiles[AppTile] );
+        applyOrders();
+    } else if ( page == InfoPage ) {
+        buildInfoPage();
+    } else if ( page == PlanetsPage ) {
+        m_planets.build( m_tiles[AppTile] );
+        applyOrders();
+    } else {
+        buildSettingsPage();
+    }
+    // The part last seen on it, or the first one shown.
+    stack( page ).restore( s_appPart );
+    m_appReady = true;
+    updatePageSwipe();
+    updateJoinCodeBrightness();
+    ESP_LOGI( TAG, "Page %d built in %d ms, internal heap %u free, %u largest", page,
+              static_cast<int>( ( esp_timer_get_time() - buildStartUs ) / 1000 ),
+              static_cast<unsigned>( heap_caps_get_free_size( MALLOC_CAP_INTERNAL ) ),
+              static_cast<unsigned>( heap_caps_get_largest_free_block( MALLOC_CAP_INTERNAL ) ) );
+}
+
+void Display::openPart( int page, int part, bool animate )
+{
+    s_appPage = page;
+    s_appPart = part;
+    ensureApp();
+    stack( page ).restore( part );
+    ESP_LOGI( TAG, "Opened page %d part %d", page, part );
+    lv_tileview_set_tile_by_index( m_pages, AppTile, 0, animate ? LV_ANIM_ON : LV_ANIM_OFF );
+}
+
+int Display::activeTile() const
 {
     lv_obj_t *tile = lv_tileview_get_tile_active( m_pages );
-    for ( int i = 0; i < PageCount; ++i ) {
+    for ( int i = 0; i < TileCount; ++i ) {
         if ( m_tiles[i] == tile ) {
             return i;
         }
     }
-    return FacePage;
+    return FaceTile;
 }
 
-void Display::keepPages( int shown )
+void Display::keepPages( int shownTile )
 {
-    const int pages[3] = { InfoPage, PlanetsPage, SettingsPage };
-    for ( int i = 0; i < 3; ++i ) {
-        const int page = pages[i];
-        bool near = page >= shown - 1 && page <= shown + 1;
-        if ( ( page == InfoPage || page == PlanetsPage ) && m_setup.running && shown != page ) {
-            near = false;
-        }
-        if ( near ) {
-            ensureBuilt( page );
-        } else {
-            freePage( page );
-        }
+    if ( shownTile == FaceTile ) {
+        freeApp();
+    } else {
+        ensureApp();
     }
 }
 
-void Display::freePage( int page )
+void Display::freeApp()
 {
-    if ( ( page != InfoPage && page != PlanetsPage && page != SettingsPage ) || !m_built[page] ) {
+    const int page = m_appPage;
+    if ( page < 0 ) {
         return;
     }
-    lv_obj_t *tile = m_tiles[page];
-    if ( page == PlanetsPage ) {
-        m_freedPart[page] = m_planets.stack().current();
+    m_appReady = false;
+    m_appPage = -1;
+    if ( page == ClockPage ) {
+        m_clock.forget();
+    } else if ( page == PlanetsPage ) {
         m_planets.forget();
     } else if ( page == InfoPage ) {
-        m_freedPart[page] = m_info.current();
         m_info.forget();
         m_sky.forget();
         m_percentLabel = nullptr;
@@ -560,11 +653,7 @@ void Display::freePage( int page )
         m_chargeLabel = nullptr;
         m_unpluggedLabel = nullptr;
     } else {
-        m_freedPart[page] = m_settingsPage.current();
         m_settingsPage.forget();
-#if CONFIG_WATCH_SETUP_PORTAL
-        lv_obj_remove_event_cb_with_user_data( tile, onSettingsPartChanged, this );
-#endif
         for ( int i = 0; i < Settings::PageItemCount; ++i ) {
             m_settingRows[i] = nullptr;
             m_settingValues[i] = nullptr;
@@ -579,8 +668,68 @@ void Display::freePage( int page )
         m_joinHint = nullptr;
         m_setupTable.forget();
     }
-    lv_obj_clean( tile );
-    m_built[page] = false;
+    lv_obj_clean( m_tiles[AppTile] );
+    updateJoinCodeBrightness();
+}
+
+void Display::buildLauncher()
+{
+    lv_obj_t *tile = m_tiles[LauncherTile];
+    lv_obj_set_scrollable( tile, false );
+    StackPage::buildHeader( tile, Language::text( Language::LauncherName ) );
+    // The one vertical scroll inside the pages: the list moves with momentum, a sideways swipe
+    // still reaches the tiles (the list scrolls only vertically, so LVGL passes it on).
+    m_launcherList = lv_obj_create( tile );
+    lv_obj_remove_style_all( m_launcherList );
+    lv_obj_set_pos( m_launcherList, 0, s_listTop );
+    lv_obj_set_size( m_launcherList, Panel::WIDTH, Panel::HEIGHT - s_listTop );
+    lv_obj_set_scroll_dir( m_launcherList, LV_DIR_VER );
+    lv_obj_set_scrollbar_mode( m_launcherList, LV_SCROLLBAR_MODE_OFF );
+    lv_obj_set_style_pad_bottom( m_launcherList, s_listPad, 0 );
+    fillLauncher();
+}
+
+// The rows at fixed places, no layout: nothing is laid out again while the list scrolls.
+void Display::fillLauncher()
+{
+    lv_obj_clean( m_launcherList );
+    int y = s_listPad;
+    for ( int page = 0; page < PageCount; ++page ) {
+        const PageEntry &entry = s_pageEntries[page];
+        lv_obj_t *name = lv_label_create( m_launcherList );
+        Styles::text( name, &jetbrains_mono_26, lv_color_hex( 0xA0A0A0 ) );
+        lv_label_set_text_static( name, Language::text( entry.name ) );
+        lv_obj_set_pos( name, s_launcherNameX, y + ( s_launcherNameHeight - 30 ) / 2 );
+        lv_obj_set_clickable( name, false );
+        y += s_launcherNameHeight;
+        int parts[PartOrder::MaxParts] = {};
+        const int shown = decodeOrder( page, parts );
+        for ( int i = 0; i < shown; ++i ) {
+            lv_obj_t *row = lv_obj_create( m_launcherList );
+            lv_obj_remove_style_all( row );
+            Styles::launcherRow( row );
+            lv_obj_set_pos( row, s_launcherRowX, y );
+            lv_obj_set_scrollable( row, false );
+            // A finger that slides off the row cancels the tap; a scroll cancels it too.
+            lv_obj_set_press_lock( row, false );
+            lv_obj_set_user_data( row, reinterpret_cast<void *>( static_cast<intptr_t>( page * PartOrder::MaxParts + parts[i] ) ) );
+            lv_obj_add_event_cb( row, onLauncherClicked, LV_EVENT_CLICKED, this );
+            // The texts are constants: LVGL keeps the pointer instead of a copy.
+            lv_obj_t *label = lv_label_create( row );
+            Styles::text( label, &jetbrains_mono_26, lv_color_white() );
+            lv_label_set_text_static( label, Language::text( entry.parts[parts[i]] ) );
+            lv_obj_set_clickable( label, false );
+            y += Styles::LauncherRowHeight + s_launcherRowGap;
+        }
+    }
+}
+
+void Display::onLauncherClicked( lv_event_t *event )
+{
+    Display *display = static_cast<Display *>( lv_event_get_user_data( event ) );
+    lv_obj_t *row = static_cast<lv_obj_t *>( lv_event_get_current_target( event ) );
+    const int code = static_cast<int>( reinterpret_cast<intptr_t>( lv_obj_get_user_data( row ) ) );
+    display->openPart( code / PartOrder::MaxParts, code % PartOrder::MaxParts, true );
 }
 
 // A full-width row with a name on the left; returns the value label on the right.
@@ -740,11 +889,7 @@ void Display::showSetup( const Setup &setup )
     if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
         return;
     }
-    const bool portalChanged = setup.running != m_setup.running;
     m_setup = setup;
-    if ( portalChanged ) {
-        keepPages( activePage() );
-    }
     applySetup();
     bsp_display_unlock();
 }
@@ -1033,41 +1178,36 @@ void Display::onBrightnessDrag( lv_event_t *event )
         return;
     }
     // Released, or the press was lost.
-    self->m_adjusting = false;
-    self->m_settings->setValue( self->m_adjustItem, self->m_adjustPercent );
-    lv_obj_set_scrollable( self->m_pages, true );
-    lv_obj_t *const shown[5] = { self->m_brightnessShade, self->m_brightnessBox, self->m_brightnessBar, self->m_aodBox,
-                                 self->m_aodBar };
+    self->endAdjust();
+}
+
+// Keeps the level set and hides the control (a release, or the BOOT key).
+void Display::endAdjust()
+{
+    m_adjusting = false;
+    m_settings->setValue( m_adjustItem, m_adjustPercent );
+    lv_obj_set_scrollable( m_pages, true );
+    lv_obj_t *const shown[5] = { m_brightnessShade, m_brightnessBox, m_brightnessBar, m_aodBox, m_aodBar };
     for ( int i = 0; i < 5; ++i ) {
         lv_obj_set_hidden( shown[i], true );
     }
-    setBrightness( self->m_settings->value( Settings::Brightness ) );
-    ESP_LOGI( TAG, "Brightness setting %d: %d %%", self->m_adjustItem, self->m_adjustPercent );
+    setBrightness( m_settings->value( Settings::Brightness ) );
+    ESP_LOGI( TAG, "Brightness setting %d: %d %%", m_adjustItem, m_adjustPercent );
 }
 
 void Display::onPageChanged( lv_event_t *event )
 {
     Display *display = static_cast<Display *>( lv_event_get_user_data( event ) );
-    lv_obj_t *tile = lv_tileview_get_tile_active( display->m_pages );
+    // The opened page while the launcher is looked at, so that the next swipe finds it built.
+    display->keepPages( display->activeTile() );
     display->updatePageSwipe();
     display->updateJoinCodeBrightness();
-    // The next page beyond this one, while this one is looked at; the far ones freed.
-    for ( int i = 0; i < PageCount; ++i ) {
-        if ( display->m_tiles[i] == tile ) {
-            display->keepPages( i );
-        }
-    }
-}
-
-void Display::onSettingsPartChanged( lv_event_t *event )
-{
-    static_cast<Display *>( lv_event_get_user_data( event ) )->updateJoinCodeBrightness();
 }
 
 void Display::updateJoinCodeBrightness()
 {
 #if CONFIG_WATCH_SETUP_PORTAL
-    const bool code = m_built[SettingsPage] && lv_tileview_get_tile_active( m_pages ) == m_tiles[SettingsPage] &&
+    const bool code = m_appReady && m_appPage == SettingsPage && activeTile() == AppTile &&
                       m_settingsPage.current() == SetupCodePart;
 #else
     const bool code = false;
@@ -1079,14 +1219,20 @@ void Display::updateJoinCodeBrightness()
     }
 }
 
-void Display::onClockPartChanged( lv_event_t *event )
+void Display::onAppPartChanged( lv_event_t *event )
 {
-    static_cast<Display *>( lv_event_get_user_data( event ) )->updatePageSwipe();
+    Display *display = static_cast<Display *>( lv_event_get_user_data( event ) );
+    if ( !display->m_appReady ) {
+        return;
+    }
+    s_appPart = display->stack( display->m_appPage ).current();
+    display->updatePageSwipe();
+    display->updateJoinCodeBrightness();
 }
 
 void Display::updatePageSwipe()
 {
-    const bool clock = lv_tileview_get_tile_active( m_pages ) == m_clockTile;
+    const bool clock = m_appReady && m_appPage == ClockPage && activeTile() == AppTile;
     lv_obj_set_scrollable( m_pages, !( clock && m_clock.swipesSideways() ) );
 }
 
@@ -1095,7 +1241,7 @@ void Display::onPagesScrolled( lv_event_t *event )
     Display *display = static_cast<Display *>( lv_event_get_user_data( event ) );
     const int scrollX = lv_obj_get_scroll_x( display->m_pages );
     int page = ( scrollX + Panel::WIDTH / 2 ) / Panel::WIDTH;
-    page = page < 0 ? 0 : ( page >= PageCount ? PageCount - 1 : page );
+    page = page < 0 ? 0 : ( page >= TileCount ? TileCount - 1 : page );
     // Each scroll step restarts the timer: the marks stay while the pages move and a moment after.
     display->m_pageMarks.flash( page );
 }
@@ -1106,6 +1252,7 @@ void Display::refreshSettings()
         return;
     }
     applyOrders();
+    fillLauncher();
     showFacePage( 0 );
     for ( int i = 0; i < Settings::PageItemCount; ++i ) {
         showSetting( i );
@@ -1396,10 +1543,14 @@ void Display::setScene( bool scene )
 
 void Display::swipeTo( int page )
 {
-    if ( !m_started || page < 0 || page >= PageCount || !bsp_display_lock( 1000 ) ) {
+    if ( !m_started || page < 0 || page > TileCount + 1 || !bsp_display_lock( 1000 ) ) {
         return;
     }
-    lv_tileview_set_tile_by_index( m_pages, static_cast<uint32_t>( page ), 0, LV_ANIM_ON );
+    if ( page < TileCount ) {
+        lv_tileview_set_tile_by_index( m_pages, static_cast<uint32_t>( page ), 0, LV_ANIM_ON );
+    } else {
+        lv_obj_scroll_by( m_launcherList, 0, page == TileCount ? -300 : 300, LV_ANIM_ON );
+    }
     bsp_display_unlock();
 }
 
@@ -1420,13 +1571,15 @@ void Display::capture( int page )
     }
     ESP_LOGI( TAG, "Screenshot of page %d", page );
     const Shot &shot = s_shots[page];
-    ensureBuilt( shot.page );
-    lv_tileview_set_tile_by_index( m_pages, static_cast<uint32_t>( shot.page ), 0, LV_ANIM_OFF );
-    if ( shot.part >= 0 ) {
-        StackPage &stack = shot.page == InfoPage ? m_info
-                           : ( shot.page == ClockPage ? m_clock.stack()
-                                                      : ( shot.page == PlanetsPage ? m_planets.stack() : m_settingsPage ) );
-        stack.show( shot.part, 0 );
+    if ( shot.page == FaceShot ) {
+        lv_tileview_set_tile_by_index( m_pages, FaceTile, 0, LV_ANIM_OFF );
+    } else if ( shot.page == LauncherShot ) {
+        lv_obj_scroll_to_y( m_launcherList, 0, LV_ANIM_OFF );
+        lv_tileview_set_tile_by_index( m_pages, LauncherTile, 0, LV_ANIM_OFF );
+    } else {
+        openPart( shot.page, shot.part, false );
+        // A part left out of the order is shown too.
+        stack( shot.page ).show( shot.part, 0 );
     }
     // The jump to the page counts as a swipe; the pictures show the pages at rest.
     m_pageMarks.setVisible( false );

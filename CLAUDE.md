@@ -247,30 +247,41 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   `main/Settings.*`); the Kconfig values are their defaults. Test builds that need other values
   set `CONFIG_WATCH_TEST_SETTINGS`, which ignores the saved settings.
 - Touch input: rows of 7.8 x 26 mm inside the corner gauges, one tap steps a value; no vertical scrolling
-  inside the swiped pages; sliding off a row cancels the tap. Five pages side by side:
-  watch face, clock (world clock, stopwatch, countdown, Gregorian and Hijri
-  calendars, day counters, alarms; `main/ClockPages.*`), information (sun, twilight, prayer times, moon,
-  compass, time, battery, about), planets (the seven planets and the Earth: the solar system on a logarithmic scale, the sky
-  seen from the south, the day's rise and set, distances; `main/PlanetPages.*`, the day's rise and
-  set computed in the main task on the page's request, 0.4 s; design:
-  `docs/superpowers/specs/2026-11-19-planets-design.md`) and settings (settings, more settings,
-  what the portal set, setup portal, its QR code). A vertical swipe steps the face page on the watch face and the part on
+  inside the pages but the launcher's list; sliding off a row cancels the tap. Three tiles side by side
+  (`main/Display.*`): the watch face, the launcher and the page last opened from it (a trial, 2026-11-21).
+  A wake starts at the face; a swipe shows the launcher, a second one the opened page. The launcher
+  shows "Pages" at the top like the stacked pages, under it a list that scrolls with momentum: each
+  stacked page's name in grey, then its parts as rows (68 px high, six fit, one width, a faint
+  1 px outline), in the portal's order without the hidden parts; a tap opens that part on the
+  third tile and slides there. The stacked pages: clock (world clock, stopwatch, countdown,
+  Gregorian and Hijri calendars, day counters, alarms; `main/ClockPages.*`), information (sun,
+  twilight, prayer times, moon, compass, time, battery, about), planets (the seven planets and the
+  Earth: the solar system on a logarithmic scale, the sky seen from the south, the day's rise and
+  set, distances; `main/PlanetPages.*`, the day's rise and set computed in the main task on the
+  page's request, 0.4 s; design: `docs/superpowers/specs/2026-11-19-planets-design.md`) and
+  settings (settings, more settings, what the portal set, setup portal, its QR code; the setup
+  part always shown); a page for tools will come between information and planets (`s_pageEntries`).
+  The page and part last opened stay in RTC memory over the always-on wakes (lost at power-off:
+  then the clock page's first part). The BOOT key (GPIO0, polled in `runActiveMode`, never a
+  wake source) steps back: opened page to launcher, launcher to face, on the face it closes the
+  brightness control; it stops a ringing alarm like PWR; a press of 1 s or more is reserved (a
+  log line). A vertical swipe steps the face page on the watch face and the part on
   the stacked pages (`main/StackPage.*`); the pages keep `LV_EVENT_GESTURE` and do not scroll, and
   the new page or part slides in. The stacked pages show their name at the top between the
   upper corner gauges, over a line bending up to them; their parts start `StackPage::HeaderPad`
   lower. On a calendar a sideways swipe steps the month, so the page
-  swipe stops there ("<" ">" at the bottom say so); a tap chooses a day, marked on both calendars
-  until the next wake (the Hijri month of a day chosen on the Gregorian one is computed then). Only the watch face and its neighbours are
-  built at a PWR wake; a page is built when its neighbour is shown (`Display::ensureBuilt`): a
-  glance at the time built 1.6 s of pages before (now 0.5 s), and the built pages left too little
-  heap for the portal's Wi-Fi. The information, planets and settings pages are freed again far from
-  the shown page, and the information and planets pages while the portal runs unless shown
-  (`Display::keepPages`); their
+  swipe stops there ("<" ">" at the bottom say so; BOOT still goes back); a tap chooses a day, marked on both calendars
+  until the next wake (the Hijri month of a day chosen on the Gregorian one is computed then). Only the
+  watch face and the launcher are built at a PWR wake; the opened page is built when the launcher is
+  shown and freed at the face, and only one stacked page is built at a time (`Display::keepPages`,
+  `ensureApp`; a page's values, timers and part survive its objects): a glance at the time built
+  1.6 s of pages before the lazy build, and the built pages left too little heap for the portal's
+  Wi-Fi. Their
   tables are one object per part (`main/TablePart.*`) and repeated looks share their styles
   (`main/Styles.*`), so that the internal heap stays free (docs/hardware.md). Marks along
   the right edge, in line with the corner gauges, show the position (`main/PageMarks.*`; on the
-  face only for a moment after a step); marks along the bottom edge show the page while the
-  pages are swiped sideways. Large dark-grey areas shimmer on
+  face only for a moment after a step); marks along the bottom edge show the tile while the
+  tiles are swiped sideways. Large dark-grey areas shimmer on
   this panel; use black with outlines.
   The panel hides each corner outside a quarter circle of about 120 px radius (docs/hardware.md,
   Visible area); keep content inside it.
@@ -320,7 +331,7 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   (`main/AlarmStore.*`) and switched on the clock page's last part, Alarms. There is no
   vibration motor on the board: `main/Ringer.*` beeps 1000/1500 Hz (the speaker's loudest
   region, docs/hardware.md, "Speaker and alarm sound"), from -18 dB to at most -12 dB (the meter: -6 dB drew 0.17 A, full scale browned the board out), through
-  `main/Sound.*`, for at most 60 s; a tap or PWR stops it. Design:
+  `main/Sound.*`, for at most 60 s; a tap, PWR or BOOT stops it. Design:
   `docs/superpowers/specs/2026-11-19-alarms-design.md`. Development commands: "R <s>" a test
   alarm, "K <n> <text>" defines an alarm, "Q" ends active mode as without the always-on face,
   "H" makes the next PWR wake a phantom (it must go back to sleep), "W" starves the idle task

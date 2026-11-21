@@ -5,7 +5,7 @@
 
 // A page of the tileview whose parts lie one over the other: a vertical swipe steps between them
 // (up: the next one slides in from below; after the last comes the first), and marks along the
-// right edge show which one is shown. The clock, information and settings pages use it. Their
+// right edge show which one is shown. The clock, information, planets and settings pages use it. Their
 // name stays at the top between the two upper corner gauges, over a line whose ends bend up to
 // the gauges, so that every part shows which page it belongs to. A part change sends
 // LV_EVENT_VALUE_CHANGED to the tile. Called with the display lock held.
@@ -39,10 +39,12 @@ public:
     // tile's swipe handler goes, the order and the part shown stay for the next build.
     void forget();
 
+    // The page name and the line under it on `tile` (also the launcher's).
+    static void buildHeader( lv_obj_t *tile, const char *title );
+
 private:
     static void onGesture( lv_event_t *event );
     static void onDrawHeaderLine( lv_event_t *event );
-    void buildHeader( const char *title );
 
     lv_obj_t *m_tile = nullptr;
     lv_obj_t *m_parts[MaxParts] = {};

@@ -20,6 +20,8 @@ lv_style_t s_centred;
 lv_style_t s_row;
 lv_style_t s_rowPressed;
 lv_style_t s_button;
+lv_style_t s_launcherRow;
+lv_style_t s_launcherRowPressed;
 
 void initialise()
 {
@@ -47,6 +49,20 @@ void initialise()
     lv_style_set_radius( &s_button, 18 );
     lv_style_set_pad_all( &s_button, 0 );
     lv_style_set_bg_color( &s_button, lv_color_black() );
+    lv_style_init( &s_launcherRow );
+    lv_style_set_border_width( &s_launcherRow, 1 );
+    lv_style_set_border_color( &s_launcherRow, lv_color_hex( 0x2C2C2C ) );
+    lv_style_set_border_opa( &s_launcherRow, LV_OPA_COVER );
+    lv_style_set_radius( &s_launcherRow, 16 );
+    lv_style_set_width( &s_launcherRow, Styles::LauncherRowWidth );
+    lv_style_set_height( &s_launcherRow, Styles::LauncherRowHeight );
+    // The label at the content's top left, in the middle of the row as LV_ALIGN_LEFT_MID put it
+    // (inside the 1 px border, the 26 px font's line of about 32 px).
+    lv_style_set_pad_left( &s_launcherRow, 16 );
+    lv_style_set_pad_top( &s_launcherRow, ( Styles::LauncherRowHeight - 2 - 32 ) / 2 );
+    lv_style_init( &s_launcherRowPressed );
+    lv_style_set_bg_color( &s_launcherRowPressed, lv_color_hex( 0x404040 ) );
+    lv_style_set_bg_opa( &s_launcherRowPressed, LV_OPA_COVER );
 }
 
 }  // namespace
@@ -88,6 +104,13 @@ void Styles::row( lv_obj_t *object )
     initialise();
     lv_obj_add_style( object, &s_row, 0 );
     lv_obj_add_style( object, &s_rowPressed, LV_STATE_PRESSED );
+}
+
+void Styles::launcherRow( lv_obj_t *object )
+{
+    initialise();
+    lv_obj_add_style( object, &s_launcherRow, 0 );
+    lv_obj_add_style( object, &s_launcherRowPressed, LV_STATE_PRESSED );
 }
 
 void Styles::button( lv_obj_t *object )

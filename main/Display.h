@@ -12,6 +12,7 @@
 #include "FaceTable.h"
 #include "libs/qrcode/qrcodegen.h"
 #include "PageMarks.h"
+#include "PartOrder.h"
 #include "StackPage.h"
 #include "PlanetPages.h"
 #include "SkyPages.h"
@@ -21,10 +22,11 @@
 
 // AMOLED panel and touch through the BSP and LVGL, in active mode. The panel's power enable
 // DSI_PWR_EN is pulled up from AXP2101 ALDO2, so the caller switches ALDO2 on first
-// (docs/hardware.md). The pages are side by side; a horizontal swipe moves between them:
-// watch face (its face pages, FacePage), clock, information, settings. The stacked pages hold
+// (docs/hardware.md). Three tiles side by side, a horizontal swipe moves between them: the watch
+// face (its face pages, FacePage), the launcher (a scrolled list of the stacked pages' parts) and
+// the page last opened from it. The stacked pages (clock, information, planets, settings) hold
 // their parts one over the other (StackPage); a vertical swipe moves between them, and on the
-// watch face between the face pages.
+// watch face between the face pages. Only one stacked page is built at a time.
 class Display
 {
 public:
@@ -81,6 +83,10 @@ public:
     // Moves to the watch face, as a swipe would (a face page sent from the portal).
     void showFaceTile();
 
+    // The BOOT key's short press: from the opened page back to the launcher, from the launcher to
+    // the watch face; on the face it closes the brightness control.
+    void back();
+
     // Local time, its UTC offset in minutes, and the battery state; `timeValid` false: the clock
     // was never set or could not be read (the face's slots stay empty).
     void update( const Rtc::DateTime &localTime, int utcOffsetMinutes, const Battery &battery, bool timeValid );
@@ -90,8 +96,8 @@ public:
 
     void showSetup( const Setup &setup );
 
-    // The pages side by side (Display.cpp: face, clock, information, planets, settings).
-    static const int PageSlots = 5;
+    // The tiles side by side (Display.cpp: face, launcher, the opened page).
+    static const int TileCount = 3;
 
     // The planets page: the moment and the place every second; the main task computes the rise
     // and set of a day it asks for (a few hundred milliseconds) and hands them over.
@@ -184,10 +190,12 @@ public:
     // Presses a clock page button by name (ClockPages::press).
     bool pressClockButton( const char *name );
 
-    // Swipes to page `page` with the page animation, as a finger would (speed measurements).
+    // Swipes to tile `page` (0 to 2) with the page animation, as a finger would (speed
+    // measurements); 3 and 4 scroll the launcher's list down and up by most of a screen.
     void swipeTo( int page );
 
-    // Development screenshot (tools/screenshot.py): shows page `page`, redraws the whole screen
+    // Development screenshot (tools/screenshot.py): shows shot `page` (Display.cpp, s_shots: a
+    // tile, or a stacked page's part opened as from the launcher), redraws the whole screen
     // and writes each pixel row to the console as "SHOT <y> <x> <colour runs>". Counts as activity.
     void capture( int page );
 #endif
@@ -197,29 +205,40 @@ private:
     static void onGesture( lv_event_t *event );
     static void onPageChanged( lv_event_t *event );
     static void onPagesScrolled( lv_event_t *event );
-    // A clock page part that takes sideways swipes itself (ClockPages::swipesSideways) stops the
-    // page swipe while it is shown.
-    static void onClockPartChanged( lv_event_t *event );
+    // A part change on the opened page: a clock page part that takes sideways swipes itself
+    // (ClockPages::swipesSideways) stops the page swipe while it is shown, the QR code part
+    // dims the panel, and the part is the one to open next time.
+    static void onAppPartChanged( lv_event_t *event );
     void updatePageSwipe();
-    // Pages built on demand (the watch face and its neighbours at the start).
-    void ensureBuilt( int page );
-    // The information and settings pages are built near the shown page and freed far from it
-    // (their objects hold internal heap the setup portal needs); while the portal runs, the
-    // information page only while it is shown.
-    void keepPages( int shown );
-    void freePage( int page );
-    int activePage() const;
+    // The opened page is built while the launcher or the page is shown and freed at the watch
+    // face (its objects hold internal heap the setup portal needs).
+    void keepPages( int shownTile );
+    // Builds the page last opened (s_appPage) in the App tile, freeing the one built there before.
+    void ensureApp();
+    void freeApp();
+    // Opens `part` of stacked page `page` in the App tile and moves there.
+    void openPart( int page, int part, bool animate );
+    StackPage &stack( int page );
+    // The parts of stacked page `page` to show, in order (PartOrder::decode of its settings).
+    int decodeOrder( int page, int parts[PartOrder::MaxParts] ) const;
+    int activeTile() const;
+    // The launcher: its name over a scrolled list of the stacked pages and their parts.
+    void buildLauncher();
+    void fillLauncher();
+    static void onLauncherClicked( lv_event_t *event );
+    lv_obj_t *m_launcherList = nullptr;
+    void endAdjust();
     void buildInfoPage();
     void buildSettingsPage();
     void showBattery();
     void applySetup();
-    // The orders and hidden parts set in the portal (PartOrder), on the stacked pages built so far.
+    // The orders and hidden parts set in the portal (PartOrder), on the opened page.
     void applyOrders();
     // The face page of Settings::FaceStyle, one of those shown (FaceConfig::shown).
     void showFacePage( int direction );
-    lv_obj_t *m_tiles[PageSlots] = {};
-    bool m_built[PageSlots] = {};
-    int m_freedPart[PageSlots] = { -1, -1, -1, -1, -1 };  // the part a freed page showed, for its next build
+    lv_obj_t *m_tiles[TileCount] = {};
+    int m_appPage = -1;  // the stacked page built in the App tile, -1: none
+    bool m_appReady = false;  // built and its part restored
     PlanetPages m_planets;
     FaceText::AlarmIconState m_alarmIcons = {};
     lv_obj_t *m_alarm = nullptr;
@@ -280,11 +299,10 @@ private:
     int m_pressY = 0;
     bool m_pressMoved = false;
     lv_obj_t *m_faceTile = nullptr;
-    lv_obj_t *m_clockTile = nullptr;
     StackPage m_info;
     StackPage m_settingsPage;
     PageMarks m_faceMarks;
-    PageMarks m_pageMarks;  // the four pages, shown while they are swiped
+    PageMarks m_pageMarks;  // the tiles, shown while they are swiped
     Rtc::DateTime m_localTime = {};
     int m_moonPercent = 0;
     bool m_waxing = true;
@@ -326,7 +344,6 @@ private:
     // One object draws the modules (qrcodegen's bit table, up to version 5); LVGL's qrcode widget
     // kept a 13 KB bitmap, which the portal's Wi-Fi needs.
     static void onDrawJoinCode( lv_event_t *event );
-    static void onSettingsPartChanged( lv_event_t *event );
     // The panel at s_joinCodeBrightness while the QR code part shows, else at the setting.
     void updateJoinCodeBrightness();
     bool m_joinCodeDimmed = false;

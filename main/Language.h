@@ -218,6 +218,18 @@ public:
         AlarmOnce,
         AlarmDaily,
         AlarmBatteryNote,
+        // The launcher: its name, and the parts' names that no part title gives.
+        LauncherName,
+        PartCalendar,
+        PartHijriCalendar,
+        PartAbout,
+        PartSolarSystem,
+        PartSky,
+        PartSettings,
+        PartMoreSettings,
+        PartSetupInfo,
+        PartSetup,
+        PartQrCode,
         TextCount
     };
 

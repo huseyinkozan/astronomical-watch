@@ -20,4 +20,12 @@ public:
     // pressed; `radius` 24 (rows, with 24 px side padding) or 18 (buttons, no padding).
     static void row( lv_obj_t *object );
     static void button( lv_obj_t *object );
+
+    // The launcher's rows, on an object without styles (lv_obj_remove_style_all): a faint 1 px
+    // outline and no background, cheap to draw while the list scrolls; lit while pressed. The
+    // size and the label's place come from the shared style too: about 15 KB of heap went to the
+    // launcher with them set on each row.
+    static const int LauncherRowWidth = 306;
+    static const int LauncherRowHeight = 68;
+    static void launcherRow( lv_obj_t *object );
 };

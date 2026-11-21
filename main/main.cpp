@@ -54,6 +54,11 @@
 static const char *TAG = "main";
 
 static const gpio_num_t s_powerKeyGpio = GPIO_NUM_10;
+// The BOOT key: low while pressed (pull-up R8), read in active mode only, never a wake source. A
+// press held this long counts (the PWR key's 20 ms polls, twice); this long is a long press.
+static const gpio_num_t s_bootKeyGpio = GPIO_NUM_0;
+static const uint32_t s_bootPressMs = 40;
+static const uint32_t s_bootLongMs = 1000;
 
 static Axp2101 s_pmu;
 static DeepSleep s_deepSleep;
@@ -180,7 +185,7 @@ static int s_hostLineLength = 0;
 
 // Development commands from the host: the guided test sends the UTC time as
 // "T YYYY-MM-DD HH:MM:SS", timed so that the RTC's next second matches the host's;
-// tools/screenshot.py sends "S <page>" for a screenshot of that page and "A <page>" for one of
+// tools/screenshot.py sends "S <page>" for a screenshot of that page (Display::capture) and "A <page>" for one of
 // the always-on face of that face page (at 19:19); "P" switches the setup
 // portal on or off and "N" makes a new portal password (so that a published screenshot does not
 // show the one in use). "D" shows a fixed scene until the next reset (s_sceneInputs); "F <page>"
@@ -1220,6 +1225,10 @@ static void readRtcNow()
 static int runActiveMode()
 {
     int lastLevel = gpio_get_level( s_powerKeyGpio );
+    // An input, its pull left as it is: R8 holds the line high.
+    gpio_set_direction( s_bootKeyGpio, GPIO_MODE_INPUT );
+    uint32_t bootHeldMs = 0;
+    bool bootUsed = false;  // the press stopped an alarm or was long: no step back at its release
     ESP_LOGI( TAG, "Active mode, display timeout %d s", s_settings.value( Settings::DisplayTimeout ) );
     uint32_t activeMs = 0;
     int sinceUpdateMs = 1000;
@@ -1273,6 +1282,29 @@ static int runActiveMode()
                 ESP_LOGI( TAG, "PWR press: active mode ends" );
                 return 2;
             }
+        }
+        // BOOT: a short press steps back (Display::back), at the release so that a long press is
+        // none; while an alarm rings, the press stops it at once like PWR.
+        if ( gpio_get_level( s_bootKeyGpio ) == 0 ) {
+            bootHeldMs += 20;
+            if ( bootHeldMs == s_bootPressMs && s_ringing ) {
+                stopRinging( EventLog::AlarmBootKey );
+                activeMs = 0;
+                bootUsed = true;
+            } else if ( bootHeldMs == s_bootLongMs && !bootUsed ) {
+                // Reserved (freeing background pages, later).
+                ESP_LOGI( TAG, "BOOT long press" );
+                activeMs = 0;
+                bootUsed = true;
+            }
+        } else {
+            if ( bootHeldMs >= s_bootPressMs && !bootUsed && s_displayOn ) {
+                ESP_LOGI( TAG, "BOOT press: back" );
+                s_display.back();
+                activeMs = 0;
+            }
+            bootHeldMs = 0;
+            bootUsed = false;
         }
         if ( elapsedMs >= 1000 && sinceKeyFlagsMs >= 200 ) {
             sinceKeyFlagsMs = 0;

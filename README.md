@@ -13,6 +13,7 @@ GPS or online service is used. Battery life comes first: the processor sleeps mo
 - Prayer times by Diyanet's method; solar, ezani and sidereal time, the qibla time
 - Planets: the solar system, the sky, rise and set, distances
 - Clock page: world clock, stopwatch, countdown, Gregorian and Hijri calendars, day counters, alarms
+- A launcher lists every page's parts; a tap opens one, the BOOT key steps back
 - Alarms at a clock time or a sky event or prayer time; they beep through the speaker
 - Gauges in the screen corners: the battery, day or night, the Moon, the next prayer and more
 - A dim always-on face between uses; switches itself off when not moved or at 10 % battery

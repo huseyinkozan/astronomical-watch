@@ -210,6 +210,18 @@ static const char *s_texts[][2] = {
     { "once", "bir kez" },
     { "daily", "her gün" },
     { "An alarm that is on\nuses the battery faster", "Açık alarm pili\ndaha çabuk bitirir" },
+    // Launcher: at most 16 characters, the width of a row.
+    { "Pages", "Sayfalar" },
+    { "Calendar", "Miladi takvim" },
+    { "Hijri calendar", "Hicri takvim" },
+    { "About", "Hakkında" },
+    { "Solar system", "Güneş sistemi" },
+    { "Sky", "Gökyüzü" },
+    { "Settings", "Ayarlar" },
+    { "More settings", "Diğer ayarlar" },
+    { "Portal values", "Kurulum bilgisi" },
+    { "Wi-Fi setup", "Wi-Fi kurulum" },
+    { "Wi-Fi QR code", "Wi-Fi QR kodu" },
 };
 // One pair per text: a missing one would shift every text after it.
 static_assert( sizeof( s_texts ) / sizeof( s_texts[0] ) == Language::TextCount, "a text pair per Language::Text" );

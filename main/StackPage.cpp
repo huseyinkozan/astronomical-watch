@@ -63,7 +63,7 @@ void StackPage::build( lv_obj_t *tile, int count, const char *title )
     }
     m_shown = m_count;
     // After the parts, so that it stays over them while they slide.
-    buildHeader( title );
+    buildHeader( tile, title );
     // A single part needs no marks.
     if ( m_count > 1 ) {
         m_marks.build( tile, m_count );
@@ -71,15 +71,15 @@ void StackPage::build( lv_obj_t *tile, int count, const char *title )
     show( 0, 0 );
 }
 
-void StackPage::buildHeader( const char *title )
+void StackPage::buildHeader( lv_obj_t *tile, const char *title )
 {
-    lv_obj_t *line = lv_obj_create( m_tile );
+    lv_obj_t *line = lv_obj_create( tile );
     lv_obj_remove_style_all( line );
     lv_obj_set_size( line, Panel::WIDTH, s_lineY + 4 );
     lv_obj_set_clickable( line, false );
     lv_obj_add_event_cb( line, onDrawHeaderLine, LV_EVENT_DRAW_MAIN, nullptr );
 
-    lv_obj_t *name = lv_label_create( m_tile );
+    lv_obj_t *name = lv_label_create( tile );
     Styles::text( name, &jetbrains_mono_26, lv_color_white() );
     lv_label_set_text( name, title );
     lv_obj_align( name, LV_ALIGN_TOP_MID, 0, 2 );
