@@ -183,6 +183,23 @@ Motion check (M6, `main/Motion.*`) [HW, 2026-11-12]:
   each resetting the count, and back on the desk it powered off three checks later. A PWR wake
   takes a new reference.
 
+Axes against the screen and active-mode streaming (spirit level, alidade; 2026-11-21):
+- The sensor's axes [inferred, not yet tested on purpose]: lying face up on the desk every
+  logged reading was z ≈ -1047 mg (`test-logs/`, motion runs), so +Z points into the screen.
+  Another project for this board moves a ball with `vel_x -= ay` ("tilt right = ball right") and
+  `vel_y += ax` (waveshare-watch-rs-infinition, `src/apps/maze.rs`) [REF], which fits +Y towards
+  the right edge and +X towards the top edge (right-handed with +Z into the screen). The firmware
+  uses that (`main/Tilt.*`); the guided check is still open: raise the right edge, the level's
+  roll must grow positive and its bubble move right; raise the top edge, the pitch positive.
+- The scale reads about 4.7 % high (1047 mg for 1 g); the angles come from ratios of the axes
+  and do not depend on it.
+- Streaming: CTRL2 = `0x07` (±2 g, ODR code 0111, 62.5 Hz nominal, about 56 Hz from the internal
+  oscillator; 62.5 Hz was valid output on the validator), the newest sample read from AX_L
+  `0x35` 25 times a second by the LVGL task (the I2C driver serialises it with the touch reads),
+  then power-down as after a motion check. It runs only while the level or an alidade mode shows
+  (`Motion::setStreaming`). A reset while it runs leaves it on until the next always-on motion
+  check powers it down (at most 10 min) [?: the current while streaming is not measured].
+
 ### PCF85063A RTC (`0x51`)
 - INT is open-drain [DS Table 3]; on this board it goes to GPIO39 (no deep-sleep wake).
 - Control_1 `0x00` bit0 CAP_SEL: 0 = 7 pF, 1 = 12.5 pF. The Waveshare component writes `0x01`
