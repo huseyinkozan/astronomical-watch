@@ -10,6 +10,7 @@
 #include "Panel.h"
 #include "Ringer.h"
 #include "Styles.h"
+#include "Units.h"
 #include "esp_attr.h"
 #include "esp_log.h"
 #include "esp_random.h"
@@ -65,6 +66,38 @@ RTC_DATA_ATTR static int s_dice[3] = { 5, 3, 6 };
 RTC_DATA_ATTR static int s_coin = 0;  // 0 heads, 1 tails
 RTC_DATA_ATTR static int s_number = 42;
 
+// The calculator's text, result and modes; Calculator has constant initial values only, so the
+// wakes do not reset it.
+RTC_DATA_ATTR static Calculator s_calculator;
+
+// The display over the keys (parts' coordinates: 12 px above the screen's, StackPage::HeaderPad):
+// the value in 48 px with its right edge at x 360, under it the angle unit and the text typed,
+// whose descenders ("(") end above the keys (screen y 140).
+static const int s_displayRight = 360 - Panel::WIDTH;
+static const int s_valueY = 36;
+static const int s_textY = 88;
+static const int s_keypadX = 40;
+static const int s_keypadY = 128;
+// Characters that fit: 48 px between the upper corner gauges, 26 px right of "DEG".
+static const int s_valueChars = 11;
+static const int s_textChars = 15;
+
+// The unit converter: the kind shown, and per kind the unit last entered and its value.
+static const Language::Text s_kindNames[Units::CategoryCount] = { Language::ConvAngleTime, Language::ConvDistance,
+                                                                  Language::ConvTemperature };
+static const Language::Text s_unitNames[Units::CategoryCount][Units::MaxUnits] = {
+    { Language::UnitHourAngle, Language::UnitDegrees, Language::UnitRadians, Language::UnitRadians },
+    { Language::UnitKilometres, Language::UnitAstronomical, Language::UnitLightYears, Language::UnitParsecs },
+    { Language::UnitCelsius, Language::UnitFahrenheit, Language::UnitKelvin, Language::UnitKelvin } };
+RTC_DATA_ATTR static int s_kind = Units::AngleTime;
+RTC_DATA_ATTR static int s_kindUnit[Units::CategoryCount] = { Units::Degrees, Units::AstronomicalUnits, Units::Celsius };
+RTC_DATA_ATTR static double s_kindValue[Units::CategoryCount] = { 187.5625, 1, 20 };
+// The rows: up to four values of 17 characters with their unit under them.
+static const int s_rowTop = 92;
+static const int s_rowStep = 74;
+static const int s_rowHeight = 70;
+static const int s_rowChars = 17;
+
 static lv_obj_t *label( lv_obj_t *parent, const lv_font_t *font, lv_color_t colour, lv_align_t align, int x, int y,
                         const char *text )
 {
@@ -110,6 +143,8 @@ void ToolPages::build( lv_obj_t *tile, lv_obj_t *pages, Settings &settings, void
     buildTorch( m_stack.part( TorchPart ) );
     buildCounter( m_stack.part( CounterPart ) );
     buildRandom( m_stack.part( RandomPart ) );
+    buildCalculator( m_stack.part( CalculatorPart ) );
+    buildConverter( m_stack.part( ConverterPart ) );
     lv_obj_add_event_cb( tile, onPartChanged, LV_EVENT_VALUE_CHANGED, this );
     m_tick = lv_timer_create( onTick, s_tickMs, this );
 }
@@ -144,6 +179,23 @@ void ToolPages::forget()
         m_modes[i] = nullptr;
     }
     m_diceHint = nullptr;
+    m_calculatorPad.forget();
+    m_calculatorValue = nullptr;
+    m_calculatorText = nullptr;
+    m_calculatorAngle = nullptr;
+    m_kind = nullptr;
+    m_kindLabel = nullptr;
+    for ( int i = 0; i < 4; ++i ) {
+        m_rows[i] = nullptr;
+        m_rowValues[i] = nullptr;
+        m_rowUnits[i] = nullptr;
+    }
+    m_entry = nullptr;
+    m_entryValue = nullptr;
+    m_entryUnit = nullptr;
+    m_entryAngle = nullptr;
+    m_entryPad.forget();
+    m_entryRow = -1;
 }
 
 StackPage &ToolPages::stack()
@@ -156,6 +208,8 @@ void ToolPages::onPartChanged( lv_event_t *event )
 {
     ToolPages *self = static_cast<ToolPages *>( lv_event_get_user_data( event ) );
     self->m_stack.setHeaderHidden( self->m_stack.current() == TorchPart );
+    // Swiping away from an entry leaves it.
+    self->closeEntry();
 }
 
 void ToolPages::onTick( lv_timer_t *timer )
@@ -668,6 +722,239 @@ void ToolPages::onDrawRandom( lv_event_t *event )
     }
 }
 
+// ---- Calculator ----
+
+// The display's three labels on `parent`: the value, the text (or the unit entered) and the
+// angle unit.
+static void buildDisplay( lv_obj_t *parent, lv_obj_t **value, lv_obj_t **text, lv_obj_t **angle )
+{
+    *value = label( parent, &jetbrains_mono_48, lv_color_white(), LV_ALIGN_TOP_RIGHT, s_displayRight, s_valueY, "" );
+    *text = label( parent, &jetbrains_mono_26, s_grey, LV_ALIGN_TOP_RIGHT, s_displayRight, s_textY, "" );
+    *angle = label( parent, &jetbrains_mono_26, s_dim, LV_ALIGN_TOP_LEFT, s_keypadX, s_textY, "" );
+}
+
+// The end of `text` in `maxChars` characters, "…" first when it was cut.
+static void showTail( lv_obj_t *object, const char *text, int maxChars )
+{
+    const char *tail = Calculator::tail( text, maxChars );
+    char shown[Calculator::MaxText + 4];
+    if ( tail == text ) {
+        snprintf( shown, sizeof( shown ), "%s", text );
+    } else {
+        snprintf( shown, sizeof( shown ), "…%s", Calculator::tail( text, maxChars - 1 ) );
+    }
+    setText( object, shown );
+}
+
+void ToolPages::buildCalculator( lv_obj_t *part )
+{
+    buildDisplay( part, &m_calculatorValue, &m_calculatorText, &m_calculatorAngle );
+    m_calculatorPad.build( part, s_keypadX, s_keypadY, s_calculator, onCalculatorKey, this );
+    showCalculator();
+}
+
+void ToolPages::showCalculator()
+{
+    if ( m_calculatorValue == nullptr ) {
+        return;
+    }
+    char text[24] = "";
+    lv_color_t colour = lv_color_white();
+    double value = 0;
+    if ( s_calculator.state() == Calculator::Failed ) {
+        snprintf( text, sizeof( text ), "%s", Language::text( Language::CalcError ) );
+        colour = lv_color_hex( Styles::Amber );
+    } else if ( s_calculator.state() == Calculator::Result ) {
+        Calculator::format( s_calculator.value(), s_valueChars, text, sizeof( text ) );
+    } else if ( s_calculator.preview( value ) ) {
+        // The live result in grey, until "=".
+        Calculator::format( value, s_valueChars, text, sizeof( text ) );
+        colour = s_grey;
+    } else if ( s_calculator.text()[0] == '\0' ) {
+        snprintf( text, sizeof( text ), "0" );
+        colour = s_dim;
+    }
+    setText( m_calculatorValue, text );
+    lv_obj_set_style_text_color( m_calculatorValue, colour, 0 );
+    showTail( m_calculatorText, s_calculator.text(), s_textChars );
+    setText( m_calculatorAngle, s_calculator.label( Calculator::Angle ) );
+    m_calculatorPad.refresh();
+}
+
+void ToolPages::onCalculatorKey( void *user, Calculator::Key key )
+{
+    ToolPages *self = static_cast<ToolPages *>( user );
+    s_calculator.press( key );
+    self->showCalculator();
+}
+
+// ---- Unit converter ----
+
+void ToolPages::buildConverter( lv_obj_t *part )
+{
+    m_kind = button( part, s_left, 36, s_right, 84, "", onConverterEvent, this );
+    m_kindLabel = lv_obj_get_child( m_kind, 0 );
+    for ( int i = 0; i < 4; ++i ) {
+        const int y = s_rowTop + i * s_rowStep;
+        m_rows[i] = button( part, s_left, y, s_right, y + s_rowHeight, "", onConverterEvent, this );
+        m_rowValues[i] = lv_obj_get_child( m_rows[i], 0 );
+        lv_obj_align( m_rowValues[i], LV_ALIGN_TOP_LEFT, 16, 4 );
+        m_rowUnits[i] = label( m_rows[i], &jetbrains_mono_26, s_grey, LV_ALIGN_TOP_LEFT, 16, 34, "" );
+    }
+    lv_obj_t *hint = label( part, &jetbrains_mono_26, s_dim, LV_ALIGN_TOP_MID, 0, 390, Language::text( Language::ConvHint ) );
+    Styles::centred( hint );
+
+    // The entry: the calculator's display and keys over the whole part, hidden until a row is tapped.
+    m_entry = lv_obj_create( part );
+    lv_obj_remove_style_all( m_entry );
+    lv_obj_set_size( m_entry, Panel::WIDTH, Panel::HEIGHT - StackPage::HeaderPad );
+    lv_obj_set_scrollable( m_entry, false );
+    lv_obj_set_style_bg_color( m_entry, lv_color_black(), 0 );
+    lv_obj_set_style_bg_opa( m_entry, LV_OPA_COVER, 0 );
+    buildDisplay( m_entry, &m_entryValue, &m_entryUnit, &m_entryAngle );
+    m_entryPad.build( m_entry, s_keypadX, s_keypadY, m_entryCalculator, onEntryKey, this );
+    lv_obj_set_hidden( m_entry, m_entryRow < 0 );
+    showConverter();
+    showEntry();
+}
+
+// A value in its row: h:m:s for the hour angle, else up to 10 significant digits.
+static void formatRow( int kind, int unit, double value, char *text, int size )
+{
+    bool negative = false;
+    int h = 0;
+    int m = 0;
+    int s = 0;
+    if ( kind == Units::AngleTime && unit == Units::Hours && Units::splitHms( value, negative, h, m, s ) ) {
+        snprintf( text, size, Language::text( Language::HmsValue ), negative ? "-" : "", h, m, s );
+        return;
+    }
+    Calculator::format( value, s_rowChars, text, size );
+}
+
+void ToolPages::showConverter()
+{
+    if ( m_kind == nullptr ) {
+        return;
+    }
+    setText( m_kindLabel, Language::text( s_kindNames[s_kind] ) );
+    const int count = Units::unitCount( s_kind );
+    for ( int i = 0; i < 4; ++i ) {
+        lv_obj_set_hidden( m_rows[i], i >= count );
+        if ( i >= count ) {
+            continue;
+        }
+        char text[40];
+        formatRow( s_kind, i, Units::convert( s_kind, s_kindUnit[s_kind], i, s_kindValue[s_kind] ), text, sizeof( text ) );
+        setText( m_rowValues[i], text );
+        setText( m_rowUnits[i], Language::text( s_unitNames[s_kind][i] ) );
+        // The unit entered last has the amber outline.
+        if ( i == s_kindUnit[s_kind] ) {
+            lv_obj_add_state( m_rows[i], LV_STATE_CHECKED );
+        } else {
+            lv_obj_remove_state( m_rows[i], LV_STATE_CHECKED );
+        }
+    }
+}
+
+void ToolPages::onConverterEvent( lv_event_t *event )
+{
+    ToolPages *self = static_cast<ToolPages *>( lv_event_get_user_data( event ) );
+    lv_obj_t *target = static_cast<lv_obj_t *>( lv_event_get_current_target( event ) );
+    if ( target == self->m_kind ) {
+        s_kind = ( s_kind + 1 ) % Units::CategoryCount;
+        self->showConverter();
+        return;
+    }
+    for ( int i = 0; i < 4; ++i ) {
+        if ( target == self->m_rows[i] ) {
+            self->openEntry( i );
+        }
+    }
+}
+
+void ToolPages::openEntry( int row )
+{
+    if ( m_entry == nullptr || row < 0 || row >= Units::unitCount( s_kind ) ) {
+        return;
+    }
+    m_entryRow = row;
+    m_entryFailed = false;
+    m_entryCalculator.clear();
+    // h:m:s: the point key writes ":".
+    m_entryCalculator.setColon( s_kind == Units::AngleTime && row == Units::Hours );
+    lv_obj_set_hidden( m_entry, false );
+    showEntry();
+}
+
+void ToolPages::closeEntry()
+{
+    m_entryRow = -1;
+    if ( m_entry != nullptr ) {
+        lv_obj_set_hidden( m_entry, true );
+    }
+}
+
+void ToolPages::showEntry()
+{
+    if ( m_entry == nullptr || m_entryRow < 0 ) {
+        return;
+    }
+    const char *text = m_entryCalculator.text();
+    if ( m_entryFailed ) {
+        setText( m_entryValue, Language::text( Language::CalcError ) );
+        lv_obj_set_style_text_color( m_entryValue, lv_color_hex( Styles::Amber ), 0 );
+    } else if ( text[0] == '\0' ) {
+        setText( m_entryValue, "0" );
+        lv_obj_set_style_text_color( m_entryValue, s_dim, 0 );
+    } else {
+        showTail( m_entryValue, text, s_valueChars );
+        lv_obj_set_style_text_color( m_entryValue, lv_color_white(), 0 );
+    }
+    setText( m_entryUnit, Language::text( s_unitNames[s_kind][m_entryRow] ) );
+    setText( m_entryAngle, m_entryCalculator.label( Calculator::Angle ) );
+    m_entryPad.refresh();
+}
+
+void ToolPages::onEntryKey( void *user, Calculator::Key key )
+{
+    ToolPages *self = static_cast<ToolPages *>( user );
+    const int row = self->m_entryRow;
+    if ( row < 0 ) {
+        return;
+    }
+    const char *text = self->m_entryCalculator.text();
+    const bool empty = text[0] == '\0';
+    if ( empty && ( key == Calculator::Clear || key == Calculator::Equals ) ) {
+        self->closeEntry();
+        return;
+    }
+    if ( key != Calculator::Equals ) {
+        self->m_entryFailed = false;
+        self->m_entryCalculator.press( key );
+        self->showEntry();
+        return;
+    }
+    // h:m:s with colons, anything else as an expression in the row's unit.
+    double value = 0;
+    bool valid = false;
+    if ( s_kind == Units::AngleTime && row == Units::Hours && strchr( text, ':' ) != nullptr ) {
+        valid = Units::parseHms( text, value );
+    } else {
+        valid = Calculator::evaluate( text, self->m_entryCalculator.radians(), value );
+    }
+    if ( valid && Units::valid( s_kind, row, value ) ) {
+        s_kindUnit[s_kind] = row;
+        s_kindValue[s_kind] = value;
+        self->closeEntry();
+        self->showConverter();
+        ESP_LOGI( TAG, "Converter: kind %d, unit %d", s_kind, row );
+    } else {
+        self->m_entryFailed = true;
+        self->showEntry();
+    }
+}
+
 // ---- Development ----
 
 bool ToolPages::press( const char *name )
@@ -695,6 +982,21 @@ bool ToolPages::press( const char *name )
         }
         s_randomMode = mode;
         roll();
+    } else if ( strncmp( name, "keys ", 5 ) == 0 ) {
+        const bool entry = m_entryRow >= 0;
+        for ( const char *k = name + 5; *k != '\0'; ++k ) {
+            // Keys after the entry closed are dropped.
+            if ( entry && m_entryRow >= 0 ) {
+                onEntryKey( this, Calculator::keyForChar( *k ) );
+            } else if ( !entry ) {
+                onCalculatorKey( this, Calculator::keyForChar( *k ) );
+            }
+        }
+    } else if ( strcmp( name, "kind" ) == 0 ) {
+        s_kind = ( s_kind + 1 ) % Units::CategoryCount;
+        showConverter();
+    } else if ( strncmp( name, "unit ", 5 ) == 0 ) {
+        openEntry( atoi( name + 5 ) );
     } else if ( strcmp( name, "torch" ) == 0 ) {
         s_torchColour = ( s_torchColour + 1 ) % TorchColourCount;
         m_sosStartUs = esp_timer_get_time();

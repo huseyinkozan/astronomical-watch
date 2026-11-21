@@ -72,6 +72,11 @@ public:
     // The keys that do the main things (C and =), drawn in amber; fn too while the functions show.
     bool accented( Key key ) const;
 
+    // A key for one ASCII character (host tests, the development command "B keys"): digits
+    // . + - * / = C < (back) f (fn) s c t (sin cos tan) S O T (their inverses) r (√) q (x²) ^
+    // p (π) l (log) n (ln) ( ) i (1/x) d (DEG) e (EXP) m (±); NoKey for any other.
+    static Key keyForChar( char c );
+
     static const int MaxText = 64;
 
     enum State

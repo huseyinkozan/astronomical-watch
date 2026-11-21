@@ -311,6 +311,17 @@ Calculator::Key Calculator::keyAt( int pad, int cell )
     return s_pads[pad][cell];
 }
 
+Calculator::Key Calculator::keyForChar( char c )
+{
+    static const char s_chars[] = "0123456789.+-*/=C<fsctSOTrq^plnid()em";
+    static const Key s_keys[] = { Key0, Key1, Key2, Key3, Key4, Key5, Key6, Key7, Key8, Key9, Point, Plus, Minus,
+                                  Times, Divide, Equals, Clear, Back, Fn, Sin, Cos, Tan, Asin, Acos, Atan, Sqrt,
+                                  Square, Power, Pi, Log, Ln, Reciprocal, Angle, Open, Close, Exp, Sign };
+    static_assert( sizeof( s_keys ) / sizeof( s_keys[0] ) == sizeof( s_chars ) - 1, "a key per character" );
+    const char *at = c != '\0' ? strchr( s_chars, c ) : nullptr;
+    return at != nullptr ? s_keys[at - s_chars] : NoKey;
+}
+
 const char *Calculator::label( Key key ) const
 {
     if ( key == Angle ) {

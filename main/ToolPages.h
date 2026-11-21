@@ -2,13 +2,15 @@
 
 #include <cstdint>
 
+#include "Calculator.h"
+#include "Keypad.h"
 #include "Settings.h"
 #include "StackPage.h"
 #include "Tally.h"
 #include "lvgl.h"
 
-// The tools page (docs/superpowers/plans/2026-11-21-tools.md): the torch, the counter and a
-// random roll, one over the other (StackPage). Display builds it and calls it with the display
+// The tools page (docs/superpowers/plans/2026-11-21-tools.md): the torch, the counter, a random
+// roll, the calculator and the unit converter, one over the other (StackPage). Display builds it and calls it with the display
 // lock held; tools run only in active mode.
 //
 // Torch: the whole screen in one colour (red, amber, white, then SOS flashes, with beeps or
@@ -18,6 +20,11 @@
 // Counter: a large count with a target (Tally), +1 and undo keys; a long press on the count
 // resets it; the BOOT key counts too (Settings::BootCounter, Display::back). Random: dice, a coin
 // or a number from 1 to 100, a tap rolls.
+// Calculator: an expression on a keypad (Calculator, Keypad), its live result above it, the
+// result after "="; fn shows the functions, then their inverses. Unit converter: one kind of
+// units at a time (Units), the kind chosen by a tap on its title (the vertical swipe stays the
+// parts' step); a tap on a value opens the calculator's keypad over the part to enter it in that
+// unit ("=" takes it, C or "=" on nothing goes back).
 class ToolPages
 {
 public:
@@ -26,6 +33,8 @@ public:
         TorchPart,
         CounterPart,
         RandomPart,
+        CalculatorPart,
+        ConverterPart,
         PartCount  // the parts are numbered in the saved orders (PartOrder): new ones at the end
     };
 
@@ -53,7 +62,9 @@ public:
     void update( int64_t utcSeconds );
 
     // Development (host command "B <name>"): count, undo, target, reset, roll, dice, coin,
-    // number, torch (the next colour).
+    // number, torch (the next colour), "keys <keys>" (Calculator::keyForChar; the converter's
+    // entry while it is open, else the calculator), kind (the converter's next kind), "unit <n>"
+    // (opens the entry of the converter's row n).
     bool press( const char *name );
 
 private:
@@ -77,6 +88,16 @@ private:
     void saveCounter();
     void roll();
     void showRandom();
+    static void onCalculatorKey( void *user, Calculator::Key key );
+    static void onEntryKey( void *user, Calculator::Key key );
+    static void onConverterEvent( lv_event_t *event );
+    void buildCalculator( lv_obj_t *part );
+    void buildConverter( lv_obj_t *part );
+    void showCalculator();
+    void showConverter();
+    void openEntry( int row );
+    void closeEntry();
+    void showEntry();
 
     StackPage m_stack;
     lv_obj_t *m_tile = nullptr;
@@ -124,4 +145,25 @@ private:
     lv_obj_t *m_coin = nullptr;
     lv_obj_t *m_modes[3] = {};
     lv_obj_t *m_diceHint = nullptr;
+
+    // Calculator (its state in RTC memory, ToolPages.cpp).
+    Keypad m_calculatorPad;
+    lv_obj_t *m_calculatorValue = nullptr;
+    lv_obj_t *m_calculatorText = nullptr;
+    lv_obj_t *m_calculatorAngle = nullptr;
+
+    // Unit converter, and the entry of a value over it.
+    lv_obj_t *m_kind = nullptr;
+    lv_obj_t *m_kindLabel = nullptr;
+    lv_obj_t *m_rows[4] = {};
+    lv_obj_t *m_rowValues[4] = {};
+    lv_obj_t *m_rowUnits[4] = {};
+    lv_obj_t *m_entry = nullptr;
+    lv_obj_t *m_entryValue = nullptr;
+    lv_obj_t *m_entryUnit = nullptr;
+    lv_obj_t *m_entryAngle = nullptr;
+    Keypad m_entryPad;
+    Calculator m_entryCalculator;
+    int m_entryRow = -1;  // the row entered, -1: the entry is closed
+    bool m_entryFailed = false;
 };

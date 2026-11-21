@@ -75,7 +75,7 @@ enum Page
     InfoPage,       // the information parts, one over the other (InfoPart)
     PlanetsPage,    // the solar system, the sky, rise and set, distances (PlanetPages)
     SettingsPage,   // the settings, and under them the setup portal
-    ToolsPage,      // torch, counter, random (ToolPages)
+    ToolsPage,      // torch, counter, random, calculator, unit converter (ToolPages)
     ObservingPage,  // no parts yet: left out of the launcher
     PageCount
 };
@@ -102,7 +102,8 @@ static const Language::Text s_infoParts[Display::InfoCount] = {
 static const Language::Text s_planetsParts[PlanetPages::PartCount] = {
     Language::PartSolarSystem, Language::PartSky, Language::RiseAndSet, Language::Distance };
 static const Language::Text s_toolsParts[ToolPages::PartCount] = { Language::PartTorch, Language::PartCounter,
-                                                                    Language::PartRandom };
+                                                                    Language::PartRandom, Language::PartCalculator,
+                                                                    Language::PartConverter };
 static const Language::Text s_settingsParts[SettingsPartCount] = {
     Language::PartSettings, Language::PartMoreSettings, Language::PartSetupInfo,
 #if CONFIG_WATCH_SETUP_PORTAL
@@ -180,7 +181,8 @@ struct Shot
     { "alarms", ClockPage, ClockPages::AlarmsPart },
     { "launcher", LauncherShot, -1 },
     { "torch", ToolsPage, ToolPages::TorchPart }, { "counter", ToolsPage, ToolPages::CounterPart },
-    { "random", ToolsPage, ToolPages::RandomPart },
+    { "random", ToolsPage, ToolPages::RandomPart }, { "calculator", ToolsPage, ToolPages::CalculatorPart },
+    { "converter", ToolsPage, ToolPages::ConverterPart },
 };
 [[maybe_unused]] static const int s_shotCount = sizeof( s_shots ) / sizeof( s_shots[0] );
 

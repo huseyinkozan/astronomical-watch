@@ -257,6 +257,25 @@ public:
         DiceHint,
         BootCounterRow,  // settings page: what BOOT does on the counter
         BootBack,
+        // Tools page: calculator and unit converter (ToolPages).
+        PartCalculator,
+        PartConverter,
+        CalcError,
+        ConvAngleTime,
+        ConvDistance,
+        ConvTemperature,
+        UnitHourAngle,
+        UnitDegrees,
+        UnitRadians,
+        UnitKilometres,
+        UnitAstronomical,
+        UnitLightYears,
+        UnitParsecs,
+        UnitCelsius,
+        UnitFahrenheit,
+        UnitKelvin,
+        HmsValue,       // "%s%dh %dm %ds": the sign, hours, minutes, seconds
+        ConvHint,
         TextCount
     };
 

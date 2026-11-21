@@ -249,6 +249,26 @@ static const char *s_texts[][2] = {
     { "Dice again: 1-3", "Zar'a dokun: 1-3" },
     { "BOOT counter", "BOOT sayaç" },
     { "Back", "Geri" },
+    // Calculator and unit converter; the units under the values at most 17 characters, the
+    // hint's lines at most 19.
+    { "Calculator", "Hesap makinesi" },
+    { "Unit converter", "Birim çevirici" },
+    { "Error", "Hata" },
+    { "Angle ↔ time", "Açı ↔ zaman" },
+    { "Distance", "Uzaklık" },
+    { "Temperature", "Sıcaklık" },
+    { "hour angle", "saat açısı" },
+    { "degrees", "derece" },
+    { "radians", "radyan" },
+    { "kilometres", "kilometre" },
+    { "astronomical unit", "astronomik birim" },
+    { "light years", "ışık yılı" },
+    { "parsecs", "parsek" },
+    { "°C Celsius", "°C santigrat" },
+    { "°F Fahrenheit", "°F fahrenhayt" },
+    { "K Kelvin", "K kelvin" },
+    { "%s%dh %dm %ds", "%s%ds %dd %dsn" },
+    { "tap a value: enter\ntap the title: kind", "değere dokun: gir\nbaşlığa dokun: tür" },
 };
 // One pair per text: a missing one would shift every text after it.
 static_assert( sizeof( s_texts ) / sizeof( s_texts[0] ) == Language::TextCount, "a text pair per Language::Text" );

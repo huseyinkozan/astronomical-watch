@@ -68,7 +68,9 @@ static const ItemInfo s_items[Settings::ItemCount] = {
     // Clock, information, tools, observing, planets, settings (Display.cpp, Page: the pages added
     // later have the higher numbers, so that saved orders keep their places).
     { "pages_order", 0 | 1 << 3 | 4 << 6 | 5 << 9 | 2 << 12 | 3 << 15, 0, {}, 0, 16777215 },
-    { "tools_order", 0, 0, {}, 0, 16777215 },
+    // Torch, calculator, unit converter, counter, random (ToolPages::Part: the parts added later
+    // have the higher numbers).
+    { "tools_order", 0 | 3 << 3 | 4 << 6 | 1 << 9 | 2 << 12, 0, {}, 0, 16777215 },
     { "tools_hidden", 0, 0, {}, 0, 255 },
     { "obs_order", 0, 0, {}, 0, 16777215 },
     { "obs_hidden", 0, 0, {}, 0, 255 },

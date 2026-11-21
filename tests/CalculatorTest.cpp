@@ -47,35 +47,11 @@ static void check( const char *name, double value, double expected, double toler
     }
 }
 
-// Presses the keys of `keys`, one character each: digits . + - * / = C < (back) f (fn) s c t
-// (sin cos tan) r (√) q (x²) ^ p (π) l (log) n (ln) ( ) i (1/x) d (DEG) e (EXP) m (±).
+// Presses the keys of `keys`, one character each (Calculator::keyForChar).
 static void type( Calculator &calculator, const char *keys )
 {
-    const char *names = "0123456789.+-*/=C";
     for ( const char *k = keys; *k != '\0'; ++k ) {
-        const char *at = strchr( names, *k );
-        Calculator::Key key = at != nullptr ? static_cast<Calculator::Key>( at - names ) : Calculator::NoKey;
-        switch ( *k ) {
-        case '<': key = Calculator::Back; break;
-        case 'f': key = Calculator::Fn; break;
-        case 's': key = Calculator::Sin; break;
-        case 'c': key = Calculator::Cos; break;
-        case 't': key = Calculator::Tan; break;
-        case 'r': key = Calculator::Sqrt; break;
-        case 'q': key = Calculator::Square; break;
-        case '^': key = Calculator::Power; break;
-        case 'p': key = Calculator::Pi; break;
-        case 'l': key = Calculator::Log; break;
-        case 'n': key = Calculator::Ln; break;
-        case '(': key = Calculator::Open; break;
-        case ')': key = Calculator::Close; break;
-        case 'i': key = Calculator::Reciprocal; break;
-        case 'd': key = Calculator::Angle; break;
-        case 'e': key = Calculator::Exp; break;
-        case 'm': key = Calculator::Sign; break;
-        default: break;
-        }
-        calculator.press( key );
+        calculator.press( Calculator::keyForChar( *k ) );
     }
 }
 
@@ -239,8 +215,7 @@ static void testKeys()
     type( calculator, "f" );
     check( "inverse", calculator.pad(), Calculator::InversePad, 0 );
     check( "inverse row", Calculator::keyAt( Calculator::InversePad, 0 ), Calculator::Asin, 0 );
-    calculator.press( Calculator::Asin );
-    type( calculator, "0.5=" );
+    type( calculator, "S0.5=" );
     check( "asin", calculator.value(), 30, 1e-9 );
     type( calculator, "f" );
     type( calculator, "f" );

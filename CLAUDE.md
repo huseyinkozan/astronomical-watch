@@ -277,8 +277,9 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   set, distances; `main/PlanetPages.*`, the day's rise and set computed in the main task on the
   page's request, 0.4 s; design: `docs/superpowers/specs/2026-11-19-planets-design.md`) and
   settings (settings, more settings, what the portal set, setup portal, its QR code; the setup
-  part always shown), tools (torch, counter, random; `main/ToolPages.*`, the counter's rules in
-  `main/Tally.*`, the SOS timing in `main/Morse.*`, both host-tested; plan:
+  part always shown), tools (torch, calculator, unit converter, counter, random; `main/ToolPages.*`,
+  the counter's rules in `main/Tally.*`, the SOS timing in `main/Morse.*`, the calculator's
+  expressions in `main/Calculator.*` and the conversions in `main/Units.*`, all host-tested; plan:
   `docs/superpowers/plans/2026-11-21-tools.md`) and observing (no parts yet: a page whose part list is
   empty stays out of the launcher and the portal's lists by itself). The `Page` numbers are kept in
   the saved launcher order, so new pages come last in the enum; the default order puts tools and
@@ -288,6 +289,14 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   brightness while it shows (kept in RTC memory; `Display::updateBrightness` also dims the QR
   code); the night-red mode leaves it as it is. The counter's count, target and first minute are
   settings written when active mode ends, not at each count; a long press on the count resets it.
+  The calculator types an expression on a keypad drawn by one object (`main/Keypad.*`, 5 rows of
+  4 keys of 78 x 58 px, C and = in amber), its live result in grey above it, the result after "=";
+  fn steps digits, functions, inverse functions (fn keeps its place); degrees by default, DEG/RAD
+  on the functions; a function key brings the digits back; parentheses left open close at the
+  end; errors show "Error". Its text and modes stay in RTC memory. The unit converter shows one
+  kind (angle and time, distance, temperature), stepped by a tap on its title; a tap on a value
+  opens the same keypad over the part (h:m:s: the point key writes ":"; C or "=" on nothing goes
+  back, a part swipe too). No speed-time-distance solver (the calculator does it in one line).
   The page and part last opened stay in RTC memory over the always-on wakes (lost at power-off:
   then the clock page's first part). The BOOT key (GPIO0, polled in `runActiveMode`, never a
   wake source) steps back: opened page to launcher, launcher to face, on the face it closes the
@@ -364,7 +373,8 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   region, docs/hardware.md, "Speaker and alarm sound"), from -18 dB to at most -12 dB (the meter: -6 dB drew 0.17 A, full scale browned the board out), through
   `main/Sound.*`, for at most 60 s; a tap, PWR or BOOT stops it. Design:
   `docs/superpowers/specs/2026-11-19-alarms-design.md`. Development commands: "B <name>" presses a button of the opened page (clock page:
-  `ClockPages::press`; tools page: count, undo, target, reset, roll, dice, coin, number, torch),
+  `ClockPages::press`; tools page: count, undo, target, reset, roll, dice, coin, number, torch, "keys <keys>" as
+  `Calculator::keyForChar`, kind, "unit <n>"),
   "R <s>" a test
   alarm, "K <n> <text>" defines an alarm, "Q" ends active mode as without the always-on face,
   "H" makes the next PWR wake a phantom (it must go back to sleep), "W" starves the idle task
