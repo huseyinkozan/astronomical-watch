@@ -320,9 +320,11 @@ static void onTouchPressed( lv_event_t *event )
 }
 #endif
 
-bool Display::start( Settings &settings )
+bool Display::start( Settings &settings, bool red )
 {
     m_settings = &settings;
+    m_redWanted = red;
+    m_red = red;
     const int brightnessPercent = settings.value( Settings::Brightness );
     lv_indev_t *touch = nullptr;
     lv_display_t *display = startLvgl( touch );
@@ -403,8 +405,8 @@ bool Display::start( Settings &settings )
     bsp_display_unlock();
 
     // Internal RAM left for the rest of active mode (the Wi-Fi setup portal needs about 100 KB).
-    ESP_LOGI( TAG, "Display started, pages built in %d ms, brightness %d %%, internal heap %u free, %u largest",
-              static_cast<int>( ( esp_timer_get_time() - buildStartUs ) / 1000 ), brightnessPercent,
+    ESP_LOGI( TAG, "Display started, pages built in %d ms, brightness %d %%, red %d, internal heap %u free, %u largest",
+              static_cast<int>( ( esp_timer_get_time() - buildStartUs ) / 1000 ), brightnessPercent, red ? 1 : 0,
               static_cast<unsigned>( heap_caps_get_free_size( MALLOC_CAP_INTERNAL ) ),
               static_cast<unsigned>( heap_caps_get_largest_free_block( MALLOC_CAP_INTERNAL ) ) );
     return true;

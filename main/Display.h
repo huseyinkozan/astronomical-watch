@@ -74,8 +74,9 @@ public:
     };
 
     // Starts LVGL, the panel and touch (BSP), sets the brightness and builds the pages. A tap on
-    // a settings row steps `settings` to the next value, in the LVGL task.
-    bool start( Settings &settings );
+    // a settings row steps `settings` to the next value, in the LVGL task. `red`: the first frame
+    // comes in the red night mode (showCorners decides it from then on).
+    bool start( Settings &settings, bool red );
 
     // The face pages (FaceStore), before start() and after the setup portal saved them.
     void setPages( const FaceConfig::Pages &pages );

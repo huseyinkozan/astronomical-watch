@@ -684,6 +684,26 @@ static void trackUnplugged( bool vbusGood, int64_t utcSeconds, bool settingsLoad
     s_unpluggedSaved = vbusGood ? 0 : 1;
 }
 
+// The red night mode at the start of active mode, so that the first frame comes in it (it came in
+// colour and turned red at the first second's update): the day's sky kept in RTC memory and the
+// RTC's time, the same rule as updateDisplay(). Without the sky (a power-on) it waits for that.
+static bool redAtStart()
+{
+    if ( s_hostNightRed ) {
+        return true;
+    }
+    const bool located = s_settings.value( Settings::Latitude ) != 0 || s_settings.value( Settings::Longitude ) != 0;
+    if ( !located || s_settings.value( Settings::NightMode ) == 0 || !s_skyValid ) {
+        return false;
+    }
+    Rtc::DateTime time = {};
+    bool stopped = false;
+    if ( s_rtc.read( time, stopped ) != ESP_OK || stopped || time.month == 0 ) {
+        return false;
+    }
+    return Corners::dark( Corners::fromSky( s_skyDay ), unixTime( time ) );
+}
+
 static void updateDisplay()
 {
     Rtc::DateTime time = {};
@@ -1950,10 +1970,10 @@ extern "C" void app_main( void )
             s_displayOn = false;
             ESP_LOGW( TAG, "Display not started (host command Y)" );
         } else {
-            s_displayOn = s_display.start( s_settings );
+            s_displayOn = s_display.start( s_settings, redAtStart() );
         }
 #else
-        s_displayOn = s_display.start( s_settings );
+        s_displayOn = s_display.start( s_settings, redAtStart() );
 #endif
         // A new image from the portal is kept once it has drawn its pages; a reset before this
         // returns to the previous one. The call stays out of the log macro: the release build
