@@ -157,6 +157,8 @@ void ClockPages::build( lv_obj_t *tile )
         lv_obj_set_pos( row, s_left - 6, y - 4 );
         lv_obj_set_size( row, s_right - s_left + 12, 64 );
         lv_obj_set_scrollable( row, false );
+        // As the settings rows: released off the row or after a drag, no toggle.
+        lv_obj_set_press_lock( row, false );
         lv_obj_set_style_bg_color( row, lv_color_hex( 0x303030 ), LV_STATE_PRESSED );
         lv_obj_set_style_bg_opa( row, LV_OPA_COVER, LV_STATE_PRESSED );
         lv_obj_add_event_cb( row, onAlarmRow, LV_EVENT_CLICKED, this );
