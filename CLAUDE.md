@@ -96,7 +96,8 @@ development builds `v0.0.1-3-gabc1234-dirty`. A new release is a new tag, pushed
     A touch reported as pressed without a break for 60 s ends active mode too (a stuck touch
     controller would keep the display on until the battery is flat). While the torch (tools
     page) shows, its own 2 min auto-off replaces the display timeout (a tap restarts it), and at
-    0:00 active mode ends as at a timeout.
+    0:00 active mode ends as at a timeout; so does the running metronome, up to 10 min after the
+    last tap on its part (`Display::toolSecondsLeft`).
   - **Always-on**: the panel keeps showing a dim, minimal face from its own memory while the ESP32
     is in deep sleep; a timer wake once per minute updates it. At wide intervals (default every
     10 min) the accelerometer is sampled once; when the watch has not moved for a while (default
@@ -281,8 +282,9 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   set, distances; `main/PlanetPages.*`, the day's rise and set computed in the main task on the
   page's request, 0.4 s; design: `docs/superpowers/specs/2026-11-19-planets-design.md`) and
   settings (settings, more settings, what the portal set, setup portal, its QR code; the setup
-  part always shown), tools (torch, calculator, unit converter, spirit level, counter, random;
-  `main/ToolPages.*`, the counter's rules in `main/Tally.*`, the SOS timing in `main/Morse.*`, the
+  part always shown), tools (torch, calculator, unit converter, spirit level, counter, random,
+  metronome, emergency card; the metronome hidden by default, the card while it is empty;
+  `main/ToolPages.*`, the last two in `main/ToolParts.*`, the counter's rules in `main/Tally.*`, the SOS timing in `main/Morse.*`, the
   calculator's expressions in `main/Calculator.*`, the conversions in `main/Units.*` and the
   level's angles in `main/Tilt.*`, all host-tested; plan:
   `docs/superpowers/plans/2026-11-21-tools.md`) and observing (polar alignment, Milky Way window,
@@ -322,6 +324,15 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   same from either end): a height from a distance or a distance from a height, entered with the
   keypad over the part (metres, from eye level, kept in RTC memory); a tap on the angle holds the
   value from the moment the finger touched.
+  The metronome (30-240 bpm; - and +, a long press steps by 5; a CPR key sets 110; a tap on the
+  dots steps the beats in a bar: none, 2, 3, 4, the first beat at 1500 Hz) beats through
+  `Ringer::startBeats` at the alarm's lowest level (the sound task plays each beat by its time,
+  a new tempo only moves the clock; the codec runs only while it plays). It stops when its part
+  is left or active mode ends. The emergency card (`main/EmergencyCard.*`, an NVS blob of seven
+  31-byte texts in the watch font's letters) is a centred `TablePart` under a red title; the
+  portal reads and writes it with its own request (`/api/card`, before the save: the save's form
+  and the state answer are near the 4 KB buffer). Development commands "B beat", "B bar",
+  "B cpr", "B tempo <bpm>".
   The astrolabe has five modes, stepped by a tap on the title: the dial (a northern astrolabe's
   stereographic projection: the plate for the location with the horizon, almucantars every 15
   degrees, the equator and the tropics, cut at the far tropic; the rete with the ecliptic, the
@@ -444,8 +455,11 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   rollback: a new image is confirmed once active mode has drawn its pages, a reset before that
   returns to the old one, and the update ends with a full restart because deep-sleep wakes skip
   that check. The page offers the event log and the core dump for download
-  (`tools/read_events.py --file`). The pages go into the image gzipped at build time
-  (`main/CMakeLists.txt`), sent with `Content-Encoding: gzip`: 28 KB instead of 72 KB. The
+  (`tools/read_events.py --file`). Besides the setup page, help.html explains the watch and
+  tools.html (`/tools`, "?tr" for Turkish) each tool of the Tools and Observing pages, in the
+  launcher's order; a new tool gets its section there. The pages go into the image gzipped at
+  build time (`main/CMakeLists.txt`), sent with `Content-Encoding: gzip`: 51 KB with the city
+  list. The
   Wi-Fi stack stays out of IRAM (sdkconfig.defaults) so that the deep-sleep wakes load little more; if they still grow too much, a build option
   (`CONFIG_WATCH_SETUP_PORTAL`) removes the portal and the watch's own settings page remains.
 - Alarms are stored as definitions (clock time, or sun/moon event plus offset; repeat) in NVS,
@@ -462,7 +476,7 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   `main/Sound.*`, for at most 60 s; a tap, PWR or BOOT stops it. Design:
   `docs/superpowers/specs/2026-11-19-alarms-design.md`. Development commands: "B <name>" presses a button of the opened page (clock page:
   `ClockPages::press`, with "regatta" and "sync" for the countdown's mode; tools page: count, undo, target, reset, roll, dice, coin, number, torch, "keys <keys>" as
-  `Calculator::keyForChar`, kind, "unit <n>", level, hold, input; observing page: mode, "drag <min>", now, hold,
+  `Calculator::keyForChar`, kind, "unit <n>", level, hold, input, beat, bar, cpr, "tempo <bpm>"; observing page: mode, "drag <min>", now, hold,
   flip, "scroll <px>", eyepiece, calc, body, aim, satellite),
   "R <s>" a test
   alarm, "K <n> <text>" defines an alarm, "Q" ends active mode as without the always-on face,
