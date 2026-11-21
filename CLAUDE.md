@@ -278,7 +278,9 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   then the clock page's first part). The BOOT key (GPIO0, polled in `runActiveMode`, never a
   wake source) steps back: opened page to launcher, launcher to face, on the face it closes the
   brightness control; it stops a ringing alarm like PWR; a press of 1 s or more is reserved (a
-  log line). A vertical swipe steps the face page on the watch face and the part on
+  log line). A back button does the same on the launcher and the opened page: a grey chevron at
+  the left edge's middle between the left corner gauges, a 40 x 120 px tap zone that takes taps
+  only (swipes from it still scroll the list, step the parts and the calendars, swipe the tiles). A vertical swipe steps the face page on the watch face and the part on
   the stacked pages (`main/StackPage.*`); the pages keep `LV_EVENT_GESTURE` and do not scroll, and
   the new page or part slides in. The stacked pages show their name at the top between the
   upper corner gauges, over a line bending up to them; their parts start `StackPage::HeaderPad`

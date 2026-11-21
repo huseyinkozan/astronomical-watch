@@ -525,6 +525,13 @@ void Display::back()
     if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
         return;
     }
+    goBack();
+    bsp_display_unlock();
+}
+
+// With the display lock held (the LVGL task's back button holds it).
+void Display::goBack()
+{
     const int tile = activeTile();
     if ( m_adjusting ) {
         endAdjust();
@@ -534,7 +541,57 @@ void Display::back()
         lv_tileview_set_tile_by_index( m_pages, FaceTile, 0, LV_ANIM_ON );
     }
     lv_display_trigger_activity( nullptr );
-    bsp_display_unlock();
+}
+
+// The back button: a tap zone at the left edge's middle, between the two left corner gauges, with
+// a chevron in the page marks' grey. `y`: the zone's top within `parent`. On the launcher's list it
+// floats (stays in place while the list scrolls), so that a drag from it still scrolls the list;
+// a swipe from it reaches the tiles and the pages as from anywhere else (it takes taps only).
+static const int s_backWidth = 40;
+static const int s_backHeight = 120;
+static const intptr_t s_backCode = -1;  // its user data, unlike the launcher's rows and names
+
+void Display::addBackButton( lv_obj_t *parent, int y )
+{
+    lv_obj_t *button = lv_obj_create( parent );
+    lv_obj_remove_style_all( button );
+    lv_obj_set_size( button, s_backWidth, s_backHeight );
+    lv_obj_set_pos( button, 0, y );
+    lv_obj_set_floating( button, true );
+    lv_obj_set_scrollable( button, false );
+    // A finger that slides off it cancels the tap.
+    lv_obj_set_press_lock( button, false );
+    lv_obj_set_user_data( button, reinterpret_cast<void *>( s_backCode ) );
+    lv_obj_add_event_cb( button, onDrawBack, LV_EVENT_DRAW_MAIN, nullptr );
+    lv_obj_add_event_cb( button, onBackClicked, LV_EVENT_CLICKED, this );
+}
+
+void Display::onDrawBack( lv_event_t *event )
+{
+    lv_obj_t *button = static_cast<lv_obj_t *>( lv_event_get_current_target( event ) );
+    lv_area_t area = {};
+    lv_obj_get_coords( button, &area );
+    const int cy = ( area.y1 + area.y2 + 1 ) / 2;
+    lv_draw_line_dsc_t line;
+    lv_draw_line_dsc_init( &line );
+    // The marks' grey, lighter while pressed.
+    line.color = lv_color_hex( lv_obj_has_state( button, LV_STATE_PRESSED ) ? 0xD0D0D0 : 0x808080 );
+    line.width = 4;
+    line.round_start = 1;
+    line.round_end = 1;
+    line.p1.x = area.x1 + 18;
+    line.p1.y = cy - 14;
+    line.p2.x = area.x1 + 8;
+    line.p2.y = cy;
+    lv_draw_line( lv_event_get_layer( event ), &line );
+    line.p1.y = cy + 14;
+    lv_draw_line( lv_event_get_layer( event ), &line );
+}
+
+void Display::onBackClicked( lv_event_t *event )
+{
+    ESP_LOGI( TAG, "Back button" );
+    static_cast<Display *>( lv_event_get_user_data( event ) )->goBack();
 }
 
 void Display::showFacePage( int direction )
@@ -613,6 +670,8 @@ void Display::ensureApp()
     } else {
         buildSettingsPage();
     }
+    // Over the page's parts (lv_obj_clean in freeApp() takes it with them).
+    addBackButton( m_tiles[AppTile], ( Panel::HEIGHT - s_backHeight ) / 2 );
     // The part last seen on it, or the first one shown.
     stack( page ).restore( s_appPart );
     m_appReady = true;
@@ -774,6 +833,9 @@ void Display::narrowLauncherRows()
     const int count = static_cast<int>( lv_obj_get_child_count( m_launcherList ) );
     for ( int i = 0; i < count; ++i ) {
         lv_obj_t *item = lv_obj_get_child( m_launcherList, i );
+        if ( rowCode( item ) < 0 ) {
+            continue;  // the back button
+        }
         const bool row = rowCode( item ) > 0;
         const int top = s_listTop + lv_obj_get_style_y( item, LV_PART_MAIN ) - scroll;
         const int bottom = top + ( row ? Styles::LauncherRowHeight : s_launcherNameLine ) - 1;
@@ -862,6 +924,7 @@ void Display::fillLauncher()
             y += Styles::LauncherRowHeight + s_launcherRowGap;
         }
     }
+    addBackButton( m_launcherList, ( Panel::HEIGHT - s_backHeight ) / 2 - s_listTop );
     placeLauncher();
     if ( m_launcherMode != 0 ) {
         narrowLauncherRows();

@@ -234,6 +234,11 @@ private:
     // while the launcher is off screen, so that no jump is seen.
     void placeLauncher();
     static void onLauncherClicked( lv_event_t *event );
+    // The back button on the launcher and the opened page: what a short BOOT press does.
+    void addBackButton( lv_obj_t *parent, int y );
+    static void onBackClicked( lv_event_t *event );
+    static void onDrawBack( lv_event_t *event );
+    void goBack();
     static void onLauncherScrolled( lv_event_t *event );
     void showLauncherMarks();
     // The rows and page names on screen narrow (move in) near the corners to stay clear of the
