@@ -24,8 +24,8 @@ public:
     // Nothing happens while an alarm rings.
     bool startBeats( int64_t startUs, int64_t periodUs, int beatsInBar );
 
-    // Stops the SOS beeps or the metronome; does not wait unless `wait`: until the codec is
-    // powered down.
+    // Stops the SOS beeps, the metronome or a signal (never an alarm); does not wait unless
+    // `wait`: until the codec is powered down.
     void stopTool( bool wait );
 
     // A short signal (the regatta start's, Regatta::Signal): `beeps` tones of `toneMs` at 1000 Hz

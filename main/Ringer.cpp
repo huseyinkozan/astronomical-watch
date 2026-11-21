@@ -34,6 +34,8 @@ static volatile int s_signalToneMs = 0;
 static volatile int64_t s_beatStartUs = 0;
 static volatile int64_t s_beatPeriodUs = 0;
 static volatile int s_beatsInBar = 0;
+// A new tempo changes the clock's three fields together; the sound task reads them together.
+static portMUX_TYPE s_beatLock = portMUX_INITIALIZER_UNLOCKED;
 static const int s_beatToneMs = 50;
 static const int s_accentFrequency = 1500;
 // A beat later than this after its time is left out (the tone would come off the beat).
@@ -66,9 +68,11 @@ static void playBeats( Sound &sound )
 {
     int64_t lastBeatUs = 0;
     while ( !s_stopRequested ) {
+        taskENTER_CRITICAL( &s_beatLock );
         const int64_t startUs = s_beatStartUs;
         const int64_t periodUs = s_beatPeriodUs;
         const int bar = s_beatsInBar;
+        taskEXIT_CRITICAL( &s_beatLock );
         const int64_t elapsedUs = esp_timer_get_time() - startUs;
         if ( periodUs <= 0 || elapsedUs < 0 ) {
             sound.silence( 20 );
@@ -192,9 +196,11 @@ bool Ringer::startBeats( int64_t startUs, int64_t periodUs, int beatsInBar )
         return false;
     }
     if ( s_running && s_beatPeriodUs != 0 && !s_stopRequested ) {
+        taskENTER_CRITICAL( &s_beatLock );
         s_beatStartUs = startUs;
         s_beatPeriodUs = periodUs;
         s_beatsInBar = beatsInBar;
+        taskEXIT_CRITICAL( &s_beatLock );
         return true;
     }
     if ( s_running && !toolSound() && !s_stopRequested ) {
@@ -209,7 +215,7 @@ bool Ringer::startBeats( int64_t startUs, int64_t periodUs, int beatsInBar )
 
 void Ringer::stopTool( bool wait )
 {
-    if ( !s_running || ( s_sosStartUs == 0 && s_beatPeriodUs == 0 ) ) {
+    if ( !s_running || !toolSound() ) {
         return;
     }
     s_stopRequested = true;
