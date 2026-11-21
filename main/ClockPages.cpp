@@ -15,6 +15,7 @@
 static const lv_color_t s_grey = LV_COLOR_MAKE( 0xA0, 0xA0, 0xA0 );
 static const lv_color_t s_dim = LV_COLOR_MAKE( 0x5A, 0x5A, 0x5A );
 static const lv_color_t s_amber = LV_COLOR_MAKE( 0xFF, 0xB0, 0x40 );
+static const lv_color_t s_holyGreen = LV_COLOR_MAKE( 0x50, 0xD0, 0x70 );
 // Content stays inside the corner gauges: rows from x 52 to 358.
 static const int s_left = 52;
 static const int s_right = 358;
@@ -134,6 +135,9 @@ void ClockPages::build( lv_obj_t *tile )
     buildCalendar( m_gregorian, m_stack.part( GregorianPart ) );
     buildCalendar( m_hijri, m_stack.part( HijriPart ) );
     lv_label_set_text( m_hijri.title, "..." );
+    // Two lines below the Hijri month, where the Gregorian calendar has one.
+    m_holyLine = label( m_stack.part( HijriPart ), &jetbrains_mono_26, lv_color_white(), LV_ALIGN_TOP_MID, 0, 396, "" );
+    lv_obj_align( m_hijri.footer, LV_ALIGN_TOP_MID, 0, 426 );
 
     lv_obj_t *days = m_stack.part( DaysPart );
     title( days, Language::text( Language::Days ) );
@@ -278,6 +282,15 @@ void ClockPages::onDrawCalendar( lv_event_t *event )
             const lv_area_t box = { x - 22 - grow, y - 7 - grow, x + 21 + grow, y + 36 + grow };
             lv_draw_rect( layer, &ring, &box );
         }
+        if ( ( calendar.marks >> ( day - 1 ) ) & 1 ) {
+            // A religious day: a dot below the number, inside today's or the chosen day's ring.
+            lv_draw_rect_dsc_t dot;
+            lv_draw_rect_dsc_init( &dot );
+            dot.radius = LV_RADIUS_CIRCLE;
+            dot.bg_color = s_holyGreen;
+            const lv_area_t box = { x - 2, y + 29, x + 2, y + 33 };
+            lv_draw_rect( layer, &dot, &box );
+        }
         const lv_area_t area = { x - 24, y, x + 24, y + 30 };
         text.color = column < 5 ? lv_color_white() : s_amber;
         text.text = s_numbers[day - 1];
@@ -393,8 +406,34 @@ void ClockPages::showHijriMarks()
     const Hijri::Month &month = m_hijriMonth;
     const bool holdsToday = m_today >= month.firstDay && m_today < month.firstDay + month.length;
     const bool holdsChosen = m_chosenDay >= month.firstDay && m_chosenDay < month.firstDay + month.length;
+    m_hijri.marks = HolyDays::marks( month );
     fillCalendar( m_hijri, Dates::weekday( month.firstDay ), month.length, holdsToday ? m_today - month.firstDay + 1 : 0,
                   holdsChosen ? m_chosenDay - month.firstDay + 1 : 0 );
+}
+
+void ClockPages::showHolyDays()
+{
+    const HolyDays::Next &next = m_holyNext;
+    char text[64] = "";
+    if ( next.day != HolyDays::None ) {
+        const char *name = Language::text( static_cast<Language::Text>( Language::HolyRegaip + next.day - HolyDays::Regaip ) );
+        if ( next.daysLeft == 0 ) {
+            snprintf( text, sizeof( text ), Language::text( Language::HolyToday ), name );
+        } else {
+            snprintf( text, sizeof( text ), Language::text( Language::HolyInDays ), name, next.daysLeft );
+        }
+    }
+    setText( m_holyLine, text );
+    lv_obj_set_style_text_color( m_holyLine, next.daysLeft == 0 ? s_holyGreen : lv_color_white(), 0 );
+    if ( next.ramadanDay > 0 ) {
+        snprintf( text, sizeof( text ), Language::text( Language::RamadanDay ), next.ramadanDay );
+    } else if ( next.ramadanIn > 0 && next.day != HolyDays::RamadanStart ) {
+        snprintf( text, sizeof( text ), Language::text( Language::RamadanInDays ), next.ramadanIn );
+    } else {
+        snprintf( text, sizeof( text ), "%s",
+                  Language::text( m_hijriMethod == Hijri::Diyanet ? Language::DiyanetMethod : Language::LocalCrescent ) );
+    }
+    setText( m_hijri.footer, text );
 }
 
 void ClockPages::update( int64_t utcSeconds, int utcOffsetMinutes, const Rtc::DateTime &localTime )
@@ -551,10 +590,12 @@ bool ClockPages::takeHijriRequest( HijriRequest &request )
     return true;
 }
 
-void ClockPages::showHijriMonth( const Hijri::Month &month, int today, int method )
+void ClockPages::showHijriMonth( const Hijri::Month &month, int today, int method, const HolyDays::Next &next )
 {
     m_hijriWanted = false;
     m_hijriMonth = month;
+    m_hijriMethod = method;
+    m_holyNext = next;
     if ( m_hijriRequest.step == 0 ) {
         m_hijriAnchor = m_hijriRequest.fromDay;
     }
@@ -564,7 +605,7 @@ void ClockPages::showHijriMonth( const Hijri::Month &month, int today, int metho
     }
     lv_label_set_text_fmt( m_hijri.title, "%s %d", SkyPages::hijriMonthName( month.month ), month.year );
     showHijriMarks();
-    lv_label_set_text( m_hijri.footer, Language::text( method == Hijri::Diyanet ? Language::DiyanetMethod : Language::LocalCrescent ) );
+    showHolyDays();
 }
 
 int64_t ClockPages::nowMs() const

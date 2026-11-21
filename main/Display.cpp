@@ -1772,12 +1772,12 @@ bool Display::takeHijriRequest( ClockPages::HijriRequest &request )
     return wanted;
 }
 
-void Display::showHijriMonth( const Hijri::Month &month, int today, int method )
+void Display::showHijriMonth( const Hijri::Month &month, int today, int method, const HolyDays::Next &next )
 {
     if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
         return;
     }
-    m_clock.showHijriMonth( month, today, method );
+    m_clock.showHijriMonth( month, today, method, next );
     bsp_display_unlock();
 }
 

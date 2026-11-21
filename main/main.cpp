@@ -6,6 +6,7 @@
 #include "AlwaysOn.h"
 #include "Astronomy.h"
 #include "Hijri.h"
+#include "HolyDays.h"
 #include "Planets.h"
 #include "Sky.h"
 #include "Axp2101.h"
@@ -130,6 +131,10 @@ static Portal s_portal;
 RTC_DATA_ATTR static Zone s_alwaysOnZone;
 // The development mode setting, copied when active mode ends (minute wakes read no NVS).
 RTC_DATA_ATTR static bool s_alwaysOnDevMode;
+// The Hijri calendar's next religious day and what it was searched for: the local day, the
+// location, the UTC offset and the Hijri method (main.cpp searches again when one changes).
+RTC_DATA_ATTR static int s_holyKey[5];
+RTC_DATA_ATTR static HolyDays::Next s_holyNext;
 // Development mode writes an always-on summary to the event log this often.
 static const int s_statusEveryMinutes = 30;
 // The AXP2101 powers off below this VSYS by itself (REG24): under BatteryLimit's 3.45 V, with room
@@ -776,7 +781,26 @@ static void updateDisplay()
         const int day = request.step > 0 ? request.fromDay + request.length
                                          : ( request.step < 0 ? request.fromDay - 1 : request.fromDay );
         const Hijri::Month month = Hijri::month( day, inputs[2], observer, method );
-        s_display.showHijriMonth( month, static_cast<int>( unixTime( local ) / 86400 ), method );
+        const int today = static_cast<int>( unixTime( local ) / 86400 );
+        // The next religious day, searched once a day (up to HolyDays::MaxMonths months).
+        const int key[5] = { today, inputs[0], inputs[1], inputs[2], inputs[3] };
+        if ( memcmp( key, s_holyKey, sizeof( key ) ) != 0 ) {
+            const int64_t start = esp_timer_get_time();
+            Hijri::Month months[HolyDays::MaxMonths] = {};
+            months[0] = request.step == 0 && request.fromDay == today ? month : Hijri::month( today, inputs[2], observer, method );
+            int count = 1;
+            s_holyNext = HolyDays::next( today, months, count );
+            while ( s_holyNext.day == HolyDays::None && count < HolyDays::MaxMonths ) {
+                const Hijri::Month &last = months[count - 1];
+                months[count] = Hijri::month( last.firstDay + last.length, inputs[2], observer, method );
+                ++count;
+                s_holyNext = HolyDays::next( today, months, count );
+            }
+            memcpy( s_holyKey, key, sizeof( key ) );
+            ESP_LOGI( TAG, "Next religious day %d in %d days, %d months in %d ms", s_holyNext.day, s_holyNext.daysLeft, count,
+                      static_cast<int>( ( esp_timer_get_time() - start ) / 1000 ) );
+        }
+        s_display.showHijriMonth( month, today, method, s_holyNext );
     }
     updateSky( unixTime( time ), inputs );
     Corners::Gauge gauges[Corners::CornerCount] = {};

@@ -147,7 +147,7 @@ public:
     // The clock page's timers for the alarms (ClockPages): false when the lock was busy.
     bool timers( int64_t &countdownEndMs, bool &stopwatchRunning );
     void finishCountdown();
-    void showHijriMonth( const Hijri::Month &month, int today, int method );
+    void showHijriMonth( const Hijri::Month &month, int today, int method, const HolyDays::Next &next );
 
     // The Request bits tapped since the last call.
     int takeRequests();

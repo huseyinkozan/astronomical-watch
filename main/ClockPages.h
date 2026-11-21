@@ -5,6 +5,7 @@
 
 #include "DayCounters.h"
 #include "Hijri.h"
+#include "HolyDays.h"
 #include "Rtc.h"
 #include "StackPage.h"
 #include "Timers.h"
@@ -62,8 +63,9 @@ public:
     };
     bool takeHijriRequest( HijriRequest &request );
 
-    // The month for the Hijri calendar; `today`: the local day number; `method`: Hijri::Method.
-    void showHijriMonth( const Hijri::Month &month, int today, int method );
+    // The month for the Hijri calendar; `today`: the local day number; `method`: Hijri::Method;
+    // `next`: today's next religious day and the Ramadan counts (HolyDays), shown below it.
+    void showHijriMonth( const Hijri::Month &month, int today, int method, const HolyDays::Next &next );
 
     // The world clock's cities and the day counters (copied).
     void setCities( const WorldClock &worldClock );
@@ -120,6 +122,7 @@ private:
         int length;        // 0: nothing to draw yet
         int today;         // the day of the month to ring, 0 for none
         int chosen;        // the chosen day of the month, 0 for none
+        uint32_t marks;    // the religious days (HolyDays::marks), bit 0 for day 1
     };
     static void onDrawCalendar( lv_event_t *event );
     static void onCalendarTouch( lv_event_t *event );
@@ -134,6 +137,9 @@ private:
     int anchorDay() const;
     void showGregorian();
     void showHijriMarks();
+    // The Hijri calendar's two lines below the month: the next religious day, then the Ramadan
+    // count in Shaban and Ramadan, else the method.
+    void showHolyDays();
     void showStopwatch( int64_t nowMs );
     void showCountdown( int64_t nowMs );
     int64_t nowMs() const;
@@ -203,6 +209,9 @@ private:
     int m_chosenDay = -1;    // the day chosen on a calendar, -1: none (each wake starts without)
     int m_hijriAnchor = -1;  // the anchor day whose Hijri month was asked for, -1: none yet
     Hijri::Month m_hijriMonth = {};
+    int m_hijriMethod = 0;
+    HolyDays::Next m_holyNext = {};
+    lv_obj_t *m_holyLine = nullptr;
     std::atomic<bool> m_hijriWanted { false };
     HijriRequest m_hijriRequest = {};
 };
