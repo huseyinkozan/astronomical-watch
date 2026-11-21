@@ -190,6 +190,9 @@ public:
     // Presses a clock page button by name (ClockPages::press).
     bool pressClockButton( const char *name );
 
+    // The launcher rows' trial mode (narrowLauncherRows).
+    void setLauncherMode( int mode );
+
     // Swipes to tile `page` (0 to 2) with the page animation, as a finger would (speed
     // measurements); 3 and 4 scroll the launcher's list down and up by most of a screen.
     void swipeTo( int page );
@@ -231,6 +234,10 @@ private:
     static void onLauncherClicked( lv_event_t *event );
     static void onLauncherScrolled( lv_event_t *event );
     void showLauncherMarks();
+    // A trial (development command "n"): 0 the rows keep one width, 1 the rows on screen narrow
+    // near the corners to stay clear of the gauges, 2 also dim as they narrow.
+    void narrowLauncherRows();
+    int m_launcherMode = 0;
     PageMarks m_launcherMarks;  // the list's scroll position
     lv_obj_t *m_launcherList = nullptr;
     void endAdjust();

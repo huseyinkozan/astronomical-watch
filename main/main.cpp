@@ -242,6 +242,12 @@ static bool pollHostCommands()
             s_display.swipeTo( swipePage );
             continue;
         }
+        // "n <mode>": the launcher rows' trial (Display::setLauncherMode); every capital is taken.
+        int launcherMode = 0;
+        if ( sscanf( s_hostLine, "n %d", &launcherMode ) == 1 ) {
+            s_display.setLauncherMode( launcherMode );
+            continue;
+        }
         int language = 0;
         if ( sscanf( s_hostLine, "L %d", &language ) == 1 ) {
             // As the settings row does: save, then restart in the new language.

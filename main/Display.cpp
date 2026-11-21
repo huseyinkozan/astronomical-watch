@@ -12,6 +12,8 @@
 #include "NightRed.h"
 #include "PartOrder.h"
 #include "FaceTap.h"
+#include "Corners.h"
+#include <cmath>
 
 #include "bsp/display.h"
 #include "bsp/esp32_s3_touch_amoled_2_06.h"
@@ -694,9 +696,78 @@ void Display::buildLauncher()
     fillLauncher();
 }
 
+static int rowCode( lv_obj_t *object )
+{
+    return static_cast<int>( reinterpret_cast<intptr_t>( lv_obj_get_user_data( object ) ) );
+}
+
 void Display::onLauncherScrolled( lv_event_t *event )
 {
-    static_cast<Display *>( lv_event_get_user_data( event ) )->showLauncherMarks();
+    Display *display = static_cast<Display *>( lv_event_get_user_data( event ) );
+    display->showLauncherMarks();
+    if ( display->m_launcherMode != 0 ) {
+        display->narrowLauncherRows();
+    }
+}
+
+// The width a row may take between screen rows `top` and `bottom` so that it stays a few pixels
+// clear of the corner gauges' inner edge (the visible area's corners, docs/hardware.md).
+static int launcherRowWidth( int top, int bottom )
+{
+    const int clear = Corners::OuterRadius - 5 - 4;
+    const int lowerCentre = Panel::HEIGHT - 1 - Corners::CornerRadius;
+    // The row's corner nearest to a screen corner decides.
+    int dy = 0;
+    if ( top < Corners::CornerRadius ) {
+        dy = Corners::CornerRadius - top;
+    }
+    if ( bottom > lowerCentre && bottom - lowerCentre > dy ) {
+        dy = bottom - lowerCentre;
+    }
+    const int shortest = 96;
+    if ( dy >= clear ) {
+        return shortest;
+    }
+    const int left = Corners::CornerRadius - static_cast<int>( sqrtf( static_cast<float>( clear * clear - dy * dy ) ) );
+    // Even, so that the row stays centred on the pixel grid.
+    int width = ( ( Panel::WIDTH / 2 - left ) * 2 ) & ~1;
+    width = width > Styles::LauncherRowWidth ? Styles::LauncherRowWidth : width;
+    return width < shortest ? shortest : width;
+}
+
+// Only the rows on screen change, and only when their width does: absolutely placed, a row's
+// new width lays out that row alone.
+void Display::narrowLauncherRows()
+{
+    const int scroll = lv_obj_get_scroll_y( m_launcherList );
+    const int count = static_cast<int>( lv_obj_get_child_count( m_launcherList ) );
+    for ( int i = 0; i < count; ++i ) {
+        lv_obj_t *row = lv_obj_get_child( m_launcherList, i );
+        if ( rowCode( row ) <= 0 ) {
+            continue;
+        }
+        const int top = s_listTop + lv_obj_get_style_y( row, LV_PART_MAIN ) - scroll;
+        const int bottom = top + Styles::LauncherRowHeight - 1;
+        if ( bottom < s_listTop || top >= Panel::HEIGHT ) {
+            continue;
+        }
+        const int width = launcherRowWidth( top < s_listTop ? s_listTop : top,
+                                            bottom >= Panel::HEIGHT ? Panel::HEIGHT - 1 : bottom );
+        if ( width == lv_obj_get_style_width( row, LV_PART_MAIN ) ) {
+            continue;
+        }
+        lv_obj_set_x( row, ( Panel::WIDTH - width ) / 2 );
+        lv_obj_set_width( row, width );
+        if ( m_launcherMode == 2 ) {
+            // Dimmer colours rather than LVGL's opacity, which draws each row on a layer of its
+            // own: 100 % at the full width, 30 % at the narrowest.
+            const int percent = 30 + 70 * ( width - 96 ) / ( Styles::LauncherRowWidth - 96 );
+            const uint8_t frame = static_cast<uint8_t>( 0x2C * percent / 100 );
+            const uint8_t text = static_cast<uint8_t>( 0xFF * percent / 100 );
+            lv_obj_set_style_border_color( row, lv_color_make( frame, frame, frame ), 0 );
+            lv_obj_set_style_text_color( lv_obj_get_child( row, 0 ), lv_color_make( text, text, text ), 0 );
+        }
+    }
 }
 
 void Display::showLauncherMarks()
@@ -748,11 +819,6 @@ void Display::fillLauncher()
         }
     }
     placeLauncher();
-}
-
-static int rowCode( lv_obj_t *object )
-{
-    return static_cast<int>( reinterpret_cast<intptr_t>( lv_obj_get_user_data( object ) ) );
 }
 
 void Display::placeLauncher()
@@ -1656,6 +1722,21 @@ void Display::swipeTo( int page )
         lv_obj_scroll_by( m_launcherList, 0, page == TileCount ? -300 : 300, LV_ANIM_ON );
     }
     bsp_display_unlock();
+}
+
+void Display::setLauncherMode( int mode )
+{
+    if ( !m_started || mode < 0 || mode > 2 || !bsp_display_lock( 1000 ) ) {
+        return;
+    }
+    m_launcherMode = mode;
+    // The rows anew at their full width, then narrowed where they are.
+    fillLauncher();
+    if ( mode != 0 ) {
+        narrowLauncherRows();
+    }
+    bsp_display_unlock();
+    ESP_LOGI( TAG, "Launcher rows mode %d", mode );
 }
 
 bool Display::pressClockButton( const char *name )
