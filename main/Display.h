@@ -229,6 +229,9 @@ private:
     // while the launcher is off screen, so that no jump is seen.
     void placeLauncher();
     static void onLauncherClicked( lv_event_t *event );
+    static void onLauncherScrolled( lv_event_t *event );
+    void showLauncherMarks();
+    PageMarks m_launcherMarks;  // the list's scroll position
     lv_obj_t *m_launcherList = nullptr;
     void endAdjust();
     void buildInfoPage();

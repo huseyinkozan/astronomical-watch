@@ -686,7 +686,22 @@ void Display::buildLauncher()
     lv_obj_set_scroll_dir( m_launcherList, LV_DIR_VER );
     lv_obj_set_scrollbar_mode( m_launcherList, LV_SCROLLBAR_MODE_OFF );
     lv_obj_set_style_pad_bottom( m_launcherList, s_listPad, 0 );
+    // Over the list, at the right edge where the stacked pages show their part marks.
+    m_launcherMarks.buildScroll( tile );
+    lv_obj_add_event_cb( m_launcherList, onLauncherScrolled, LV_EVENT_SCROLL, this );
     fillLauncher();
+}
+
+void Display::onLauncherScrolled( lv_event_t *event )
+{
+    static_cast<Display *>( lv_event_get_user_data( event ) )->showLauncherMarks();
+}
+
+void Display::showLauncherMarks()
+{
+    const int top = lv_obj_get_scroll_y( m_launcherList );
+    const int height = lv_obj_get_height( m_launcherList );
+    m_launcherMarks.showScroll( top, height, top + height + lv_obj_get_scroll_bottom( m_launcherList ) );
 }
 
 // The rows at fixed places, no layout: nothing is laid out again while the list scrolls.
@@ -751,14 +766,17 @@ void Display::placeLauncher()
             current = row;
         }
     }
+    // The list's size known: the scroll stays within its ends, the marks measure it.
+    lv_obj_update_layout( m_launcherList );
     if ( current == nullptr ) {
+        showLauncherMarks();
         return;
     }
     lv_obj_add_state( current, LV_STATE_CHECKED );
-    // The list keeps the scroll within its ends.
-    lv_obj_update_layout( m_launcherList );
     const int y = lv_obj_get_style_y( current, LV_PART_MAIN ) - ( Styles::LauncherRowHeight + s_launcherRowGap );
     lv_obj_scroll_to_y( m_launcherList, y, LV_ANIM_OFF );
+    // Also when the scroll did not move.
+    showLauncherMarks();
 }
 
 void Display::onLauncherClicked( lv_event_t *event )

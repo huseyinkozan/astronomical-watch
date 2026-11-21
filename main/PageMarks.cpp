@@ -86,6 +86,35 @@ void PageMarks::onHide( lv_timer_t *timer )
     static_cast<PageMarks *>( lv_timer_get_user_data( timer ) )->setVisible( false );
 }
 
+void PageMarks::buildScroll( lv_obj_t *parent )
+{
+    for ( int i = 0; i < 2; ++i ) {
+        lv_obj_t *mark = lv_obj_create( parent );
+        lv_obj_remove_style_all( mark );
+        lv_obj_set_style_bg_opa( mark, LV_OPA_COVER, 0 );
+        lv_obj_set_style_bg_color( mark, lv_color_hex( i == 0 ? s_other : s_current ), 0 );
+        lv_obj_set_clickable( mark, false );
+        m_marks[i] = mark;
+    }
+    lv_obj_set_size( m_marks[0], s_width, s_bottom - s_top + 1 );
+    lv_obj_set_pos( m_marks[0], s_x, s_top );
+    showScroll( 0, 1, 1 );
+}
+
+void PageMarks::showScroll( int top, int visible, int total )
+{
+    const int span = s_bottom - s_top + 1;
+    // At least as long as a mark of eight, so that it stays easy to see.
+    const int shortest = ( span - 7 * s_gap ) / 8;
+    int length = total > visible ? span * visible / total : span;
+    length = length < shortest ? shortest : length;
+    int y = total > visible ? ( span - length ) * top / ( total - visible ) : 0;
+    // The list's elastic ends move past the range for a moment.
+    y = y < 0 ? 0 : ( y > span - length ? span - length : y );
+    lv_obj_set_size( m_marks[1], s_width, length );
+    lv_obj_set_pos( m_marks[1], s_x, s_top + y );
+}
+
 void PageMarks::forget()
 {
     if ( m_hideTimer != nullptr ) {

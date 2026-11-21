@@ -26,6 +26,12 @@ public:
     // The marks were deleted with their page.
     void forget();
 
+    // A scroll position instead of items (the launcher's list), in the same place and colours:
+    // a dim track over the marks' span and a light part for the share of the list on screen.
+    // `top`: the list's scroll position, `visible`: its height, `total`: its content's height.
+    void buildScroll( lv_obj_t *parent );
+    void showScroll( int top, int visible, int total );
+
 private:
     static void onHide( lv_timer_t *timer );
 
