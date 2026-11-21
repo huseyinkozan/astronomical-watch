@@ -1017,6 +1017,15 @@ void ToolPages::onEntryKey( void *user, Calculator::Key key )
     }
 }
 
+// Sets the text colour only when it changed: a style set redraws the object even with the same
+// value, and the level and the alidade update 25 times a second.
+static void setColour( lv_obj_t *object, lv_color_t colour )
+{
+    if ( !lv_color_eq( lv_obj_get_style_text_color( object, LV_PART_MAIN ), colour ) ) {
+        lv_obj_set_style_text_color( object, colour, 0 );
+    }
+}
+
 // ---- Spirit level ----
 
 // `value` with one decimal, without a "-0.0".
@@ -1184,8 +1193,12 @@ void ToolPages::showLevel()
         if ( valid ) {
             Tilt::bubble( v, right, up );
         }
-        lv_obj_set_pos( m_bubble, s_dialX + static_cast<int>( std::lround( right * s_dialRadius ) ) - s_bubbleRadius,
-                        s_dialY - static_cast<int>( std::lround( up * s_dialRadius ) ) - s_bubbleRadius );
+        const int x = s_dialX + static_cast<int>( std::lround( right * s_dialRadius ) ) - s_bubbleRadius;
+        const int y = s_dialY - static_cast<int>( std::lround( up * s_dialRadius ) ) - s_bubbleRadius;
+        // Only when it moves: a style set redraws even at the same place.
+        if ( lv_obj_get_style_x( m_bubble, LV_PART_MAIN ) != x || lv_obj_get_style_y( m_bubble, LV_PART_MAIN ) != y ) {
+            lv_obj_set_pos( m_bubble, x, y );
+        }
         if ( valid ) {
             char pitch[12];
             char roll[12];
@@ -1205,7 +1218,7 @@ void ToolPages::showLevel()
         setText( m_levelSlope, text );
         // Avalanche terrain: the band's slopes in amber.
         const bool inBand = valid && slope >= s_bandLow && slope <= s_bandHigh;
-        lv_obj_set_style_text_color( m_levelSlope, inBand ? lv_color_hex( Styles::Amber ) : s_grey, 0 );
+        setColour( m_levelSlope, inBand ? lv_color_hex( Styles::Amber ) : s_grey );
         return;
     }
     const double altitude = m_held ? m_heldAltitude : Tilt::edgeAltitude( v );
@@ -1215,7 +1228,7 @@ void ToolPages::showLevel()
         snprintf( text, sizeof( text ), "%s", "-" );
     }
     setText( m_sightAngle, text );
-    lv_obj_set_style_text_color( m_sightAngle, m_held ? lv_color_hex( Styles::Amber ) : lv_color_white(), 0 );
+    setColour( m_sightAngle, m_held ? lv_color_hex( Styles::Amber ) : lv_color_white() );
     setText( m_sightAngleLabel, Language::text( m_held ? Language::SightHeld : Language::EdgeAltitude ) );
     const bool height = s_levelMode == LevelHeight;
     char number[24];

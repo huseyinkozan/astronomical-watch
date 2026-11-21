@@ -83,6 +83,15 @@ static void setText( lv_obj_t *object, const char *text )
     }
 }
 
+// Sets the text colour only when it changed: a style set redraws the object even with the same
+// value, and the level and the alidade update 25 times a second.
+static void setColour( lv_obj_t *object, lv_color_t colour )
+{
+    if ( !lv_color_eq( lv_obj_get_style_text_color( object, LV_PART_MAIN ), colour ) ) {
+        lv_obj_set_style_text_color( object, colour, 0 );
+    }
+}
+
 // A drawing object at (`x`, `y`) of `part`, `w` x `h`, drawn by `onDraw` with `user`.
 static lv_obj_t *drawing( lv_obj_t *part, int x, int y, int w, int h, lv_event_cb_t onDraw, void *user )
 {
@@ -448,7 +457,7 @@ void ObservingPages::showDial()
                   m_dragMinutes > 0 ? "+" : "-", offset / 60, offset % 60 );
     }
     setText( m_rows[0], text );
-    lv_obj_set_style_text_color( m_rows[0], m_dragMinutes == 0 ? lv_color_white() : lv_color_hex( Styles::Amber ), 0 );
+    setColour( m_rows[0], m_dragMinutes == 0 ? lv_color_white() : lv_color_hex( Styles::Amber ) );
     setText( m_hint, Language::text( m_dragMinutes == 0 ? Language::DialHint : Language::DialNowHint ) );
 }
 
@@ -588,7 +597,7 @@ void ObservingPages::showAlidade()
         snprintf( text, sizeof( text ), "%s", "-" );
     }
     setText( m_angle, text );
-    lv_obj_set_style_text_color( m_angle, m_held ? lv_color_hex( Styles::Amber ) : lv_color_white(), 0 );
+    setColour( m_angle, m_held ? lv_color_hex( Styles::Amber ) : lv_color_white() );
     // The quadrant's line moves in steps of 0.2 degree: no redraw for the noise below.
     const double drawn = valid ? altitude : -1;
     if ( std::fabs( drawn - m_drawnAltitude ) >= 0.2 ) {
@@ -614,7 +623,7 @@ void ObservingPages::showAlidade()
         }
     }
     setText( m_rows[0], text );
-    lv_obj_set_style_text_color( m_rows[0], lv_color_hex( Styles::Amber ), 0 );
+    setColour( m_rows[0], lv_color_hex( Styles::Amber ) );
     setText( m_hint, Language::text( m_held ? Language::SightHeld
                                             : ( s_mode == SunMode ? Language::SunAlidadeHint : Language::PolarisHint ) ) );
 }
@@ -701,12 +710,12 @@ void ObservingPages::showSundial()
         snprintf( text, sizeof( text ), "%s", Language::text( Language::SunBelow ) );
     }
     setText( m_rows[0], text );
-    lv_obj_set_style_text_color( m_rows[0], lv_color_hex( Styles::Amber ), 0 );
+    setColour( m_rows[0], lv_color_hex( Styles::Amber ) );
     const int64_t local = m_now + m_utcOffsetMinutes * 60;
     const int minute = static_cast<int>( ( ( local / 60 ) % 1440 + 1440 ) % 1440 );
     snprintf( text, sizeof( text ), Language::text( Language::ClockTimeValue ), minute / 60, minute % 60 );
     setText( m_rows[1], text );
-    lv_obj_set_style_text_color( m_rows[1], s_grey, 0 );
+    setColour( m_rows[1], s_grey );
 }
 
 void ObservingPages::onDrawSundial( lv_event_t *event )
@@ -782,15 +791,15 @@ void ObservingPages::showAnalemma()
     snprintf( text, sizeof( text ), Language::text( Language::EquationValue ), equation < 0 ? "-" : "+", seconds / 60,
               seconds % 60 );
     setText( m_rows[0], text );
-    lv_obj_set_style_text_color( m_rows[0], lv_color_hex( Styles::Amber ), 0 );
+    setColour( m_rows[0], lv_color_hex( Styles::Amber ) );
     snprintf( text, sizeof( text ), Language::text( Language::DeclinationValue ), declination );
     setText( m_rows[1], text );
-    lv_obj_set_style_text_color( m_rows[1], lv_color_white(), 0 );
+    setColour( m_rows[1], lv_color_white() );
     // The Sun's altitude at its transit today.
     const double noon = 90.0 - std::fabs( m_observer.latitude - declination );
     snprintf( text, sizeof( text ), Language::text( Language::NoonAltitudeValue ), noon );
     setText( m_rows[2], text );
-    lv_obj_set_style_text_color( m_rows[2], s_grey, 0 );
+    setColour( m_rows[2], s_grey );
 }
 
 void ObservingPages::onDrawAnalemma( lv_event_t *event )
