@@ -75,7 +75,7 @@ enum Page
     InfoPage,       // the information parts, one over the other (InfoPart)
     PlanetsPage,    // the solar system, the sky, rise and set, distances (PlanetPages)
     SettingsPage,   // the settings, and under them the setup portal
-    ToolsPage,      // torch, counter, random, calculator, unit converter (ToolPages)
+    ToolsPage,      // torch, counter, random, calculator, unit converter, spirit level (ToolPages)
     ObservingPage,  // no parts yet: left out of the launcher
     PageCount
 };
@@ -103,7 +103,7 @@ static const Language::Text s_planetsParts[PlanetPages::PartCount] = {
     Language::PartSolarSystem, Language::PartSky, Language::RiseAndSet, Language::Distance };
 static const Language::Text s_toolsParts[ToolPages::PartCount] = { Language::PartTorch, Language::PartCounter,
                                                                     Language::PartRandom, Language::PartCalculator,
-                                                                    Language::PartConverter };
+                                                                    Language::PartConverter, Language::PartLevel };
 static const Language::Text s_settingsParts[SettingsPartCount] = {
     Language::PartSettings, Language::PartMoreSettings, Language::PartSetupInfo,
 #if CONFIG_WATCH_SETUP_PORTAL
@@ -182,7 +182,7 @@ struct Shot
     { "launcher", LauncherShot, -1 },
     { "torch", ToolsPage, ToolPages::TorchPart }, { "counter", ToolsPage, ToolPages::CounterPart },
     { "random", ToolsPage, ToolPages::RandomPart }, { "calculator", ToolsPage, ToolPages::CalculatorPart },
-    { "converter", ToolsPage, ToolPages::ConverterPart },
+    { "converter", ToolsPage, ToolPages::ConverterPart }, { "level", ToolsPage, ToolPages::LevelPart },
 };
 [[maybe_unused]] static const int s_shotCount = sizeof( s_shots ) / sizeof( s_shots[0] );
 
@@ -520,6 +520,11 @@ void Display::buildSettingsPage()
     applyOrders();
 }
 
+void Display::setMotion( Motion *motion )
+{
+    m_motion = motion;
+}
+
 void Display::setPages( const FaceConfig::Pages &pages )
 {
     const bool locked = m_started && bsp_display_lock( s_lockTimeoutMs );
@@ -700,7 +705,7 @@ void Display::ensureApp()
         m_planets.build( m_tiles[AppTile] );
         applyOrders();
     } else if ( page == ToolsPage ) {
-        m_tools.build( m_tiles[AppTile], m_pages, *m_settings, onTorchLevel, this );
+        m_tools.build( m_tiles[AppTile], m_pages, *m_settings, m_motion, onTorchLevel, this );
         applyOrders();
     } else {
         buildSettingsPage();
@@ -1529,6 +1534,9 @@ void Display::updateBrightness()
     const bool torch = app && m_appPage == ToolsPage && m_tools.stack().current() == ToolPages::TorchPart;
     if ( m_appPage == ToolsPage ) {
         m_tools.setTorchShown( torch );
+        // Not a brightness, but shown and hidden with the same parts: the accelerometer runs
+        // only while the level shows.
+        m_tools.setLevelShown( app && m_tools.stack().current() == ToolPages::LevelPart );
     }
     const int torchLevel = torch ? m_tools.torchLevel() : 0;
     if ( code != m_joinCodeDimmed || torch != m_torchShown || torchLevel != m_torchLevel ) {
@@ -1630,8 +1638,9 @@ void Display::stop()
     if ( m_started ) {
         bsp_display_lock( s_lockTimeoutMs );
         s_endTile = activeTile();
-        // No beeps into deep sleep.
+        // No beeps into deep sleep, and the accelerometer powered down.
         m_tools.setTorchShown( false );
+        m_tools.setLevelShown( false );
         Ringer ringer;
         ringer.stopSos( true );
     }

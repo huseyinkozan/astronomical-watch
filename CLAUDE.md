@@ -134,7 +134,8 @@ development builds `v0.0.1-3-gabc1234-dirty`. A new release is a new tag, pushed
 - Deep-sleep wake sources: the PWR key (GPIO10, active high, EXT1), the minute timer in
   always-on and the alarm timer while an alarm is pending. In off mode the AXP2101 itself powers
   the watch on from the PWR key. Motion does not wake the watch: the QMI8658 is powered down
-  between motion checks and its INT1 is not used. Touch (GPIO38) and the RTC interrupt (GPIO39)
+  between motion checks (and in active mode except while the spirit level or the alidade shows)
+  and its INT1 is not used. Touch (GPIO38) and the RTC interrupt (GPIO39)
   cannot wake from deep sleep. A board whose PWR line lacks its pull-up resistor (R11) is found
   by the AXP2101's key flags in active mode and gets the internal pull-up from then on
   (docs/hardware.md). A PWR wake from always-on or the alarm sleep that the AXP2101 did not
@@ -277,9 +278,10 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   set, distances; `main/PlanetPages.*`, the day's rise and set computed in the main task on the
   page's request, 0.4 s; design: `docs/superpowers/specs/2026-11-19-planets-design.md`) and
   settings (settings, more settings, what the portal set, setup portal, its QR code; the setup
-  part always shown), tools (torch, calculator, unit converter, counter, random; `main/ToolPages.*`,
-  the counter's rules in `main/Tally.*`, the SOS timing in `main/Morse.*`, the calculator's
-  expressions in `main/Calculator.*` and the conversions in `main/Units.*`, all host-tested; plan:
+  part always shown), tools (torch, calculator, unit converter, spirit level, counter, random;
+  `main/ToolPages.*`, the counter's rules in `main/Tally.*`, the SOS timing in `main/Morse.*`, the
+  calculator's expressions in `main/Calculator.*`, the conversions in `main/Units.*` and the
+  level's angles in `main/Tilt.*`, all host-tested; plan:
   `docs/superpowers/plans/2026-11-21-tools.md`) and observing (no parts yet: a page whose part list is
   empty stays out of the launcher and the portal's lists by itself). The `Page` numbers are kept in
   the saved launcher order, so new pages come last in the enum; the default order puts tools and
@@ -297,6 +299,16 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   kind (angle and time, distance, temperature), stepped by a tap on its title; a tap on a value
   opens the same keypad over the part (h:m:s: the point key writes ":"; C or "=" on nothing goes
   back, a part swipe too). No speed-time-distance solver (the calculator does it in one line).
+  The spirit level reads the accelerometer 25 times a second only while its part shows
+  (`Motion::setStreaming`, about 56 Hz; powered down when the part, the page or active mode ends;
+  `Display::updateBrightness` decides it with the torch), filtered (`Tilt`, a quarter per sample)
+  and in the picture's directions (the sensor's axes, docs/hardware.md, flipped with
+  Settings::Mirror). Its modes, stepped by a tap on the title: the level (a bubble on rings of 1,
+  5, 15, 30 and 45 degrees, square-root scale, the 30-45 degree band in dark amber; pitch, roll
+  and the slope, amber in the band) and sighting along the top edge (the edge's altitude, the
+  same from either end): a height from a distance or a distance from a height, entered with the
+  keypad over the part (metres, from eye level, kept in RTC memory); a tap on the angle holds the
+  value from the moment the finger touched.
   The page and part last opened stay in RTC memory over the always-on wakes (lost at power-off:
   then the clock page's first part). The BOOT key (GPIO0, polled in `runActiveMode`, never a
   wake source) steps back: opened page to launcher, launcher to face, on the face it closes the
@@ -374,7 +386,7 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   `main/Sound.*`, for at most 60 s; a tap, PWR or BOOT stops it. Design:
   `docs/superpowers/specs/2026-11-19-alarms-design.md`. Development commands: "B <name>" presses a button of the opened page (clock page:
   `ClockPages::press`; tools page: count, undo, target, reset, roll, dice, coin, number, torch, "keys <keys>" as
-  `Calculator::keyForChar`, kind, "unit <n>"),
+  `Calculator::keyForChar`, kind, "unit <n>", level, hold, input),
   "R <s>" a test
   alarm, "K <n> <text>" defines an alarm, "Q" ends active mode as without the always-on face,
   "H" makes the next PWR wake a phantom (it must go back to sleep), "W" starves the idle task

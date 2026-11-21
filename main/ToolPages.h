@@ -4,9 +4,11 @@
 
 #include "Calculator.h"
 #include "Keypad.h"
+#include "Motion.h"
 #include "Settings.h"
 #include "StackPage.h"
 #include "Tally.h"
+#include "Tilt.h"
 #include "lvgl.h"
 
 // The tools page (docs/superpowers/plans/2026-11-21-tools.md): the torch, the counter, a random
@@ -25,6 +27,11 @@
 // units at a time (Units), the kind chosen by a tap on its title (the vertical swipe stays the
 // parts' step); a tap on a value opens the calculator's keypad over the part to enter it in that
 // unit ("=" takes it, C or "=" on nothing goes back).
+// Spirit level: the accelerometer (Motion, Tilt) read 25 times a second while the part shows,
+// powered down otherwise. Its modes, stepped by a tap on the title: the level (a bubble in rings
+// up to 45 degrees with the 30-45 degree slope band, pitch, roll and the slope), and sighting
+// along the top edge: a height from a distance, or a distance from a height (entered with the
+// keypad); a tap on the angle holds it.
 class ToolPages
 {
 public:
@@ -35,12 +42,15 @@ public:
         RandomPart,
         CalculatorPart,
         ConverterPart,
+        LevelPart,
         PartCount  // the parts are numbered in the saved orders (PartOrder): new ones at the end
     };
 
     // `pages`: the tileview, held still while the torch is set by a drag. `onLevel` is called
-    // with `user` when the torch's brightness changes (Display sets the panel).
-    void build( lv_obj_t *tile, lv_obj_t *pages, Settings &settings, void ( *onLevel )( void *user ), void *user );
+    // with `user` when the torch's brightness changes (Display sets the panel). `motion`: the
+    // accelerometer of the spirit level (nullptr: none).
+    void build( lv_obj_t *tile, lv_obj_t *pages, Settings &settings, Motion *motion, void ( *onLevel )( void *user ),
+                void *user );
 
     // The objects were deleted with the tile's contents; the values stay for the next build.
     void forget();
@@ -55,6 +65,9 @@ public:
     // Seconds until the torch's auto-off while it shows, -1 otherwise.
     int torchSecondsLeft() const;
 
+    // Display: whether the spirit level is on screen; the accelerometer runs only then.
+    void setLevelShown( bool shown );
+
     // The BOOT key on the counter.
     void countUp();
 
@@ -64,7 +77,8 @@ public:
     // Development (host command "B <name>"): count, undo, target, reset, roll, dice, coin,
     // number, torch (the next colour), "keys <keys>" (Calculator::keyForChar; the converter's
     // entry while it is open, else the calculator), kind (the converter's next kind), "unit <n>"
-    // (opens the entry of the converter's row n).
+    // (opens the entry of the converter's row n), "level" (the level's next mode), "hold" (holds
+    // or releases the sighting angle), "input" (opens the sighting's entry; "keys" then types).
     bool press( const char *name );
 
 private:
@@ -98,6 +112,15 @@ private:
     void openEntry( int row );
     void closeEntry();
     void showEntry();
+    static void onLevelEvent( lv_event_t *event );
+    static void onDrawLevel( lv_event_t *event );
+    static void onLevelKey( void *user, Calculator::Key key );
+    void buildLevel( lv_obj_t *part );
+    void readLevel();
+    void showLevel();
+    void openLevelEntry();
+    void closeLevelEntry();
+    void showLevelEntry();
 
     StackPage m_stack;
     lv_obj_t *m_tile = nullptr;
@@ -166,4 +189,34 @@ private:
     Calculator m_entryCalculator;
     int m_entryRow = -1;  // the row entered, -1: the entry is closed
     bool m_entryFailed = false;
+
+    // Spirit level (its mode and the sighting's inputs in RTC memory, ToolPages.cpp).
+    Motion *m_motion = nullptr;
+    Tilt m_tilt;
+    bool m_levelShown = false;
+    lv_obj_t *m_levelMode = nullptr;
+    lv_obj_t *m_levelModeLabel = nullptr;
+    lv_obj_t *m_levelDial = nullptr;
+    lv_obj_t *m_bubble = nullptr;
+    lv_obj_t *m_levelAngles = nullptr;
+    lv_obj_t *m_levelSlope = nullptr;
+    lv_obj_t *m_levelHint = nullptr;
+    lv_obj_t *m_sightArea = nullptr;   // the angle and its label, a tap holds it
+    lv_obj_t *m_sightAngle = nullptr;
+    lv_obj_t *m_sightAngleLabel = nullptr;
+    lv_obj_t *m_sightInput = nullptr;  // the distance or height entered, a tap opens the entry
+    lv_obj_t *m_sightInputValue = nullptr;
+    lv_obj_t *m_sightInputLabel = nullptr;
+    lv_obj_t *m_sightResult = nullptr;
+    lv_obj_t *m_sightResultLabel = nullptr;
+    lv_obj_t *m_sightHint = nullptr;
+    lv_obj_t *m_levelEntry = nullptr;
+    lv_obj_t *m_levelEntryValue = nullptr;
+    lv_obj_t *m_levelEntryUnit = nullptr;
+    lv_obj_t *m_levelEntryAngle = nullptr;
+    Keypad m_levelPad;
+    bool m_levelEntryOpen = false;
+    bool m_held = false;
+    double m_heldAltitude = 0;
+    double m_pressAltitude = 0;  // at the finger's press, before the tap shakes the watch
 };

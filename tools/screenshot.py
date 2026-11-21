@@ -11,7 +11,7 @@ the board; the tool waits for active mode (a PWR press).
 The page numbers are Display.cpp's shot table (s_shots): the face, then each stacked page's part
 opened from the launcher (numbers kept from the five side-by-side pages), the launcher (25), then
 the parts added after it (the tools page: 26 torch, 27 counter, 28 random, 29 calculator,
-30 unit converter).
+30 unit converter, 31 spirit level).
 
 Run inside the ESP-IDF environment, which provides pyserial:
     python tools/screenshot.py [--port /dev/ttyACM0] [--out docs/screenshots] [pages...]

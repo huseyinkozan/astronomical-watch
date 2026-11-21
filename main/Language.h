@@ -276,6 +276,18 @@ public:
         UnitKelvin,
         HmsValue,       // "%s%dh %dm %ds": the sign, hours, minutes, seconds
         ConvHint,
+        // Tools page: spirit level (ToolPages).
+        PartLevel,
+        LevelModeLevel,
+        LevelModeHeight,
+        PitchRoll,      // "Pitch %s  Roll %s": the angles with their degree signs
+        SlopeValue,     // "Slope %.1f°"
+        LevelHint,
+        EdgeAltitude,
+        SightHeld,
+        SightDistance,
+        SightHeight,
+        SightHint,
         TextCount
     };
 

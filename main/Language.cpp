@@ -269,6 +269,19 @@ static const char *s_texts[][2] = {
     { "K Kelvin", "K kelvin" },
     { "%s%dh %dm %ds", "%s%ds %dd %dsn" },
     { "tap a value: enter\ntap the title: kind", "değere dokun: gir\nbaşlığa dokun: tür" },
+    // Spirit level: the angles' row at most 21 characters ("Pitch -89°  Roll -89°"), the
+    // labels under the values at most 17, the hints' lines at most 19 (20 for the last line).
+    { "Spirit level", "Su terazisi" },
+    { "Level", "Terazi" },
+    { "Height", "Yükseklik" },
+    { "Pitch %s  Roll %s", "Eğim %s  Yan %s" },
+    { "Slope %.1f°", "Yamaç %.1f°" },
+    { "tap the title: mode", "başlığa dokun: mod" },
+    { "edge altitude", "kenar yüksekliği" },
+    { "held: tap again", "tutuldu: dokun" },
+    { "distance", "uzaklık" },
+    { "height above eye", "gözden yükseklik" },
+    { "sight along the top\ntap the angle: hold", "üst kenarla nişan al\naçıya dokun: tut" },
 };
 // One pair per text: a missing one would shift every text after it.
 static_assert( sizeof( s_texts ) / sizeof( s_texts[0] ) == Language::TextCount, "a text pair per Language::Text" );

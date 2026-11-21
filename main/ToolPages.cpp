@@ -1,5 +1,6 @@
 #include "ToolPages.h"
 
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -23,7 +24,8 @@ static const lv_color_t s_dim = LV_COLOR_MAKE( 0x5A, 0x5A, 0x5A );
 // Content stays inside the corner gauges: rows from x 52 to 358.
 static const int s_left = 52;
 static const int s_right = 358;
-static const int s_tickMs = 50;
+// 25 a second: the torch's SOS and the spirit level's readings.
+static const int s_tickMs = 40;
 
 // The torch's colours, then SOS (white flashes) without and with beeps.
 enum TorchColour
@@ -98,6 +100,34 @@ static const int s_rowStep = 74;
 static const int s_rowHeight = 70;
 static const int s_rowChars = 17;
 
+// The spirit level's modes and the sighting's inputs (metres above the eye, metres away), kept
+// over the always-on wakes.
+enum LevelMode
+{
+    LevelBubble,
+    LevelHeight,    // the height from the distance
+    LevelDistance,  // the distance from the height
+    LevelModeCount
+};
+static const Language::Text s_levelModeNames[LevelModeCount] = { Language::LevelModeLevel, Language::LevelModeHeight,
+                                                                 Language::ConvDistance };
+RTC_DATA_ATTR static int s_levelMode = LevelBubble;
+RTC_DATA_ATTR static double s_sightDistance = 20;
+RTC_DATA_ATTR static double s_sightHeight = 10;
+// The level's rings (part coordinates): centred at x 205, y 222, the outer one (45 degrees)
+// 110 px; the bubble 15 px.
+static const int s_dialX = 205;
+static const int s_dialY = 222;
+static const int s_dialRadius = 110;
+static const int s_bubbleRadius = 15;
+static const lv_color_t s_bubbleColour = LV_COLOR_MAKE( 0x40, 0xE0, 0x70 );
+static const lv_color_t s_bandColour = LV_COLOR_MAKE( 0x60, 0x40, 0x10 );
+static const double s_bandLow = 30;
+static const double s_bandHigh = 45;
+// The rings drawn: 1, 5, 15, 30 and 45 degrees.
+static const int s_ringCount = 5;
+static const double s_ringDegrees[s_ringCount] = { 1, 5, 15, 30, 45 };
+
 static lv_obj_t *label( lv_obj_t *parent, const lv_font_t *font, lv_color_t colour, lv_align_t align, int x, int y,
                         const char *text )
 {
@@ -132,9 +162,11 @@ static void setText( lv_obj_t *object, const char *text )
     }
 }
 
-void ToolPages::build( lv_obj_t *tile, lv_obj_t *pages, Settings &settings, void ( *onLevel )( void *user ), void *user )
+void ToolPages::build( lv_obj_t *tile, lv_obj_t *pages, Settings &settings, Motion *motion,
+                       void ( *onLevel )( void *user ), void *user )
 {
     m_tile = tile;
+    m_motion = motion;
     m_pages = pages;
     m_settings = &settings;
     m_onLevel = onLevel;
@@ -145,6 +177,7 @@ void ToolPages::build( lv_obj_t *tile, lv_obj_t *pages, Settings &settings, void
     buildRandom( m_stack.part( RandomPart ) );
     buildCalculator( m_stack.part( CalculatorPart ) );
     buildConverter( m_stack.part( ConverterPart ) );
+    buildLevel( m_stack.part( LevelPart ) );
     lv_obj_add_event_cb( tile, onPartChanged, LV_EVENT_VALUE_CHANGED, this );
     m_tick = lv_timer_create( onTick, s_tickMs, this );
 }
@@ -152,6 +185,7 @@ void ToolPages::build( lv_obj_t *tile, lv_obj_t *pages, Settings &settings, void
 void ToolPages::forget()
 {
     setTorchShown( false );
+    setLevelShown( false );
     if ( m_tile != nullptr ) {
         lv_obj_remove_event_cb_with_user_data( m_tile, onPartChanged, this );
     }
@@ -196,6 +230,29 @@ void ToolPages::forget()
     m_entryAngle = nullptr;
     m_entryPad.forget();
     m_entryRow = -1;
+    m_levelMode = nullptr;
+    m_levelModeLabel = nullptr;
+    m_levelDial = nullptr;
+    m_bubble = nullptr;
+    m_levelAngles = nullptr;
+    m_levelSlope = nullptr;
+    m_levelHint = nullptr;
+    m_sightArea = nullptr;
+    m_sightAngle = nullptr;
+    m_sightAngleLabel = nullptr;
+    m_sightInput = nullptr;
+    m_sightInputValue = nullptr;
+    m_sightInputLabel = nullptr;
+    m_sightResult = nullptr;
+    m_sightResultLabel = nullptr;
+    m_sightHint = nullptr;
+    m_levelEntry = nullptr;
+    m_levelEntryValue = nullptr;
+    m_levelEntryUnit = nullptr;
+    m_levelEntryAngle = nullptr;
+    m_levelPad.forget();
+    m_levelEntryOpen = false;
+    m_held = false;
 }
 
 StackPage &ToolPages::stack()
@@ -208,13 +265,18 @@ void ToolPages::onPartChanged( lv_event_t *event )
 {
     ToolPages *self = static_cast<ToolPages *>( lv_event_get_user_data( event ) );
     self->m_stack.setHeaderHidden( self->m_stack.current() == TorchPart );
-    // Swiping away from an entry leaves it.
+    // Swiping away from an entry leaves it, and from the level its held angle.
     self->closeEntry();
+    self->closeLevelEntry();
+    self->m_held = false;
 }
 
 void ToolPages::onTick( lv_timer_t *timer )
 {
     ToolPages *self = static_cast<ToolPages *>( lv_timer_get_user_data( timer ) );
+    if ( self->m_levelShown ) {
+        self->readLevel();
+    }
     if ( !self->m_torchShown ) {
         return;
     }
@@ -955,6 +1017,323 @@ void ToolPages::onEntryKey( void *user, Calculator::Key key )
     }
 }
 
+// ---- Spirit level ----
+
+// `value` with one decimal, without a "-0.0".
+static double oneDecimal( double value )
+{
+    const double rounded = std::round( value * 10.0 ) / 10.0;
+    return rounded == 0.0 ? 0.0 : rounded;
+}
+
+// An angle of the level: one decimal below 10 degrees, whole degrees above (the row's width).
+static void formatTilt( double degrees, char *text, int size )
+{
+    if ( std::fabs( degrees ) < 9.95 ) {
+        snprintf( text, size, "%.1f°", oneDecimal( degrees ) );
+    } else {
+        snprintf( text, size, "%.0f°", degrees );
+    }
+}
+
+void ToolPages::buildLevel( lv_obj_t *part )
+{
+    m_levelMode = button( part, s_left, 36, s_right, 84, "", onLevelEvent, this );
+    m_levelModeLabel = lv_obj_get_child( m_levelMode, 0 );
+
+    // The level: the rings drawn by one object, the bubble moved over them (LVGL redraws only
+    // where it was and where it goes).
+    m_levelDial = lv_obj_create( part );
+    lv_obj_remove_style_all( m_levelDial );
+    lv_obj_set_pos( m_levelDial, s_dialX - s_dialRadius - 2, s_dialY - s_dialRadius - 2 );
+    lv_obj_set_size( m_levelDial, 2 * s_dialRadius + 4, 2 * s_dialRadius + 4 );
+    lv_obj_set_clickable( m_levelDial, false );
+    lv_obj_add_event_cb( m_levelDial, onDrawLevel, LV_EVENT_DRAW_POST, nullptr );
+    m_bubble = lv_obj_create( part );
+    lv_obj_remove_style_all( m_bubble );
+    lv_obj_set_size( m_bubble, 2 * s_bubbleRadius, 2 * s_bubbleRadius );
+    lv_obj_set_style_radius( m_bubble, LV_RADIUS_CIRCLE, 0 );
+    lv_obj_set_style_border_width( m_bubble, 3, 0 );
+    lv_obj_set_style_border_color( m_bubble, s_bubbleColour, 0 );
+    lv_obj_set_clickable( m_bubble, false );
+    m_levelAngles = label( part, &jetbrains_mono_26, lv_color_white(), LV_ALIGN_TOP_MID, 0, 340, "" );
+    m_levelSlope = label( part, &jetbrains_mono_26, s_grey, LV_ALIGN_TOP_MID, 0, 374, "" );
+    m_levelHint = label( part, &jetbrains_mono_26, s_dim, LV_ALIGN_TOP_MID, 0, 408, Language::text( Language::LevelHint ) );
+
+    // Sighting: the edge's altitude (a tap holds it), the value entered and the answer.
+    m_sightArea = lv_obj_create( part );
+    lv_obj_remove_style_all( m_sightArea );
+    lv_obj_set_pos( m_sightArea, s_left, 92 );
+    lv_obj_set_size( m_sightArea, s_right - s_left, 108 );
+    lv_obj_set_scrollable( m_sightArea, false );
+    lv_obj_add_event_cb( m_sightArea, onLevelEvent, LV_EVENT_PRESSED, this );
+    lv_obj_add_event_cb( m_sightArea, onLevelEvent, LV_EVENT_CLICKED, this );
+    m_sightAngle = label( part, &jetbrains_mono_48, lv_color_white(), LV_ALIGN_TOP_MID, 0, 104, "" );
+    m_sightAngleLabel = label( part, &jetbrains_mono_26, s_grey, LV_ALIGN_TOP_MID, 0, 160, "" );
+    m_sightInput = button( part, s_left, 206, s_right, 276, "", onLevelEvent, this );
+    m_sightInputValue = lv_obj_get_child( m_sightInput, 0 );
+    lv_obj_align( m_sightInputValue, LV_ALIGN_TOP_LEFT, 16, 4 );
+    m_sightInputLabel = label( m_sightInput, &jetbrains_mono_26, s_grey, LV_ALIGN_TOP_LEFT, 16, 34, "" );
+    m_sightResult = label( part, &jetbrains_mono_48, lv_color_hex( Styles::Amber ), LV_ALIGN_TOP_MID, 0, 290, "" );
+    m_sightResultLabel = label( part, &jetbrains_mono_26, s_grey, LV_ALIGN_TOP_MID, 0, 346, "" );
+    m_sightHint = label( part, &jetbrains_mono_26, s_dim, LV_ALIGN_TOP_MID, 0, 386, Language::text( Language::SightHint ) );
+    Styles::centred( m_sightHint );
+
+    // The entry of the distance or the height, over the whole part as the converter's.
+    m_levelEntry = lv_obj_create( part );
+    lv_obj_remove_style_all( m_levelEntry );
+    lv_obj_set_size( m_levelEntry, Panel::WIDTH, Panel::HEIGHT - StackPage::HeaderPad );
+    lv_obj_set_scrollable( m_levelEntry, false );
+    lv_obj_set_style_bg_color( m_levelEntry, lv_color_black(), 0 );
+    lv_obj_set_style_bg_opa( m_levelEntry, LV_OPA_COVER, 0 );
+    buildDisplay( m_levelEntry, &m_levelEntryValue, &m_levelEntryUnit, &m_levelEntryAngle );
+    m_levelPad.build( m_levelEntry, s_keypadX, s_keypadY, m_entryCalculator, onLevelKey, this );
+    lv_obj_set_hidden( m_levelEntry, true );
+    m_levelEntryOpen = false;
+    showLevel();
+}
+
+void ToolPages::onDrawLevel( lv_event_t *event )
+{
+    lv_obj_t *object = static_cast<lv_obj_t *>( lv_event_get_current_target( event ) );
+    lv_area_t area = {};
+    lv_obj_get_coords( object, &area );
+    const int cx = ( area.x1 + area.x2 + 1 ) / 2;
+    const int cy = ( area.y1 + area.y2 + 1 ) / 2;
+    lv_layer_t *layer = lv_event_get_layer( event );
+    lv_draw_arc_dsc_t arc;
+    lv_draw_arc_dsc_init( &arc );
+    arc.center.x = cx;
+    arc.center.y = cy;
+    arc.start_angle = 0;
+    arc.end_angle = 360;
+    // The slope band, 30 to 45 degrees, as a wide ring under the lines.
+    const int bandInner = static_cast<int>( std::lround( s_dialRadius * Tilt::ringFraction( s_bandLow ) ) );
+    arc.color = s_bandColour;
+    arc.radius = s_dialRadius;
+    arc.width = s_dialRadius - bandInner;
+    lv_draw_arc( layer, &arc );
+    arc.color = s_dim;
+    arc.width = 2;
+    for ( int i = 0; i < s_ringCount; ++i ) {
+        arc.radius = static_cast<int>( std::lround( s_dialRadius * Tilt::ringFraction( s_ringDegrees[i] ) ) ) + 1;
+        lv_draw_arc( layer, &arc );
+    }
+    lv_draw_line_dsc_t line;
+    lv_draw_line_dsc_init( &line );
+    line.color = s_dim;
+    line.width = 2;
+    line.p1.x = cx - s_dialRadius;
+    line.p1.y = cy;
+    line.p2.x = cx + s_dialRadius;
+    line.p2.y = cy;
+    lv_draw_line( layer, &line );
+    line.p1.x = cx;
+    line.p1.y = cy - s_dialRadius;
+    line.p2.x = cx;
+    line.p2.y = cy + s_dialRadius;
+    lv_draw_line( layer, &line );
+}
+
+void ToolPages::setLevelShown( bool shown )
+{
+    if ( shown == m_levelShown ) {
+        return;
+    }
+    m_levelShown = shown;
+    m_tilt.reset();
+    if ( m_motion != nullptr ) {
+        m_motion->setStreaming( shown );
+    }
+    showLevel();
+}
+
+void ToolPages::readLevel()
+{
+    int16_t mg[3] = {};
+    if ( m_motion == nullptr || m_motion->readLatest( mg ) != ESP_OK ) {
+        return;
+    }
+    m_tilt.add( Tilt::fromSensor( mg[0], mg[1], mg[2], m_settings->value( Settings::Mirror ) ) );
+    showLevel();
+}
+
+void ToolPages::showLevel()
+{
+    if ( m_levelMode == nullptr ) {
+        return;
+    }
+    setText( m_levelModeLabel, Language::text( s_levelModeNames[s_levelMode] ) );
+    const bool bubble = s_levelMode == LevelBubble;
+    lv_obj_set_hidden( m_levelDial, !bubble );
+    lv_obj_set_hidden( m_bubble, !bubble );
+    lv_obj_set_hidden( m_levelAngles, !bubble );
+    lv_obj_set_hidden( m_levelSlope, !bubble );
+    lv_obj_set_hidden( m_levelHint, !bubble );
+    lv_obj_t *sight[7] = { m_sightArea, m_sightAngle, m_sightAngleLabel, m_sightInput, m_sightResult,
+                           m_sightResultLabel, m_sightHint };
+    for ( int i = 0; i < 7; ++i ) {
+        lv_obj_set_hidden( sight[i], bubble );
+    }
+    const bool valid = m_tilt.valid();
+    const Tilt::Vector v = m_tilt.value();
+    char text[48];
+    if ( bubble ) {
+        double right = 0;
+        double up = 0;
+        if ( valid ) {
+            Tilt::bubble( v, right, up );
+        }
+        lv_obj_set_pos( m_bubble, s_dialX + static_cast<int>( std::lround( right * s_dialRadius ) ) - s_bubbleRadius,
+                        s_dialY - static_cast<int>( std::lround( up * s_dialRadius ) ) - s_bubbleRadius );
+        if ( valid ) {
+            char pitch[12];
+            char roll[12];
+            formatTilt( Tilt::pitch( v ), pitch, sizeof( pitch ) );
+            formatTilt( Tilt::roll( v ), roll, sizeof( roll ) );
+            snprintf( text, sizeof( text ), Language::text( Language::PitchRoll ), pitch, roll );
+        } else {
+            snprintf( text, sizeof( text ), "%s", "-" );
+        }
+        setText( m_levelAngles, text );
+        const double slope = Tilt::slope( v );
+        if ( valid ) {
+            snprintf( text, sizeof( text ), Language::text( Language::SlopeValue ), oneDecimal( slope ) );
+        } else {
+            text[0] = '\0';
+        }
+        setText( m_levelSlope, text );
+        // Avalanche terrain: the band's slopes in amber.
+        const bool inBand = valid && slope >= s_bandLow && slope <= s_bandHigh;
+        lv_obj_set_style_text_color( m_levelSlope, inBand ? lv_color_hex( Styles::Amber ) : s_grey, 0 );
+        return;
+    }
+    const double altitude = m_held ? m_heldAltitude : Tilt::edgeAltitude( v );
+    if ( valid || m_held ) {
+        snprintf( text, sizeof( text ), "%.1f°", oneDecimal( altitude ) );
+    } else {
+        snprintf( text, sizeof( text ), "%s", "-" );
+    }
+    setText( m_sightAngle, text );
+    lv_obj_set_style_text_color( m_sightAngle, m_held ? lv_color_hex( Styles::Amber ) : lv_color_white(), 0 );
+    setText( m_sightAngleLabel, Language::text( m_held ? Language::SightHeld : Language::EdgeAltitude ) );
+    const bool height = s_levelMode == LevelHeight;
+    char number[24];
+    Calculator::format( height ? s_sightDistance : s_sightHeight, 12, number, sizeof( number ) );
+    snprintf( text, sizeof( text ), "%s m", number );
+    setText( m_sightInputValue, text );
+    setText( m_sightInputLabel, Language::text( height ? Language::SightDistance : Language::SightHeight ) );
+    double answer = 0;
+    const bool solved = ( valid || m_held ) && ( height ? Tilt::heightFromDistance( s_sightDistance, altitude, answer )
+                                                        : Tilt::distanceFromHeight( s_sightHeight, altitude, answer ) );
+    if ( solved && answer < 1e6 ) {
+        snprintf( text, sizeof( text ), "%.1f m", oneDecimal( answer ) );
+    } else {
+        snprintf( text, sizeof( text ), "%s", "-" );
+    }
+    setText( m_sightResult, text );
+    setText( m_sightResultLabel, Language::text( height ? Language::SightHeight : Language::SightDistance ) );
+}
+
+void ToolPages::onLevelEvent( lv_event_t *event )
+{
+    ToolPages *self = static_cast<ToolPages *>( lv_event_get_user_data( event ) );
+    lv_obj_t *target = static_cast<lv_obj_t *>( lv_event_get_current_target( event ) );
+    if ( target == self->m_levelMode ) {
+        s_levelMode = ( s_levelMode + 1 ) % LevelModeCount;
+        self->m_held = false;
+        self->showLevel();
+    } else if ( target == self->m_sightInput ) {
+        self->openLevelEntry();
+    } else if ( target == self->m_sightArea ) {
+        if ( lv_event_get_code( event ) == LV_EVENT_PRESSED ) {
+            self->m_pressAltitude = Tilt::edgeAltitude( self->m_tilt.value() );
+            return;
+        }
+        self->m_held = !self->m_held && self->m_tilt.valid();
+        self->m_heldAltitude = self->m_pressAltitude;
+        self->showLevel();
+        ESP_LOGI( TAG, "Sighting angle %s", self->m_held ? "held" : "released" );
+    }
+}
+
+void ToolPages::openLevelEntry()
+{
+    if ( m_levelEntry == nullptr ) {
+        return;
+    }
+    m_levelEntryOpen = true;
+    m_entryFailed = false;
+    m_entryCalculator.clear();
+    m_entryCalculator.setColon( false );
+    lv_obj_set_hidden( m_levelEntry, false );
+    showLevelEntry();
+}
+
+void ToolPages::closeLevelEntry()
+{
+    m_levelEntryOpen = false;
+    if ( m_levelEntry != nullptr ) {
+        lv_obj_set_hidden( m_levelEntry, true );
+    }
+}
+
+void ToolPages::showLevelEntry()
+{
+    if ( m_levelEntry == nullptr || !m_levelEntryOpen ) {
+        return;
+    }
+    const char *text = m_entryCalculator.text();
+    if ( m_entryFailed ) {
+        setText( m_levelEntryValue, Language::text( Language::CalcError ) );
+        lv_obj_set_style_text_color( m_levelEntryValue, lv_color_hex( Styles::Amber ), 0 );
+    } else if ( text[0] == '\0' ) {
+        setText( m_levelEntryValue, "0" );
+        lv_obj_set_style_text_color( m_levelEntryValue, s_dim, 0 );
+    } else {
+        showTail( m_levelEntryValue, text, s_valueChars );
+        lv_obj_set_style_text_color( m_levelEntryValue, lv_color_white(), 0 );
+    }
+    char unit[40];
+    snprintf( unit, sizeof( unit ), "%s, m",
+              Language::text( s_levelMode == LevelHeight ? Language::SightDistance : Language::SightHeight ) );
+    setText( m_levelEntryUnit, unit );
+    setText( m_levelEntryAngle, "" );
+    m_levelPad.refresh();
+}
+
+void ToolPages::onLevelKey( void *user, Calculator::Key key )
+{
+    ToolPages *self = static_cast<ToolPages *>( user );
+    if ( !self->m_levelEntryOpen ) {
+        return;
+    }
+    const char *text = self->m_entryCalculator.text();
+    if ( text[0] == '\0' && ( key == Calculator::Clear || key == Calculator::Equals ) ) {
+        self->closeLevelEntry();
+        return;
+    }
+    if ( key != Calculator::Equals ) {
+        self->m_entryFailed = false;
+        self->m_entryCalculator.press( key );
+        self->showLevelEntry();
+        return;
+    }
+    double value = 0;
+    if ( Calculator::evaluate( text, self->m_entryCalculator.radians(), value ) && value > 0 && value < 1e6 ) {
+        if ( s_levelMode == LevelHeight ) {
+            s_sightDistance = value;
+        } else {
+            s_sightHeight = value;
+        }
+        self->closeLevelEntry();
+        self->showLevel();
+    } else {
+        self->m_entryFailed = true;
+        self->showLevelEntry();
+    }
+}
+
 // ---- Development ----
 
 bool ToolPages::press( const char *name )
@@ -982,6 +1361,10 @@ bool ToolPages::press( const char *name )
         }
         s_randomMode = mode;
         roll();
+    } else if ( strncmp( name, "keys ", 5 ) == 0 && m_levelEntryOpen ) {
+        for ( const char *k = name + 5; *k != '\0' && m_levelEntryOpen; ++k ) {
+            onLevelKey( this, Calculator::keyForChar( *k ) );
+        }
     } else if ( strncmp( name, "keys ", 5 ) == 0 ) {
         const bool entry = m_entryRow >= 0;
         for ( const char *k = name + 5; *k != '\0'; ++k ) {
@@ -997,6 +1380,16 @@ bool ToolPages::press( const char *name )
         showConverter();
     } else if ( strncmp( name, "unit ", 5 ) == 0 ) {
         openEntry( atoi( name + 5 ) );
+    } else if ( strcmp( name, "level" ) == 0 ) {
+        s_levelMode = ( s_levelMode + 1 ) % LevelModeCount;
+        m_held = false;
+        showLevel();
+    } else if ( strcmp( name, "hold" ) == 0 ) {
+        m_held = !m_held;
+        m_heldAltitude = Tilt::edgeAltitude( m_tilt.value() );
+        showLevel();
+    } else if ( strcmp( name, "input" ) == 0 ) {
+        openLevelEntry();
     } else if ( strcmp( name, "torch" ) == 0 ) {
         s_torchColour = ( s_torchColour + 1 ) % TorchColourCount;
         m_sosStartUs = esp_timer_get_time();

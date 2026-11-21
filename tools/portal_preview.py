@@ -26,7 +26,7 @@ STATE = {
     'lat': 41.0082, 'lon': 28.9784, 'hijri': 0, 'aodDay': 25, 'aodNight': 2,
     'devMode': 0, 'usbStayOn': 1, 'nightMode': 1, 'isha': 17, 'language': 0, 'clockOrder': 0, 'clockHidden': 0, 'infoOrder': 0,
     'infoHidden': 0, 'settingsOrder': 0, 'settingsHidden': 0, 'mirror': 0, 'planetsOrder': 0, 'planetsHidden': 0,
-    'pagesOrder': 0 | 1 << 3 | 4 << 6 | 5 << 9 | 2 << 12 | 3 << 15, 'toolsOrder': 0 | 3 << 3 | 4 << 6 | 1 << 9 | 2 << 12, 'toolsHidden': 0,
+    'pagesOrder': 0 | 1 << 3 | 4 << 6 | 5 << 9 | 2 << 12 | 3 << 15, 'toolsOrder': 0 | 3 << 3 | 4 << 6 | 5 << 9 | 1 << 12 | 2 << 15, 'toolsHidden': 0,
     'observingOrder': 0, 'observingHidden': 0, 'bootCounter': 1,
     'version': 'preview', 'battery': 80, 'usb': 0, 'updateMin': 30, 'coreDump': 0,
     'zone': 'Europe/Istanbul', 'place': 'Istanbul',

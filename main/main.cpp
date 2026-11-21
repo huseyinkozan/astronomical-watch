@@ -2001,6 +2001,10 @@ extern "C" void app_main( void )
         s_pmu.setPanelPower( true );
         FaceStore::load( s_facePages );
         s_display.setPages( s_facePages );
+        // The spirit level and the alidade read the accelerometer while they show (powered down
+        // otherwise, as between the always-on motion checks).
+        s_motion.init( bus );
+        s_display.setMotion( &s_motion );
 #if CONFIG_WATCH_DEV_LOGGING
         if ( s_hostSkipDisplay ) {
             s_hostSkipDisplay = false;

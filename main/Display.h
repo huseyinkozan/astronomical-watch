@@ -82,6 +82,8 @@ public:
 
     // The face pages (FaceStore), before start() and after the setup portal saved them.
     void setPages( const FaceConfig::Pages &pages );
+    // The accelerometer for the spirit level and the alidade (read only while they show).
+    void setMotion( Motion *motion );
 
     // Moves to the watch face, as a swipe would (a face page sent from the portal).
     void showFaceTile();
@@ -269,6 +271,7 @@ private:
     bool m_appReady = false;  // built and its part restored
     PlanetPages m_planets;
     ToolPages m_tools;
+    Motion *m_motion = nullptr;
     // The observing page: no parts yet (its launcher entry stays out until it has some), never built.
     StackPage m_observing;
     FaceText::AlarmIconState m_alarmIcons = {};
