@@ -12,9 +12,10 @@ g++ -std=c++17 -O2 -Wall -Wextra -I main tests/SkyTest.cpp main/Sky.cpp main/Mil
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/PrayerTest.cpp main/Sky.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/prayer_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/PartOrderTest.cpp main/PartOrder.cpp -o build-host/part_order_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/TallyTest.cpp main/Tally.cpp main/Morse.cpp -o build-host/tally_test
-build-host/calculator_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/CalculatorTest.cpp main/Calculator.cpp main/Units.cpp -o build-host/calculator_test
-g++ -std=c++17 -O2 -Wall -Wextra -I main tests/BatteryLimitTest.cpp main/BatteryLimit.cpp -o build-host/battery_limit_test
+g++ -std=c++17 -O2 -Wall -Wextra -I main tests/TiltTest.cpp main/Tilt.cpp -o build-host/tilt_test
+g++ -std=c++17 -O2 -Wall -Wextra -I main tests/BatteryLimitTest.cpp main/BatteryLimit.cpp -o build-host/tilt_test
+build-host/battery_limit_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/NightRedTest.cpp main/NightRed.cpp -o build-host/night_red_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/FaceConfigTest.cpp main/FaceConfig.cpp -o build-host/face_config_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/FaceTapTest.cpp main/FaceTap.cpp -o build-host/face_tap_test

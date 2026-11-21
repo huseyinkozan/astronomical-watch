@@ -20,12 +20,16 @@ static const uint8_t REG_CTRL1 = 0x02;
 static const uint8_t REG_CTRL2 = 0x03;
 static const uint8_t REG_CTRL7 = 0x08;
 static const uint8_t REG_TIMESTAMP_L = 0x30;
+static const uint8_t REG_AX_L = 0x35;
 
 // CTRL1: address auto-increment, little-endian data, INT pins high-Z, oscillator on (bit0 = 0).
 static const uint8_t CTRL1_ON = 0x40;
 static const uint8_t CTRL1_SENSOR_DISABLE = 0x01;
 // CTRL2: +-2 g, ODR code 0110 (112 Hz from the internal oscillator when only the accelerometer runs).
 static const uint8_t CTRL2_2G_112HZ = 0x06;
+// ODR code 0111: 62.5 Hz nominal, about 56 Hz from the internal oscillator (validated on the board
+// as valid output, docs/hardware.md); read 25 times a second by the level and the alidade.
+static const uint8_t CTRL2_2G_56HZ = 0x07;
 static const uint8_t CTRL7_ACCEL_ON = 0x01;
 static const int s_lsbPerG = 16384;
 
@@ -48,6 +52,9 @@ RTC_DATA_ATTR static int s_stillChecks;
 
 esp_err_t Motion::init( i2c_master_bus_handle_t bus )
 {
+    if ( m_device != nullptr ) {
+        return ESP_OK;
+    }
     i2c_device_config_t config = {};
     config.dev_addr_length = I2C_ADDR_BIT_LEN_7;
     config.device_address = s_address;
@@ -66,29 +73,71 @@ esp_err_t Motion::writeRegister( uint8_t reg, uint8_t value )
     return i2c_master_transmit( m_device, data, sizeof( data ), s_timeoutMs );
 }
 
-esp_err_t Motion::sample( Reading &reading )
+esp_err_t Motion::powerUp( uint8_t ctrl2 )
 {
-    reading = {};
-    reading.readyMs = 255;
     esp_err_t err = writeRegister( REG_CTRL1, CTRL1_ON );
     if ( err == ESP_OK ) {
         // System turn-on time after power-down: at most 15 ms (datasheet 7.3).
         esp_rom_delay_us( 15000 );
-        err = writeRegister( REG_CTRL2, CTRL2_2G_112HZ );
+        err = writeRegister( REG_CTRL2, ctrl2 );
     }
     if ( err == ESP_OK ) {
         err = writeRegister( REG_CTRL7, CTRL7_ACCEL_ON );
     }
+    return err;
+}
+
+// Back to power-down (about 6 uA): both writes are tried whatever happened before.
+esp_err_t Motion::powerDown()
+{
+    const esp_err_t accelOff = writeRegister( REG_CTRL7, 0x00 );
+    const esp_err_t oscillatorOff = writeRegister( REG_CTRL1, CTRL1_ON | CTRL1_SENSOR_DISABLE );
+    return accelOff != ESP_OK ? accelOff : oscillatorOff;
+}
+
+esp_err_t Motion::sample( Reading &reading )
+{
+    reading = {};
+    reading.readyMs = 255;
+    esp_err_t err = powerUp( CTRL2_2G_112HZ );
     if ( err == ESP_OK ) {
         err = readUntilSamples( s_settleSamples + s_averageSamples, reading );
     }
-    // Back to power-down (about 6 uA) whatever happened above.
-    const esp_err_t accelOff = writeRegister( REG_CTRL7, 0x00 );
-    const esp_err_t oscillatorOff = writeRegister( REG_CTRL1, CTRL1_ON | CTRL1_SENSOR_DISABLE );
-    if ( err == ESP_OK ) {
-        err = accelOff != ESP_OK ? accelOff : oscillatorOff;
+    const esp_err_t off = powerDown();
+    return err != ESP_OK ? err : off;
+}
+
+esp_err_t Motion::setStreaming( bool on )
+{
+    if ( m_device == nullptr || on == m_streaming ) {
+        return ESP_OK;
     }
+    m_streaming = on;
+    const esp_err_t err = on ? powerUp( CTRL2_2G_56HZ ) : powerDown();
+    ESP_LOGI( TAG, "Accelerometer streaming %s: %s", on ? "on" : "off", esp_err_to_name( err ) );
     return err;
+}
+
+bool Motion::streaming() const
+{
+    return m_streaming;
+}
+
+esp_err_t Motion::readLatest( int16_t mg[3] )
+{
+    if ( m_device == nullptr || !m_streaming ) {
+        return ESP_ERR_INVALID_STATE;
+    }
+    uint8_t data[6] = {};
+    const esp_err_t err = readRegisters( REG_AX_L, data, sizeof( data ) );
+    if ( err != ESP_OK ) {
+        return err;
+    }
+    for ( int axis = 0; axis < 3; ++axis ) {
+        const int16_t value = static_cast<int16_t>( data[2 * axis] | ( data[2 * axis + 1] << 8 ) );
+        mg[axis] = static_cast<int16_t>( value * 1000 / s_lsbPerG );
+    }
+    return ESP_OK;
 }
 
 void Motion::restart( int offMinutes )

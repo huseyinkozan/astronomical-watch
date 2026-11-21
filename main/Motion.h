@@ -18,6 +18,7 @@ public:
         uint8_t readyMs;    // from enabling the accelerometer to its first new sample, 255 if none
     };
 
+    // Adds the device to the bus once; later calls keep it.
     esp_err_t init( i2c_master_bus_handle_t bus );
 
     // Takes one reading and powers the accelerometer down again, also after an error.
@@ -32,6 +33,14 @@ public:
     // no-motion threshold; always false, without a reading, when it is 0.
     bool stillTooLong();
 
+    // Active mode (the spirit level, the alidade): while on, the accelerometer runs at about 56 Hz
+    // (ODR code 0111 from the internal oscillator) and readLatest() takes its newest sample; off
+    // powers it down again (about 6 uA). Only the part that shows the readings keeps it on.
+    esp_err_t setStreaming( bool on );
+    bool streaming() const;
+    // The newest sample, x y z in mg (the sensor's axes, docs/hardware.md).
+    esp_err_t readLatest( int16_t mg[3] );
+
     // Measurement build (CONFIG_WATCH_MOTION_LOG): one reading per call kept in RTC memory,
     // printed on a PWR wake. Used to choose the no-motion threshold (docs/hardware.md).
     void recordLog();
@@ -42,5 +51,9 @@ private:
     esp_err_t writeRegister( uint8_t reg, uint8_t value );
     esp_err_t readUntilSamples( int samples, Reading &reading );
 
+    esp_err_t powerUp( uint8_t ctrl2 );
+    esp_err_t powerDown();
+
     i2c_master_dev_handle_t m_device = nullptr;
+    bool m_streaming = false;
 };
