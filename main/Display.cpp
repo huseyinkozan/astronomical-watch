@@ -11,6 +11,7 @@
 #include "Language.h"
 #include "NightRed.h"
 #include "PartOrder.h"
+#include "FaceTap.h"
 
 #include "bsp/display.h"
 #include "bsp/esp32_s3_touch_amoled_2_06.h"
@@ -365,6 +366,7 @@ bool Display::start( Settings &settings )
     lv_obj_add_event_cb( m_faceTile, onBrightnessDrag, LV_EVENT_PRESSING, this );
     lv_obj_add_event_cb( m_faceTile, onBrightnessDrag, LV_EVENT_RELEASED, this );
     lv_obj_add_event_cb( m_faceTile, onBrightnessDrag, LV_EVENT_PRESS_LOST, this );
+    lv_obj_add_event_cb( m_faceTile, onFaceClicked, LV_EVENT_CLICKED, this );
     m_clock.loadTimers();
     lv_obj_add_event_cb( m_tiles[AppTile], onAppPartChanged, LV_EVENT_VALUE_CHANGED, this );
     buildLauncher();
@@ -1192,9 +1194,11 @@ void Display::onBrightnessDrag( lv_event_t *event )
         self->m_pressX = point.x;
         self->m_pressY = point.y;
         self->m_pressMoved = false;
+        self->m_pressLong = false;
         return;
     }
     if ( code == LV_EVENT_LONG_PRESSED ) {
+        self->m_pressLong = true;
         if ( !self->m_pressMoved ) {
             self->startAdjust( point.x, point.y );
         }
@@ -1255,6 +1259,37 @@ void Display::endAdjust()
     }
     setBrightness( m_settings->value( Settings::Brightness ) );
     ESP_LOGI( TAG, "Brightness setting %d: %d %%", m_adjustItem, m_adjustPercent );
+}
+
+void Display::onFaceClicked( lv_event_t *event )
+{
+    Display *self = static_cast<Display *>( lv_event_get_user_data( event ) );
+    // Only a tap: not after a swipe, a long press or the brightness drag.
+    if ( self->m_pressMoved || self->m_pressLong || self->m_adjusting ) {
+        return;
+    }
+    const FaceConfig::Page &page = self->m_facePages.pages[self->m_settings->value( Settings::FaceStyle )];
+    FaceTap::Input input = {};
+    input.page = &page;
+    input.gauges = self->m_facePages.gauges;
+    input.sunShown = self->m_face.bodyPoint( 0, input.sunX, input.sunY );
+    input.moonShown = self->m_face.bodyPoint( 1, input.moonX, input.moonY );
+    input.stopwatchRunning = self->m_clock.stopwatchRunning();
+    input.countdownRunning = self->m_clock.countdownEndMs() > 0;
+    const FaceTap::Target target = FaceTap::at( input, self->m_pressX, self->m_pressY );
+    // By FaceTap::Target: the stacked page and its part.
+    static const int s_pages[] = { -1, InfoPage, InfoPage, InfoPage, InfoPage, InfoPage, PlanetsPage, ClockPage, ClockPage,
+                                   ClockPage, ClockPage, ClockPage, ClockPage, ClockPage };
+    static const int s_parts[] = { -1, InfoSun, InfoMoon, InfoPrayer, InfoBattery, InfoTime, PlanetPages::SkyPart,
+                                   ClockPages::WorldPart, ClockPages::GregorianPart, ClockPages::HijriPart,
+                                   ClockPages::DaysPart, ClockPages::AlarmsPart, ClockPages::StopwatchPart,
+                                   ClockPages::TimerPart };
+    static_assert( sizeof( s_pages ) / sizeof( s_pages[0] ) == FaceTap::CountdownPart + 1, "a page per target" );
+    static_assert( sizeof( s_parts ) / sizeof( s_parts[0] ) == FaceTap::CountdownPart + 1, "a part per target" );
+    ESP_LOGI( TAG, "Face tap at %d,%d: target %d", self->m_pressX, self->m_pressY, target );
+    if ( target != FaceTap::NoTarget ) {
+        self->openPart( s_pages[target], s_parts[target], true );
+    }
 }
 
 void Display::onPageChanged( lv_event_t *event )

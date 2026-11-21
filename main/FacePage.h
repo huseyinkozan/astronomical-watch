@@ -31,6 +31,10 @@ public:
     // the planets too (FaceConfig::PlanetsFlag).
     void setSky( const Corners::Input &corners, const Sky::Now &now, const Astronomy::Observer &observer, bool located );
 
+    // Where the Sun (`body` 0) or the Moon (1) is drawn on the arc templates; false when it is
+    // not drawn (FaceTap).
+    bool bodyPoint( int body, int &x, int &y ) const;
+
 private:
     static void onDrawSegments( lv_event_t *event );
     static void onDrawAnalog( lv_event_t *event );

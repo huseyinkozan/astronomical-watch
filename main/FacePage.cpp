@@ -368,6 +368,22 @@ void FacePage::setSky( const Corners::Input &corners, const Sky::Now &now, const
     }
 }
 
+bool FacePage::bodyPoint( int body, int &x, int &y ) const
+{
+    const bool orbits = m_page.layout == FaceConfig::FullArcs;
+    const bool paths = m_page.layout == FaceConfig::HalfArcs;
+    const Corners::ArcPlace &place = m_bodies[body == 0 ? 0 : 1];
+    // As drawn: on the orbits also below the horizon (dim), on the paths only above it.
+    if ( !( orbits || paths ) || !place.known || ( paths && !place.up ) ) {
+        return false;
+    }
+    const float radius = orbits ? s_orbitRadius[body == 0 ? 0 : 1] : s_pathRadius[body == 0 ? 0 : 1];
+    const float a = place.angle * static_cast<float>( M_PI ) / 180.0f;
+    x = static_cast<int>( lroundf( FaceConfig::CentreX + radius * cosf( a ) ) );
+    y = static_cast<int>( lroundf( ( orbits ? s_orbitY : s_horizonY ) + radius * sinf( a ) ) );
+    return true;
+}
+
 // The bodies' places (the old Dial and Sky arcs) and the band, once a minute; the Moon's object
 // moves here, outside the drawing.
 void FacePage::placeSky()

@@ -178,7 +178,12 @@ catalogues (the corners also icons: the Moon's phase, the weekday ring, an alarm
 time icon, the hourglass while a timer runs, else the alarms' bell; `main/FaceText.*`; today's and tomorrow's events, the counters and cities in
 `main/FaceTable.*`), each marked whether the always-on face shows it too. A text longer than its
 slot (`FaceConfig::textWidth`) is cut to whole characters, a name before its number.
-`main/FacePage.*` draws a page in active mode. The always-on face (`AlwaysOn`) draws the page
+`main/FacePage.*` draws a page in active mode. A short tap on it opens a part as the launcher
+does (`main/FaceTap.*`, host-tested; not after a swipe or a long press): the Sun or the Moon on
+the arcs, a corner icon, else the corner's gauge (an L along both edges), a text slot, the ring
+between the arcs (the planets' sky), the clock (the world clock); each item opens its own part
+(the time icon the running countdown or stopwatch, else the alarms), a hidden part the page's
+first one. The always-on face (`AlwaysOn`) draws the page
 shown when active mode ended, from 1-bit bitmaps made on the host (`tools/make_aod_glyphs.py` →
 `main/AodGlyphs.c`: both digit sets at the Large size and the watch font's characters at 26 px);
 the first minute wake of a new local day computes the slots' events of today and tomorrow

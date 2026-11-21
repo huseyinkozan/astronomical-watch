@@ -259,6 +259,9 @@ private:
     // while dragging. The first movement decides which. Release saves the value (with the other
     // settings when active mode ends).
     static void onBrightnessDrag( lv_event_t *event );
+    // A short tap on the face opens the part under it (FaceTap), as the launcher does.
+    static void onFaceClicked( lv_event_t *event );
+    bool m_pressLong = false;  // the press on the face became a long press (the brightness)
     void buildBrightnessControl();
     void startAdjust( int x, int y );
     static lv_obj_t *createLevelBox( lv_obj_t *layer, int y, lv_obj_t *&value, lv_obj_t *&title );

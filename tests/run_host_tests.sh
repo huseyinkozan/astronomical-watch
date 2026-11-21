@@ -14,6 +14,7 @@ g++ -std=c++17 -O2 -Wall -Wextra -I main tests/PartOrderTest.cpp main/PartOrder.
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/BatteryLimitTest.cpp main/BatteryLimit.cpp -o build-host/battery_limit_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/NightRedTest.cpp main/NightRed.cpp -o build-host/night_red_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/FaceConfigTest.cpp main/FaceConfig.cpp -o build-host/face_config_test
+g++ -std=c++17 -O2 -Wall -Wextra -I main tests/FaceTapTest.cpp main/FaceTap.cpp -o build-host/face_tap_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/FaceTextTest.cpp main/FaceText.cpp main/FaceTable.cpp main/FaceConfig.cpp main/Language.cpp main/Zones.cpp main/Sky.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/face_text_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/AodSmallTest.cpp main/FaceText.cpp main/FaceTable.cpp main/FaceConfig.cpp main/Language.cpp main/Zones.cpp main/Sky.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/aod_small_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/AnalogClockTest.cpp main/AnalogClock.cpp -o build-host/analog_clock_test
@@ -33,6 +34,7 @@ build-host/part_order_test
 build-host/battery_limit_test
 build-host/night_red_test
 build-host/face_config_test tools/portal_preview.py
+build-host/face_tap_test
 build-host/face_text_test
 build-host/seven_segment_test
 build-host/aod_small_test main/AodGlyphs.c
