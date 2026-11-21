@@ -645,6 +645,8 @@ ESP32-S3 I2S (MCLK GPIO16, SCLK 41, LRCK 45, DOUT 40) → ES8311 DAC → NS4150B
 (CTRL GPIO46, 10k pull-down) → speaker on P5/P6. The amplifier's input comes only from the
 ES8311, so a beep needs the codec and I2S running; a GPIO tone cannot reach the speaker. The
 speaker's impedance, size and response are published nowhere (Waveshare: "onboard speaker").
+Measured [HW, 2026-11-20, owner]: a box speaker 15 × 10.5 × 4.73 mm, marked "AC21021 1A2" and
+"129Z1" (part not identified), coil resistance 7 Ω, so an 8 Ω part.
 
 - NS4150B [NS4150B DS V1.1, pp. 2–7]: supply 3.0–5.0 V (here VCC3V3); quiescent 3.0 mA typ at
   3.6 V without load (4 mA on the front page); shutdown 0.1 µA typ, 10 µA max; CTRL has two
