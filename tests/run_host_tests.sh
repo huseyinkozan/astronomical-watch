@@ -11,6 +11,7 @@ g++ -std=c++17 -O2 -Wall -Wextra -I main tests/ZonesTest.cpp main/Zones.cpp -o b
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/SkyTest.cpp main/Sky.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/sky_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/PrayerTest.cpp main/Sky.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/prayer_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/PartOrderTest.cpp main/PartOrder.cpp -o build-host/part_order_test
+g++ -std=c++17 -O2 -Wall -Wextra -I main tests/TallyTest.cpp main/Tally.cpp main/Morse.cpp -o build-host/tally_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/BatteryLimitTest.cpp main/BatteryLimit.cpp -o build-host/battery_limit_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/NightRedTest.cpp main/NightRed.cpp -o build-host/night_red_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/FaceConfigTest.cpp main/FaceConfig.cpp -o build-host/face_config_test
@@ -31,6 +32,7 @@ build-host/zones_test
 build-host/sky_test
 build-host/prayer_test
 build-host/part_order_test
+build-host/tally_test
 build-host/battery_limit_test
 build-host/night_red_test
 build-host/face_config_test tools/portal_preview.py
