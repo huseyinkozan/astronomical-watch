@@ -26,6 +26,8 @@ public:
     static const char *monthName( int month );       // June, Haziran
     static const char *shortMonth( int month );      // Jun, Haz
     static const char *hijriMonth( int month );      // Muharram, Muharrem
+    // The short common name of Messier object `number` (1 to 110), "" without one.
+    static const char *messierName( int number );    // Andromeda, Andromeda
     static const char *alarmEvent( int event );      // Alarms::Event: Sunset, Gün batımı
     static const char *dayLetter( int weekday );     // M, P
 
@@ -306,6 +308,59 @@ public:
         EquationValue,      // "Eq. time %s%dm %02ds": the sign, minutes, seconds
         DeclinationValue,   // "Declination %.1f°"
         NoonAltitudeValue,  // "Noon altitude %.1f°"
+        // Observing page: polar alignment, Milky Way window, deep-sky finder (SkyParts).
+        PartPolar,
+        PartMilkyWay,
+        PartDeepSky,
+        PoleStarAt,  // "Polaris at %d:%02d": the reticle clock
+        SigmaOctAt,
+        HourAngleValue,
+        ViewInverted,
+        ViewUpright,
+        NoLocation,
+        MilkyWayTitle,
+        WindowTonight,
+        WindowHighest,
+        NoWindowTonight,
+        NotDarkEnough,
+        CentreTooLow,
+        MoonValue,
+        MoonFaintValue,
+        MoonDownValue,
+        MoonUpValue,
+        MoonSetsValue,
+        MoonRisesValue,
+        NextWindow,  // "Next: %d %s": the day and the short month
+        NoNextWindow,
+        DeepSkyTitle,
+        DeepSkyBest,
+        DeepSkyNone,
+        // Observing page: eyepieces and night photo (OpticsParts).
+        PartEyepiece,
+        PartPhoto,
+        ScopeValue,
+        EyepieceValue,
+        NoEyepiece,
+        Magnification,
+        ExitPupil,
+        TrueField,
+        LimitMagnitude,
+        Resolution,
+        EyepieceHint,
+        PhotoSharp,
+        PhotoNd,
+        PhotoTrails,
+        Rule500,
+        RuleNpf,
+        EquivalentFocal,
+        NdFactor,
+        NdExposure,
+        TrailInputs,
+        TrailFrames,
+        TrailArc,
+        PhotoHint,
+        DurationMinSec,
+        DurationHourMin,
         TextCount
     };
 

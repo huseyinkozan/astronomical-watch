@@ -76,7 +76,7 @@ enum Page
     PlanetsPage,    // the solar system, the sky, rise and set, distances (PlanetPages)
     SettingsPage,   // the settings, and under them the setup portal
     ToolsPage,      // torch, counter, random, calculator, unit converter, spirit level (ToolPages)
-    ObservingPage,  // the astrolabe (ObservingPages)
+    ObservingPage,  // polar alignment, Milky Way, deep sky, eyepieces, photo, astrolabe (ObservingPages)
     PageCount
 };
 
@@ -104,7 +104,9 @@ static const Language::Text s_planetsParts[PlanetPages::PartCount] = {
 static const Language::Text s_toolsParts[ToolPages::PartCount] = { Language::PartTorch, Language::PartCounter,
                                                                     Language::PartRandom, Language::PartCalculator,
                                                                     Language::PartConverter, Language::PartLevel };
-static const Language::Text s_observingParts[ObservingPages::PartCount] = { Language::PartAstrolabe };
+static const Language::Text s_observingParts[ObservingPages::PartCount] = {
+    Language::PartAstrolabe, Language::PartPolar, Language::PartMilkyWay, Language::PartDeepSky, Language::PartEyepiece,
+    Language::PartPhoto };
 static const Language::Text s_settingsParts[SettingsPartCount] = {
     Language::PartSettings, Language::PartMoreSettings, Language::PartSetupInfo,
 #if CONFIG_WATCH_SETUP_PORTAL
@@ -186,6 +188,9 @@ struct Shot
     { "random", ToolsPage, ToolPages::RandomPart }, { "calculator", ToolsPage, ToolPages::CalculatorPart },
     { "converter", ToolsPage, ToolPages::ConverterPart }, { "level", ToolsPage, ToolPages::LevelPart },
     { "astrolabe", ObservingPage, ObservingPages::AstrolabePart },
+    { "polar", ObservingPage, ObservingPages::PolarPart }, { "milky-way", ObservingPage, ObservingPages::MilkyWayPart },
+    { "deep-sky", ObservingPage, ObservingPages::DeepSkyPart }, { "eyepiece", ObservingPage, ObservingPages::EyepiecePart },
+    { "photo", ObservingPage, ObservingPages::PhotoPart },
 };
 [[maybe_unused]] static const int s_shotCount = sizeof( s_shots ) / sizeof( s_shots[0] );
 
@@ -1548,7 +1553,7 @@ void Display::updateBrightness()
         m_tools.setLevelShown( app && m_tools.stack().current() == ToolPages::LevelPart );
     }
     if ( m_appPage == ObservingPage ) {
-        m_observing.setShown( app && m_observing.stack().current() == ObservingPages::AstrolabePart );
+        m_observing.setShown( app ? m_observing.stack().current() : -1 );
     }
     const int torchLevel = torch ? m_tools.torchLevel() : 0;
     if ( code != m_joinCodeDimmed || torch != m_torchShown || torchLevel != m_torchLevel ) {
@@ -1655,7 +1660,7 @@ void Display::stop()
         // No beeps into deep sleep, and the accelerometer powered down.
         m_tools.setTorchShown( false );
         m_tools.setLevelShown( false );
-        m_observing.setShown( false );
+        m_observing.setShown( -1 );
         Ringer ringer;
         ringer.stopSos( true );
     }

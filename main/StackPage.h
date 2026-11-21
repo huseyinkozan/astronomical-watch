@@ -31,6 +31,10 @@ public:
 
     int current() const;
 
+    // Shows the part `steps` places on in the order, as a swipe does (the deep-sky list's swipe
+    // past its end).
+    void step( int steps );
+
     // Shows `part` again after the page was built anew, or the first part shown when `part` has
     // been hidden meanwhile.
     void restore( int part );

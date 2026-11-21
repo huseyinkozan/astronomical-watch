@@ -191,11 +191,16 @@ void ObservingPages::build( lv_obj_t *tile, Settings &settings, Motion *motion )
     m_tick = lv_timer_create( onTick, s_tickMs, this );
     m_shownMinute = -1;
     showMode();
+
+    m_sky.build( m_stack.part( PolarPart ), m_stack.part( MilkyWayPart ), m_stack.part( DeepSkyPart ), m_stack );
+    m_optics.build( m_stack.part( EyepiecePart ), m_stack.part( PhotoPart ), settings );
 }
 
 void ObservingPages::forget()
 {
-    setShown( false );
+    setShown( -1 );
+    m_sky.forget();
+    m_optics.forget();
     m_stack.forget();
     if ( m_tick != nullptr ) {
         lv_timer_delete( m_tick );
@@ -235,15 +240,20 @@ bool ObservingPages::swipesSideways() const
     return m_dial != nullptr && s_mode == DialMode;
 }
 
-void ObservingPages::setShown( bool shown )
+void ObservingPages::setShown( int part )
 {
-    m_shown = shown;
+    if ( part != m_shownPart && ( part == EyepiecePart || part == PhotoPart ) ) {
+        // The portal may have changed the equipment meanwhile.
+        m_optics.refresh();
+    }
+    m_shownPart = part;
+    m_sky.setShown( part >= PolarPart && part <= DeepSkyPart ? part - PolarPart : -1 );
     updateSensor();
 }
 
 void ObservingPages::updateSensor()
 {
-    const bool wanted = m_shown && m_mode != nullptr && ( s_mode == SunMode || s_mode == PolarisMode );
+    const bool wanted = m_shownPart == AstrolabePart && m_mode != nullptr && ( s_mode == SunMode || s_mode == PolarisMode );
     if ( m_motion != nullptr && wanted != m_motion->streaming() ) {
         m_tilt.reset();
         m_motion->setStreaming( wanted );
@@ -278,6 +288,7 @@ void ObservingPages::show( int64_t now, const Astronomy::Observer &observer, int
     if ( moved ) {
         m_starsPrecessed = false;
     }
+    m_sky.show( now, observer, utcOffsetMinutes, located );
     if ( m_mode == nullptr || now / 60 == m_shownMinute ) {
         return;
     }
@@ -838,6 +849,9 @@ bool ObservingPages::press( const char *name )
 {
     if ( m_mode == nullptr ) {
         return false;
+    }
+    if ( m_sky.press( name ) || m_optics.press( name ) ) {
+        return true;
     }
     if ( strcmp( name, "mode" ) == 0 ) {
         stepMode();

@@ -5,13 +5,17 @@
 #include "Astrolabe.h"
 #include "Astronomy.h"
 #include "Motion.h"
+#include "OpticsParts.h"
 #include "Settings.h"
+#include "SkyParts.h"
 #include "StackPage.h"
 #include "Tilt.h"
 #include "lvgl.h"
 
 // The observing page (docs/superpowers/plans/2026-11-21-tools.md): its parts one over the other
-// (StackPage). Display builds it and calls it with the display lock held.
+// (StackPage). Display builds it and calls it with the display lock held. Polar alignment, the
+// Milky Way window and the deep-sky finder are SkyParts', the eyepiece and photo calculators
+// OpticsParts'; the astrolabe is this class's own.
 //
 // Astrolabe, in five modes stepped by a tap on the title:
 // - dial: the plate for the location (the horizon, almucantars every 15 degrees, the tropics and
@@ -37,6 +41,11 @@ public:
     enum Part
     {
         AstrolabePart,
+        PolarPart,
+        MilkyWayPart,
+        DeepSkyPart,
+        EyepiecePart,
+        PhotoPart,
         PartCount  // the parts are numbered in the saved orders (PartOrder): new ones at the end
     };
 
@@ -48,8 +57,9 @@ public:
 
     StackPage &stack();
 
-    // Display: whether the astrolabe is on screen; the alidade's modes read the accelerometer then.
-    void setShown( bool shown );
+    // Display: the part on screen (-1: none); the alidade's modes read the accelerometer while
+    // the astrolabe shows, and some parts compute only while they show.
+    void setShown( int part );
 
     // The dial takes sideways drags: the page swipe stops while it shows (Display). A change of
     // mode sends LV_EVENT_VALUE_CHANGED to the tile, as a part change does, so that Display asks
@@ -60,7 +70,8 @@ public:
     void show( int64_t now, const Astronomy::Observer &observer, int utcOffsetMinutes, bool located );
 
     // Development (host command "B <name>"): mode (the next mode), "drag <minutes>" (the dial's
-    // time), now, hold (holds or releases the alidade's angle).
+    // time), now, hold (holds or releases the alidade's angle); flip, scroll <px> (SkyParts),
+    // eyepiece, calc (OpticsParts).
     bool press( const char *name );
 
 private:
@@ -90,7 +101,9 @@ private:
     lv_timer_t *m_tick = nullptr;
     Settings *m_settings = nullptr;
     Motion *m_motion = nullptr;
-    bool m_shown = false;
+    SkyParts m_sky;
+    OpticsParts m_optics;
+    int m_shownPart = -1;
 
     int64_t m_now = 0;
     Astronomy::Observer m_observer = { 0, 0 };

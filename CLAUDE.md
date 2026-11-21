@@ -282,9 +282,14 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   `main/ToolPages.*`, the counter's rules in `main/Tally.*`, the SOS timing in `main/Morse.*`, the
   calculator's expressions in `main/Calculator.*`, the conversions in `main/Units.*` and the
   level's angles in `main/Tilt.*`, all host-tested; plan:
-  `docs/superpowers/plans/2026-11-21-tools.md`) and observing (the astrolabe, `main/ObservingPages.*`,
-  its geometry and the alidade's answers in `main/Astrolabe.*`, host-tested against Skyfield
-  (`tools/make_astrolabe_reference.py`); a page whose part list is empty stays out of the launcher
+  `docs/superpowers/plans/2026-11-21-tools.md`) and observing (polar alignment, Milky Way window,
+  deep-sky finder, eyepieces, night photo, astrolabe by default; `main/ObservingPages.*` with the
+  astrolabe, `main/SkyParts.*` and `main/OpticsParts.*` with the others; the astrolabe's geometry
+  and the alidade's answers in `main/Astrolabe.*`, the pole star, darkness, Milky Way window and
+  Messier list in `main/Observing.*` and `main/Messier.*`, the formulas in `main/Optics.*`, all
+  host-tested, the sky against Skyfield (`tools/make_astrolabe_reference.py`,
+  `tools/make_observing_reference.py`); the nautical almanac and aiming are to come between the
+  photo part and the astrolabe and after it; a page whose part list is empty stays out of the launcher
   and the portal's lists by itself). The `Page` numbers are kept in
   the saved launcher order, so new pages come last in the enum; the default order puts tools and
   observing after information. The torch fills the screen (the page name hides): red, amber,
@@ -325,6 +330,27 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   sundial (hour lines 6 to 18, the shadow of now, solar and clock time); the analemma (the year's
   declination against the equation of time, today marked, the noon altitude). The plate's lines
   are computed once per latitude into a buffer allocated while the page is built.
+  Polar alignment draws a polar scope's reticle as a 12-hour clock with the pole star (Polaris,
+  sigma Octantis south of the equator; precessed, no nutation or aberration: within 0.6 degree
+  of hour angle), inverted by default as most polar scopes show it; a tap flips it upright (RTC
+  memory). The Milky Way window: astronomical darkness from the Sun's hour angle, the galactic
+  centre 10 degrees up, the Moon's centre down or under 10 % lit (sampled every 5 min), at least
+  30 min; on a 16:00 to 08:00 bar, with the centre's highest, the Moon and the next night with a
+  window (up to 120 nights; from late November at 41 degrees north the next is in March). It is
+  computed only while its part shows, 0.4 s after it slid in (`lv_timer`), once a night and
+  place. The deep-sky finder lists the 110 Messier objects (OpenNGC, `tools/make_messier_table.py`,
+  packed in 660 bytes; common names in `Language::messierName`) 10 degrees up, highest first,
+  with the altitude and the best time in tonight's darkness, again each minute while shown. Its
+  list is the pages' second vertical scroll after the launcher's: one drawn object in a scrolling
+  container without elastic ends; a drag of 60 px past either end steps the part
+  (`StackPage::step`), and a list that fits leaves its swipes to the page. The eyepiece and photo
+  parts (`TablePart`) read the equipment from the settings each time they show (the portal's
+  "Observing equipment" box: telescope focal and aperture, four eyepieces in tenths of a mm with
+  their apparent fields, the lens's focal and f-number, a sensor preset with its crop and pixel
+  pitch, the ND calculator's base shutter and stops, a star-trail series' length and interval);
+  a tap steps the eyepiece, a tap on the photo part's title its calculator (no star trails: 500
+  and NPF rules; ND filter; star trails: frames and arc), both kept in RTC memory. Development
+  commands "B flip", "B scroll <px>", "B eyepiece", "B calc".
   The page and part last opened stay in RTC memory over the always-on wakes (lost at power-off:
   then the clock page's first part). The BOOT key (GPIO0, polled in `runActiveMode`, never a
   wake source) steps back: opened page to launcher, launcher to face, on the face it closes the

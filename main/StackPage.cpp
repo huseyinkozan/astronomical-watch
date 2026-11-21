@@ -197,11 +197,17 @@ void StackPage::onGesture( lv_event_t *event )
 {
     StackPage *self = static_cast<StackPage *>( lv_event_get_user_data( event ) );
     const lv_dir_t direction = lv_indev_get_gesture_dir( lv_indev_active() );
-    if ( self->m_swipeLocked || self->m_shown < 2 || ( direction != LV_DIR_TOP && direction != LV_DIR_BOTTOM ) ) {
+    if ( direction == LV_DIR_TOP || direction == LV_DIR_BOTTOM ) {
+        self->step( direction == LV_DIR_TOP ? 1 : -1 );
+    }
+}
+
+void StackPage::step( int steps )
+{
+    if ( m_swipeLocked || m_shown < 2 ) {
         return;
     }
-    const int step = direction == LV_DIR_TOP ? 1 : -1;
-    self->show( PartOrder::step( self->m_order, self->m_shown, self->m_current, step ), step );
+    show( PartOrder::step( m_order, m_shown, m_current, steps ), steps );
 }
 
 void StackPage::forget()

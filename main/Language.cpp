@@ -300,6 +300,59 @@ static const char *s_texts[][2] = {
     { "Eq. time %s%dm %02ds", "Denklem %s%dd %02dsn" },
     { "Declination %.1f°", "Dik açıklık %.1f°" },
     { "Noon altitude %.1f°", "Öğle yüksekliği %.1f°" },
+    // Observing page: polar alignment, Milky Way window, deep-sky finder (SkyParts).
+    { "Polar alignment", "Kutup hizalama" },
+    { "Milky Way", "Samanyolu" },
+    { "Deep-sky finder", "Derin gökyüzü" },
+    { "Polaris at %d:%02d", "Kutup Yıldızı %d:%02d" },
+    { "Sigma Oct at %d:%02d", "Sigma Oct %d:%02d" },
+    { "Hour angle %dh %02dm", "Saat açısı %ds %02dd" },
+    { "Inverted (tap flips)", "Ters (dokun: düz)" },
+    { "Upright (tap flips)", "Düz (dokun: ters)" },
+    { "No location set", "Konum girilmedi" },
+    { "Milky Way window", "Samanyolu penceresi" },
+    { "Tonight %02d:%02d-%02d:%02d", "Bu gece %02d:%02d-%02d:%02d" },
+    { "Highest %02d:%02d %d°", "En yüksek %02d:%02d %d°" },
+    { "No window tonight", "Bu gece pencere yok" },
+    { "No dark night", "Gece kararmıyor" },
+    { "Centre stays low", "Merkez hep alçakta" },
+    { "Moon %d%%", "Ay %%%d" },
+    { "Moon %d%%, faint", "Ay %%%d, sönük" },
+    { "Moon %d%%, down", "Ay %%%d, batık" },
+    { "Moon %d%%, up", "Ay %%%d, gökte" },
+    { "Moon %d%% sets %02d:%02d", "Ay %%%d batar %02d:%02d" },
+    { "Moon %d%% rises %02d:%02d", "Ay %%%d doğar %02d:%02d" },
+    { "Next: %d %s", "Sonraki: %d %s" },
+    { "None in 120 nights", "120 gecede yok" },
+    { "Up now: %d", "Şimdi gökte: %d" },
+    { "%d°  best %02d:%02d", "%d°  en iyi %02d:%02d" },
+    { "None above 10°", "10° üstünde yok" },
+    // Observing page: eyepieces and night photo (OpticsParts).
+    { "Eyepieces", "Mercekler" },
+    { "Night photo", "Gece fotoğrafı" },
+    { "Scope %d mm f/%s", "Teleskop %dmm f/%s" },
+    { "Eyepiece %s mm %d°", "Mercek %s mm %d°" },
+    { "No eyepiece set", "Mercek girilmedi" },
+    { "Magnification", "Büyütme" },
+    { "Exit pupil", "Çıkış bebeği" },
+    { "True field", "Gerçek alan" },
+    { "Limit mag.", "Sınır kadir" },
+    { "Resolution", "Ayırma" },
+    { "Tap: next eyepiece", "Dokun: sonraki mercek" },
+    { "No star trails", "Yıldız izi olmadan" },
+    { "ND filter", "ND filtre" },
+    { "Star trails", "Yıldız izi" },
+    { "500 rule", "500 kuralı" },
+    { "NPF rule", "NPF kuralı" },
+    { "35 mm equiv.", "Eşdeğer odak" },
+    { "Factor", "Çarpan" },
+    { "Exposure", "Pozlama" },
+    { "%d min every %d s", "%d dk, %d sn arayla" },
+    { "Frames", "Kare" },
+    { "Trail arc", "İz yayı" },
+    { "Tap title: next", "Başlık: sonraki hesap" },
+    { "%dm %02ds", "%ddk %02dsn" },
+    { "%dh %02dm", "%dsa %02ddk" },
 };
 // One pair per text: a missing one would shift every text after it.
 static_assert( sizeof( s_texts ) / sizeof( s_texts[0] ) == Language::TextCount, "a text pair per Language::Text" );
@@ -363,6 +416,34 @@ static const char *s_alarmEvents[2][17] = {
 const char *Language::alarmEvent( int event )
 {
     return s_alarmEvents[s_language][clampIndex( event, 17 )];
+}
+
+// The Messier objects' common names, short enough for a row with the number and the magnitude.
+struct MessierName
+{
+    int number;
+    const char *names[2];
+};
+static const MessierName s_messierNames[] = {
+    { 1, { "Crab", "Yengeç" } },          { 6, { "Butterfly", "Kelebek" } },    { 7, { "Ptolemy", "Batlamyus" } },
+    { 8, { "Lagoon", "Lagün" } },         { 11, { "Wild Duck", "Yaban Ördek" } }, { 13, { "Hercules", "Herkül" } },
+    { 16, { "Eagle", "Kartal" } },        { 17, { "Omega", "Omega" } },         { 20, { "Trifid", "Trifid" } },
+    { 27, { "Dumbbell", "Halter" } },     { 31, { "Andromeda", "Andromeda" } }, { 33, { "Triangulum", "Üçgen" } },
+    { 42, { "Orion", "Orion" } },         { 44, { "Beehive", "Arı Kovanı" } }, { 45, { "Pleiades", "Ülker" } },
+    { 51, { "Whirlpool", "Girdap" } },    { 57, { "Ring", "Halka" } },          { 63, { "Sunflower", "Ayçiçeği" } },
+    { 64, { "Black Eye", "Kara Göz" } },  { 76, { "Cork", "Mantar" } }, { 81, { "Bode's", "Bode" } },
+    { 82, { "Cigar", "Puro" } },          { 83, { "S. Pinwheel", "G. Fırıldak" } }, { 87, { "Virgo A", "Virgo A" } },
+    { 97, { "Owl", "Baykuş" } },          { 101, { "Pinwheel", "Fırıldak" } },  { 104, { "Sombrero", "Sombrero" } },
+};
+
+const char *Language::messierName( int number )
+{
+    for ( size_t i = 0; i < sizeof( s_messierNames ) / sizeof( s_messierNames[0] ); ++i ) {
+        if ( s_messierNames[i].number == number ) {
+            return s_messierNames[i].names[s_language];
+        }
+    }
+    return "";
 }
 
 const char *Language::hijriMonth( int month )
