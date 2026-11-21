@@ -38,6 +38,7 @@
   .face .head label { margin: 0; white-space: nowrap; }
   .face input[type=checkbox] { width: auto; }
   .face .head button { width: auto; padding: 4px 12px; font-size: 1em; background: #333; }
+  .face canvas { display: block; margin: 8px auto 0; }
   .slot { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
   .slot select { flex: 2; }
   .slot select.param { flex: 1; }
@@ -737,6 +738,53 @@ function headButton(text, disabled, onClick) {
   button.addEventListener('click', onClick);
   return button;
 }
+// A small drawing of face page v, enough to recognise it (FaceConfig: the 410 x 502 screen, the
+// templates' arcs and clock places, the text lines' and the corners' places): filled slots as
+// bars and dots, digits or hands.
+function drawSketch(canvas, v) {
+  const g = canvas.getContext('2d');
+  const k = canvas.width / 410;
+  const P = (n) => n * k;
+  g.fillStyle = '#000';
+  g.beginPath();
+  g.roundRect(0, 0, canvas.width, canvas.height, P(120));
+  g.fill();
+  g.strokeStyle = g.fillStyle = '#bbb';
+  g.lineWidth = 1.5;
+  const circle = (x, y, r, a0, a1) => { g.beginPath(); g.arc(P(x), P(y), P(r), a0, a1); g.stroke(); };
+  let clockY = 251, digits = 122, dial = 140;
+  if (v[0] === 1) {
+    circle(205, 251, 150, 0, 2 * Math.PI);
+    circle(205, 251, 122, 0, 2 * Math.PI);
+    digits = 64; dial = 100;
+  } else if (v[0] === 2) {
+    circle(205, 232, 150, Math.PI, 2 * Math.PI);
+    circle(205, 232, 105, Math.PI, 2 * Math.PI);
+    g.beginPath(); g.moveTo(P(40), P(232)); g.lineTo(P(370), P(232)); g.stroke();
+    clockY = 310; digits = 64; dial = 70;
+  }
+  if (v[1] === 0) {
+    g.font = Math.round(P(digits)) + 'px monospace';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText('12:34', P(205), P(clockY));
+  } else if (v[1] === 1) {
+    const r = dial * (v[0] === 0 ? 0.8 : 0.9);
+    circle(205, clockY, r, 0, 2 * Math.PI);
+    g.beginPath();
+    g.moveTo(P(205), P(clockY)); g.lineTo(P(205 + r * 0.45), P(clockY - r * 0.3));
+    g.moveTo(P(205), P(clockY)); g.lineTo(P(205 - r * 0.15), P(clockY - r * 0.8));
+    g.stroke();
+  }
+  const lineY = [25, 60, 442, 478];
+  for (let i = 0; i < 4; i++) {
+    if (v[5 + i]) g.fillRect(P(i === 0 || i === 3 ? 140 : 120), P(lineY[i] - 6), P(i === 0 || i === 3 ? 130 : 170), P(12));
+  }
+  const cornerX = [66, 344, 66, 344], cornerY = [70, 70, 432, 432];
+  for (let i = 0; i < 4; i++) {
+    if (v[9 + i]) { g.beginPath(); g.arc(P(cornerX[i]), P(cornerY[i]), P(18), 0, 2 * Math.PI); g.fill(); }
+  }
+}
 function drawFaces() {
   const box = $('faceEditor');
   box.innerHTML = '';
@@ -767,6 +815,11 @@ function drawFaces() {
     drawFaces();
   }));
   page.appendChild(head);
+  const sketch = document.createElement('canvas');
+  sketch.width = 120;
+  sketch.height = 147;
+  page.appendChild(sketch);
+  drawSketch(sketch, v);
   page.appendChild(checkOf(t('Show this page on the watch face', 'Bu sayfa ön yüzde gösterilsin'), (v[4] & Hidden) === 0, (on) => {
     // At least one page stays shown.
     if (!on && faces.filter((f) => (f[4] & Hidden) === 0).length <= 1) { drawFaces(); return; }
@@ -819,7 +872,7 @@ function drawFaces() {
     };
     param.addEventListener('change', () => { v[13 + slot] = Number(param.value); });
     row.appendChild(selectOf(corner ? faceCorners : faceTexts, faceLimits[corner ? 1 : 0], v[5 + slot],
-                             (n) => { v[5 + slot] = n; showParam(); }));
+                             (n) => { v[5 + slot] = n; showParam(); drawSketch(sketch, v); }));
     row.appendChild(param);
     showParam();
     row.appendChild(checkOf(t('always-on', 'beklemede'), (v[21] & (1 << slot)) !== 0,
