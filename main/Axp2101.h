@@ -50,6 +50,11 @@ public:
     // brief touch of the key does not. Logs the value found first: REG27 resets only at POR.
     esp_err_t setPowerOnPress();
 
+    // Sets the VSYS level below which the AXP2101 powers itself off (REG24 VOFF, 2.6-3.3 V in
+    // 0.1 V steps; eFuse default 2.6 V, kept until POR). A backstop under the firmware's own
+    // battery limit (BatteryLimit), for a watch whose firmware never reaches it.
+    esp_err_t setPowerOffVoltage( int millivolts );
+
     // Sets the charger for the small cell of this board: 100 mA constant current, 25 mA precharge
     // and 25 mA termination (power-on values 200, 125 and 125 mA stop charging early).
     esp_err_t setChargeCurrents();

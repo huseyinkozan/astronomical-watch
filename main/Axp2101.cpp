@@ -17,6 +17,7 @@ static const uint8_t REG_MODULE_ENABLE = 0x18;
 static const uint8_t REG_PWRON_STATUS = 0x20;
 static const uint8_t REG_PWROFF_STATUS = 0x21;
 static const uint8_t REG_SLEEP_WAKEUP = 0x26;
+static const uint8_t REG_POWER_OFF_VOLTAGE = 0x24;
 static const uint8_t REG_KEY_TIMING = 0x27;
 static const uint8_t REG_ADC_ENABLE = 0x30;
 static const uint8_t REG_TS_CONTROL = 0x50;
@@ -398,6 +399,27 @@ esp_err_t Axp2101::setPowerOnPress()
         }
     }
     ESP_LOGI( TAG, "Power-on press (REG27) 0x%02X -> 0x%02X %s", before, after, esp_err_to_name( err ) );
+    return err;
+}
+
+esp_err_t Axp2101::setPowerOffVoltage( int millivolts )
+{
+    if ( millivolts < 2600 || millivolts > 3300 ) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    const uint8_t levelMask = 0x07;
+    const uint8_t level = static_cast<uint8_t>( ( millivolts - 2600 ) / 100 );
+    uint8_t before = 0;
+    esp_err_t err = readRegister( REG_POWER_OFF_VOLTAGE, before );
+    uint8_t after = before;
+    if ( err == ESP_OK && ( before & levelMask ) != level ) {
+        err = writeRegister( REG_POWER_OFF_VOLTAGE, ( before & ~levelMask ) | level );
+        if ( err == ESP_OK ) {
+            err = readRegister( REG_POWER_OFF_VOLTAGE, after );
+        }
+    }
+    ESP_LOGI( TAG, "Power-off voltage (REG24) 0x%02X -> 0x%02X (%d mV) %s", before, after, 2600 + ( after & levelMask ) * 100,
+              esp_err_to_name( err ) );
     return err;
 }
 

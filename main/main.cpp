@@ -9,6 +9,7 @@
 #include "Planets.h"
 #include "Sky.h"
 #include "Axp2101.h"
+#include "BatteryLimit.h"
 #include "BatteryLog.h"
 #include "ClockPages.h"
 #include "Corners.h"
@@ -126,12 +127,11 @@ RTC_DATA_ATTR static Zone s_alwaysOnZone;
 RTC_DATA_ATTR static bool s_alwaysOnDevMode;
 // Development mode writes an always-on summary to the event log this often.
 static const int s_statusEveryMinutes = 30;
-// At or below this charge (and not on USB) the watch powers off instead of keeping the always-on
-// face, so that the cell still runs the RTC for days in the off state (CLAUDE.md, power
-// management). The gauge reads too low for a while after a power cycle (docs/hardware.md, run D),
-// so VBAT must agree before the watch switches itself off; 3.65 V is about 10 % on a Li-ion cell.
-static const int s_powerOffPercent = 10;
-static const uint16_t s_powerOffMillivolts = 3650;
+// The AXP2101 powers off below this VSYS by itself (REG24): under BatteryLimit's 3.45 V, with room
+// for the dip of a small cell under the Wi-Fi's and an alarm's current.
+static const int s_pmuPowerOffMillivolts = 3000;
+// A touch reported as pressed without a break for this long ends active mode (runActiveMode).
+static const uint32_t s_touchStuckMs = 60000;
 
 static void logPowerKeyIrq()
 {
@@ -163,6 +163,8 @@ static void fillLook( int page );
 [[maybe_unused]] static bool s_hostNoFace = false;
 // Set by the host command "Y": the next active mode starts without the display, as when it fails.
 RTC_DATA_ATTR [[maybe_unused]] static bool s_hostSkipDisplay = false;
+// Set by the host command "H": the next PWR wake counts as a phantom (phantomPowerKey).
+RTC_DATA_ATTR [[maybe_unused]] static bool s_hostPhantomKey = false;
 static char s_hostLine[32];
 // The scene of the published screenshots, so that they stay the same and do not show the
 // watch's location: Istanbul on 2026-06-21 at 19:19 local time (UTC+3), the local Hijri method.
@@ -341,6 +343,20 @@ static bool pollHostCommands()
         if ( s_hostLine[0] == 'Y' && s_hostLine[1] == '\0' ) {
             s_hostSkipDisplay = true;
             ESP_LOGI( TAG, "The next active mode starts without the display" );
+            continue;
+        }
+        if ( s_hostLine[0] == 'W' && s_hostLine[1] == '\0' ) {
+            // Starves the idle task: the task watchdog must reset the watch with a core dump.
+            ESP_LOGW( TAG, "Busy without a break: the task watchdog should reset the watch" );
+            const int64_t until = esp_timer_get_time() + 10 * 1000000;
+            while ( esp_timer_get_time() < until ) {
+            }
+            ESP_LOGE( TAG, "Still running after 10 s: the task watchdog did not reset" );
+            continue;
+        }
+        if ( s_hostLine[0] == 'H' && s_hostLine[1] == '\0' ) {
+            s_hostPhantomKey = true;
+            ESP_LOGI( TAG, "The next PWR wake counts as a phantom" );
             continue;
         }
         if ( s_hostLine[0] == 'Q' && s_hostLine[1] == '\0' ) {
@@ -1201,6 +1217,7 @@ static int runActiveMode()
     int sinceKeyFlagsMs = 0;
     bool keyFlagsCleared = false;
     bool gpioSawPress = false;
+    uint32_t touchHeldMs = 0;
     while ( true ) {
         const bool secondTick = sinceUpdateMs >= 1000;
         const bool everySecond = s_displayOn && secondTick;
@@ -1268,6 +1285,13 @@ static int runActiveMode()
             const uint32_t touchIdleMs = s_display.inactiveMs();
             if ( touchIdleMs < idleMs ) {
                 idleMs = touchIdleMs;
+            }
+            // A press held this long is a stuck touch controller, not a finger: it would keep
+            // active mode on until the battery runs flat.
+            touchHeldMs = s_display.touchPressed() ? touchHeldMs + 20 : 0;
+            if ( touchHeldMs >= s_touchStuckMs && !s_ringing ) {
+                ESP_LOGW( TAG, "Touch held %u s: active mode ends", static_cast<unsigned>( touchHeldMs / 1000 ) );
+                return 3;
             }
         }
         // Read every time: the settings page can change it.
@@ -1393,7 +1417,7 @@ static bool batteryEmpty( uint16_t millivolts, uint8_t percent )
 #if CONFIG_WATCH_BATTERY_LOG
     return false;
 #else
-    const bool empty = percent <= s_powerOffPercent && millivolts <= s_powerOffMillivolts;
+    const bool empty = BatteryLimit::empty( millivolts, percent );
     if ( empty ) {
         ESP_LOGI( TAG, "Battery at the power-off limit: %u mV, %u %%", millivolts, percent );
     }
@@ -1419,13 +1443,6 @@ static int64_t nextDue()
         }
     }
     return next;
-}
-
-// The battery floor while an alarm is pending (the owner, 2026-11-14: about 2 %, so that the
-// RTC keeps its time), the gauge paired with the voltage as at the 10 % limit.
-static bool batteryAtFloor( uint16_t millivolts, uint8_t percent )
-{
-    return ( percent <= 2 && millivolts <= 3500 ) || millivolts <= 3400;
 }
 
 // To the pending sleep without a face, from active mode or always-on: a wake half a second later
@@ -1460,7 +1477,7 @@ static void pendingTick( i2c_master_bus_handle_t bus, bool pmuReady )
         uint8_t percent = 0;
         bool vbusGood = false;
         if ( s_pmu.readBattery( millivolts, percent, vbusGood ) == ESP_OK && !vbusGood &&
-             batteryAtFloor( millivolts, percent ) ) {
+             BatteryLimit::atFloor( millivolts, percent ) ) {
             powerOff( pmuReady, EventLog::BatteryLimit );
         }
     }
@@ -1497,7 +1514,7 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
             batteryPercent = percent;
             if ( !vbusGood && batteryEmpty( millivolts, percent ) ) {
                 // Below 10 % the face goes; with an alarm pending the watch sleeps on to the floor.
-                if ( alarmPending() && !batteryAtFloor( millivolts, percent ) ) {
+                if ( alarmPending() && !BatteryLimit::atFloor( millivolts, percent ) ) {
                     enterPendingSleep( bus );
                 }
                 powerOff( pmuReady, EventLog::BatteryLimit );
@@ -1568,7 +1585,7 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
         bool vbusGood = false;
         if ( s_pmu.readBattery( millivolts, percent, vbusGood ) == ESP_OK && !vbusGood &&
              batteryEmpty( millivolts, percent ) ) {
-            if ( alarmPending() && !batteryAtFloor( millivolts, percent ) ) {
+            if ( alarmPending() && !BatteryLimit::atFloor( millivolts, percent ) ) {
                 enterPendingSleep( bus );
             }
             powerOff( pmuReady, EventLog::BatteryLimit );
@@ -1711,6 +1728,26 @@ static void soundTest()
 }
 #endif
 
+// A PWR wake that the AXP2101 did not count as a press: a pulse on GPIO10 alone (another
+// project saw 1-2 ms pulses on one board waking it, research notes 2026-11-20; the AXP2101
+// debounces the key and latches REG49 bit1 at a press start, docs/hardware.md). The key must also
+// be up now, so that a real press is never taken for one.
+static bool phantomPowerKey()
+{
+    uint8_t status = 0;
+    if ( s_pmu.readRegister( 0x49, status ) != ESP_OK ) {
+        return false;
+    }
+    bool pressStart = ( status & 0x02 ) != 0;
+#if CONFIG_WATCH_DEV_LOGGING
+    if ( s_hostPhantomKey ) {
+        s_hostPhantomKey = false;
+        pressStart = false;
+    }
+#endif
+    return !pressStart && gpio_get_level( s_powerKeyGpio ) == 0;
+}
+
 extern "C" void app_main( void )
 {
 #if CONFIG_WATCH_SLEEP_ISOLATE_USB_PADS
@@ -1762,6 +1799,17 @@ extern "C" void app_main( void )
 #endif
 
     checkHandled();
+    if ( wake == DeepSleep::Event::WakePowerKey && pmuReady && ( s_alwaysOn.isActive() || s_wakePurpose == WakePanelOff ||
+                                                                 s_wakePurpose == WakeAlarm ) && phantomPowerKey() ) {
+        // Back to the sleep it came from, as after a timer wake (they return only when an alarm
+        // is due, and active mode then rings it).
+        ESP_LOGW( TAG, "PWR wake without a press: back to sleep" );
+        if ( s_alwaysOn.isActive() ) {
+            alwaysOnTick( bus, pmuReady );
+        } else {
+            pendingTick( bus, pmuReady );
+        }
+    }
     if ( wake == DeepSleep::Event::WakeTimer ) {
         if ( s_alwaysOn.isActive() ) {
             alwaysOnTick( bus, pmuReady );
@@ -1833,6 +1881,7 @@ extern "C" void app_main( void )
 #endif
     if ( pmuReady ) {
         s_pmu.setPowerOnPress();
+        s_pmu.setPowerOffVoltage( s_pmuPowerOffMillivolts );
         if ( s_pmu.setChargeCurrents() != ESP_OK ) {
             ESP_LOGE( TAG, "Charger setup failed" );
         }

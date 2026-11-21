@@ -23,7 +23,7 @@ TYPES = {1: 'boot', 2: 'active end', 3: 'always-on end', 4: 'power off', 5: 'alw
 ALARM_ENDS = {1: 'stopped by a tap', 2: 'stopped by PWR', 3: 'ended after 60 s', 4: 'skipped, too late', 5: 'active mode ended'}
 RESETS = ['unknown', 'power-on', 'external pin', 'software', 'PANIC', 'INTERRUPT WATCHDOG', 'TASK WATCHDOG',
           'WATCHDOG', 'deep sleep', 'BROWNOUT', 'SDIO', 'USB', 'JTAG', 'EFUSE', 'POWER GLITCH', 'CPU LOCKUP']
-ACTIVE_ENDS = {1: 'display timeout', 2: 'PWR press'}
+ACTIVE_ENDS = {1: 'display timeout', 2: 'PWR press', 3: 'touch held 60 s (stuck)'}
 POWER_OFFS = {1: 'always-on off or no display', 2: 'no motion', 3: 'battery limit', 4: 'face failed'}
 FLAGS = [(1, 'display'), (2, 'touch'), (4, 'portal'), (8, 'USB'), (16, 'CORE DUMP'), (32, 'no time'),
          (64, 'TOUCH RESET AGAIN'), (128, 'PWR PULL-UP ON')]

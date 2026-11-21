@@ -142,6 +142,10 @@ public:
     // holds the display lock.
     uint32_t inactiveMs();
 
+    // Whether the touch reads as pressed, as of the last inactiveMs() call. A controller that
+    // reports one press for minutes is stuck: it would keep active mode on (main.cpp).
+    bool touchPressed() const;
+
     // The ringing alarm over every page: its name and the time, and a tap anywhere stops it
     // (alarmTapped() once true until the next showAlarm()).
     void showAlarm( const char *name, const char *time );
@@ -335,4 +339,6 @@ private:
     bool m_touchStarted = false;
     static void onTouchCounted( lv_event_t *event );
     uint32_t m_inactiveMs = 0;
+    lv_indev_t *m_touch = nullptr;
+    bool m_touchPressed = false;
 };

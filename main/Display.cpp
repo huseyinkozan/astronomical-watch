@@ -325,6 +325,7 @@ bool Display::start( Settings &settings )
     lv_obj_add_event_cb( pages, onPagesScrolled, LV_EVENT_SCROLL, this );
 
     m_touchStarted = touch != nullptr;
+    m_touch = touch;
     if ( touch != nullptr ) {
         lv_indev_add_event_cb( touch, onTouchCounted, LV_EVENT_PRESSED, this );
         lv_indev_set_scroll_limit( touch, s_scrollLimitPx );
@@ -1491,9 +1492,15 @@ uint32_t Display::inactiveMs()
 {
     if ( m_started && bsp_display_lock( s_lockTimeoutMs ) ) {
         m_inactiveMs = lv_display_get_inactive_time( nullptr );
+        m_touchPressed = m_touch != nullptr && lv_indev_get_state( m_touch ) == LV_INDEV_STATE_PRESSED;
         bsp_display_unlock();
     }
     return m_inactiveMs;
+}
+
+bool Display::touchPressed() const
+{
+    return m_touchPressed;
 }
 
 void Display::showPlanets( int64_t now, const Astronomy::Observer &observer, int utcOffsetMinutes, bool located )

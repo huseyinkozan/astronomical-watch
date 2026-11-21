@@ -93,6 +93,8 @@ development builds `v0.0.1-3-gabc1234-dirty`. A new release is a new tag, pushed
     the display timeout without interaction (default 10 s; user-selectable 5, 10, 20, 30, 60 s)
     the watch goes to always-on, or straight to off when always-on is disabled in the settings.
     A PWR press in active mode does the same at once. Touch cannot wake the watch (GPIO38).
+    A touch reported as pressed without a break for 60 s ends active mode too (a stuck touch
+    controller would keep the display on until the battery is flat).
   - **Always-on**: the panel keeps showing a dim, minimal face from its own memory while the ESP32
     is in deep sleep; a timer wake once per minute updates it. At wide intervals (default every
     10 min) the accelerometer is sampled once; when the watch has not moved for a while (default
@@ -116,7 +118,10 @@ development builds `v0.0.1-3-gabc1234-dirty`. A new release is a new tag, pushed
   - **Battery limit**: at 10 % or less on battery the watch powers off instead of entering or
     keeping always-on, so that the cell keeps the RTC running for days (off state about 40 µA,
     about 1 mAh a day; an estimate). VBAT must also be at most 3.65 V, because the gauge reads
-    too low for a while after a power cycle. The PWR key still starts active mode, and the watch
+    too low for a while after a power cycle; VBAT at most 3.45 V alone is enough, for a gauge that
+    stays high (`main/BatteryLimit.*`, host-tested). Below that the AXP2101 powers itself off at
+    VSYS 3.0 V (REG24, set at each active start) should the firmware never get there. The PWR key
+    still starts active mode, and the watch
     powers off again when it ends. The battery gauge shows red at the limit. Battery-log builds
     ignore the limit. With an alarm pending the watch goes on below the limit without the face,
     down to 2 % with VBAT at most 3.50 V (or VBAT at most 3.40 V), then powers off (the owner,
@@ -130,7 +135,9 @@ development builds `v0.0.1-3-gabc1234-dirty`. A new release is a new tag, pushed
   between motion checks and its INT1 is not used. Touch (GPIO38) and the RTC interrupt (GPIO39)
   cannot wake from deep sleep. A board whose PWR line lacks its pull-up resistor (R11) is found
   by the AXP2101's key flags in active mode and gets the internal pull-up from then on
-  (docs/hardware.md).
+  (docs/hardware.md). A PWR wake from always-on or the alarm sleep that the AXP2101 did not
+  latch as a press (REG49 bit1) while the key is up is a pulse on GPIO10 alone: the watch goes
+  back to that sleep without the display (seen on another project's board, not on ours).
 - Avoid periodic wakeups and background tasks unless they provide a necessary function.
 - Settings are persistent, simple and limited to meaningful user-facing trade-offs.
 
@@ -214,7 +221,8 @@ Event log (`main/EventLog.*`, NVS): boots with their reset reason, the end of ea
 (touches, touch controller state), the end of always-on and power-offs, with battery, smallest
 heap and stack margins. Written once at the event, never at every minute wake; the development
 mode setting (settings page) adds an always-on summary every 30 min. A crash leaves a core dump
-in its flash partition. Read both over USB: `python tools/read_events.py`, then
+in its flash partition; so does a task that starves the idle task for 5 s (the task watchdog
+resets the watch instead of only warning; development command "W" tests it). Read both over USB: `python tools/read_events.py`, then
 `idf.py -p /dev/ttyACM0 coredump-info`.
 
 - Small, focused modules; no layers or abstractions without a clear benefit.

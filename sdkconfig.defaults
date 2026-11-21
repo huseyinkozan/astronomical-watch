@@ -47,6 +47,10 @@ CONFIG_FREERTOS_WATCHPOINT_END_OF_STACK=y
 CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH=y
 CONFIG_ESP_COREDUMP_DATA_FORMAT_ELF=y
 CONFIG_ESP_COREDUMP_CHECK_BOOT=n
+# A task that starves the idle tasks for 5 s resets the watch with a core dump, instead of only
+# printing a warning to a console nobody reads on the wrist: a hung watch would otherwise stay
+# awake until the battery is flat. No test log since M1 shows the warning (2026-11-21).
+CONFIG_ESP_TASK_WDT_PANIC=y
 
 # Quad flash reads, as in the Waveshare examples for this board, and 64-byte data cache lines:
 # LVGL waits on flash reads (code and fonts), so this made scrolling about 1.5 times faster

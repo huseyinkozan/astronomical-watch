@@ -295,6 +295,9 @@ PWR key [HW]:
   although their IRQs are disabled. After a PWR wake REG49 reads short, long (key held 1.5 s)
   and press start set [HW, 2026-11-16]. The AXP2101 debounces: a press caught on GPIO10 within
   20 ms may not have set bit1 yet.
+- REG24 VOFF (VSYS power-off level, bits 2:0, 2.6-3.3 V in 0.1 V steps, reset at POR to an eFuse
+  value [DS §6.5.4.3, §6.13.2.22]) read `0x00` = 2.6 V on this board; the firmware writes 3.0 V
+  (`0x04`) at each active start [HW, 2026-11-21].
 
 Second board without the PWR key pull-up [HW, 2026-11-15/16] (MAC 28:84:85:b4:fd:90, PCB rev
 not printed; battery replaced by a Sertec 402030 3.7 V 200 mAh cell with BMS):
@@ -359,6 +362,11 @@ Off mode [HW] (guided test `off`, 2026-10-31; `main/Axp2101.*`):
 ### Display (CO5300 AMOLED, 410 × 502, QSPI)
 - The BSP drives it with the `esp_lcd_sh8601` driver: RGB565, x-gap 22, QSPI 40 MHz; it offers
   display on/off (0x29/0x28) and brightness (0x51) only. `bsp_display_start()` always resets the panel [REF].
+- QSPI clock: the CO5300 needs a write clock cycle of at least 20 ns, so at most 50 MHz, and 100 ns
+  for reads [DS V0.01 §6.4]. The ESP32-S3's SPI clock divides the 80 MHz APB clock, so 40 MHz is
+  the fastest clock within the datasheet; 80 MHz is 1.6 times over it. Another project runs 80 MHz
+  on two boards (a full frame 12.6 ms instead of 22.8 ms; chipguyhere, research notes 2026-11-20);
+  not used here (2026-11-21): out of the datasheet, for smoother swipes only, no battery gain.
 - CO5300 commands: 0x28 display off, 0x10 sleep in, 0x11 sleep out (wait 120 ms; must precede 0x29),
   0x39 idle mode, 0x4F deep standby, 0x51 brightness [REF].
 - Mirroring, MADCTL (0x36): the datasheet (V0.01, §7.5.29) gives MY = bit 7 (rows bottom to top) and
