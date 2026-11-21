@@ -92,6 +92,7 @@ private:
     static esp_err_t onPage( httpd_req_t *request );
     static esp_err_t onCities( httpd_req_t *request );
     static esp_err_t onHelp( httpd_req_t *request );
+    static esp_err_t onToolsHelp( httpd_req_t *request );
     static esp_err_t onCard( httpd_req_t *request );
     static esp_err_t onCardSave( httpd_req_t *request );
     static esp_err_t onUpdatePage( httpd_req_t *request );

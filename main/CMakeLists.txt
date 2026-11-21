@@ -23,7 +23,7 @@ idf_component_register(SRCS ${srcs}
 # source always gives the same bytes. The custom target makes the component wait for them.
 if(CONFIG_WATCH_SETUP_PORTAL)
     set(portal_gz "")
-    foreach(name "index.html" "cities.js" "help.html" "update.html")
+    foreach(name "index.html" "cities.js" "help.html" "tools.html" "update.html")
         set(gz "${CMAKE_CURRENT_BINARY_DIR}/${name}.gz")
         add_custom_command(OUTPUT "${gz}"
                            COMMAND gzip -9 -n -c "${COMPONENT_DIR}/portal/${name}" > "${gz}"

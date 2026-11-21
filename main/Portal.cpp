@@ -37,6 +37,8 @@ extern const char s_citiesStart[] asm( "_binary_cities_js_gz_start" );
 extern const char s_citiesEnd[] asm( "_binary_cities_js_gz_end" );
 extern const char s_helpStart[] asm( "_binary_help_html_gz_start" );
 extern const char s_helpEnd[] asm( "_binary_help_html_gz_end" );
+extern const char s_toolsHelpStart[] asm( "_binary_tools_html_gz_start" );
+extern const char s_toolsHelpEnd[] asm( "_binary_tools_html_gz_end" );
 extern const char s_updateStart[] asm( "_binary_update_html_gz_start" );
 extern const char s_updateEnd[] asm( "_binary_update_html_gz_end" );
 
@@ -205,9 +207,10 @@ esp_err_t Portal::start( const Settings &settings, const WorldClock &worldClock,
         stop();
         return err;
     }
-    const httpd_uri_t handlers[12] = {
+    const httpd_uri_t handlers[13] = {
         { "/", HTTP_GET, onPage, this },
         { "/help", HTTP_GET, onHelp, this },
+        { "/tools", HTTP_GET, onToolsHelp, this },
         { "/api/card", HTTP_GET, onCard, this },
         { "/api/card", HTTP_POST, onCardSave, this },
         { "/update", HTTP_GET, onUpdatePage, this },
@@ -219,7 +222,7 @@ esp_err_t Portal::start( const Settings &settings, const WorldClock &worldClock,
         { "/api/ping", HTTP_GET, onPing, this },
         { "/api/save", HTTP_POST, onSave, this },
     };
-    for ( int i = 0; i < 12; ++i ) {
+    for ( int i = 0; i < 13; ++i ) {
         httpd_register_uri_handler( m_server, &handlers[i] );
     }
     httpd_register_err_handler( m_server, HTTPD_404_NOT_FOUND, onNotFound );
@@ -346,6 +349,14 @@ esp_err_t Portal::onHelp( httpd_req_t *request )
     httpd_resp_set_type( request, "text/html; charset=utf-8" );
     httpd_resp_set_hdr( request, "Content-Encoding", "gzip" );
     return httpd_resp_send( request, s_helpStart, s_helpEnd - s_helpStart );
+}
+
+esp_err_t Portal::onToolsHelp( httpd_req_t *request )
+{
+    static_cast<Portal *>( request->user_ctx )->touch();
+    httpd_resp_set_type( request, "text/html; charset=utf-8" );
+    httpd_resp_set_hdr( request, "Content-Encoding", "gzip" );
+    return httpd_resp_send( request, s_toolsHelpStart, s_toolsHelpEnd - s_toolsHelpStart );
 }
 
 esp_err_t Portal::onUpdatePage( httpd_req_t *request )

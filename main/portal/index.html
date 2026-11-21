@@ -61,7 +61,8 @@
 <main>
 <h1>Astronomical Watch</h1>
 <div class="row">
-  <div><p><a href="/help" id="helpLink" data-tr="Saatin kullanımı">How to use the watch</a></p></div>
+  <div><p><a href="/help" id="helpLink" data-tr="Saatin kullanımı">How to use the watch</a><br>
+    <a href="/tools" id="toolsLink" data-tr="Araçlar ve gözlem">Tools and observing</a></p></div>
   <div><select id="language" aria-label="Language / Dil"><option value="0">English</option><option value="1">Türkçe</option></select></div>
 </div>
 
@@ -327,6 +328,7 @@ function translatePage() {
     element.placeholder = L === 1 ? element.dataset.trPh : element.dataset.enPh;
   }
   $('helpLink').href = L === 1 ? '/help#tr' : '/help';
+  $('toolsLink').href = L === 1 ? '/tools?tr' : '/tools';
 }
 
 function offsetText(minutes) {
