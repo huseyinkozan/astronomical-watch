@@ -252,8 +252,10 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   A wake starts at the face; a swipe shows the launcher, a second one the opened page. The launcher
   shows "Pages" at the top like the stacked pages, under it a list that scrolls with momentum: each
   stacked page's name in grey, then its parts as rows (68 px high, six fit, one width, a faint
-  1 px outline), in the portal's order without the hidden parts; a tap opens that part on the
-  third tile and slides there. The stacked pages: clock (world clock, stopwatch, countdown,
+  1 px outline), the pages and their parts in the portal's order (`Settings::PagesOrder` and the
+  part orders) without the hidden parts; a tap opens that part on the third tile and slides there.
+  Off screen, the list is scrolled so that the last opened part's row is the second from the top,
+  its outline brighter; a mark at the right edge, like the part marks, shows the scroll position. The stacked pages: clock (world clock, stopwatch, countdown,
   Gregorian and Hijri calendars, day counters, alarms; `main/ClockPages.*`), information (sun,
   twilight, prayer times, moon, compass, time, battery, about), planets (the seven planets and the
   Earth: the solar system on a logarithmic scale, the sky seen from the south, the day's rise and

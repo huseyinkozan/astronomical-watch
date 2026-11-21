@@ -47,6 +47,7 @@ public:
                          // around); the portal, or PWR while a brightness drag is held (Display)
         PlanetsOrder,    // the planets page's parts (PartOrder)
         PlanetsHidden,
+        PagesOrder,      // the order of the launcher's pages (PartOrder; Display.cpp, Page)
         ItemCount
     };
     // The items before this one are on the watch's settings page; FaceStyle is chosen by a

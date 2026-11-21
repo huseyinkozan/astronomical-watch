@@ -709,16 +709,23 @@ void Display::fillLauncher()
 {
     lv_obj_clean( m_launcherList );
     int y = s_listPad;
-    for ( int page = 0; page < PageCount; ++page ) {
+    int pages[PartOrder::MaxParts] = {};
+    const int pageCount = PartOrder::decode( m_settings->value( Settings::PagesOrder ), 0, PageCount, -1, pages );
+    for ( int p = 0; p < pageCount; ++p ) {
+        const int page = pages[p];
         const PageEntry &entry = s_pageEntries[page];
+        int parts[PartOrder::MaxParts] = {};
+        const int shown = decodeOrder( page, parts );
+        // No name without rows (PartOrder::decode keeps one part shown today).
+        if ( shown == 0 ) {
+            continue;
+        }
         lv_obj_t *name = lv_label_create( m_launcherList );
         Styles::text( name, &jetbrains_mono_26, lv_color_hex( 0xA0A0A0 ) );
         lv_label_set_text_static( name, Language::text( entry.name ) );
         lv_obj_set_pos( name, s_launcherNameX, y + ( s_launcherNameHeight - 30 ) / 2 );
         lv_obj_set_clickable( name, false );
         y += s_launcherNameHeight;
-        int parts[PartOrder::MaxParts] = {};
-        const int shown = decodeOrder( page, parts );
         for ( int i = 0; i < shown; ++i ) {
             lv_obj_t *row = lv_obj_create( m_launcherList );
             lv_obj_remove_style_all( row );

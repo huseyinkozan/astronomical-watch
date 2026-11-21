@@ -196,7 +196,7 @@
 
 <fieldset>
   <legend data-tr="Sayfalar">Pages</legend>
-  <small data-tr="Dikey kaydırmanın geçtiği parçaların sırası ve hangilerinin gösterileceği.">The order of the parts a vertical swipe steps through, and which of them to show.</small>
+  <small data-tr="Saatin sayfa listesindeki sayfaların sırası; dikey kaydırmanın geçtiği parçaların sırası ve hangilerinin gösterileceği.">The order of the pages in the watch's page list; the order of the parts a vertical swipe steps through, and which of them to show.</small>
   <div id="orders"></div>
 </fieldset>
 </section>
@@ -473,6 +473,9 @@ showZone();
 // Orders and hidden parts (main/PartOrder.h): part numbers in 3-bit fields, hidden ones as bits.
 // Titles and names as [English, Turkish].
 const orderLists = [
+  // The launcher's pages (Display.cpp, Page); a page is not hidden, only its parts.
+  { title: ['Order of the pages', 'Sayfaların sırası'], order: 'pagesOrder',
+    names: [['Clock', 'Saat'], ['Information', 'Bilgi'], ['Planets', 'Gezegen'], ['Settings', 'Ayar']] },
   { title: ['Clock page', 'Saat sayfası'], order: 'clockOrder', hidden: 'clockHidden',
     names: [['World clock', 'Dünya saati'], ['Stopwatch', 'Kronometre'], ['Timer', 'Geri sayım'],
             ['Gregorian calendar', 'Miladi takvim'], ['Hijri calendar', 'Hicri takvim'], ['Day counters', 'Gün sayaçları'], ['Alarms', 'Alarmlar']] },

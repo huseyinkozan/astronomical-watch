@@ -64,6 +64,7 @@ static const ItemInfo s_items[Settings::ItemCount] = {
     { "mirror", 0, 0, {}, 0, 3 },
     { "plan_order", 0, 0, {}, 0, 16777215 },
     { "plan_hidden", 0, 0, {}, 0, 255 },
+    { "pages_order", 0, 0, {}, 0, 16777215 },
 };
 
 static int indexOf( const ItemInfo &info, int value )
