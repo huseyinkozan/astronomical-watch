@@ -57,7 +57,11 @@ static const char *s_fieldNames[] = { "timeout", "alwaysOn", "devMode",    "auto
                                                          "pagesOrder", "toolsOrder", "toolsHidden", "observingOrder",
                                                          "observingHidden",
                                                          // Set by the watch itself (the counter).
-                                                         "counter", "counterTarget", "counterStart" };
+                                                         "counter", "counterTarget", "counterStart",
+                                                         "scopeFocal", "scopeAperture", "ep1Focal", "ep1Field",
+                                                         "ep2Focal", "ep2Field", "ep3Focal", "ep3Field", "ep4Focal",
+                                                         "ep4Field", "camFocal", "camFNumber", "camSensor",
+                                                         "baseShutter", "ndStops", "trailMinutes", "trailInterval" };
 // One name per setting: a missing one would be read as a null name.
 static_assert( sizeof( s_fieldNames ) / sizeof( s_fieldNames[0] ) == Settings::ItemCount, "a field name per setting" );
 
@@ -394,7 +398,14 @@ esp_err_t Portal::onState( httpd_req_t *request )
         snprintf( json + used, jsonSize - used, "%s[\"%s\",\"%s\"]", i == 0 ? "" : ",", world.city( i ).name,
                   world.city( i ).zoneName );
     }
-    strlcat( json, "],\"days\":[", jsonSize );
+    strlcat( json, "]", jsonSize );
+    // The observing page's equipment, by the field names.
+    for ( int i = Settings::ScopeFocal; i < Settings::ItemCount; ++i ) {
+        const int used = strlen( json );
+        snprintf( json + used, jsonSize - used, ",\"%s\":%d", s_fieldNames[i],
+                  settings.value( static_cast<Settings::Item>( i ) ) );
+    }
+    strlcat( json, ",\"days\":[", jsonSize );
     const DayCounters &counters = *portal->m_counters;
     for ( int i = 0; i < counters.count(); ++i ) {
         const time_t when = static_cast<time_t>( counters.counter( i ).day ) * 86400;

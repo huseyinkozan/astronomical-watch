@@ -58,6 +58,24 @@ public:
         CounterValue,
         CounterTarget,   // Tally::Target
         CounterStart,    // the first count's minute since 1970 UTC, 0: none
+        // The observing page's equipment (ObservingPages, Optics), from the setup portal.
+        ScopeFocal,      // the telescope's focal length, mm
+        ScopeAperture,   // mm
+        Eyepiece1Focal,  // tenths of a mm, 0: none
+        Eyepiece1Field,  // the apparent field, degrees
+        Eyepiece2Focal,
+        Eyepiece2Field,
+        Eyepiece3Focal,
+        Eyepiece3Field,
+        Eyepiece4Focal,
+        Eyepiece4Field,
+        CameraFocal,     // the lens's focal length, mm
+        CameraFNumber,   // tenths
+        CameraSensor,    // an index of Optics::Sensors
+        BaseShutter,     // the ND calculator's shutter speed without the filter, Optics::shutterSeconds
+        NdStops,
+        TrailMinutes,    // a star-trail series' length
+        TrailInterval,   // seconds from one frame to the next
         ItemCount
     };
     // The items before this one are on the watch's settings page; FaceStyle is chosen by a

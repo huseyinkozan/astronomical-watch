@@ -198,6 +198,54 @@
 </fieldset>
 
 <fieldset>
+  <legend data-tr="Gözlem donanımı">Observing equipment</legend>
+  <small data-tr="Gözlem sayfasının mercek ve gece fotoğrafı hesapları bunları kullanır.">The Observing page's eyepiece and night photo calculators use these.</small>
+  <div class="row">
+    <div><label for="scopeFocal" data-tr="Teleskop odak (mm)">Telescope focal (mm)</label>
+    <input id="scopeFocal" type="number" min="100" max="6000" step="1"></div>
+    <div><label for="scopeAperture" data-tr="Açıklık (mm)">Aperture (mm)</label>
+    <input id="scopeAperture" type="number" min="30" max="600" step="1"></div>
+  </div>
+  <label data-tr="Mercekler: odak (mm) ve görünür alan (°); boş odak: yok">Eyepieces: focal (mm) and apparent field (°); an empty focal: none</label>
+  <div class="row">
+    <div><input id="ep1Focal" type="number" min="2" max="100" step="0.1" aria-label="1"></div>
+    <div><input id="ep1Field" type="number" min="30" max="120" step="1" aria-label="1"></div>
+  </div>
+  <div class="row">
+    <div><input id="ep2Focal" type="number" min="2" max="100" step="0.1" aria-label="2"></div>
+    <div><input id="ep2Field" type="number" min="30" max="120" step="1" aria-label="2"></div>
+  </div>
+  <div class="row">
+    <div><input id="ep3Focal" type="number" min="2" max="100" step="0.1" aria-label="3"></div>
+    <div><input id="ep3Field" type="number" min="30" max="120" step="1" aria-label="3"></div>
+  </div>
+  <div class="row">
+    <div><input id="ep4Focal" type="number" min="2" max="100" step="0.1" aria-label="4"></div>
+    <div><input id="ep4Field" type="number" min="30" max="120" step="1" aria-label="4"></div>
+  </div>
+  <div class="row">
+    <div><label for="camFocal" data-tr="Objektif odak (mm)">Lens focal (mm)</label>
+    <input id="camFocal" type="number" min="4" max="800" step="1"></div>
+    <div><label for="camFNumber" data-tr="Diyafram (f/)">Aperture (f/)</label>
+    <input id="camFNumber" type="number" min="1" max="22" step="0.1"></div>
+  </div>
+  <label for="camSensor" data-tr="Sensör">Sensor</label>
+  <select id="camSensor"></select>
+  <div class="row">
+    <div><label for="baseShutter" data-tr="ND'siz enstantane">Shutter without ND</label>
+    <select id="baseShutter"></select></div>
+    <div><label for="ndStops" data-tr="ND filtre (durak)">ND filter (stops)</label>
+    <input id="ndStops" type="number" min="0" max="20" step="1"></div>
+  </div>
+  <div class="row">
+    <div><label for="trailMinutes" data-tr="Yıldız izi (dk)">Star trails (min)</label>
+    <input id="trailMinutes" type="number" min="1" max="600" step="1"></div>
+    <div><label for="trailInterval" data-tr="Kare arası (sn)">Every (s)</label>
+    <input id="trailInterval" type="number" min="1" max="600" step="1"></div>
+  </div>
+</fieldset>
+
+<fieldset>
   <legend data-tr="Sayfalar">Pages</legend>
   <small data-tr="Saatin sayfa listesindeki sayfaların sırası; dikey kaydırmanın geçtiği parçaların sırası ve hangilerinin gösterileceği.">The order of the pages in the watch's page list; the order of the parts a vertical swipe steps through, and which of them to show.</small>
   <div id="orders"></div>
@@ -277,6 +325,12 @@ function fillLists() {
   fill($('bootCounter'), [[1, t('Counts (+1)', 'Sayar (+1)')], [0, t('Goes back', 'Geri gider')]], keep('bootCounter'));
   fill($('nightMode'), [[1, t('Auto', 'Oto')], [0, off]], keep('nightMode'));
   fill($('isha'), [[17, t('17° (Turkey)', '17° (Türkiye)')], [16, '16°']], keep('isha'));
+  // Optics::Sensors and Optics::shutterSeconds.
+  fill($('camSensor'), [[0, t('Full frame (5.9 µm pixels)', 'Tam kare (5,9 µm piksel)')], [1, t('APS-C 1.5× (3.9 µm)', 'APS-C 1,5× (3,9 µm)')],
+                        [2, t('APS-C 1.6×, Canon (3.7 µm)', 'APS-C 1,6×, Canon (3,7 µm)')], [3, t('Micro 4/3 (3.3 µm)', 'Micro 4/3 (3,3 µm)')],
+                        [4, t('1 inch (2.4 µm)', '1 inç (2,4 µm)')]], keep('camSensor'));
+  fill($('baseShutter'), ['1/8000', '1/4000', '1/2000', '1/1000', '1/500', '1/250', '1/125', '1/60', '1/30', '1/15', '1/8', '1/4',
+                          '1/2', '1', '2', '4', '8', '15', '30'].map((v, i) => [i, v + ' s']), keep('baseShutter'));
   fill($('mirror'), [[0, t('Normal', 'Normal')], [3, t('Turned around (180°)', 'Ters çevrilmiş (180°)')],
                      [1, t('Mirrored left-right', 'Sağ-sol aynalı')], [2, t('Mirrored top-bottom', 'Alt-üst aynalı')]], keep('mirror'));
 }
@@ -477,7 +531,8 @@ showZone();
 // Orders and hidden parts (main/PartOrder.h): part numbers in 3-bit fields, hidden ones as bits.
 // Titles and names as [English, Turkish]. A page without parts yet (observing) has no list, and
 // its row in the pages' order stays out (null) while keeping its number.
-const observingParts = [['Astrolabe', 'Usturlap']];
+const observingParts = [['Astrolabe', 'Usturlap'], ['Polar alignment', 'Kutup hizalama'], ['Milky Way window', 'Samanyolu penceresi'],
+                        ['Deep-sky finder', 'Derin gökyüzü'], ['Eyepieces', 'Mercekler'], ['Night photo', 'Gece fotoğrafı']];
 const orderLists = [
   // The launcher's pages (Display.cpp, Page); a page is not hidden, only its parts.
   { title: ['Order of the pages', 'Sayfaların sırası'], order: 'pagesOrder',
@@ -961,6 +1016,7 @@ fetch('/api/state').then((r) => r.json()).then((s) => {
   if (s.language !== undefined) setLanguage(s.language);
   $('version').textContent = s.version || '?';
   for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'hijri', 'aodDay', 'aodNight', 'devMode', 'usbStayOn', 'nightMode', 'isha', 'mirror', 'bootCounter']) $(id).value = String(s[id]);
+  setEquipment(s);
   setOrders(s);
   if (s.faceItems) faceLimits = s.faceItems;
   if (s.faceDefaults) defaultFaces = s.faceDefaults;
@@ -999,11 +1055,26 @@ async function roundTrip() {
   return Math.round(best);
 }
 
+// The observing equipment (main/Settings.h): whole numbers, the eyepieces' focal lengths and
+// the f-number in tenths; an empty eyepiece focal is 0 (none).
+const equipment = ['scopeFocal', 'scopeAperture', 'camFocal', 'camSensor', 'baseShutter', 'ndStops', 'trailMinutes', 'trailInterval'];
+const tenthsFields = ['ep1Focal', 'ep2Focal', 'ep3Focal', 'ep4Focal', 'camFNumber'];
+const eyepieceFields = ['ep1Field', 'ep2Field', 'ep3Field', 'ep4Field'];
+function setEquipment(s) {
+  for (const id of equipment.concat(eyepieceFields)) if (s[id] !== undefined) $(id).value = String(s[id]);
+  for (const id of tenthsFields) if (s[id] !== undefined) $(id).value = s[id] > 0 ? String(s[id] / 10) : '';
+}
+function equipmentFields(fields) {
+  for (const id of equipment.concat(eyepieceFields)) if ($(id).value !== '') fields.set(id, String(Math.round(Number($(id).value))));
+  for (const id of tenthsFields) fields.set(id, String(Math.round(Number($(id).value || 0) * 10)));
+}
+
 $('save').addEventListener('click', async () => {
   $('status').textContent = t('Saving…', 'Kaydediliyor…');
   try {
     const fields = new URLSearchParams();
     for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'offset', 'hijri', 'aodDay', 'aodNight', 'devMode', 'usbStayOn', 'nightMode', 'isha', 'language', 'mirror', 'bootCounter']) fields.set(id, $(id).value);
+    equipmentFields(fields);
     // The own zone's clock changes, unless the offset was set by hand.
     const home = zoneValid(homeZone) ? zoneInfo(homeZone) : null;
     const byZone = home !== null && String(home[0]) === $('offset').value;
