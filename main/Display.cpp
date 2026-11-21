@@ -75,7 +75,8 @@ enum Page
     InfoPage,       // the information parts, one over the other (InfoPart)
     PlanetsPage,    // the solar system, the sky, rise and set, distances (PlanetPages)
     SettingsPage,   // the settings, and under them the setup portal
-    ToolsPage,      // torch, counter, random, calculator, unit converter, spirit level (ToolPages)
+    ToolsPage,      // torch, counter, random, calculator, unit converter, spirit level, metronome,
+                    // emergency card (ToolPages)
     ObservingPage,  // polar alignment ... nautical almanac, astrolabe, aiming (ObservingPages)
     PageCount
 };
@@ -101,9 +102,9 @@ static const Language::Text s_infoParts[Display::InfoCount] = {
     Language::Battery, Language::PartAbout };
 static const Language::Text s_planetsParts[PlanetPages::PartCount] = {
     Language::PartSolarSystem, Language::PartSky, Language::RiseAndSet, Language::Distance };
-static const Language::Text s_toolsParts[ToolPages::PartCount] = { Language::PartTorch, Language::PartCounter,
-                                                                    Language::PartRandom, Language::PartCalculator,
-                                                                    Language::PartConverter, Language::PartLevel };
+static const Language::Text s_toolsParts[ToolPages::PartCount] = {
+    Language::PartTorch,     Language::PartCounter, Language::PartRandom,    Language::PartCalculator,
+    Language::PartConverter, Language::PartLevel,   Language::PartMetronome, Language::PartCard };
 static const Language::Text s_observingParts[ObservingPages::PartCount] = {
     Language::PartAstrolabe, Language::PartPolar, Language::PartMilkyWay, Language::PartDeepSky, Language::PartEyepiece,
     Language::PartPhoto, Language::PartAlmanac, Language::PartAiming };
@@ -192,6 +193,7 @@ struct Shot
     { "deep-sky", ObservingPage, ObservingPages::DeepSkyPart }, { "eyepiece", ObservingPage, ObservingPages::EyepiecePart },
     { "photo", ObservingPage, ObservingPages::PhotoPart }, { "almanac", ObservingPage, ObservingPages::AlmanacPart },
     { "aiming", ObservingPage, ObservingPages::AimingPart },
+    { "metronome", ToolsPage, ToolPages::MetronomePart }, { "card", ToolsPage, ToolPages::CardPart },
 };
 [[maybe_unused]] static const int s_shotCount = sizeof( s_shots ) / sizeof( s_shots[0] );
 
@@ -657,8 +659,12 @@ int Display::decodeOrder( int page, int parts[PartOrder::MaxParts] ) const
     const int alwaysShown = -1;
 #endif
     const PageEntry &entry = s_pageEntries[page];
-    return PartOrder::decode( m_settings->value( entry.order ), m_settings->value( entry.hidden ), entry.partCount,
-                              alwaysShown, parts );
+    int hidden = m_settings->value( entry.hidden );
+    // The emergency card shows only once the portal has given it a text.
+    if ( page == ToolsPage && m_card.empty() ) {
+        hidden |= 1 << ToolPages::CardPart;
+    }
+    return PartOrder::decode( m_settings->value( entry.order ), hidden, entry.partCount, alwaysShown, parts );
 }
 
 StackPage &Display::stack( int page )
@@ -714,7 +720,7 @@ void Display::ensureApp()
         m_planets.build( m_tiles[AppTile] );
         applyOrders();
     } else if ( page == ToolsPage ) {
-        m_tools.build( m_tiles[AppTile], m_pages, *m_settings, m_motion, onTorchLevel, this );
+        m_tools.build( m_tiles[AppTile], m_pages, *m_settings, m_motion, m_card, onTorchLevel, this );
         applyOrders();
     } else if ( page == ObservingPage ) {
         m_observing.build( m_tiles[AppTile], *m_settings, m_motion );
@@ -1552,6 +1558,7 @@ void Display::updateBrightness()
         // Not a brightness, but shown and hidden with the same parts: the accelerometer runs
         // only while the level shows.
         m_tools.setLevelShown( app && m_tools.stack().current() == ToolPages::LevelPart );
+        m_tools.setMetronomeShown( app && m_tools.stack().current() == ToolPages::MetronomePart );
     }
     if ( m_appPage == ObservingPage ) {
         m_observing.setShown( app ? m_observing.stack().current() : -1 );
@@ -1661,9 +1668,10 @@ void Display::stop()
         // No beeps into deep sleep, and the accelerometer powered down.
         m_tools.setTorchShown( false );
         m_tools.setLevelShown( false );
+        m_tools.setMetronomeShown( false );
         m_observing.setShown( -1 );
         Ringer ringer;
-        ringer.stopSos( true );
+        ringer.stopTool( true );
     }
 }
 
@@ -1750,6 +1758,22 @@ void Display::setCounters( const DayCounters &counters )
         return;
     }
     m_clock.setCounters( counters );
+    bsp_display_unlock();
+}
+
+void Display::setCard( const EmergencyCard &card )
+{
+    if ( !m_started ) {
+        m_card = card;
+        return;
+    }
+    if ( !bsp_display_lock( s_lockTimeoutMs ) ) {
+        return;
+    }
+    m_card = card;
+    m_tools.setCard( card );
+    applyOrders();
+    fillLauncher();
     bsp_display_unlock();
 }
 
@@ -2048,7 +2072,7 @@ uint32_t Display::inactiveMs()
     if ( m_started && bsp_display_lock( s_lockTimeoutMs ) ) {
         m_inactiveMs = lv_display_get_inactive_time( nullptr );
         m_touchPressed = m_touch != nullptr && lv_indev_get_state( m_touch ) == LV_INDEV_STATE_PRESSED;
-        m_torchLeft = m_torchShown ? m_tools.torchSecondsLeft() : -1;
+        m_toolLeft = m_torchShown ? m_tools.torchSecondsLeft() : m_tools.metronomeSecondsLeft();
         m_regattaRunning = m_clock.serviceRegatta();
         bsp_display_unlock();
     }
@@ -2060,9 +2084,9 @@ bool Display::touchPressed() const
     return m_touchPressed;
 }
 
-int Display::torchSecondsLeft() const
+int Display::toolSecondsLeft() const
 {
-    return m_torchLeft;
+    return m_toolLeft;
 }
 
 bool Display::regattaRunning() const

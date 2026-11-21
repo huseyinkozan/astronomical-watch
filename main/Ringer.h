@@ -10,14 +10,23 @@ class Ringer
 {
 public:
     // Starts the sound; false when the task or the codec could not start. The torch's SOS beeps
-    // stop for it.
+    // and the metronome stop for it.
     bool start();
 
     // The torch's SOS beeps (ToolPages) at the alarm's lowest level, on the clock of the light
-    // (Morse::sosLit from `startUs`, esp_timer time) until stopSos() or stop(). Nothing happens
-    // while an alarm rings. stopSos() does not wait; `wait`: until the codec is powered down.
+    // (Morse::sosLit from `startUs`, esp_timer time) until stopTool() or stop(). Nothing happens
+    // while an alarm rings.
     bool startSos( int64_t startUs );
-    void stopSos( bool wait );
+
+    // The metronome's beats (ToolParts) at the alarm's lowest level: one every `periodUs` from
+    // `startUs` (esp_timer time), 1000 Hz, the first of every `beatsInBar` at 1500 Hz (below 2:
+    // no accent). While the beats play, a call only sets the new clock (no new codec start).
+    // Nothing happens while an alarm rings.
+    bool startBeats( int64_t startUs, int64_t periodUs, int beatsInBar );
+
+    // Stops the SOS beeps or the metronome; does not wait unless `wait`: until the codec is
+    // powered down.
+    void stopTool( bool wait );
 
     // A short signal (the regatta start's, Regatta::Signal): `beeps` tones of `toneMs` at 1000 Hz
     // and the lowest level, 150 ms apart, then the codec is powered down. False, and nothing

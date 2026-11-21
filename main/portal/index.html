@@ -248,6 +248,27 @@
 </fieldset>
 
 <fieldset>
+  <legend data-tr="Acil durum kartı">Emergency card</legend>
+  <small data-tr="Araçlar sayfasında, bir yardımcının okuması için. Bir alan doluyken gösterilir (Sayfalar'dan gizlenebilir); hepsi boşken gizlidir. Türkçe harfler iki yer tutar; başka işaretler saatte görünmez.">On the Tools page, for a helper to read. Shown while a field is filled (it can be hidden under Pages), hidden while all are empty. Turkish letters take two places; other marks do not show on the watch.</small>
+  <label for="cardName" data-tr="Ad soyad">Name</label>
+  <input id="cardName" class="card" autocomplete="off">
+  <div class="row">
+    <div><label for="cardBlood" data-tr="Kan grubu">Blood type</label>
+    <input id="cardBlood" class="card" autocomplete="off" placeholder="A Rh+" data-bytes="7"></div>
+    <div><label for="cardPhone" data-tr="Yakının telefonu">Contact's phone</label>
+    <input id="cardPhone" class="card" type="tel" autocomplete="off" data-bytes="19"></div>
+  </div>
+  <label for="cardContact" data-tr="Yakınının adı">Contact's name</label>
+  <input id="cardContact" class="card" autocomplete="off">
+  <label for="cardAllergies" data-tr="Alerjiler">Allergies</label>
+  <input id="cardAllergies" class="card" autocomplete="off">
+  <label for="cardMedication" data-tr="İlaçlar">Medication</label>
+  <input id="cardMedication" class="card" autocomplete="off">
+  <label for="cardNote" data-tr="Not">Note</label>
+  <input id="cardNote" class="card" autocomplete="off">
+</fieldset>
+
+<fieldset>
   <legend data-tr="Sayfalar">Pages</legend>
   <small data-tr="Saatin sayfa listesindeki sayfaların sırası; dikey kaydırmanın geçtiği parçaların sırası ve hangilerinin gösterileceği.">The order of the pages in the watch's page list; the order of the parts a vertical swipe steps through, and which of them to show.</small>
   <div id="orders"></div>
@@ -394,13 +415,16 @@ function showZone() {
 }
 
 // Names on the watch: its font has ASCII and the Turkish letters; other letters lose their marks.
-function watchName(name) {
+// At most `size` UTF-8 bytes (23: the watch's name fields).
+function fitBytes(text, size) {
+  const bytes = new TextEncoder();
+  while (bytes.encode(text).length > size) text = [...text].slice(0, -1).join('');
+  return text;
+}
+function watchName(name, size = 23) {
   let out = '';
   for (const ch of name) out += 'çğıöşüÇĞİÖŞÜ'.includes(ch) ? ch : ch.normalize('NFD').replace(/[^\x20-\x7e]/g, '');
-  out = out.replace(/[|"\\]/g, ' ').trim();
-  const bytes = new TextEncoder();
-  while (bytes.encode(out).length > 23) out = out.slice(0, -1);
-  return out;
+  return fitBytes(out.replace(/[|"\\]/g, ' ').trim(), size);
 }
 
 // Cities: "country|name|latitude|longitude|zone" lines from /cities.js.
@@ -554,7 +578,8 @@ const orderLists = [
             ['Wi-Fi setup', 'Wi-Fi kurulum'], ['Wi-Fi QR code', 'Wi-Fi QR kodu']] },
   { title: ['Tools page', 'Araçlar sayfası'], order: 'toolsOrder', hidden: 'toolsHidden',
     names: [['Torch', 'Fener'], ['Counter', 'Sayaç'], ['Random', 'Rastgele'], ['Calculator', 'Hesap makinesi'],
-            ['Unit converter', 'Birim çevirici'], ['Spirit level', 'Su terazisi']] },
+            ['Unit converter', 'Birim çevirici'], ['Spirit level', 'Su terazisi'], ['Metronome', 'Metronom'],
+            ['Emergency card', 'Acil durum kartı']] },
   { title: ['Observing page', 'Gözlem sayfası'], order: 'observingOrder', hidden: 'observingHidden',
     names: observingParts },
 ];
@@ -1047,6 +1072,30 @@ fetch('/api/state').then((r) => r.json()).then((s) => {
   }
 }).catch(() => { $('status').textContent = t('Could not read the watch.', 'Saat okunamadı.'); });
 
+// The emergency card (main/EmergencyCard.h): its own request, before the save. Each field holds
+// 31 bytes (the blood type and the phone fewer); a field is cut while it is typed.
+const cardFields = { cardName: 'name', cardBlood: 'blood', cardAllergies: 'allergies', cardMedication: 'medication',
+                     cardContact: 'contact', cardPhone: 'phone', cardNote: 'note' };
+const cardBytes = (id) => Number($(id).dataset.bytes || 31);
+let cardLoaded = false;
+for (const id of Object.keys(cardFields)) {
+  $(id).addEventListener('input', () => {
+    const fitted = fitBytes($(id).value, cardBytes(id));
+    if (fitted !== $(id).value) $(id).value = fitted;
+  });
+}
+fetch('/api/card').then((r) => r.json()).then((c) => {
+  for (const [id, key] of Object.entries(cardFields)) $(id).value = c[key] || '';
+  cardLoaded = true;
+}).catch(() => {});
+async function saveCard() {
+  // Not read from the watch: sending empty fields would clear its card.
+  if (!cardLoaded) return;
+  const fields = new URLSearchParams();
+  for (const [id, key] of Object.entries(cardFields)) fields.set(key, watchName($(id).value, cardBytes(id)));
+  await fetch('/api/card', { method: 'POST', body: fields });
+}
+
 // Round trip to the watch, the shortest of a few: half of it is the time a request travels.
 async function roundTrip() {
   let best = 1000;
@@ -1078,6 +1127,7 @@ function equipmentFields(fields) {
 $('save').addEventListener('click', async () => {
   $('status').textContent = t('Saving…', 'Kaydediliyor…');
   try {
+    await saveCard();
     const fields = new URLSearchParams();
     for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'offset', 'hijri', 'aodDay', 'aodNight', 'devMode', 'usbStayOn', 'nightMode', 'isha', 'language', 'mirror', 'bootCounter']) fields.set(id, $(id).value);
     equipmentFields(fields);

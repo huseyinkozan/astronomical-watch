@@ -79,6 +79,8 @@ static Motion s_motion;
 static Settings s_settings;
 static WorldClock s_worldClock;
 static DayCounters s_dayCounters;
+// The tools page's emergency card, read at each start of active mode (the portal shows it).
+static EmergencyCard s_card;
 // The alarms' definitions (NVS); s_alarmsChanged: their due times must be computed again.
 static AlarmStore::List s_alarms;
 static bool s_alarmsChanged = false;
@@ -1017,12 +1019,21 @@ static bool servicePortal( bool everySecond )
         if ( s_portal.isRunning() ) {
             s_portal.stop();
         } else {
-            s_portal.start( s_settings, s_worldClock, s_dayCounters, s_facePages, s_alarms );
+            s_portal.start( s_settings, s_worldClock, s_dayCounters, s_facePages, s_alarms, s_card );
             s_portalUsed = true;
         }
     }
     if ( requests & Display::NewPassword ) {
         s_portal.newPassword();
+    }
+    EmergencyCard card = {};
+    if ( s_portal.takeCard( card ) ) {
+        if ( memcmp( &card, &s_card, sizeof( card ) ) != 0 ) {
+            s_card = card;
+            s_card.save();
+            s_display.setCard( s_card );
+            ESP_LOGI( TAG, "Setup page: emergency card %s", s_card.empty() ? "cleared" : "saved" );
+        }
     }
     Portal::Received received = {};
     if ( s_portal.takeReceived( received ) ) {
@@ -1415,14 +1426,15 @@ static int runActiveMode()
                 return 3;
             }
         }
-        // The torch keeps active mode on until its own auto-off, which ends it as a timeout does.
-        const int torchLeft = s_displayOn ? s_display.torchSecondsLeft() : -1;
-        if ( torchLeft == 0 ) {
-            ESP_LOGI( TAG, "Torch auto-off: active mode ends" );
+        // The torch keeps active mode on until its own auto-off, the metronome up to 10 min after
+        // the last tap on it; then active mode ends as at a timeout.
+        const int toolLeft = s_displayOn ? s_display.toolSecondsLeft() : -1;
+        if ( toolLeft == 0 ) {
+            ESP_LOGI( TAG, "Torch or metronome auto-off: active mode ends" );
             return 1;
         }
         // So does the countdown's regatta sequence until its start, for its signals.
-        if ( torchLeft > 0 || ( s_displayOn && s_display.regattaRunning() ) ) {
+        if ( toolLeft > 0 || ( s_displayOn && s_display.regattaRunning() ) ) {
             activeMs = 0;
             idleMs = 0;
         }
@@ -2030,6 +2042,8 @@ extern "C" void app_main( void )
         // otherwise, as between the always-on motion checks).
         s_motion.init( bus );
         s_display.setMotion( &s_motion );
+        s_card.load();
+        s_display.setCard( s_card );
 #if CONFIG_WATCH_DEV_LOGGING
         if ( s_hostSkipDisplay ) {
             s_hostSkipDisplay = false;

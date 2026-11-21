@@ -9,6 +9,7 @@
 #include "StackPage.h"
 #include "Tally.h"
 #include "Tilt.h"
+#include "ToolParts.h"
 #include "lvgl.h"
 
 // The tools page (docs/superpowers/plans/2026-11-21-tools.md): the torch, the counter, a random
@@ -32,6 +33,7 @@
 // up to 45 degrees with the 30-45 degree slope band, pitch, roll and the slope), and sighting
 // along the top edge: a height from a distance, or a distance from a height (entered with the
 // keypad); a tap on the angle holds it.
+// Metronome and emergency card: ToolParts.
 class ToolPages
 {
 public:
@@ -43,14 +45,16 @@ public:
         CalculatorPart,
         ConverterPart,
         LevelPart,
+        MetronomePart,
+        CardPart,
         PartCount  // the parts are numbered in the saved orders (PartOrder): new ones at the end
     };
 
     // `pages`: the tileview, held still while the torch is set by a drag. `onLevel` is called
     // with `user` when the torch's brightness changes (Display sets the panel). `motion`: the
-    // accelerometer of the spirit level (nullptr: none).
-    void build( lv_obj_t *tile, lv_obj_t *pages, Settings &settings, Motion *motion, void ( *onLevel )( void *user ),
-                void *user );
+    // accelerometer of the spirit level (nullptr: none). `card`: the emergency card's texts.
+    void build( lv_obj_t *tile, lv_obj_t *pages, Settings &settings, Motion *motion, const EmergencyCard &card,
+                void ( *onLevel )( void *user ), void *user );
 
     // The objects were deleted with the tile's contents; the values stay for the next build.
     void forget();
@@ -68,6 +72,14 @@ public:
     // Display: whether the spirit level is on screen; the accelerometer runs only then.
     void setLevelShown( bool shown );
 
+    // Display: whether the metronome is on screen; it stops when it is not.
+    void setMetronomeShown( bool shown );
+    // Seconds until the running metronome ends active mode, -1 while it does not run.
+    int metronomeSecondsLeft() const;
+
+    // A new emergency card from the portal (while the page is built).
+    void setCard( const EmergencyCard &card );
+
     // The BOOT key on the counter.
     void countUp();
 
@@ -78,7 +90,8 @@ public:
     // number, torch (the next colour), "keys <keys>" (Calculator::keyForChar; the converter's
     // entry while it is open, else the calculator), kind (the converter's next kind), "unit <n>"
     // (opens the entry of the converter's row n), "level" (the level's next mode), "hold" (holds
-    // or releases the sighting angle), "input" (opens the sighting's entry; "keys" then types).
+    // or releases the sighting angle), "input" (opens the sighting's entry; "keys" then types);
+    // the metronome's (ToolParts::press).
     bool press( const char *name );
 
 private:
@@ -123,6 +136,7 @@ private:
     void showLevelEntry();
 
     StackPage m_stack;
+    ToolParts m_parts;
     lv_obj_t *m_tile = nullptr;
     lv_obj_t *m_pages = nullptr;
     lv_timer_t *m_tick = nullptr;

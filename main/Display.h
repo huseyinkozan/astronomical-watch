@@ -136,6 +136,9 @@ public:
     // The world clock's cities (a copy), at the start and after the setup portal.
     void setCities( const WorldClock &worldClock );
     void setCounters( const DayCounters &counters );
+    // The emergency card (before start(), and after each change in the portal): its part shows
+    // only while the card has a text.
+    void setCard( const EmergencyCard &card );
 
     // The alarm corner icons' state for the face (FaceText::Inputs::alarms).
     void setAlarmIcons( const FaceText::AlarmIconState &state );
@@ -160,9 +163,10 @@ public:
     // reports one press for minutes is stuck: it would keep active mode on (main.cpp).
     bool touchPressed() const;
 
-    // Seconds until the torch switches itself off while it shows, -1 when it does not, as of the
-    // last inactiveMs() call: meanwhile no display timeout, at 0 active mode ends (main.cpp).
-    int torchSecondsLeft() const;
+    // Seconds until the torch switches itself off while it shows, or until the running
+    // metronome stops holding active mode; -1 when neither runs, as of the last inactiveMs()
+    // call: meanwhile no display timeout, at 0 active mode ends (main.cpp).
+    int toolSecondsLeft() const;
 
     // Whether the countdown's regatta sequence runs to its start, as of the last inactiveMs()
     // call, which also gives its signals (ClockPages::serviceRegatta): meanwhile no display
@@ -277,6 +281,7 @@ private:
     bool m_appReady = false;  // built and its part restored
     PlanetPages m_planets;
     ToolPages m_tools;
+    EmergencyCard m_card = {};
     Motion *m_motion = nullptr;
     ObservingPages m_observing;
     // The sky's inputs as last shown (showPlanets), for a page built later.
@@ -398,7 +403,7 @@ private:
     bool m_joinCodeDimmed = false;
     bool m_torchShown = false;
     int m_torchLevel = 0;   // the level set while the torch shows
-    int m_torchLeft = -1;   // torchSecondsLeft()
+    int m_toolLeft = -1;    // toolSecondsLeft()
     bool m_regattaRunning = false;
     // The red night mode: wanted (showCorners) and shown (not over the QR code or the torch);
     // read by the flush.

@@ -26,7 +26,7 @@ STATE = {
     'lat': 41.0082, 'lon': 28.9784, 'hijri': 0, 'aodDay': 25, 'aodNight': 2,
     'devMode': 0, 'usbStayOn': 1, 'nightMode': 1, 'isha': 17, 'language': 0, 'clockOrder': 0, 'clockHidden': 0, 'infoOrder': 0,
     'infoHidden': 0, 'settingsOrder': 0, 'settingsHidden': 0, 'mirror': 0, 'planetsOrder': 0, 'planetsHidden': 0,
-    'pagesOrder': 0 | 1 << 3 | 4 << 6 | 5 << 9 | 2 << 12 | 3 << 15, 'toolsOrder': 0 | 3 << 3 | 4 << 6 | 5 << 9 | 1 << 12 | 2 << 15, 'toolsHidden': 0,
+    'pagesOrder': 0 | 1 << 3 | 4 << 6 | 5 << 9 | 2 << 12 | 3 << 15, 'toolsOrder': 0 | 3 << 3 | 4 << 6 | 5 << 9 | 1 << 12 | 2 << 15, 'toolsHidden': 1 << 6,
     'observingOrder': 1 | 2 << 3 | 3 << 6 | 4 << 9 | 5 << 12 | 6 << 15 | 0 << 18 | 7 << 21, 'observingHidden': 1 << 6 | 1 << 7,
     'bootCounter': 1,
     'scopeFocal': 1000, 'scopeAperture': 125, 'ep1Focal': 250, 'ep1Field': 52, 'ep2Focal': 100, 'ep2Field': 52,
@@ -43,7 +43,10 @@ STATE = {
     'faceItems': [20, 17],
     'faceDefaults': '1,0,1,0,6,2,4,0,9,2,0,1,4,0,0,0,0,0,0,0,0,17;2,0,0,0,6,0,0,0,9,2,8,1,4,0,0,0,0,0,0,0,0,80;0,0,1,0,0,2,5,0,9,2,8,1,4,0,0,0,0,0,0,0,0,209;1,1,1,0,7,12,0,0,2,2,13,1,5,0,0,0,0,0,0,0,0,25;0,0,0,0,0,0,2,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0/1,2,3,4,0,0,0,0',
 }
-FILES = {'/': ('index.html', 'text/html'), '/help': ('help.html', 'text/html'),
+# The emergency card (/api/card), a made-up one.
+CARD = {'name': 'Ayşe Yılmaz', 'blood': 'A Rh+', 'allergies': 'Penisilin', 'medication': '', 'contact': 'Mehmet Yılmaz',
+        'phone': '+90 555 000 00 00', 'note': ''}
+FILES = {'/': ('index.html', 'text/html'), '/help': ('help.html', 'text/html'), '/tools': ('tools.html', 'text/html'),
          '/update': ('update.html', 'text/html'),
          '/cities.js': ('cities.js', 'text/javascript')}
 
@@ -61,6 +64,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         path = self.path.split('?')[0]
         if path == '/api/state':
             self.send(json.dumps(STATE), 'application/json')
+        elif path == '/api/card':
+            self.send(json.dumps(CARD), 'application/json')
         elif path == '/api/ping':
             self.send('pong', 'text/plain')
         else:
@@ -74,7 +79,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             print(f'Update: {len(body)} bytes (not applied)')
             self.send('Updated', 'text/plain')
             return
-        print('Saved:', body.decode())
+        print('Card:' if self.path == '/api/card' else 'Saved:', body.decode())
         self.send('Saved', 'text/plain')
 
     def log_message(self, format, *args):
@@ -86,7 +91,7 @@ def main():
     parser.add_argument('--shot', help='write a phone-sized picture of the page to this PNG and stop')
     parser.add_argument('--height', type=int, default=3000, help='picture height in pixels')
     parser.add_argument('--language', type=int, default=0, help="the watch's language: 0 English, 1 Turkish")
-    parser.add_argument('--page', default='/', help='the page to picture, e.g. /help#tr')
+    parser.add_argument('--page', default='/', help='the page to picture, e.g. /help#tr, /tools?tr, /#settings')
     args = parser.parse_args()
     STATE['language'] = args.language
     # The name ESP-IDF gives the image: annotated tags only.

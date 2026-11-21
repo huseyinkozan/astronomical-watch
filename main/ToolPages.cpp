@@ -162,7 +162,7 @@ static void setText( lv_obj_t *object, const char *text )
     }
 }
 
-void ToolPages::build( lv_obj_t *tile, lv_obj_t *pages, Settings &settings, Motion *motion,
+void ToolPages::build( lv_obj_t *tile, lv_obj_t *pages, Settings &settings, Motion *motion, const EmergencyCard &card,
                        void ( *onLevel )( void *user ), void *user )
 {
     m_tile = tile;
@@ -178,6 +178,7 @@ void ToolPages::build( lv_obj_t *tile, lv_obj_t *pages, Settings &settings, Moti
     buildCalculator( m_stack.part( CalculatorPart ) );
     buildConverter( m_stack.part( ConverterPart ) );
     buildLevel( m_stack.part( LevelPart ) );
+    m_parts.build( m_stack.part( MetronomePart ), m_stack.part( CardPart ), card );
     lv_obj_add_event_cb( tile, onPartChanged, LV_EVENT_VALUE_CHANGED, this );
     m_tick = lv_timer_create( onTick, s_tickMs, this );
 }
@@ -186,6 +187,7 @@ void ToolPages::forget()
 {
     setTorchShown( false );
     setLevelShown( false );
+    m_parts.forget();
     if ( m_tile != nullptr ) {
         lv_obj_remove_event_cb_with_user_data( m_tile, onPartChanged, this );
     }
@@ -277,6 +279,7 @@ void ToolPages::onTick( lv_timer_t *timer )
     if ( self->m_levelShown ) {
         self->readLevel();
     }
+    self->m_parts.tick();
     if ( !self->m_torchShown ) {
         return;
     }
@@ -390,7 +393,7 @@ void ToolPages::applySound()
     if ( wanted ) {
         ringer.startSos( m_sosStartUs );
     } else {
-        ringer.stopSos( false );
+        ringer.stopTool( false );
     }
     ESP_LOGI( TAG, "SOS beeps %s", wanted ? "on" : "off" );
 }
@@ -1349,10 +1352,30 @@ void ToolPages::onLevelKey( void *user, Calculator::Key key )
 
 // ---- Development ----
 
+void ToolPages::setMetronomeShown( bool shown )
+{
+    m_parts.setMetronomeShown( shown );
+}
+
+int ToolPages::metronomeSecondsLeft() const
+{
+    return m_parts.metronomeSecondsLeft();
+}
+
+void ToolPages::setCard( const EmergencyCard &card )
+{
+    if ( m_tile != nullptr ) {
+        m_parts.showCard( card );
+    }
+}
+
 bool ToolPages::press( const char *name )
 {
     if ( m_count == nullptr ) {
         return false;
+    }
+    if ( m_parts.press( name ) ) {
+        return true;
     }
     if ( strcmp( name, "count" ) == 0 ) {
         countUp();

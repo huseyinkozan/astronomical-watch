@@ -65,6 +65,9 @@ static const char *s_fieldNames[] = { "timeout", "alwaysOn", "devMode",    "auto
                                                          "satLon" };
 // One name per setting: a missing one would be read as a null name.
 static_assert( sizeof( s_fieldNames ) / sizeof( s_fieldNames[0] ) == Settings::ItemCount, "a field name per setting" );
+// The emergency card's fields (EmergencyCard::Field), in /api/card.
+static const char *s_cardNames[EmergencyCard::FieldCount] = { "name",    "blood", "allergies", "medication",
+                                                              "contact", "phone", "note" };
 
 static bool s_networkReady = false;
 // The 404 handler has no user context: it reaches the running portal through this.
@@ -121,7 +124,7 @@ void Portal::newPassword()
 }
 
 esp_err_t Portal::start( const Settings &settings, const WorldClock &worldClock, const DayCounters &counters,
-                         const FaceConfig::Pages &faces, const AlarmStore::List &alarms )
+                         const FaceConfig::Pages &faces, const AlarmStore::List &alarms, const EmergencyCard &card )
 {
     if ( isRunning() ) {
         return ESP_OK;
@@ -131,6 +134,7 @@ esp_err_t Portal::start( const Settings &settings, const WorldClock &worldClock,
     m_counters = &counters;
     m_alarms = &alarms;
     m_faces = &faces;
+    m_card = &card;
     m_hasCoreDump = esp_core_dump_image_check() == ESP_OK;
     esp_err_t err = ESP_OK;
     if ( !s_networkReady ) {
@@ -192,7 +196,7 @@ esp_err_t Portal::start( const Settings &settings, const WorldClock &worldClock,
     // more ("error in accept (23)"). One fewer, and the least recently used one is closed.
     serverConfig.max_open_sockets = CONFIG_LWIP_MAX_SOCKETS - 4;
     serverConfig.stack_size = 6144;
-    serverConfig.max_uri_handlers = 12;
+    serverConfig.max_uri_handlers = 14;
     // An image upload takes a while between packets on a busy phone.
     serverConfig.recv_wait_timeout = 15;
     err = httpd_start( &m_server, &serverConfig );
@@ -201,9 +205,11 @@ esp_err_t Portal::start( const Settings &settings, const WorldClock &worldClock,
         stop();
         return err;
     }
-    const httpd_uri_t handlers[10] = {
+    const httpd_uri_t handlers[12] = {
         { "/", HTTP_GET, onPage, this },
         { "/help", HTTP_GET, onHelp, this },
+        { "/api/card", HTTP_GET, onCard, this },
+        { "/api/card", HTTP_POST, onCardSave, this },
         { "/update", HTTP_GET, onUpdatePage, this },
         { "/api/update", HTTP_POST, onUpdate, this },
         { "/api/events", HTTP_GET, onEvents, this },
@@ -213,7 +219,7 @@ esp_err_t Portal::start( const Settings &settings, const WorldClock &worldClock,
         { "/api/ping", HTTP_GET, onPing, this },
         { "/api/save", HTTP_POST, onSave, this },
     };
-    for ( int i = 0; i < 10; ++i ) {
+    for ( int i = 0; i < 12; ++i ) {
         httpd_register_uri_handler( m_server, &handlers[i] );
     }
     httpd_register_err_handler( m_server, HTTPD_404_NOT_FOUND, onNotFound );
@@ -286,6 +292,19 @@ const char *Portal::password() const
 const char *Portal::address() const
 {
     return m_address;
+}
+
+bool Portal::takeCard( EmergencyCard &card )
+{
+    bool taken = false;
+    taskENTER_CRITICAL( &m_lock );
+    if ( m_hasCard ) {
+        card = m_receivedCard;
+        m_hasCard = false;
+        taken = true;
+    }
+    taskEXIT_CRITICAL( &m_lock );
+    return taken;
 }
 
 bool Portal::takeReceived( Received &received )
@@ -576,6 +595,24 @@ esp_err_t Portal::onPing( httpd_req_t *request )
     return httpd_resp_sendstr( request, "pong" );
 }
 
+// The card's texts have no quotes, backslashes or control characters (EmergencyCard::set).
+esp_err_t Portal::onCard( httpd_req_t *request )
+{
+    Portal *portal = static_cast<Portal *>( request->user_ctx );
+    portal->touch();
+    char *json = s_buffer;
+    strlcpy( json, "{", sizeof( s_buffer ) );
+    for ( int i = 0; i < EmergencyCard::FieldCount; ++i ) {
+        const int used = strlen( json );
+        snprintf( json + used, sizeof( s_buffer ) - used, "%s\"%s\":\"%s\"", i == 0 ? "" : ",", s_cardNames[i],
+                  portal->m_card->fields[i] );
+    }
+    strlcat( json, "}", sizeof( s_buffer ) );
+    httpd_resp_set_type( request, "application/json" );
+    noCache( request );
+    return httpd_resp_sendstr( request, json );
+}
+
 // Decodes a form value in place: "+" is a space, "%XX" a byte.
 static void urlDecode( char *text )
 {
@@ -746,6 +783,40 @@ esp_err_t Portal::onSave( httpd_req_t *request )
     taskENTER_CRITICAL( &portal->m_lock );
     portal->m_received = received;
     portal->m_hasReceived = true;
+    taskEXIT_CRITICAL( &portal->m_lock );
+    noCache( request );
+    return httpd_resp_sendstr( request, "Saved" );
+}
+
+// Body: "name=...&blood=...&..." (every field of the card), form-encoded.
+esp_err_t Portal::onCardSave( httpd_req_t *request )
+{
+    Portal *portal = static_cast<Portal *>( request->user_ctx );
+    portal->touch();
+    char *body = s_buffer;
+    const int length = request->content_len < sizeof( s_buffer ) - 1 ? request->content_len : sizeof( s_buffer ) - 1;
+    int read = 0;
+    while ( read < length ) {
+        const int part = httpd_req_recv( request, body + read, length - read );
+        if ( part <= 0 ) {
+            return httpd_resp_send_err( request, HTTPD_400_BAD_REQUEST, "No data" );
+        }
+        read += part;
+    }
+    body[read] = '\0';
+    static EmergencyCard card;
+    card = {};
+    for ( int i = 0; i < EmergencyCard::FieldCount; ++i ) {
+        // A field three times as long as it may be: every byte "%XX".
+        char text[EmergencyCard::FieldSize * 3 + 8];
+        if ( httpd_query_key_value( body, s_cardNames[i], text, sizeof( text ) ) == ESP_OK ) {
+            urlDecode( text );
+            card.set( static_cast<EmergencyCard::Field>( i ), text );
+        }
+    }
+    taskENTER_CRITICAL( &portal->m_lock );
+    portal->m_receivedCard = card;
+    portal->m_hasCard = true;
     taskEXIT_CRITICAL( &portal->m_lock );
     noCache( request );
     return httpd_resp_sendstr( request, "Saved" );

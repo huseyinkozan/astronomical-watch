@@ -69,9 +69,11 @@ static const ItemInfo s_items[Settings::ItemCount] = {
     // later have the higher numbers, so that saved orders keep their places).
     { "pages_order", 0 | 1 << 3 | 4 << 6 | 5 << 9 | 2 << 12 | 3 << 15, 0, {}, 0, 16777215 },
     // Torch, calculator, unit converter, spirit level, counter, random (ToolPages::Part: the parts
-    // added later have the higher numbers).
+    // added later have the higher numbers), then the metronome and the emergency card (PartOrder
+    // puts them last); the metronome hidden, the card hidden by Display while it is empty. A mask
+    // saved before keeps its value, the metronome shown.
     { "tools_order", 0 | 3 << 3 | 4 << 6 | 5 << 9 | 1 << 12 | 2 << 15, 0, {}, 0, 16777215 },
-    { "tools_hidden", 0, 0, {}, 0, 255 },
+    { "tools_hidden", 1 << 6, 0, {}, 0, 255 },
     // Polar alignment, Milky Way window, deep-sky finder, eyepieces, night photo, nautical
     // almanac, astrolabe, aiming (ObservingPages::Part); the almanac and aiming hidden. Both
     // defaults changed when those two parts came: an order or mask saved before keeps its

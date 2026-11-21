@@ -400,6 +400,19 @@ static const char *s_texts[][2] = {
     { "Sync", "Eşitle" },
     { "Start at %s", "Start saati %s" },
     { "5-4-1-0 start", "5-4-1-0 start" },
+    { "Metronome", "Metronom" },
+    { "Emergency card", "Acil durum kartı" },
+    { "beats / min", "vuruş / dakika" },
+    { "CPR", "KPR" },
+    { "tap the dots: bar", "noktalara dokun: ölçü" },
+    { "sound: lowest", "ses: en düşük" },
+    { "stops in %d:%02d", "%d:%02d sonra durur" },
+    { "Emergency", "Acil durum" },
+    { "Name", "Ad" },
+    { "Blood", "Kan" },
+    { "Allergy", "Alerji" },
+    { "Meds", "İlaç" },
+    { "Contact", "Yakını" },
 };
 // One pair per text: a missing one would shift every text after it.
 static_assert( sizeof( s_texts ) / sizeof( s_texts[0] ) == Language::TextCount, "a text pair per Language::Text" );

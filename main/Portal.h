@@ -5,6 +5,7 @@
 #include "Settings.h"
 #include "AlarmStore.h"
 #include "DayCounters.h"
+#include "EmergencyCard.h"
 #include "FaceConfig.h"
 #include "WorldClock.h"
 #include "esp_err.h"
@@ -55,7 +56,7 @@ public:
     // Starts the soft AP, DHCP, DNS and HTTP servers. The page reads the current values from
     // `settings` while the portal runs.
     esp_err_t start( const Settings &settings, const WorldClock &worldClock, const DayCounters &counters,
-                     const FaceConfig::Pages &faces, const AlarmStore::List &alarms );
+                     const FaceConfig::Pages &faces, const AlarmStore::List &alarms, const EmergencyCard &card );
 
     // Stops everything start() started; safe to call when not running.
     void stop();
@@ -75,6 +76,10 @@ public:
     // True once for each save from the page.
     bool takeReceived( Received &received );
 
+    // True once for each emergency card from the page (its own request, /api/card, before the
+    // save: the save's form has no room left for it).
+    bool takeCard( EmergencyCard &card );
+
     // The battery, for the update's condition (USB power or at least UpdateMinPercent).
     static const int UpdateMinPercent = 30;
     void setBattery( int percent, bool usb );
@@ -87,6 +92,8 @@ private:
     static esp_err_t onPage( httpd_req_t *request );
     static esp_err_t onCities( httpd_req_t *request );
     static esp_err_t onHelp( httpd_req_t *request );
+    static esp_err_t onCard( httpd_req_t *request );
+    static esp_err_t onCardSave( httpd_req_t *request );
     static esp_err_t onUpdatePage( httpd_req_t *request );
     static esp_err_t onState( httpd_req_t *request );
     static esp_err_t onPing( httpd_req_t *request );
@@ -104,6 +111,7 @@ private:
     const DayCounters *m_counters = nullptr;
     const AlarmStore::List *m_alarms = nullptr;
     const FaceConfig::Pages *m_faces = nullptr;
+    const EmergencyCard *m_card = nullptr;
     esp_netif_t *m_netif = nullptr;
     httpd_handle_t m_server = nullptr;
     void *m_dns = nullptr;
@@ -115,6 +123,8 @@ private:
     portMUX_TYPE m_lock = portMUX_INITIALIZER_UNLOCKED;
     bool m_hasReceived = false;
     Received m_received = {};
+    bool m_hasCard = false;
+    EmergencyCard m_receivedCard = {};
     int m_batteryPercent = -1;
     bool m_usb = false;
     bool m_updated = false;

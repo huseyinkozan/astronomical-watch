@@ -408,6 +408,20 @@ public:
         Sync,
         RegattaStart,    // "Start at %s"
         RegattaReady,
+        // Tools page: metronome and emergency card (ToolParts).
+        PartMetronome,
+        PartCard,
+        BeatsPerMinute,
+        MetronomeCpr,    // the CPR preset's key
+        MetronomeHint,
+        MetronomeSound,
+        MetronomeStops,  // "stops in %d:%02d"
+        CardTitle,
+        CardName,
+        CardBlood,
+        CardAllergies,
+        CardMedication,
+        CardContact,
         TextCount
     };
 
