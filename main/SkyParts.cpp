@@ -37,7 +37,6 @@ static const int s_barStartHour = 16;
 static const int s_barHours = 16;
 // The Milky Way computation waits until the part has slid in.
 static const int s_milkyDelayMs = 400;
-static const int s_searchNights = 120;
 // Deep-sky list: under the title, rows of two lines.
 static const int s_listTop = 80;
 static const int s_listHeight = 378;
@@ -156,6 +155,7 @@ void SkyParts::forget()
         lv_timer_delete( m_milkyTimer );
         m_milkyTimer = nullptr;
     }
+    m_milkyWanted = false;
     if ( m_entries != nullptr ) {
         lv_free( m_entries );
         m_entries = nullptr;
@@ -342,17 +342,34 @@ void SkyParts::onMilkyWayTimer( lv_timer_t *timer )
 {
     SkyParts *self = static_cast<SkyParts *>( lv_timer_get_user_data( timer ) );
     lv_timer_pause( timer );
-    self->computeMilkyWay();
-    self->showMilkyWay();
+    self->m_milkyWanted = true;
 }
 
-void SkyParts::computeMilkyWay()
+bool SkyParts::takeMilkyWayRequest( int64_t &noon, Astronomy::Observer &observer )
 {
-    m_milkyNoon = tonightNoon();
-    m_milkyObserver = m_observer;
-    m_milky = Observing::milkyWay( m_milkyNoon, m_observer );
-    m_hasNext = Observing::nextMilkyWayNight( m_milkyNoon, s_searchNights, m_observer, m_nextNoon );
+    if ( !m_milkyWanted || m_nightBar == nullptr || !m_located ) {
+        return false;
+    }
+    m_milkyWanted = false;
+    noon = tonightNoon();
+    observer = m_observer;
+    return true;
+}
+
+void SkyParts::showMilkyWayNight( const Observing::MilkyWayNight &night, bool hasNext, int64_t nextNoon, int64_t noon,
+                                  const Astronomy::Observer &observer )
+{
+    if ( m_nightBar == nullptr || noon != tonightNoon() || observer.latitude != m_observer.latitude ||
+         observer.longitude != m_observer.longitude ) {
+        return;
+    }
+    m_milky = night;
+    m_milkyNoon = noon;
+    m_milkyObserver = observer;
+    m_hasNext = hasNext;
+    m_nextNoon = nextNoon;
     m_milkyKnown = true;
+    showMilkyWay();
 }
 
 void SkyParts::showMilkyWay()

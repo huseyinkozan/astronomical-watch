@@ -582,6 +582,16 @@ static void updateSky( int64_t now, const int inputs[5] )
         ESP_LOGI( TAG, "Planets' day computed in %d ms", static_cast<int>( ( esp_timer_get_time() - start ) / 1000 ) );
         s_display.showPlanetsDay( planets, localMidnight, planetsObserver );
     }
+    int64_t milkyNoon = 0;
+    Astronomy::Observer milkyObserver = {};
+    if ( s_display.takeMilkyWayRequest( milkyNoon, milkyObserver ) ) {
+        const int64_t start = esp_timer_get_time();
+        const Observing::MilkyWayNight night = Observing::milkyWay( milkyNoon, milkyObserver );
+        int64_t nextNoon = 0;
+        const bool hasNext = Observing::nextMilkyWayNight( milkyNoon, SkyParts::SearchNights, milkyObserver, nextNoon );
+        ESP_LOGI( TAG, "Milky Way window computed in %d ms", static_cast<int>( ( esp_timer_get_time() - start ) / 1000 ) );
+        s_display.showMilkyWayNight( night, hasNext, nextNoon, milkyNoon, milkyObserver );
+    }
 }
 
 // The always-on face of face page `page` (Settings::FaceStyle when active mode ends) into s_look.

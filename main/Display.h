@@ -111,6 +111,9 @@ public:
     void showPlanets( int64_t now, const Astronomy::Observer &observer, int utcOffsetMinutes, bool located );
     bool takePlanetsRequest( int64_t &localMidnight, Astronomy::Observer &observer );
     void showPlanetsDay( const Planets::Day &day, int64_t localMidnight, const Astronomy::Observer &observer );
+    bool takeMilkyWayRequest( int64_t &noon, Astronomy::Observer &observer );
+    void showMilkyWayNight( const Observing::MilkyWayNight &night, bool hasNext, int64_t nextNoon, int64_t noon,
+                            const Astronomy::Observer &observer );
 
     // The astronomy pages: values of the local day and of this moment; the face's events,
     // counters and cities. Also updates the face with the time of the last update(); `located`

@@ -16,8 +16,8 @@
 //   default as most polar scopes show it; a tap flips it upright and back (kept in RTC memory).
 // - Milky Way window: tonight's dark, the galactic centre 10 degrees up and the Moon out of the
 //   way on a 16:00 to 08:00 bar, the window's times, the centre's highest, the Moon, and the next
-//   night with a window (up to 120 nights ahead). Computed when the part is shown, a moment after
-//   it slid in, once a night and place.
+//   night with a window (up to 120 nights ahead). Asked for when the part is shown, a moment after
+//   it slid in, once a night and place, and computed in the main task.
 // - Deep-sky finder: the Messier objects 10 degrees up now, highest first, each with its altitude
 //   and best time in tonight's dark, again each minute while shown. The list scrolls (one of the
 //   two vertical scrolls in the pages, with the launcher's): a swipe past either end steps the
@@ -33,6 +33,14 @@ public:
 
     // Every update of the sky; the parts change once a minute.
     void show( int64_t now, const Astronomy::Observer &observer, int utcOffsetMinutes, bool located );
+
+    // The Milky Way window's night is computed in the main task (up to half a second on the board,
+    // which would freeze the LVGL task): the part asks a moment after it slid in, the answer for a
+    // night or place no longer shown is dropped.
+    static const int SearchNights = 120;
+    bool takeMilkyWayRequest( int64_t &noon, Astronomy::Observer &observer );
+    void showMilkyWayNight( const Observing::MilkyWayNight &night, bool hasNext, int64_t nextNoon, int64_t noon,
+                            const Astronomy::Observer &observer );
 
     // Development (host command "B <name>"): flip (the reticle), scroll <px> (the list).
     bool press( const char *name );
@@ -53,7 +61,6 @@ private:
     static void onMilkyWayTimer( lv_timer_t *timer );
     void showPolar();
     void showMilkyWay();
-    void computeMilkyWay();
     void showDeepSky();
     // The local noon before tonight: today's, or yesterday's while last night lasts.
     int64_t tonightNoon() const;
@@ -84,6 +91,7 @@ private:
     int64_t m_milkyNoon = 0;
     Astronomy::Observer m_milkyObserver = { 0, 0 };
     bool m_milkyKnown = false;
+    bool m_milkyWanted = false;
     bool m_hasNext = false;
     int64_t m_nextNoon = 0;
 

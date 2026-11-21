@@ -72,6 +72,17 @@ public:
     // Every update of the sky (Display::showPlanets).
     void show( int64_t now, const Astronomy::Observer &observer, int utcOffsetMinutes, bool located );
 
+    // The Milky Way window's night, computed in the main task (SkyParts).
+    bool takeMilkyWayRequest( int64_t &noon, Astronomy::Observer &observer )
+    {
+        return m_sky.takeMilkyWayRequest( noon, observer );
+    }
+    void showMilkyWayNight( const Observing::MilkyWayNight &night, bool hasNext, int64_t nextNoon, int64_t noon,
+                            const Astronomy::Observer &observer )
+    {
+        m_sky.showMilkyWayNight( night, hasNext, nextNoon, noon, observer );
+    }
+
     // Development (host command "B <name>"): mode (the next mode), "drag <minutes>" (the dial's
     // time), now, hold (holds or releases the alidade's angle); flip, scroll <px> (SkyParts),
     // eyepiece, calc (OpticsParts), body, aim, satellite (NavParts).

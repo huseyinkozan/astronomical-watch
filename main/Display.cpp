@@ -2129,6 +2129,27 @@ void Display::showPlanetsDay( const Planets::Day &day, int64_t localMidnight, co
     bsp_display_unlock();
 }
 
+bool Display::takeMilkyWayRequest( int64_t &noon, Astronomy::Observer &observer )
+{
+    if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
+        return false;
+    }
+    const bool asked = m_observing.takeMilkyWayRequest( noon, observer );
+    bsp_display_unlock();
+    return asked;
+}
+
+void Display::showMilkyWayNight( const Observing::MilkyWayNight &night, bool hasNext, int64_t nextNoon, int64_t noon,
+                                 const Astronomy::Observer &observer )
+{
+    // Up to a second, as showPlanetsDay (a lost answer is asked for again at the next minute).
+    if ( !m_started || !bsp_display_lock( 1000 ) ) {
+        return;
+    }
+    m_observing.showMilkyWayNight( night, hasNext, nextNoon, noon, observer );
+    bsp_display_unlock();
+}
+
 void Display::onAlarmPressed( lv_event_t *event )
 {
     static_cast<Display *>( lv_event_get_user_data( event ) )->m_alarmTapped = true;
