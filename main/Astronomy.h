@@ -102,6 +102,12 @@ public:
     // ecliptic (degrees) at `time`.
     static void sunEquatorial( int64_t time, double &rightAscension, double &declination );
     static double obliquityOfDate( int64_t time );
+    // The Sun's distance from the Earth's centre.
+    static double sunDistanceKm( int64_t time );
+
+    // The Moon's geocentric right ascension and declination (mean equinox of date, degrees) and
+    // distance from the Earth's centre.
+    static void moonEquatorial( int64_t time, double &rightAscension, double &declination, double &distanceKm );
 
     // Greenwich mean sidereal time, degrees.
     static double greenwichSiderealTime( int64_t time );

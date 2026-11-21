@@ -484,6 +484,20 @@ double Astronomy::obliquityOfDate( int64_t time )
     return obliquity( centuriesTt( time ) );
 }
 
+double Astronomy::sunDistanceKm( int64_t time )
+{
+    return sunEcliptic( centuriesTt( time ) ).distanceKm;
+}
+
+void Astronomy::moonEquatorial( int64_t time, double &rightAscension, double &declination, double &distanceKm )
+{
+    const double t = centuriesTt( time );
+    const Equatorial moon = toEquatorial( moonEcliptic( t ), t );
+    rightAscension = moon.rightAscension;
+    declination = moon.declination;
+    distanceKm = moon.distanceKm;
+}
+
 void Astronomy::sunDeclinationAndEquation( int64_t time, double &declination, double &equationMinutes )
 {
     const double t = centuriesTt( time );
