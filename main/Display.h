@@ -235,10 +235,11 @@ private:
     static void onLauncherClicked( lv_event_t *event );
     static void onLauncherScrolled( lv_event_t *event );
     void showLauncherMarks();
-    // A trial (development command "n"): 0 the rows keep one width, 1 the rows on screen narrow
-    // near the corners to stay clear of the gauges, 2 also dim as they narrow.
+    // The rows and page names on screen narrow (move in) near the corners to stay clear of the
+    // gauges and dim as they do (mode 2, the owner's choice); development command "n": 0 one
+    // width, 1 narrowing without dimming.
     void narrowLauncherRows();
-    int m_launcherMode = 0;
+    int m_launcherMode = 2;
     PageMarks m_launcherMarks;  // the list's scroll position
     lv_obj_t *m_launcherList = nullptr;
     void endAdjust();

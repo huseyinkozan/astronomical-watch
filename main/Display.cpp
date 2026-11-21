@@ -129,6 +129,7 @@ static const int s_listPad = 8;
 static const int s_launcherNameHeight = 44;
 static const int s_launcherRowGap = 8;
 static const int s_launcherNameX = 36;
+static const int s_launcherNameLine = 32;  // the 26 px font's line height
 static const int s_launcherRowX = 52;
 
 // The development screenshots keep one number per screen: the face, the stacked pages' parts as
@@ -712,13 +713,14 @@ void Display::onLauncherScrolled( lv_event_t *event )
     }
 }
 
-// The width a row may take between screen rows `top` and `bottom` so that it stays a few pixels
-// clear of the corner gauges' inner edge (the visible area's corners, docs/hardware.md).
-static int launcherRowWidth( int top, int bottom )
+// The leftmost x between screen rows `top` and `bottom` that stays a few pixels clear of the
+// corner gauges' inner edge (the visible area's corners, docs/hardware.md); the screen's middle
+// when nothing is clear.
+static int launcherLeft( int top, int bottom )
 {
     const int clear = Corners::OuterRadius - 5 - 4;
     const int lowerCentre = Panel::HEIGHT - 1 - Corners::CornerRadius;
-    // The row's corner nearest to a screen corner decides.
+    // The edge nearest to a screen corner decides.
     int dy = 0;
     if ( top < Corners::CornerRadius ) {
         dy = Corners::CornerRadius - top;
@@ -726,48 +728,74 @@ static int launcherRowWidth( int top, int bottom )
     if ( bottom > lowerCentre && bottom - lowerCentre > dy ) {
         dy = bottom - lowerCentre;
     }
-    const int shortest = 96;
     if ( dy >= clear ) {
-        return shortest;
+        return Panel::WIDTH / 2;
     }
-    const int left = Corners::CornerRadius - static_cast<int>( sqrtf( static_cast<float>( clear * clear - dy * dy ) ) );
-    // Even, so that the row stays centred on the pixel grid.
-    int width = ( ( Panel::WIDTH / 2 - left ) * 2 ) & ~1;
-    width = width > Styles::LauncherRowWidth ? Styles::LauncherRowWidth : width;
-    return width < shortest ? shortest : width;
+    return Corners::CornerRadius - static_cast<int>( sqrtf( static_cast<float>( clear * clear - dy * dy ) ) );
 }
 
-// Only the rows on screen change, and only when their width does: absolutely placed, a row's
-// new width lays out that row alone.
+static const int s_narrowestRow = 96;
+
+// A row's width there: centred within the clear gap, at most the full width.
+static int launcherRowWidth( int top, int bottom )
+{
+    // Even, so that the row stays centred on the pixel grid.
+    int width = ( ( Panel::WIDTH / 2 - launcherLeft( top, bottom ) ) * 2 ) & ~1;
+    width = width > Styles::LauncherRowWidth ? Styles::LauncherRowWidth : width;
+    return width < s_narrowestRow ? s_narrowestRow : width;
+}
+
+// A grey of `level` at `percent`.
+static lv_color_t dimmed( int level, int percent )
+{
+    const uint8_t value = static_cast<uint8_t>( level * percent / 100 );
+    return lv_color_make( value, value, value );
+}
+
+// Only the rows and names on screen change, and only when their place does: absolutely placed,
+// a row's new width lays out that row alone.
 void Display::narrowLauncherRows()
 {
     const int scroll = lv_obj_get_scroll_y( m_launcherList );
     const int count = static_cast<int>( lv_obj_get_child_count( m_launcherList ) );
     for ( int i = 0; i < count; ++i ) {
-        lv_obj_t *row = lv_obj_get_child( m_launcherList, i );
-        if ( rowCode( row ) <= 0 ) {
-            continue;
-        }
-        const int top = s_listTop + lv_obj_get_style_y( row, LV_PART_MAIN ) - scroll;
-        const int bottom = top + Styles::LauncherRowHeight - 1;
+        lv_obj_t *item = lv_obj_get_child( m_launcherList, i );
+        const bool row = rowCode( item ) > 0;
+        const int top = s_listTop + lv_obj_get_style_y( item, LV_PART_MAIN ) - scroll;
+        const int bottom = top + ( row ? Styles::LauncherRowHeight : s_launcherNameLine ) - 1;
         if ( bottom < s_listTop || top >= Panel::HEIGHT ) {
             continue;
         }
-        const int width = launcherRowWidth( top < s_listTop ? s_listTop : top,
-                                            bottom >= Panel::HEIGHT ? Panel::HEIGHT - 1 : bottom );
-        if ( width == lv_obj_get_style_width( row, LV_PART_MAIN ) ) {
-            continue;
-        }
-        lv_obj_set_x( row, ( Panel::WIDTH - width ) / 2 );
-        lv_obj_set_width( row, width );
-        if ( m_launcherMode == 2 ) {
-            // Dimmer colours rather than LVGL's opacity, which draws each row on a layer of its
-            // own: 100 % at the full width, 30 % at the narrowest.
-            const int percent = 30 + 70 * ( width - 96 ) / ( Styles::LauncherRowWidth - 96 );
-            const uint8_t frame = static_cast<uint8_t>( 0x2C * percent / 100 );
-            const uint8_t text = static_cast<uint8_t>( 0xFF * percent / 100 );
-            lv_obj_set_style_border_color( row, lv_color_make( frame, frame, frame ), 0 );
-            lv_obj_set_style_text_color( lv_obj_get_child( row, 0 ), lv_color_make( text, text, text ), 0 );
+        const int shownTop = top < s_listTop ? s_listTop : top;
+        const int shownBottom = bottom >= Panel::HEIGHT ? Panel::HEIGHT - 1 : bottom;
+        // Dimmer colours rather than LVGL's opacity, which draws each item on a layer of its
+        // own: 100 % in the middle band, 30 % at the narrowest.
+        if ( row ) {
+            const int width = launcherRowWidth( shownTop, shownBottom );
+            if ( width == lv_obj_get_style_width( item, LV_PART_MAIN ) ) {
+                continue;
+            }
+            lv_obj_set_x( item, ( Panel::WIDTH - width ) / 2 );
+            lv_obj_set_width( item, width );
+            if ( m_launcherMode == 2 ) {
+                const int percent = 30 + 70 * ( width - s_narrowestRow ) / ( Styles::LauncherRowWidth - s_narrowestRow );
+                lv_obj_set_style_border_color( item, dimmed( 0x2C, percent ), 0 );
+                lv_obj_set_style_text_color( lv_obj_get_child( item, 0 ), dimmed( 0xFF, percent ), 0 );
+            }
+        } else {
+            // A page's name moves in from its place as far as the clear gap needs.
+            const int left = launcherLeft( shownTop, shownBottom );
+            const int x = left > s_launcherNameX ? left : s_launcherNameX;
+            if ( x == lv_obj_get_style_x( item, LV_PART_MAIN ) ) {
+                continue;
+            }
+            lv_obj_set_x( item, x );
+            if ( m_launcherMode == 2 ) {
+                const int farthest = ( Panel::WIDTH - s_narrowestRow ) / 2;
+                int percent = 100 - 70 * ( x - s_launcherNameX ) / ( farthest - s_launcherNameX );
+                percent = percent < 30 ? 30 : percent;
+                lv_obj_set_style_text_color( item, dimmed( 0xA0, percent ), 0 );
+            }
         }
     }
 }
@@ -798,7 +826,7 @@ void Display::fillLauncher()
         lv_obj_t *name = lv_label_create( m_launcherList );
         Styles::text( name, &jetbrains_mono_26, lv_color_hex( 0xA0A0A0 ) );
         lv_label_set_text_static( name, Language::text( entry.name ) );
-        lv_obj_set_pos( name, s_launcherNameX, y + ( s_launcherNameHeight - 30 ) / 2 );
+        lv_obj_set_pos( name, s_launcherNameX, y + ( s_launcherNameHeight - s_launcherNameLine ) / 2 );
         lv_obj_set_clickable( name, false );
         y += s_launcherNameHeight;
         for ( int i = 0; i < shown; ++i ) {
@@ -821,6 +849,9 @@ void Display::fillLauncher()
         }
     }
     placeLauncher();
+    if ( m_launcherMode != 0 ) {
+        narrowLauncherRows();
+    }
 }
 
 void Display::placeLauncher()
@@ -1732,11 +1763,8 @@ void Display::setLauncherMode( int mode )
         return;
     }
     m_launcherMode = mode;
-    // The rows anew at their full width, then narrowed where they are.
+    // The rows anew at their full width, narrowed where they are (fillLauncher).
     fillLauncher();
-    if ( mode != 0 ) {
-        narrowLauncherRows();
-    }
     bsp_display_unlock();
     ESP_LOGI( TAG, "Launcher rows mode %d", mode );
 }

@@ -261,7 +261,10 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   1 px outline), the pages and their parts in the portal's order (`Settings::PagesOrder` and the
   part orders) without the hidden parts; a tap opens that part on the third tile and slides there.
   Off screen, the list is scrolled so that the last opened part's row is the second from the top,
-  its outline brighter; a mark at the right edge, like the part marks, shows the scroll position. The stacked pages: clock (world clock, stopwatch, countdown,
+  its outline brighter; a mark at the right edge, like the part marks, shows the scroll position.
+  Near the bottom corners the rows on screen narrow, centred, and the page names move in, so that
+  they stay a few pixels clear of the gauges, dimming as they do (colours, not LVGL opacity;
+  `Display::narrowLauncherRows`, in the list's scroll event; the owner's choice of 2026-11-21). The stacked pages: clock (world clock, stopwatch, countdown,
   Gregorian and Hijri calendars, day counters, alarms; `main/ClockPages.*`), information (sun,
   twilight, prayer times, moon, compass, time, battery, about), planets (the seven planets and the
   Earth: the solar system on a logarithmic scale, the sky seen from the south, the day's rise and
@@ -344,9 +347,8 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   alarm, "K <n> <text>" defines an alarm, "Q" ends active mode as without the always-on face,
   "H" makes the next PWR wake a phantom (it must go back to sleep), "W" starves the idle task
   (the task watchdog must reset the watch). "W <tile>" swipes to a tile (0 to 2), "W 3" and
-  "W 4" scroll the launcher down and up; "n <mode>" sets the launcher rows' trial until the next
-  reset (0 one width, the default; 1 the rows on screen narrow near the corners to stay clear of
-  the gauges; 2 also dim as they narrow).
+  "W 4" scroll the launcher down and up; "n <mode>" sets the launcher rows' behaviour until the
+  next reset, for comparisons (2 narrowing and dimming, the default; 1 narrowing only; 0 one width).
 
 ## Dependency Selection
 
