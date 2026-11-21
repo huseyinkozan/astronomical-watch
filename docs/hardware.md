@@ -11,7 +11,7 @@ examples, SensorLib/XPowersLib, Rust watch firmwares), **[HW]** validated on thi
 
 | GPIO | Function | Notes | RTC GPIO (deep-sleep wake) |
 |---|---|---|---|
-| 0 | BOOT key | 10k pull-up, active LOW [SCH] | yes |
+| 0 | BOOT key | 10k pull-up, active LOW [SCH]; strapping pin (held low at reset: download mode). Read as an input in active mode only (back, `runActiveMode`), never a wake source | yes |
 | 1 / 2 / 3 / 17 | SD MOSI(CMD) / SCK / MISO(D0) / CS | 10k pull-ups to VCC3V3 [SCH] | – |
 | 4–7 | QSPI SIO0–3 (display) | [SCH][REF] | – |
 | 8 | LCD_RESET | [SCH] | yes (can be held) |
@@ -564,6 +564,14 @@ Scrolling speed (2026-11-14, `configs/perf`: LVGL's system monitor) [HW]:
   per pixel while painting: 86 ms, no measurable cost. The always-on face reads the same table,
   so the always-on page shows its corners pixel for pixel; its notches in the three mirrored
   corners moved by one pixel against the earlier per-corner rounding.
+- The launcher's list (2026-11-21, `build-devperf`: the development build with `configs/perf`,
+  `-Og`, QIO, 160 MHz; LVGL's system monitor, scripted with host commands): scrolled by 300 px
+  with LVGL's scroll animation (`W 3`, `W 4`, 18 scrolls, 76 frames) it takes 93–95 ms per frame
+  (render 43 ms, flush 50 ms on average), the whole list area redrawn each frame. The page swipe
+  in the same firmware (`W 2 1 0 1`, six rounds, 56 frames): 113–115 ms per frame between the
+  launcher and the opened page, 142–160 ms to and from the watch face. The scroll costs less than
+  the page swipe, so it adds no new limit; this build's figures run above the 85–90 ms above
+  (another build). A finger's scroll with momentum has not been measured [HW].
 - LVGL rendering on both cores (`LV_OS_FREERTOS`, 2 draw units, as in the Waveshare LVGL example)
   crashed five times in three minutes (LoadProhibited on core 0) and rendered slower (143 ms):
   rejected.
@@ -608,6 +616,14 @@ PSRAM is not enabled; LVGL and Wi-Fi share the internal heap.
   portal on** (49 KB before these changes), the lowest of a session 75 KB. After the portal has
   run once, the largest free block stays at 37–43 KB (94 KB before); a free-and-build round of
   the pages without the portal leaves it unchanged, so the Wi-Fi start and stop cause it.
+- 2026-11-21, the launcher (face, launcher, one opened page; development build, "Display
+  started" and "Page ... built" log lines): 154.5 KB free with the face and the launcher built
+  (142.3 KB before, with the face and the clock page), 128.4 KB once the launcher is shown and
+  the clock page built in the third tile (181 ms, 26 KB). With the portal on in that state:
+  71.7 KB free, largest block 31.7 KB. The launcher's 24 rows and 4 names take about 14 KB (about
+  260 bytes per object; their size and the label's place from one shared style saved 1.6 KB).
+  The portal is started from the settings page, which then replaces the clock page (12 KB
+  instead of 26 KB): about 86 KB expected with the portal on, as before (not measured) [HW].
 - 2026-11-19, the planets page (`main/PlanetPages.*`): 3.3 KB of heap when built; a session that
   built it and ran the portal had 69 KB free at its lowest. The day's rise and set of the seven
   planets take 0.43 s in the main task (five planets: 1.7 s before the places were interpolated
