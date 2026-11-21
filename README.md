@@ -68,6 +68,7 @@ sh tests/run_host_tests.sh    # astronomy tests on the computer (g++), against S
 MIT, see [LICENSE](LICENSE). Dependencies (ESP-IDF, the Waveshare BSP, LVGL) keep their own
 licenses. The setup page's city list comes from [GeoNames](https://www.geonames.org/) (CC BY 4.0);
 `main/dns_server.*` is ESP-IDF example code (CC0); `main/LandMask.h` is made from
-[Natural Earth](https://www.naturalearthdata.com/) land (public domain). The watch font is
+[Natural Earth](https://www.naturalearthdata.com/) land (public domain); the Messier table
+(`main/Messier.cpp`) comes from NASA HEASARC's catalogues (public domain). The watch font is
 [JetBrains Mono](https://github.com/JetBrains/JetBrainsMono) (SIL Open Font License 1.1,
 `tools/fonts/OFL.txt`).

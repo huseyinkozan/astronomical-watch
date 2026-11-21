@@ -1,46 +1,54 @@
 #!/usr/bin/env python3
-"""The Messier table of main/Messier.cpp, from OpenNGC (github.com/mattiaverga/OpenNGC,
-CC-BY-SA 4.0: database_files/NGC.csv and addendum.csv): J2000 positions and visual magnitudes.
+"""The Messier table of main/Messier.cpp, from NASA HEASARC's MESSIER and NGC2000 tables (US
+government work, public domain; heasarc.gsfc.nasa.gov/W3Browse/general-catalog/messier.html):
+J2000 positions and visual magnitudes.
 
-    curl -LO https://raw.githubusercontent.com/mattiaverga/OpenNGC/master/database_files/NGC.csv
-    curl -LO https://raw.githubusercontent.com/mattiaverga/OpenNGC/master/database_files/addendum.csv
+    curl -LO https://heasarc.gsfc.nasa.gov/FTP/heasarc/dbase/tdat_files/heasarc_messier.tdat.gz
+    curl -LO https://heasarc.gsfc.nasa.gov/FTP/heasarc/dbase/tdat_files/heasarc_ngc2000.tdat.gz
     python3 tools/make_messier_table.py <folder with both files>
 
 Prints the table's rows: { right ascension in tenths of a minute of time, declination in
-arcminutes, visual magnitude in tenths }. OpenNGC leaves M102 out (its identity is disputed; the
-usual choice is NGC 5866, taken here) and has no V magnitude for a few objects; those come from
-SEDS's Messier pages (MAGNITUDES below).
+arcminutes, visual magnitude in tenths }. The MESSIER table leaves M102 out (its identity is
+disputed; the usual choice is NGC 5866, taken here from the NGC2000 table) and has no magnitude
+for M73, an asterism of four stars (MAGNITUDES below, the commonly quoted value).
 """
 
-import csv
+import gzip
 import os
 import sys
 
-# Visual magnitudes missing from OpenNGC (SEDS, messier.seds.org).
-MAGNITUDES = {22: 5.1, 35: 5.3, 62: 6.6, 69: 7.6, 70: 7.9, 71: 8.2, 107: 7.9}
+MAGNITUDES = {73: 9.0}
 
 
-def degrees(text):
-    sign = -1 if text.startswith('-') else 1
-    parts = [float(p) for p in text.lstrip('+-').split(':')]
-    return sign * (parts[0] + parts[1] / 60 + parts[2] / 3600)
+def rows(path):
+    """The rows of a HEASARC .tdat file as dictionaries by field name."""
+    fields = []
+    result = []
+    inData = False
+    for line in gzip.open(path, 'rt', encoding='latin-1'):
+        line = line.rstrip('\n')
+        if line.startswith('line[1] = '):
+            fields = line.split(' = ', 1)[1].split()
+        elif line == '<DATA>':
+            inData = True
+        elif line == '<END>':
+            break
+        elif inData:
+            result.append(dict(zip(fields, line.split('|'))))
+    return result
 
 
 folder = sys.argv[1]
-rows = {}
-for name in ('NGC.csv', 'addendum.csv'):
-    for row in csv.DictReader(open(os.path.join(folder, name)), delimiter=';'):
-        if row['Type'] == 'Dup':
-            continue
-        if row['M']:
-            rows[int(row['M'])] = row
-        elif row['Name'] == 'NGC5866':
-            rows[102] = row
-assert sorted(rows) == list(range(1, 111)), sorted(set(range(1, 111)) - set(rows))
+objects = {}
+for row in rows(os.path.join(folder, 'heasarc_messier.tdat.gz')):
+    objects[int(row['name'].split()[1])] = (row['alt_name'], float(row['ra']), float(row['dec']), row['vmag'])
+for row in rows(os.path.join(folder, 'heasarc_ngc2000.tdat.gz')):
+    if row['name'] == 'NGC 5866':
+        objects[102] = (row['name'], float(row['ra']), float(row['dec']), row['app_mag'])
+assert sorted(objects) == list(range(1, 111)), sorted(set(range(1, 111)) - set(objects))
 
 for number in range(1, 111):
-    row = rows[number]
-    ra = round(degrees(row['RA']) * 600)  # hours to tenths of a minute
-    dec = round(degrees(row['Dec']) * 60)
-    magnitude = MAGNITUDES.get(number) or float(row['V-Mag'] or row['B-Mag'])
-    print(f'    {{ {ra}, {dec}, {round(magnitude * 10)} }},  // M{number} {row["Name"]}')
+    name, ra, dec, magnitude = objects[number]
+    magnitude = MAGNITUDES.get(number) or float(magnitude)
+    # Degrees of right ascension to tenths of a minute of time (24 per hour: 600 per 15 degrees).
+    print(f'    {{ {round(ra * 40)}, {round(dec * 60)}, {round(magnitude * 10)} }},  // M{number} {name.replace(" ", "") or "(no NGC number)"}')

@@ -13,7 +13,7 @@ class Messier
 public:
     static const int Count = 110;
 
-    // J2000 (OpenNGC, tools/make_messier_table.py), packed: the right ascension in tenths of a
+    // J2000 (NASA HEASARC, tools/make_messier_table.py), packed: the right ascension in tenths of a
     // minute of time, the declination in arcminutes, the visual magnitude in tenths.
     struct Object
     {
