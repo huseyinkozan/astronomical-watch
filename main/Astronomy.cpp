@@ -190,7 +190,7 @@ Astronomy::Position Astronomy::sunPosition( int64_t time, const Observer &observ
     return toHorizontal( toEquatorial( sunEcliptic( t ), t ), time, observer );
 }
 
-Astronomy::Position Astronomy::starPosition( double raHours, double decDegrees, int64_t time, const Observer &observer )
+void Astronomy::precess( double raHours, double decDegrees, int64_t time, double &rightAscension, double &declination )
 {
     const double t = centuriesTt( time );
     const double zeta = toRadians( ( 2306.2181 * t + 0.30188 * t * t + 0.017998 * t * t * t ) / 3600.0 );
@@ -201,9 +201,14 @@ Astronomy::Position Astronomy::starPosition( double raHours, double decDegrees, 
     const double a = std::cos( delta0 ) * std::sin( alpha0 + zeta );
     const double b = std::cos( theta ) * std::cos( delta0 ) * std::cos( alpha0 + zeta ) - std::sin( theta ) * std::sin( delta0 );
     const double c = std::sin( theta ) * std::cos( delta0 ) * std::cos( alpha0 + zeta ) + std::cos( theta ) * std::sin( delta0 );
+    rightAscension = normalised( toDegrees( std::atan2( a, b ) + z ) );
+    declination = toDegrees( std::asin( c ) );
+}
+
+Astronomy::Position Astronomy::starPosition( double raHours, double decDegrees, int64_t time, const Observer &observer )
+{
     Equatorial equatorial = {};
-    equatorial.rightAscension = normalised( toDegrees( std::atan2( a, b ) + z ) );
-    equatorial.declination = toDegrees( std::asin( c ) );
+    precess( raHours, decDegrees, time, equatorial.rightAscension, equatorial.declination );
     return toHorizontal( equatorial, time, observer );
 }
 
@@ -464,6 +469,19 @@ int64_t Astronomy::nextSeason( int64_t time, int &season )
 double Astronomy::greenwichSiderealTime( int64_t time )
 {
     return siderealTime( time );
+}
+
+void Astronomy::sunEquatorial( int64_t time, double &rightAscension, double &declination )
+{
+    const double t = centuriesTt( time );
+    const Equatorial sun = toEquatorial( sunEcliptic( t ), t );
+    rightAscension = sun.rightAscension;
+    declination = sun.declination;
+}
+
+double Astronomy::obliquityOfDate( int64_t time )
+{
+    return obliquity( centuriesTt( time ) );
 }
 
 void Astronomy::sunDeclinationAndEquation( int64_t time, double &declination, double &equationMinutes )

@@ -71,6 +71,8 @@ public:
     // A star of the J2000 catalogue at `time` (precessed to the date, Meeus 21.2; nutation and
     // aberration, about 0.01 degrees, left out).
     static Position starPosition( double raHours, double decDegrees, int64_t time, const Observer &observer );
+    // The same star's right ascension and declination of the date (degrees).
+    static void precess( double raHours, double decDegrees, int64_t time, double &rightAscension, double &declination );
 
     static SunDay sunDay( int64_t localMidnight, const Observer &observer );
 
@@ -95,6 +97,11 @@ public:
     // The Sun's declination (degrees) and the equation of time (apparent minus mean solar time,
     // minutes) at `time`.
     static void sunDeclinationAndEquation( int64_t time, double &declination, double &equationMinutes );
+
+    // The Sun's apparent right ascension and declination (degrees), and the obliquity of the
+    // ecliptic (degrees) at `time`.
+    static void sunEquatorial( int64_t time, double &rightAscension, double &declination );
+    static double obliquityOfDate( int64_t time );
 
     // Greenwich mean sidereal time, degrees.
     static double greenwichSiderealTime( int64_t time );
