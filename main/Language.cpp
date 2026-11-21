@@ -379,6 +379,28 @@ static const char *s_texts[][2] = {
     { "Tilt all year", "Yıllık eğim" },
     { "Tilt today", "Bugünkü eğim" },
     { "Title: dish, panel", "Başlık: çanak, panel" },
+    // Additions to the information and clock pages (stage 5).
+    { "Turnaround", "Geri dönüş" },
+    { "Makruh", "Kerahat" },
+    { "Raghaib Night", "Regaip Kandili" },
+    { "Miraj Night", "Miraç Kandili" },
+    { "Baraat Night", "Berat Kandili" },
+    { "Ramadan", "Ramazan" },
+    { "Laylat al-Qadr", "Kadir Gecesi" },
+    { "Eid al-Fitr", "Ramazan Bayramı" },
+    { "Eid al-Adha", "Kurban Bayramı" },
+    { "Hijri New Year", "Hicri yılbaşı" },
+    { "Ashura", "Aşure" },
+    { "Mawlid", "Mevlid Kandili" },
+    { "%s in %d d", "%s %d gün" },
+    { "%s today", "%s bugün" },
+    { "Ramadan in %d days", "Ramazana %d gün" },
+    { "Ramadan day %d", "Ramazan %d. gün" },
+    { "Regatta", "Regata" },
+    { "Sync", "Eşitle" },
+    { "%d min signal %s", "%d dk işareti %s" },
+    { "Start at %s", "Start %s" },
+    { "5-4-1-0 start", "5-4-1-0 start" },
 };
 // One pair per text: a missing one would shift every text after it.
 static_assert( sizeof( s_texts ) / sizeof( s_texts[0] ) == Language::TextCount, "a text pair per Language::Text" );

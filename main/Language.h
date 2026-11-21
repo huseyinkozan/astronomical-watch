@@ -387,6 +387,28 @@ public:
         AimYearTilt,
         AimDayTilt,
         AimHint,
+        // Additions to the information and clock pages (stage 5).
+        Turnaround,
+        KerahatRow,
+        HolyRegaip,  // the religious days in the order of HolyDays::Day, from Regaip
+        HolyMirac,
+        HolyBerat,
+        HolyRamadan,
+        HolyKadir,
+        HolyRamazanBayrami,
+        HolyKurbanBayrami,
+        HolyNewYear,
+        HolyAshura,
+        HolyMevlid,
+        HolyInDays,      // "%s in %d d": the name, the days left
+        HolyToday,       // "%s today"
+        RamadanInDays,   // "Ramadan in %d days"
+        RamadanDay,      // "Ramadan day %d"
+        Regatta,
+        Sync,
+        RegattaNext,     // "%d min signal at %s"
+        RegattaStarted,  // "start at %s"
+        RegattaReady,
         TextCount
     };
 

@@ -2,6 +2,7 @@
 #include "Styles.h"
 #include "Fonts.h"
 #include "Language.h"
+#include "Dates.h"
 
 #include <cmath>
 #include <cstdarg>
@@ -18,6 +19,10 @@ static const int s_arrowLength = 110;
 // nine rows), clear of the lower corners.
 static const TablePart::Layout s_tableLayout = { nullptr, 0, {}, -1, 38, 38, 20, 160, 180, 105, 0, 32 + 9 * 38 };
 static const uint32_t s_amberRgb = 0xFFB040;
+// The prayer table's rows after the six times.
+static const int s_kerahatRow = Sky::PrayerCount;
+static const int s_nextPrayerRow = Sky::PrayerCount + 1;
+static const int s_methodRow = Sky::PrayerCount + 2;
 
 static TablePart::Layout tableLayout( const char *title, int rowCount, const TablePart::RowKind *kinds )
 {
@@ -107,17 +112,20 @@ static const char *prayerName( int prayer )
 void SkyPages::build( lv_obj_t *sunPage, lv_obj_t *twilightPage, lv_obj_t *prayerPage, lv_obj_t *moonPage,
                       lv_obj_t *compassPage, lv_obj_t *timePage )
 {
-    // Prayer times: the six times, the next one with the time left, the method.
+    // Prayer times: the six times, the kerahat interval, the next one with the time left, the
+    // method.
     TablePart::RowKind kinds[TableText::MaxRows] = {};
     for ( int i = 0; i < Sky::PrayerCount; ++i ) {
         kinds[i] = TablePart::OneValue;
         m_prayer.text().set( i, 0, prayerName( i ) );
     }
-    kinds[Sky::PrayerCount] = TablePart::Line;
-    kinds[Sky::PrayerCount + 1] = TablePart::Line;
-    m_prayer.text().setColours( Sky::PrayerCount, TableText::Grey, s_amberRgb );
-    m_prayer.text().setColours( Sky::PrayerCount + 1, TableText::Grey, TableText::Grey );
-    m_prayer.build( prayerPage, tableLayout( Language::text( Language::PrayerTimes ), Sky::PrayerCount + 2, kinds ) );
+    kinds[s_kerahatRow] = TablePart::OneValue;
+    m_prayer.text().set( s_kerahatRow, 0, Language::text( Language::KerahatRow ) );
+    kinds[s_nextPrayerRow] = TablePart::Line;
+    kinds[s_methodRow] = TablePart::Line;
+    m_prayer.text().setColours( s_nextPrayerRow, TableText::Grey, s_amberRgb );
+    m_prayer.text().setColours( s_methodRow, TableText::Grey, TableText::Grey );
+    m_prayer.build( prayerPage, tableLayout( Language::text( Language::PrayerTimes ), s_methodRow + 1, kinds ) );
 
     // Time: the clocks of this moment and the day's numbers.
     const char *timeNames[TimeRows] = { Language::text( Language::Local ),      "UTC",
@@ -132,7 +140,8 @@ void SkyPages::build( lv_obj_t *sunPage, lv_obj_t *twilightPage, lv_obj_t *praye
 
     const char *sunNames[SunRows] = { Language::text( Language::Rise ), Language::text( Language::Set ),
                                       Language::text( Language::Noon ), Language::text( Language::Day ),
-                                      "",                               Language::text( Language::Now ) };
+                                      "",                               Language::text( Language::Turnaround ),
+                                      Language::text( Language::Now ) };
     for ( int i = 0; i < SunRows; ++i ) {
         kinds[i] = TablePart::TwoValues;
         m_sun.text().set( i, 0, sunNames[i] );
@@ -212,13 +221,26 @@ void SkyPages::show( const Sky::Day &day, const Sky::Now &now, int utcOffsetMinu
         const bool next = i == now.nextPrayer;
         m_prayer.text().setColours( i, next ? s_amberRgb : TableText::Grey, next ? s_amberRgb : TableText::White );
     }
+    // The kerahat interval now (amber) or next.
+    const Sky::Kerahat kerahat = Sky::kerahat( day.prayers, now.time );
+    if ( kerahat.valid ) {
+        char start[8];
+        char end[8];
+        formatTime( start, sizeof( start ), true, kerahat.start, utcOffsetMinutes );
+        formatTime( end, sizeof( end ), true, kerahat.end, utcOffsetMinutes );
+        setText( m_prayer, s_kerahatRow, 1, "%s-%s", start, end );
+    } else {
+        m_prayer.text().set( s_kerahatRow, 1, "--" );
+    }
+    m_prayer.text().setColours( s_kerahatRow, kerahat.now ? s_amberRgb : TableText::Grey,
+                                kerahat.now ? s_amberRgb : TableText::White );
     if ( now.nextPrayer >= 0 ) {
         formatDuration( text, sizeof( text ), now.secondsToPrayer );
-        setLineText( m_prayer, Sky::PrayerCount, Language::text( Language::PrayerIn ), prayerName( now.nextPrayer ), text );
+        setLineText( m_prayer, s_nextPrayerRow, Language::text( Language::PrayerIn ), prayerName( now.nextPrayer ), text );
     } else {
-        m_prayer.text().setLine( Sky::PrayerCount, "" );
+        m_prayer.text().setLine( s_nextPrayerRow, "" );
     }
-    setLineText( m_prayer, Sky::PrayerCount + 1, Language::text( day.prayers.approximate ? Language::DiyanetApprox : Language::Diyanet ),
+    setLineText( m_prayer, s_methodRow, Language::text( day.prayers.approximate ? Language::DiyanetApprox : Language::Diyanet ),
              m_place );
 
     // Time.
@@ -227,6 +249,22 @@ void SkyPages::show( const Sky::Day &day, const Sky::Now &now, int utcOffsetMinu
     const int utcSeconds = static_cast<int>( ( now.time % 86400 + 86400 ) % 86400 );
     setText( m_time, 0, 1, "%02d:%02d:%02d", localSeconds / 3600, localSeconds / 60 % 60, localSeconds % 60 );
     setText( m_time, 1, 1, "%02d:%02d:%02d", utcSeconds / 3600, utcSeconds / 60 % 60, utcSeconds % 60 );
+    // UTC's date beside its name when it is not the local one.
+    const int utcDay = static_cast<int>( ( now.time >= 0 ? now.time : now.time - 86399 ) / 86400 );
+    const int localDay = static_cast<int>( ( local >= 0 ? local : local - 86399 ) / 86400 );
+    if ( utcDay == localDay ) {
+        m_time.text().set( 1, 0, "UTC" );
+    } else {
+        int year = 0;
+        int month = 0;
+        int date = 0;
+        Dates::civil( utcDay, year, month, date );
+        if ( Language::current() == Language::Turkish ) {
+            setText( m_time, 1, 0, "UTC %d %s", date, Language::shortMonth( month ) );
+        } else {
+            setText( m_time, 1, 0, "UTC %s %d", Language::shortMonth( month ), date );
+        }
+    }
     setText( m_time, 2, 1, "%02d:%02d:%02d", now.solarSeconds / 3600, now.solarSeconds / 60 % 60, now.solarSeconds % 60 );
     const int equation = day.equationOfTime < 0 ? -day.equationOfTime : day.equationOfTime;
     setText( m_time, 3, 1, "%c%d:%02d", day.equationOfTime < 0 ? '-' : '+', equation / 60, equation % 60 );
@@ -255,8 +293,11 @@ void SkyPages::show( const Sky::Day &day, const Sky::Now &now, int utcOffsetMinu
     formatDuration( text, sizeof( text ), now.secondsToSunEvent );
     m_sun.text().set( 4, 1, now.secondsToSunEvent > 0 ? text : "--" );
     m_sun.text().set( 4, 2, "" );
-    setText( m_sun, 5, 1, "%.0f\xC2\xB0", now.sun.altitude );
-    setText( m_sun, 5, 2, "%.0f\xC2\xB0", now.sun.azimuth );
+    // While the Sun is up: turn back at this time to be back by sunset.
+    const int64_t turnaround = Sky::turnaround( now );
+    setTime( m_sun, 5, 1, { turnaround != 0, turnaround }, utcOffsetMinutes );
+    setText( m_sun, 6, 1, "%.0f\xC2\xB0", now.sun.altitude );
+    setText( m_sun, 6, 2, "%.0f\xC2\xB0", now.sun.azimuth );
 
     // Twilight: when each limit is crossed at dawn and at dusk; the blue hour runs from -6 to -4
     // degrees, the golden hour from -4 to +6. Row 0 is the header.

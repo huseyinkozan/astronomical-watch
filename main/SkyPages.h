@@ -26,7 +26,7 @@ public:
     void forget();
 
 private:
-    static const int SunRows = 6;
+    static const int SunRows = 7;
     static const int TwilightRows = 8;
     static const int MoonRows = 7;
     static const int TimeRows = 8;

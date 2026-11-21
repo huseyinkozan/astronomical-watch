@@ -38,8 +38,47 @@ static int europeanOffset( int day )
     return day >= start && day < end ? 180 : 120;
 }
 
+// The kerahat intervals on Istanbul's 21 June 2026 (Diyanet: sunrise 05:25, dhuhr 13:11,
+// maghrib 20:47): 05:25-06:10, 13:01-13:11 and 20:02-20:47, then tomorrow's morning.
+static bool checkKerahat()
+{
+    const int day = Dates::dayNumber( 2026, 6, 21 );
+    const int64_t midnight = static_cast<int64_t>( day ) * 86400 - 180 * 60;
+    const Sky::PrayerTimes prayers = Sky::prayerTimes( day, s_cities[0].observer, 17 );
+    // Local minute of the day, the interval expected (start and end minute), inside it or not.
+    struct Case
+    {
+        int minute;
+        int start;
+        int end;
+        bool now;
+    };
+    static const Case s_cases[] = { { 4 * 60, 5 * 60 + 25, 6 * 60 + 10, false },
+                                    { 5 * 60 + 40, 5 * 60 + 25, 6 * 60 + 10, true },
+                                    { 6 * 60 + 10, 13 * 60 + 1, 13 * 60 + 11, false },
+                                    { 13 * 60 + 5, 13 * 60 + 1, 13 * 60 + 11, true },
+                                    { 17 * 60, 20 * 60 + 2, 20 * 60 + 47, false },
+                                    { 20 * 60 + 46, 20 * 60 + 2, 20 * 60 + 47, true },
+                                    { 21 * 60, 24 * 60 + 5 * 60 + 25, 24 * 60 + 6 * 60 + 10, false } };
+    bool ok = true;
+    for ( size_t i = 0; i < sizeof( s_cases ) / sizeof( s_cases[0] ); ++i ) {
+        const Case &c = s_cases[i];
+        const Sky::Kerahat kerahat = Sky::kerahat( prayers, midnight + c.minute * 60 );
+        const int start = static_cast<int>( ( kerahat.start - midnight ) / 60 );
+        const int end = static_cast<int>( ( kerahat.end - midnight ) / 60 );
+        if ( !kerahat.valid || start != c.start || end != c.end || kerahat.now != c.now ) {
+            printf( "FAIL kerahat at %02d:%02d: %d-%d (now %d), expected %d-%d (now %d)\n", c.minute / 60, c.minute % 60,
+                    start, end, kerahat.now, c.start, c.end, c.now );
+            ok = false;
+        }
+    }
+    printf( "Kerahat: %s\n", ok ? "ok" : "FAIL" );
+    return ok;
+}
+
 int main( int argc, char **argv )
 {
+    const bool kerahatOk = checkKerahat();
     const char *path = argc > 1 ? argv[1] : "tests/diyanet_prayer_times.csv";
     FILE *file = fopen( path, "r" );
     if ( file == nullptr ) {
@@ -104,5 +143,5 @@ int main( int argc, char **argv )
     const bool ok = total > 0 && worst <= 1 && withinOne == total;
     printf( "Prayer times: %d compared, %d exact (%.1f %%), all within %d min%s\n", total, exact,
             total > 0 ? exact * 100.0 / total : 0.0, worst, ok ? "" : " FAIL" );
-    return ok ? 0 : 1;
+    return ok && kerahatOk ? 0 : 1;
 }

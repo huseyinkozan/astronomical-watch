@@ -41,6 +41,12 @@ int main()
     // Solar time: local mean time (UTC + 1 h 55.9 min) plus the equation of time (-1.6 min).
     check( "solar time 19:19 (min)", now.solarSeconds / 60.0, 16 * 60 + 19 + 115.9 - 1.6, 1.5 );
     // The Sun at the qibla's azimuth in the morning, before noon.
+    // Turnaround: half of the 1 h 21 min left until the sunset at 20:40, so about 19:59.
+    const int64_t turnaround = Sky::turnaround( now );
+    check( "turnaround 19:19 (min after 19:19)", ( turnaround - scene ) / 60.0, 40.5, 1 );
+    Sky::Now night = now;
+    night.sunUp = false;
+    check( "no turnaround at night", static_cast<double>( Sky::turnaround( night ) ), 0, 0 );
     check( "qibla time before noon", june.qibla.occurs && june.qibla.time < june.sun.noon.time ? 1 : 0, 1, 0 );
 
     // Dates.

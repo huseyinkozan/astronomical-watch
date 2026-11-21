@@ -104,6 +104,28 @@ public:
 
     static Now computeNow( int64_t time, const Day &day, const Astronomy::Observer &observer );
 
+    // The turnaround time of a walk while the Sun is up: now plus half the daylight left, so
+    // that the way back ends at sunset; 0 at night or without a sunset.
+    static int64_t turnaround( const Now &now );
+
+    // The kerahat (makruh) times by Diyanet's fetva ("Mekruh vakitler hangileridir?",
+    // kurul.diyanet.gov.tr), on the times of its table: from sunrise until 45 minutes later (it
+    // says 40-50), the istiva from 10 minutes before dhuhr until dhuhr, and the yellowing Sun
+    // from 45 minutes before maghrib (40-50 before sunset) until maghrib.
+    static const int KerahatSunriseMinutes = 45;
+    static const int KerahatNoonMinutes = 10;
+    static const int KerahatSunsetMinutes = 45;
+    struct Kerahat
+    {
+        bool valid;
+        bool now;       // `time` lies inside it
+        int64_t start;  // Unix time
+        int64_t end;
+    };
+    // The kerahat interval that holds `time`, else the next one; after maghrib tomorrow's first,
+    // taken as today's a day later (like the next prayer after the night prayer).
+    static Kerahat kerahat( const PrayerTimes &prayers, int64_t time );
+
     // 0 new Moon, 1 waxing crescent, 2 first quarter, 3 waxing gibbous, 4 full Moon,
     // 5 waning gibbous, 6 last quarter, 7 waning crescent.
     static int phaseIndex( const Astronomy::MoonPhase &phase );

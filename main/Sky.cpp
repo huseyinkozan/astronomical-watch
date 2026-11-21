@@ -269,3 +269,31 @@ Sky::Tide Sky::tide( const Astronomy::MoonPhase &phase )
     }
     return TideMiddle;
 }
+
+int64_t Sky::turnaround( const Now &now )
+{
+    if ( !now.sunUp || now.secondsToSunEvent <= 0 ) {
+        return 0;
+    }
+    return now.time + now.secondsToSunEvent / 2;
+}
+
+Sky::Kerahat Sky::kerahat( const PrayerTimes &prayers, int64_t time )
+{
+    Kerahat result = {};
+    const int64_t starts[3] = { prayers.times[Sunrise], prayers.times[Dhuhr] - KerahatNoonMinutes * 60,
+                                prayers.times[Maghrib] - KerahatSunsetMinutes * 60 };
+    const int64_t ends[3] = { prayers.times[Sunrise] + KerahatSunriseMinutes * 60, prayers.times[Dhuhr],
+                              prayers.times[Maghrib] };
+    const bool valid[3] = { prayers.valid[Sunrise], prayers.valid[Dhuhr], prayers.valid[Maghrib] };
+    for ( int i = 0; i < 3; ++i ) {
+        if ( valid[i] && ends[i] > time ) {
+            result = { true, starts[i] <= time, starts[i], ends[i] };
+            return result;
+        }
+    }
+    if ( valid[0] ) {
+        result = { true, false, starts[0] + s_dayS, ends[0] + s_dayS };
+    }
+    return result;
+}
