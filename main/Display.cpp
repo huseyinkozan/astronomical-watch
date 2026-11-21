@@ -2049,6 +2049,7 @@ uint32_t Display::inactiveMs()
         m_inactiveMs = lv_display_get_inactive_time( nullptr );
         m_touchPressed = m_touch != nullptr && lv_indev_get_state( m_touch ) == LV_INDEV_STATE_PRESSED;
         m_torchLeft = m_torchShown ? m_tools.torchSecondsLeft() : -1;
+        m_regattaRunning = m_clock.serviceRegatta();
         bsp_display_unlock();
     }
     return m_inactiveMs;
@@ -2062,6 +2063,11 @@ bool Display::touchPressed() const
 int Display::torchSecondsLeft() const
 {
     return m_torchLeft;
+}
+
+bool Display::regattaRunning() const
+{
+    return m_regattaRunning;
 }
 
 void Display::showPlanets( int64_t now, const Astronomy::Observer &observer, int utcOffsetMinutes, bool located )

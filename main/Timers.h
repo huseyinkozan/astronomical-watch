@@ -4,8 +4,9 @@
 
 // The stopwatch and the countdown of the clock page. Both keep running while the watch sleeps or
 // is off: they store Unix times in milliseconds (the RTC's time), not a running counter, and are
-// written to NVS only when a button changes them. The countdown gives no signal yet (the
-// vibration motor comes with the alarms); it shows 00:00 once it has run out.
+// written to NVS only when a button changes them. The countdown rings as an alarm (main.cpp) and
+// shows 00:00 once it has run out; in the regatta mode its signals are short beeps instead
+// (ClockPages::serviceRegatta).
 class Timers
 {
 public:
@@ -25,6 +26,9 @@ public:
     struct Countdown
     {
         bool running;
+        // 1: the regatta start mode (Regatta). In the padding after `running`, so that the saved
+        // layout keeps its size; any other value reads as the normal countdown.
+        uint8_t regatta;
         int durationS;       // as set with the buttons
         int64_t endMs;       // when running: when it reaches zero
         int64_t remainingMs;  // when paused
@@ -46,6 +50,12 @@ public:
     void resetCountdown();
     // After it rang: stopped at 00:00, its duration kept for the next start.
     void finishCountdown();
+
+    // The regatta start mode: on, the countdown stands at 5:00; off, at zero. Reset keeps the mode.
+    bool regatta() const;
+    void setRegatta( bool on );
+    // While it runs: the time left rounded to the nearest minute (Regatta::sync).
+    void syncRegatta( int64_t nowMs );
 
 private:
     void save();

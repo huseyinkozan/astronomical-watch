@@ -1421,7 +1421,8 @@ static int runActiveMode()
             ESP_LOGI( TAG, "Torch auto-off: active mode ends" );
             return 1;
         }
-        if ( torchLeft > 0 ) {
+        // So does the countdown's regatta sequence until its start, for its signals.
+        if ( torchLeft > 0 || ( s_displayOn && s_display.regattaRunning() ) ) {
             activeMs = 0;
             idleMs = 0;
         }

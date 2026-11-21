@@ -9,6 +9,8 @@
 #include "Fonts.h"
 #include "Language.h"
 #include "Panel.h"
+#include "Regatta.h"
+#include "Ringer.h"
 #include "SkyPages.h"
 #include "esp_timer.h"
 
@@ -122,7 +124,9 @@ void ClockPages::build( lv_obj_t *tile )
     m_stopwatchRight = button( stopwatch, 210, 318, s_right, 398, "", onStopwatchButton, this );
 
     lv_obj_t *timer = m_stack.part( TimerPart );
-    title( timer, Language::text( Language::Timer ) );
+    // The title is a button: a tap switches between the countdown and the regatta start.
+    m_timerTitle = button( timer, 105, 30, 305, 70, "", onTimerButton, this );
+    lv_obj_set_style_text_color( m_timerTitle, s_grey, 0 );
     m_timerTime = label( timer, &jetbrains_mono_light_90, lv_color_white(), LV_ALIGN_TOP_MID, 0, 72, "" );
     m_timerInfo = label( timer, &jetbrains_mono_26, s_grey, LV_ALIGN_TOP_MID, 0, 182, "" );
     static const char *s_add[3] = { "+1", "+5", "+10" };
@@ -131,6 +135,13 @@ void ClockPages::build( lv_obj_t *tile )
     }
     m_timerButtons[3] = button( timer, s_left, 318, 200, 398, Language::text( Language::Reset ), onTimerButton, this );
     m_timerButtons[4] = button( timer, 210, 318, s_right, 398, "", onTimerButton, this );
+    m_timerButtons[5] = button( timer, s_left, 224, s_right, 292, Language::text( Language::Sync ), onTimerButton, this );
+    // Until the first tick: the mode's title and buttons.
+    setText( m_timerTitle, Language::text( m_timers.regatta() ? Language::Regatta : Language::Timer ) );
+    for ( int i = 0; i < 3; ++i ) {
+        lv_obj_set_hidden( lv_obj_get_parent( m_timerButtons[i] ), m_timers.regatta() );
+    }
+    lv_obj_set_hidden( lv_obj_get_parent( m_timerButtons[5] ), !m_timers.regatta() );
 
     buildCalendar( m_gregorian, m_stack.part( GregorianPart ) );
     buildCalendar( m_hijri, m_stack.part( HijriPart ) );
@@ -654,6 +665,7 @@ void ClockPages::showStopwatch( int64_t now )
 void ClockPages::showCountdown( int64_t now )
 {
     const Timers::Countdown &timer = m_timers.countdown();
+    const bool regatta = m_timers.regatta();
     const int64_t remaining = m_timers.remainingMs( now );
     // Rounded up: the countdown shows 00:00 only once it has run out.
     const int seconds = static_cast<int>( ( remaining + 999 ) / 1000 );
@@ -661,7 +673,14 @@ void ClockPages::showCountdown( int64_t now )
     snprintf( text, sizeof( text ), "%02d:%02d", seconds / 60, seconds % 60 );
     setText( m_timerTime, text );
     char end[8];
-    if ( timer.durationS == 0 ) {
+    if ( regatta ) {
+        if ( timer.running ) {
+            formatLocal( end, sizeof( end ), timer.endMs );
+            snprintf( text, sizeof( text ), Language::text( Language::RegattaStart ), end );
+        } else {
+            snprintf( text, sizeof( text ), "%s", Language::text( Language::RegattaReady ) );
+        }
+    } else if ( timer.durationS == 0 ) {
         snprintf( text, sizeof( text ), "%s", Language::text( Language::AddMinutes ) );
     } else if ( timer.running ) {
         formatLocal( end, sizeof( end ), timer.endMs );
@@ -674,9 +693,33 @@ void ClockPages::showCountdown( int64_t now )
         snprintf( text, sizeof( text ), Language::text( Language::TimerPaused ), timer.durationS / 60, timer.durationS % 60 );
     }
     setText( m_timerInfo, text );
+    setText( m_timerTitle, Language::text( regatta ? Language::Regatta : Language::Timer ) );
+    for ( int i = 0; i < 3; ++i ) {
+        lv_obj_set_hidden( lv_obj_get_parent( m_timerButtons[i] ), regatta );
+    }
+    lv_obj_set_hidden( lv_obj_get_parent( m_timerButtons[5] ), !regatta );
     const bool counting = timer.running && remaining > 0;
     setText( m_timerButtons[4], Language::text( counting ? Language::Pause : Language::Start ) );
     lv_obj_set_style_text_color( m_timerButtons[4], counting ? s_amber : lv_color_white(), 0 );
+}
+
+bool ClockPages::serviceRegatta()
+{
+    if ( m_scene || m_baseUs == 0 || !m_timers.regatta() || !m_timers.countdown().running ) {
+        m_regattaLastMs = -1;
+        return false;
+    }
+    const int64_t remaining = m_timers.remainingMs( nowMs() );
+    // From the second call on: a wake in the middle of the sequence gives no late signal.
+    if ( m_regattaLastMs >= 0 ) {
+        const Regatta::Signal signal = Regatta::signal( m_regattaLastMs, remaining );
+        if ( signal.beeps > 0 ) {
+            Ringer ringer;
+            ringer.signal( signal.beeps, signal.toneMs );
+        }
+    }
+    m_regattaLastMs = remaining;
+    return remaining > 0;
 }
 
 void ClockPages::onTick( lv_timer_t *timer )
@@ -728,6 +771,10 @@ void ClockPages::onTimerButton( lv_event_t *event )
         self->m_timers.resetCountdown();
     } else if ( box == lv_obj_get_parent( self->m_timerButtons[4] ) ) {
         self->m_timers.startPauseCountdown( now );
+    } else if ( box == lv_obj_get_parent( self->m_timerButtons[5] ) ) {
+        self->m_timers.syncRegatta( now );
+    } else if ( box == lv_obj_get_parent( self->m_timerTitle ) ) {
+        self->m_timers.setRegatta( !self->m_timers.regatta() );
     }
     self->showCountdown( now );
 }
@@ -801,12 +848,13 @@ bool ClockPages::press( const char *name )
             return true;
         }
     }
-    lv_obj_t *targets[7] = { lv_obj_get_parent( m_stopwatchLeft ), lv_obj_get_parent( m_stopwatchRight ),
+    lv_obj_t *targets[9] = { lv_obj_get_parent( m_stopwatchLeft ),  lv_obj_get_parent( m_stopwatchRight ),
                              lv_obj_get_parent( m_timerButtons[0] ), lv_obj_get_parent( m_timerButtons[1] ),
                              lv_obj_get_parent( m_timerButtons[2] ), lv_obj_get_parent( m_timerButtons[3] ),
-                             lv_obj_get_parent( m_timerButtons[4] ) };
-    static const char *s_names[7] = { "lap", "start", "+1", "+5", "+10", "reset", "go" };
-    for ( int i = 0; i < 7; ++i ) {
+                             lv_obj_get_parent( m_timerButtons[4] ), lv_obj_get_parent( m_timerButtons[5] ),
+                             lv_obj_get_parent( m_timerTitle ) };
+    static const char *s_names[9] = { "lap", "start", "+1", "+5", "+10", "reset", "go", "sync", "regatta" };
+    for ( int i = 0; i < 9; ++i ) {
         if ( strcmp( name, s_names[i] ) == 0 ) {
             lv_obj_send_event( targets[i], LV_EVENT_CLICKED, nullptr );
             return true;
@@ -869,6 +917,12 @@ void ClockPages::setScene( bool scene )
         m_alarmDue[i] = s_sceneDue[i];
     }
     showAlarms();
+    // The normal countdown, whatever mode the watch's own is in.
+    setText( m_timerTitle, Language::text( Language::Timer ) );
+    for ( int i = 0; i < 3; ++i ) {
+        lv_obj_set_hidden( lv_obj_get_parent( m_timerButtons[i] ), false );
+    }
+    lv_obj_set_hidden( lv_obj_get_parent( m_timerButtons[5] ), true );
     setText( m_timerTime, "07:42" );
     snprintf( text, sizeof( text ), Language::text( Language::TimerEnds ), 10, 0, "19:27" );
     setText( m_timerInfo, text );
@@ -879,7 +933,7 @@ void ClockPages::setScene( bool scene )
 int64_t ClockPages::countdownEndMs() const
 {
     const Timers::Countdown &countdown = m_timers.countdown();
-    return countdown.running ? countdown.endMs : 0;
+    return countdown.running && !m_timers.regatta() ? countdown.endMs : 0;
 }
 
 bool ClockPages::stopwatchRunning() const

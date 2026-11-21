@@ -27,6 +27,9 @@ static volatile bool s_finished = false;
 // The torch's SOS beeps instead of the alarm: their start (esp_timer us), 0 for the alarm.
 static volatile int64_t s_sosStartUs = 0;
 static const int s_sosFrequency = 1000;
+// A short signal instead of the alarm: its tones (0: none) and their length.
+static volatile int s_signalBeeps = 0;
+static volatile int s_signalToneMs = 0;
 
 // Beeps while the SOS light is on: each tone lasts the whole sign (a dash in one piece, without
 // the ramps' notch between pieces), the silences come in short pieces so that a stop is quick.
@@ -54,10 +57,14 @@ static void ringTask( void * )
         if ( s_sosStartUs != 0 ) {
             playSos( sound );
         }
+        for ( int i = 0; i < s_signalBeeps && !s_stopRequested; ++i ) {
+            sound.tone( s_sosFrequency, s_signalToneMs, false );
+            sound.silence( s_gapMs );
+        }
         const int64_t startUs = esp_timer_get_time();
         int beep = 0;
         int volume = s_firstVolume;
-        while ( !s_stopRequested && s_sosStartUs == 0 ) {
+        while ( !s_stopRequested && s_sosStartUs == 0 && s_signalBeeps == 0 ) {
             const int elapsedMs = static_cast<int>( ( esp_timer_get_time() - startUs ) / 1000 );
             if ( elapsedMs >= s_durationMs ) {
                 s_finished = true;
@@ -88,9 +95,11 @@ static void waitForEnd()
     }
 }
 
-static bool startTask( int64_t sosStartUs )
+static bool startTask( int64_t sosStartUs, int signalBeeps, int signalToneMs )
 {
     s_sosStartUs = sosStartUs;
+    s_signalBeeps = signalBeeps;
+    s_signalToneMs = signalToneMs;
     s_stopRequested = false;
     s_finished = false;
     s_running = true;
@@ -105,13 +114,13 @@ static bool startTask( int64_t sosStartUs )
 
 bool Ringer::start()
 {
-    if ( s_running && s_sosStartUs != 0 ) {
+    if ( s_running && ( s_sosStartUs != 0 || s_signalBeeps != 0 ) ) {
         stop();
     }
     if ( s_running ) {
         return true;
     }
-    return startTask( 0 );
+    return startTask( 0, 0, 0 );
 }
 
 void Ringer::stop()
@@ -127,7 +136,7 @@ bool Ringer::startSos( int64_t startUs )
     }
     // A stop asked for a moment ago may still be running.
     waitForEnd();
-    return startTask( startUs != 0 ? startUs : 1 );
+    return startTask( startUs != 0 ? startUs : 1, 0, 0 );
 }
 
 void Ringer::stopSos( bool wait )
@@ -139,6 +148,14 @@ void Ringer::stopSos( bool wait )
     if ( wait ) {
         waitForEnd();
     }
+}
+
+bool Ringer::signal( int beeps, int toneMs )
+{
+    if ( s_running || beeps <= 0 ) {
+        return false;
+    }
+    return startTask( 0, beeps, toneMs );
 }
 
 bool Ringer::ringing() const

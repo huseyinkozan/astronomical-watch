@@ -164,6 +164,11 @@ public:
     // last inactiveMs() call: meanwhile no display timeout, at 0 active mode ends (main.cpp).
     int torchSecondsLeft() const;
 
+    // Whether the countdown's regatta sequence runs to its start, as of the last inactiveMs()
+    // call, which also gives its signals (ClockPages::serviceRegatta): meanwhile no display
+    // timeout (main.cpp).
+    bool regattaRunning() const;
+
     // The ringing alarm over every page: its name and the time, and a tap anywhere stops it
     // (alarmTapped() once true until the next showAlarm()).
     void showAlarm( const char *name, const char *time );
@@ -394,6 +399,7 @@ private:
     bool m_torchShown = false;
     int m_torchLevel = 0;   // the level set while the torch shows
     int m_torchLeft = -1;   // torchSecondsLeft()
+    bool m_regattaRunning = false;
     // The red night mode: wanted (showCorners) and shown (not over the QR code or the torch);
     // read by the flush.
     void updateRed();

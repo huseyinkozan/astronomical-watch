@@ -93,9 +93,15 @@ public:
 
     // The alarms: the countdown's end while it runs (Unix ms; 0: stopped), whether the stopwatch
     // runs, and the countdown stopped at 00:00 after it rang.
+    // In the regatta mode none: its start is a short signal (serviceRegatta), not the alarm.
     int64_t countdownEndMs() const;
     bool stopwatchRunning() const;
     void finishCountdown();
+
+    // Every 20 ms in active mode, built or not: the regatta mode's signals when the time left
+    // passes 4:00, 1:00 and 0:00 (Regatta, Ringer::signal). True while its countdown runs to
+    // the start: active mode stays on meanwhile (main.cpp), so that no signal is missed.
+    bool serviceRegatta();
 
 private:
     static void onTick( lv_timer_t *timer );
@@ -181,7 +187,10 @@ private:
 
     lv_obj_t *m_timerTime = nullptr;
     lv_obj_t *m_timerInfo = nullptr;
-    lv_obj_t *m_timerButtons[5] = {};  // +1, +5, +10, Reset, Start / Pause
+    // +1, +5, +10, Reset, Start / Pause, Sync (regatta mode, in place of the three first).
+    lv_obj_t *m_timerButtons[6] = {};
+    lv_obj_t *m_timerTitle = nullptr;  // a button: a tap switches the regatta mode
+    int64_t m_regattaLastMs = -1;      // the time left at the last serviceRegatta(), -1: none
 
     // Day counters.
     void showCounters();

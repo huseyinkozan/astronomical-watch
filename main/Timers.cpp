@@ -1,5 +1,6 @@
 #include "Timers.h"
 
+#include "Regatta.h"
 #include "esp_log.h"
 #include "nvs.h"
 
@@ -136,6 +137,10 @@ void Timers::startPauseCountdown( int64_t nowMs )
 
 void Timers::resetCountdown()
 {
+    if ( regatta() ) {
+        setRegatta( true );
+        return;
+    }
     m_state.countdown = {};
     save();
 }
@@ -144,5 +149,33 @@ void Timers::finishCountdown()
 {
     m_state.countdown.running = false;
     m_state.countdown.remainingMs = 0;
+    save();
+}
+
+bool Timers::regatta() const
+{
+    return m_state.countdown.regatta == 1;
+}
+
+void Timers::setRegatta( bool on )
+{
+    Countdown &timer = m_state.countdown;
+    timer = {};
+    if ( on ) {
+        timer.regatta = 1;
+        timer.durationS = Regatta::DurationS;
+        timer.remainingMs = Regatta::DurationS * 1000LL;
+    }
+    save();
+}
+
+void Timers::syncRegatta( int64_t nowMs )
+{
+    Countdown &timer = m_state.countdown;
+    const int64_t left = remainingMs( nowMs );
+    if ( !regatta() || !timer.running || left <= 0 ) {
+        return;
+    }
+    timer.endMs = nowMs + Regatta::sync( left );
     save();
 }

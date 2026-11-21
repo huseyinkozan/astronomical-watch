@@ -398,8 +398,7 @@ static const char *s_texts[][2] = {
     { "Ramadan day %d", "Ramazan %d. gün" },
     { "Regatta", "Regata" },
     { "Sync", "Eşitle" },
-    { "%d min signal %s", "%d dk işareti %s" },
-    { "Start at %s", "Start %s" },
+    { "Start at %s", "Start saati %s" },
     { "5-4-1-0 start", "5-4-1-0 start" },
 };
 // One pair per text: a missing one would shift every text after it.

@@ -406,8 +406,7 @@ public:
         RamadanDay,      // "Ramadan day %d"
         Regatta,
         Sync,
-        RegattaNext,     // "%d min signal at %s"
-        RegattaStarted,  // "start at %s"
+        RegattaStart,    // "Start at %s"
         RegattaReady,
         TextCount
     };

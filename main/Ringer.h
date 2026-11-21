@@ -19,6 +19,11 @@ public:
     bool startSos( int64_t startUs );
     void stopSos( bool wait );
 
+    // A short signal (the regatta start's, Regatta::Signal): `beeps` tones of `toneMs` at 1000 Hz
+    // and the lowest level, 150 ms apart, then the codec is powered down. False, and nothing
+    // played, while another sound plays. Does not wait.
+    bool signal( int beeps, int toneMs );
+
     // Stops the sound and waits until the codec is in its power-down state.
     void stop();
 
