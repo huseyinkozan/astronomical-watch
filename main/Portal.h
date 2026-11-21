@@ -112,7 +112,8 @@ private:
     const DayCounters *m_counters = nullptr;
     const AlarmStore::List *m_alarms = nullptr;
     const FaceConfig::Pages *m_faces = nullptr;
-    const EmergencyCard *m_card = nullptr;
+    // The portal's own copy (the HTTP task reads it): taken at the start, set at each save.
+    EmergencyCard m_card = {};
     esp_netif_t *m_netif = nullptr;
     httpd_handle_t m_server = nullptr;
     void *m_dns = nullptr;

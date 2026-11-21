@@ -136,7 +136,9 @@ esp_err_t Portal::start( const Settings &settings, const WorldClock &worldClock,
     m_counters = &counters;
     m_alarms = &alarms;
     m_faces = &faces;
-    m_card = &card;
+    taskENTER_CRITICAL( &m_lock );
+    m_card = card;
+    taskEXIT_CRITICAL( &m_lock );
     m_hasCoreDump = esp_core_dump_image_check() == ESP_OK;
     esp_err_t err = ESP_OK;
     if ( !s_networkReady ) {
@@ -611,12 +613,16 @@ esp_err_t Portal::onCard( httpd_req_t *request )
 {
     Portal *portal = static_cast<Portal *>( request->user_ctx );
     portal->touch();
+    static EmergencyCard card;
+    taskENTER_CRITICAL( &portal->m_lock );
+    card = portal->m_card;
+    taskEXIT_CRITICAL( &portal->m_lock );
     char *json = s_buffer;
     strlcpy( json, "{", sizeof( s_buffer ) );
     for ( int i = 0; i < EmergencyCard::FieldCount; ++i ) {
         const int used = strlen( json );
         snprintf( json + used, sizeof( s_buffer ) - used, "%s\"%s\":\"%s\"", i == 0 ? "" : ",", s_cardNames[i],
-                  portal->m_card->fields[i] );
+                  card.fields[i] );
     }
     strlcat( json, "}", sizeof( s_buffer ) );
     httpd_resp_set_type( request, "application/json" );
@@ -828,6 +834,7 @@ esp_err_t Portal::onCardSave( httpd_req_t *request )
     taskENTER_CRITICAL( &portal->m_lock );
     portal->m_receivedCard = card;
     portal->m_hasCard = true;
+    portal->m_card = card;
     taskEXIT_CRITICAL( &portal->m_lock );
     noCache( request );
     return httpd_resp_sendstr( request, "Saved" );
