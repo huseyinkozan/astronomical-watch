@@ -120,6 +120,8 @@ static const PageEntry s_pageEntries[PageCount] = {
 // wakes in RTC memory and lost at power-off (then the clock page's first part shown; -1).
 RTC_DATA_ATTR static int s_appPage = ClockPage;
 RTC_DATA_ATTR static int s_appPart = -1;
+// The tile shown when active mode ended (stop()), for a wake soon after it (start()).
+RTC_DATA_ATTR static int s_endTile = 0;
 
 // The launcher's list starts under the page name. Six part rows fit between it and the bottom
 // edge; the rows keep one width, inside the corner gauges at the middle of the screen, and the
@@ -249,6 +251,10 @@ static void setBrightness( int percent )
     }
 }
 
+// The panel brightness while the code shows, whatever the setting: tried with a phone's Wi-Fi QR
+// reader (2026-11-18), which needed the brightness lowered to about 40 %.
+static const int s_joinCodeBrightness = 40;
+
 // The brightness to set once LVGL has drawn its first frame (0: done). The panel keeps the old
 // image (the always-on face) until then, so it stays dark.
 static int s_pendingBrightness = 0;
@@ -321,7 +327,7 @@ static void onTouchPressed( lv_event_t *event )
 }
 #endif
 
-bool Display::start( Settings &settings, bool red )
+bool Display::start( Settings &settings, bool red, bool resume )
 {
     m_settings = &settings;
     m_redWanted = red;
@@ -400,8 +406,16 @@ bool Display::start( Settings &settings, bool red )
     lv_display_add_event_cb( display, onRefreshReady, LV_EVENT_REFR_READY, this );
 #endif
     m_started = true;
+    if ( resume && ( s_endTile == LauncherTile || s_endTile == AppTile ) ) {
+        // Where the last active mode ended: the page built first, so the first frame shows it.
+        keepPages( s_endTile );
+        lv_tileview_set_tile_by_index( pages, static_cast<uint32_t>( s_endTile ), 0, LV_ANIM_OFF );
+        updatePageSwipe();
+        updateJoinCodeBrightness();
+        ESP_LOGI( TAG, "Resumed at tile %d", s_endTile );
+    }
     // The LVGL task draws the first frame (rendering needs its larger stack), then lights it.
-    s_pendingBrightness = brightnessPercent;
+    s_pendingBrightness = m_joinCodeDimmed ? s_joinCodeBrightness : brightnessPercent;
     lv_display_add_event_cb( display, onFirstFrame, LV_EVENT_REFR_READY, nullptr );
     bsp_display_unlock();
 
@@ -977,9 +991,6 @@ static const int s_joinQuietModules = 2;
 // Not full white: a large white area at the face's brightness glared in a phone camera, and the
 // Wi-Fi settings' QR reader could not read the code until the brightness was lowered.
 static const lv_color_t s_joinPaper = LV_COLOR_MAKE( 0x80, 0x80, 0x80 );
-// The panel brightness while the code shows, whatever the setting: tried with a phone's Wi-Fi QR
-// reader (2026-11-18), which needed the brightness lowered to about 40 %.
-static const int s_joinCodeBrightness = 40;
 
 void Display::buildSetupCodePage( lv_obj_t *page )
 {
@@ -1502,6 +1513,7 @@ void Display::stop()
 {
     if ( m_started ) {
         bsp_display_lock( s_lockTimeoutMs );
+        s_endTile = activeTile();
     }
 }
 

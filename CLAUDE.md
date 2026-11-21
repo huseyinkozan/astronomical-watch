@@ -255,7 +255,9 @@ resets the watch instead of only warning; development command "W" tests it). Rea
 - Touch input: rows of 7.8 x 26 mm inside the corner gauges, one tap steps a value; no vertical scrolling
   inside the pages but the launcher's list; sliding off a row cancels the tap. Three tiles side by side
   (`main/Display.*`): the watch face, the launcher and the page last opened from it (a trial, 2026-11-21).
-  A wake starts at the face; a swipe shows the launcher, a second one the opened page. The launcher
+  A wake starts at the face; a swipe shows the launcher, a second one the opened page. A PWR wake
+  within 60 s after active mode ended (RTC memory kept: always-on or the alarm sleep;
+  `s_resumeSeconds` in `main.cpp`) shows the tile and part shown then. The launcher
   shows "Pages" at the top like the stacked pages, under it a list that scrolls with momentum: each
   stacked page's name in grey, then its parts as rows (68 px high, six fit, one width, a faint
   1 px outline), the pages and their parts in the portal's order (`Settings::PagesOrder` and the

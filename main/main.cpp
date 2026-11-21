@@ -684,24 +684,41 @@ static void trackUnplugged( bool vbusGood, int64_t utcSeconds, bool settingsLoad
     s_unpluggedSaved = vbusGood ? 0 : 1;
 }
 
+// When the last active mode ended (the RTC's Unix time; 0: never, or RTC memory lost). A PWR wake
+// this soon after it shows the page that was shown then (Display::start); later the face.
+RTC_DATA_ATTR static int64_t s_activeEndedAt = 0;
+static const int s_resumeSeconds = 60;
+
+// The RTC's Unix time, 0 when it cannot be read or was never set.
+static int64_t rtcUnixTime()
+{
+    Rtc::DateTime time = {};
+    bool stopped = false;
+    if ( s_rtc.read( time, stopped ) != ESP_OK || stopped || time.month == 0 ) {
+        return 0;
+    }
+    return unixTime( time );
+}
+
 // The red night mode at the start of active mode, so that the first frame comes in it (it came in
 // colour and turned red at the first second's update): the day's sky kept in RTC memory and the
 // RTC's time, the same rule as updateDisplay(). Without the sky (a power-on) it waits for that.
-static bool redAtStart()
+static bool redAtStart( int64_t now )
 {
     if ( s_hostNightRed ) {
         return true;
     }
     const bool located = s_settings.value( Settings::Latitude ) != 0 || s_settings.value( Settings::Longitude ) != 0;
-    if ( !located || s_settings.value( Settings::NightMode ) == 0 || !s_skyValid ) {
+    if ( !located || s_settings.value( Settings::NightMode ) == 0 || !s_skyValid || now == 0 ) {
         return false;
     }
-    Rtc::DateTime time = {};
-    bool stopped = false;
-    if ( s_rtc.read( time, stopped ) != ESP_OK || stopped || time.month == 0 ) {
-        return false;
-    }
-    return Corners::dark( Corners::fromSky( s_skyDay ), unixTime( time ) );
+    return Corners::dark( Corners::fromSky( s_skyDay ), now );
+}
+
+// Whether this active mode goes on where the last one ended.
+static bool resumeAtStart( int64_t now )
+{
+    return s_activeEndedAt != 0 && now >= s_activeEndedAt && now - s_activeEndedAt <= s_resumeSeconds;
 }
 
 static void updateDisplay()
@@ -1970,10 +1987,12 @@ extern "C" void app_main( void )
             s_displayOn = false;
             ESP_LOGW( TAG, "Display not started (host command Y)" );
         } else {
-            s_displayOn = s_display.start( s_settings, redAtStart() );
+            const int64_t now = rtcUnixTime();
+            s_displayOn = s_display.start( s_settings, redAtStart( now ), resumeAtStart( now ) );
         }
 #else
-        s_displayOn = s_display.start( s_settings, redAtStart() );
+        const int64_t now = rtcUnixTime();
+        s_displayOn = s_display.start( s_settings, redAtStart( now ), resumeAtStart( now ) );
 #endif
         // A new image from the portal is kept once it has drawn its pages; a reset before this
         // returns to the previous one. The call stays out of the log macro: the release build
@@ -2039,6 +2058,7 @@ extern "C" void app_main( void )
 #endif
     // No setting can change once LVGL has stopped.
     s_display.stop();
+    s_activeEndedAt = rtcUnixTime();
     s_settings.save();
     logEvent( active, pmuReady );
 
