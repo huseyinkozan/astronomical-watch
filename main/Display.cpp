@@ -76,7 +76,7 @@ enum Page
     PlanetsPage,    // the solar system, the sky, rise and set, distances (PlanetPages)
     SettingsPage,   // the settings, and under them the setup portal
     ToolsPage,      // torch, counter, random, calculator, unit converter, spirit level (ToolPages)
-    ObservingPage,  // polar alignment, Milky Way, deep sky, eyepieces, photo, astrolabe (ObservingPages)
+    ObservingPage,  // polar alignment ... nautical almanac, astrolabe, aiming (ObservingPages)
     PageCount
 };
 
@@ -106,7 +106,7 @@ static const Language::Text s_toolsParts[ToolPages::PartCount] = { Language::Par
                                                                     Language::PartConverter, Language::PartLevel };
 static const Language::Text s_observingParts[ObservingPages::PartCount] = {
     Language::PartAstrolabe, Language::PartPolar, Language::PartMilkyWay, Language::PartDeepSky, Language::PartEyepiece,
-    Language::PartPhoto };
+    Language::PartPhoto, Language::PartAlmanac, Language::PartAiming };
 static const Language::Text s_settingsParts[SettingsPartCount] = {
     Language::PartSettings, Language::PartMoreSettings, Language::PartSetupInfo,
 #if CONFIG_WATCH_SETUP_PORTAL
@@ -190,7 +190,8 @@ struct Shot
     { "astrolabe", ObservingPage, ObservingPages::AstrolabePart },
     { "polar", ObservingPage, ObservingPages::PolarPart }, { "milky-way", ObservingPage, ObservingPages::MilkyWayPart },
     { "deep-sky", ObservingPage, ObservingPages::DeepSkyPart }, { "eyepiece", ObservingPage, ObservingPages::EyepiecePart },
-    { "photo", ObservingPage, ObservingPages::PhotoPart },
+    { "photo", ObservingPage, ObservingPages::PhotoPart }, { "almanac", ObservingPage, ObservingPages::AlmanacPart },
+    { "aiming", ObservingPage, ObservingPages::AimingPart },
 };
 [[maybe_unused]] static const int s_shotCount = sizeof( s_shots ) / sizeof( s_shots[0] );
 

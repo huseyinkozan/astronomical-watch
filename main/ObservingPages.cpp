@@ -194,6 +194,8 @@ void ObservingPages::build( lv_obj_t *tile, Settings &settings, Motion *motion )
 
     m_sky.build( m_stack.part( PolarPart ), m_stack.part( MilkyWayPart ), m_stack.part( DeepSkyPart ), m_stack );
     m_optics.build( m_stack.part( EyepiecePart ), m_stack.part( PhotoPart ), settings );
+    m_nav.build( m_stack.part( AlmanacPart ), m_stack.part( AimingPart ), settings );
+    m_nav.show( m_now, m_observer, m_utcOffsetMinutes, m_located );
 }
 
 void ObservingPages::forget()
@@ -201,6 +203,7 @@ void ObservingPages::forget()
     setShown( -1 );
     m_sky.forget();
     m_optics.forget();
+    m_nav.forget();
     m_stack.forget();
     if ( m_tick != nullptr ) {
         lv_timer_delete( m_tick );
@@ -248,6 +251,7 @@ void ObservingPages::setShown( int part )
     }
     m_shownPart = part;
     m_sky.setShown( part >= PolarPart && part <= DeepSkyPart ? part - PolarPart : -1 );
+    m_nav.setShown( part == AlmanacPart ? 0 : ( part == AimingPart ? 1 : -1 ) );
     updateSensor();
 }
 
@@ -289,6 +293,7 @@ void ObservingPages::show( int64_t now, const Astronomy::Observer &observer, int
         m_starsPrecessed = false;
     }
     m_sky.show( now, observer, utcOffsetMinutes, located );
+    m_nav.show( now, observer, utcOffsetMinutes, located );
     if ( m_mode == nullptr || now / 60 == m_shownMinute ) {
         return;
     }
@@ -850,7 +855,7 @@ bool ObservingPages::press( const char *name )
     if ( m_mode == nullptr ) {
         return false;
     }
-    if ( m_sky.press( name ) || m_optics.press( name ) ) {
+    if ( m_sky.press( name ) || m_optics.press( name ) || m_nav.press( name ) ) {
         return true;
     }
     if ( strcmp( name, "mode" ) == 0 ) {

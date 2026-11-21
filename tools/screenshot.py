@@ -12,7 +12,8 @@ The page numbers are Display.cpp's shot table (s_shots): the face, then each sta
 opened from the launcher (numbers kept from the five side-by-side pages), the launcher (25), then
 the parts added after it (the tools page: 26 torch, 27 counter, 28 random, 29 calculator,
 30 unit converter, 31 spirit level; the observing page: 32 astrolabe, 33 polar alignment,
-34 Milky Way window, 35 deep-sky finder, 36 eyepieces, 37 night photo).
+34 Milky Way window, 35 deep-sky finder, 36 eyepieces, 37 night photo, 38 nautical almanac,
+39 aiming).
 
 Run inside the ESP-IDF environment, which provides pyserial:
     python tools/screenshot.py [--port /dev/ttyACM0] [--out docs/screenshots] [pages...]

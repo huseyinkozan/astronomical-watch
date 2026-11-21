@@ -283,13 +283,16 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   calculator's expressions in `main/Calculator.*`, the conversions in `main/Units.*` and the
   level's angles in `main/Tilt.*`, all host-tested; plan:
   `docs/superpowers/plans/2026-11-21-tools.md`) and observing (polar alignment, Milky Way window,
-  deep-sky finder, eyepieces, night photo, astrolabe by default; `main/ObservingPages.*` with the
-  astrolabe, `main/SkyParts.*` and `main/OpticsParts.*` with the others; the astrolabe's geometry
+  deep-sky finder, eyepieces, night photo, nautical almanac, astrolabe, aiming; the almanac and
+  aiming hidden by default; `main/ObservingPages.*` with the
+  astrolabe, `main/SkyParts.*`, `main/OpticsParts.*` and `main/NavParts.*` with the others; the astrolabe's geometry
   and the alidade's answers in `main/Astrolabe.*`, the pole star, darkness, Milky Way window and
-  Messier list in `main/Observing.*` and `main/Messier.*`, the formulas in `main/Optics.*`, all
+  Messier list in `main/Observing.*` and `main/Messier.*`, the formulas in `main/Optics.*`, the
+  almanac in `main/Almanac.*`, the dish, the Sun's direction and the panel in `main/Aiming.*`, the
+  magnetic variation in `main/Magnetic.*` (WMM2025, NOAA's coefficients, `tools/make_wmm_table.py`), all
   host-tested, the sky against Skyfield (`tools/make_astrolabe_reference.py`,
-  `tools/make_observing_reference.py`); the nautical almanac and aiming are to come between the
-  photo part and the astrolabe and after it; a page whose part list is empty stays out of the launcher
+  `tools/make_observing_reference.py`, `tools/make_navigation_reference.py`), WMM against NOAA's
+  test values; a page whose part list is empty stays out of the launcher
   and the portal's lists by itself). The `Page` numbers are kept in
   the saved launcher order, so new pages come last in the enum; the default order puts tools and
   observing after information. The torch fills the screen (the page name hides): red, amber,
@@ -349,8 +352,23 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   their apparent fields, the lens's focal and f-number, a sensor preset with its crop and pixel
   pitch, the ND calculator's base shutter and stops, a star-trail series' length and interval);
   a tap steps the eyepiece, a tap on the photo part's title its calculator (no star trails: 500
-  and NPF rules; ND filter; star trails: frames and arc), both kept in RTC memory. Development
-  commands "B flip", "B scroll <px>", "B eyepiece", "B calc".
+  and NPF rules; ND filter; star trails: frames and arc), both kept in RTC memory. The nautical
+  almanac (`TablePart`, updated each second while shown) shows one body, a tap steps it (the
+  Sun, the Moon, Venus, Mars, Jupiter, Saturn: the navigational planets): GHA and declination at
+  the UTC second as an almanac writes them ("112° 34.1'", "N 23° 26.2'", Turkish K/G), the Sun's
+  semi-diameter, local apparent noon and noon altitude, the Moon's semi-diameter, horizontal
+  parallax and meridian passage, a planet's SHA and meridian passage (within 0.4' for the Sun,
+  2.6' for the Moon, 1.1' for the planets). Aiming (`TablePart`, once a minute while shown): a tap
+  on the title steps dish and panel; the dish's satellite (a tap on its row: Türksat 42° E and
+  31° E, Astra 19.2° E, Hotbird 13° E, Astra 28.2° E, Nilesat 7° W, and the portal's own
+  longitude first when it is not one of them, `Settings::SatelliteLongitude`): elevation, true
+  azimuth, the magnetic variation, the compass bearing (true minus variation) and the time the
+  Sun stands in the dish's direction today; the panel facing the equator: the latitude as the
+  year's tilt, 90 minus the noon altitude as today's (negative when the Sun passes on the other
+  side of the zenith), its azimuth and compass bearing. The variation and the Sun's time are
+  computed again for a new day, place or satellite; the choices are kept in RTC memory.
+  Development commands "B flip", "B scroll <px>", "B eyepiece", "B calc", "B body", "B aim",
+  "B satellite".
   The page and part last opened stay in RTC memory over the always-on wakes (lost at power-off:
   then the clock page's first part). The BOOT key (GPIO0, polled in `runActiveMode`, never a
   wake source) steps back: opened page to launcher, launcher to face, on the face it closes the
@@ -428,7 +446,8 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   `main/Sound.*`, for at most 60 s; a tap, PWR or BOOT stops it. Design:
   `docs/superpowers/specs/2026-11-19-alarms-design.md`. Development commands: "B <name>" presses a button of the opened page (clock page:
   `ClockPages::press`; tools page: count, undo, target, reset, roll, dice, coin, number, torch, "keys <keys>" as
-  `Calculator::keyForChar`, kind, "unit <n>", level, hold, input; observing page: mode, "drag <min>", now, hold),
+  `Calculator::keyForChar`, kind, "unit <n>", level, hold, input; observing page: mode, "drag <min>", now, hold,
+  flip, "scroll <px>", eyepiece, calc, body, aim, satellite),
   "R <s>" a test
   alarm, "K <n> <text>" defines an alarm, "Q" ends active mode as without the always-on face,
   "H" makes the next PWR wake a phantom (it must go back to sleep), "W" starves the idle task

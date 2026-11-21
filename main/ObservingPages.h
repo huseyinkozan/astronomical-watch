@@ -5,6 +5,7 @@
 #include "Astrolabe.h"
 #include "Astronomy.h"
 #include "Motion.h"
+#include "NavParts.h"
 #include "OpticsParts.h"
 #include "Settings.h"
 #include "SkyParts.h"
@@ -15,7 +16,7 @@
 // The observing page (docs/superpowers/plans/2026-11-21-tools.md): its parts one over the other
 // (StackPage). Display builds it and calls it with the display lock held. Polar alignment, the
 // Milky Way window and the deep-sky finder are SkyParts', the eyepiece and photo calculators
-// OpticsParts'; the astrolabe is this class's own.
+// OpticsParts', the nautical almanac and aiming NavParts'; the astrolabe is this class's own.
 //
 // Astrolabe, in five modes stepped by a tap on the title:
 // - dial: the plate for the location (the horizon, almucantars every 15 degrees, the tropics and
@@ -46,6 +47,8 @@ public:
         DeepSkyPart,
         EyepiecePart,
         PhotoPart,
+        AlmanacPart,
+        AimingPart,
         PartCount  // the parts are numbered in the saved orders (PartOrder): new ones at the end
     };
 
@@ -71,7 +74,7 @@ public:
 
     // Development (host command "B <name>"): mode (the next mode), "drag <minutes>" (the dial's
     // time), now, hold (holds or releases the alidade's angle); flip, scroll <px> (SkyParts),
-    // eyepiece, calc (OpticsParts).
+    // eyepiece, calc (OpticsParts), body, aim, satellite (NavParts).
     bool press( const char *name );
 
 private:
@@ -103,6 +106,7 @@ private:
     Motion *m_motion = nullptr;
     SkyParts m_sky;
     OpticsParts m_optics;
+    NavParts m_nav;
     int m_shownPart = -1;
 
     int64_t m_now = 0;

@@ -72,11 +72,12 @@ static const ItemInfo s_items[Settings::ItemCount] = {
     // added later have the higher numbers).
     { "tools_order", 0 | 3 << 3 | 4 << 6 | 5 << 9 | 1 << 12 | 2 << 15, 0, {}, 0, 16777215 },
     { "tools_hidden", 0, 0, {}, 0, 255 },
-    // Polar alignment, Milky Way window, deep-sky finder, eyepieces, night photo, astrolabe
-    // (ObservingPages::Part). The nautical almanac (6) and aiming (7) are to come: they go
-    // between the photo calculators and the astrolabe, and after it.
-    { "obs_order", 1 | 2 << 3 | 3 << 6 | 4 << 9 | 5 << 12 | 0 << 15, 0, {}, 0, 16777215 },
-    { "obs_hidden", 0, 0, {}, 0, 255 },
+    // Polar alignment, Milky Way window, deep-sky finder, eyepieces, night photo, nautical
+    // almanac, astrolabe, aiming (ObservingPages::Part); the almanac and aiming hidden. Both
+    // defaults changed when those two parts came: an order or mask saved before keeps its
+    // values (PartOrder puts the new parts last, shown), the defaults were never saved.
+    { "obs_order", 1 | 2 << 3 | 3 << 6 | 4 << 9 | 5 << 12 | 6 << 15 | 0 << 18 | 7 << 21, 0, {}, 0, 16777215 },
+    { "obs_hidden", 1 << 6 | 1 << 7, 0, {}, 0, 255 },
     { "counter", 0, 0, {}, 0, 999999 },
     { "counter_target", 0, 0, {}, 0, 4 },
     { "counter_start", 0, 0, {}, 0, 70000000 },
@@ -99,6 +100,8 @@ static const ItemInfo s_items[Settings::ItemCount] = {
     { "nd_stops", 10, 0, {}, 0, 20 },
     { "trail_min", 60, 0, {}, 1, 600 },
     { "trail_int", 30, 0, {}, 1, 600 },
+    // Türksat 42.0 degrees east, one of the presets: no own entry until the portal sets another.
+    { "sat_lon", 420, 0, {}, -1800, 1800 },
 };
 
 static int indexOf( const ItemInfo &info, int value )

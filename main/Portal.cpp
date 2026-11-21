@@ -61,7 +61,8 @@ static const char *s_fieldNames[] = { "timeout", "alwaysOn", "devMode",    "auto
                                                          "scopeFocal", "scopeAperture", "ep1Focal", "ep1Field",
                                                          "ep2Focal", "ep2Field", "ep3Focal", "ep3Field", "ep4Focal",
                                                          "ep4Field", "camFocal", "camFNumber", "camSensor",
-                                                         "baseShutter", "ndStops", "trailMinutes", "trailInterval" };
+                                                         "baseShutter", "ndStops", "trailMinutes", "trailInterval",
+                                                         "satLon" };
 // One name per setting: a missing one would be read as a null name.
 static_assert( sizeof( s_fieldNames ) / sizeof( s_fieldNames[0] ) == Settings::ItemCount, "a field name per setting" );
 

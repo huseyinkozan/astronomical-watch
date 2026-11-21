@@ -76,6 +76,7 @@ public:
         NdStops,
         TrailMinutes,    // a star-trail series' length
         TrailInterval,   // seconds from one frame to the next
+        SatelliteLongitude,  // the aiming part's own satellite, tenths of a degree east (NavParts)
         ItemCount
     };
     // The items before this one are on the watch's settings page; FaceStyle is chosen by a

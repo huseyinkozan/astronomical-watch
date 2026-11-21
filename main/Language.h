@@ -361,6 +361,32 @@ public:
         PhotoHint,
         DurationMinSec,
         DurationHourMin,
+        // Observing page: nautical almanac and aiming (NavParts).
+        PartAlmanac,
+        PartAiming,
+        AlmanacGha,
+        AlmanacDec,
+        AlmanacSd,
+        AlmanacHp,
+        AlmanacSha,
+        AlmanacNoon,
+        AlmanacNoonAltitude,
+        AlmanacPass,
+        AlmanacHint,
+        SouthLetter,  // with North, EastLetter and WestLetter
+        AimDish,
+        AimPanel,
+        AimSatellite,
+        AimElevation,
+        AimAzimuth,
+        AimVariation,
+        AimCompass,
+        AimSun,
+        AimFacingSouth,
+        AimFacingNorth,
+        AimYearTilt,
+        AimDayTilt,
+        AimHint,
         TextCount
     };
 

@@ -199,7 +199,7 @@
 
 <fieldset>
   <legend data-tr="Gözlem donanımı">Observing equipment</legend>
-  <small data-tr="Gözlem sayfasının mercek ve gece fotoğrafı hesapları bunları kullanır.">The Observing page's eyepiece and night photo calculators use these.</small>
+  <small data-tr="Gözlem sayfasının mercek, gece fotoğrafı ve çanak hesapları bunları kullanır.">The Observing page's eyepiece, night photo and dish calculators use these.</small>
   <div class="row">
     <div><label for="scopeFocal" data-tr="Teleskop odak (mm)">Telescope focal (mm)</label>
     <input id="scopeFocal" type="number" min="100" max="6000" step="1"></div>
@@ -243,6 +243,8 @@
     <div><label for="trailInterval" data-tr="Kare arası (sn)">Every (s)</label>
     <input id="trailInterval" type="number" min="1" max="600" step="1"></div>
   </div>
+  <label for="satLon" data-tr="Çanak için uydu boylamı (°, doğu +; listede yoksa eklenir)">Satellite longitude for the dish (°, east +; added when not in the list)</label>
+  <input id="satLon" type="number" min="-180" max="180" step="0.1">
 </fieldset>
 
 <fieldset>
@@ -532,7 +534,8 @@ showZone();
 // Titles and names as [English, Turkish]. A page without parts yet (observing) has no list, and
 // its row in the pages' order stays out (null) while keeping its number.
 const observingParts = [['Astrolabe', 'Usturlap'], ['Polar alignment', 'Kutup hizalama'], ['Milky Way window', 'Samanyolu penceresi'],
-                        ['Deep-sky finder', 'Derin gökyüzü'], ['Eyepieces', 'Mercekler'], ['Night photo', 'Gece fotoğrafı']];
+                        ['Deep-sky finder', 'Derin gökyüzü'], ['Eyepieces', 'Mercekler'], ['Night photo', 'Gece fotoğrafı'],
+                        ['Nautical almanac', 'Seyir almanağı'], ['Aiming', 'Çanak ve panel']];
 const orderLists = [
   // The launcher's pages (Display.cpp, Page); a page is not hidden, only its parts.
   { title: ['Order of the pages', 'Sayfaların sırası'], order: 'pagesOrder',
@@ -1063,10 +1066,13 @@ const eyepieceFields = ['ep1Field', 'ep2Field', 'ep3Field', 'ep4Field'];
 function setEquipment(s) {
   for (const id of equipment.concat(eyepieceFields)) if (s[id] !== undefined) $(id).value = String(s[id]);
   for (const id of tenthsFields) if (s[id] !== undefined) $(id).value = s[id] > 0 ? String(s[id] / 10) : '';
+  // The aiming part's satellite in tenths of a degree, west negative.
+  if (s.satLon !== undefined) $('satLon').value = String(s.satLon / 10);
 }
 function equipmentFields(fields) {
   for (const id of equipment.concat(eyepieceFields)) if ($(id).value !== '') fields.set(id, String(Math.round(Number($(id).value))));
   for (const id of tenthsFields) fields.set(id, String(Math.round(Number($(id).value || 0) * 10)));
+  if ($('satLon').value !== '') fields.set('satLon', String(Math.round(Number($('satLon').value) * 10)));
 }
 
 $('save').addEventListener('click', async () => {

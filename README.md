@@ -69,6 +69,7 @@ MIT, see [LICENSE](LICENSE). Dependencies (ESP-IDF, the Waveshare BSP, LVGL) kee
 licenses. The setup page's city list comes from [GeoNames](https://www.geonames.org/) (CC BY 4.0);
 `main/dns_server.*` is ESP-IDF example code (CC0); `main/LandMask.h` is made from
 [Natural Earth](https://www.naturalearthdata.com/) land (public domain); the Messier table
-(`main/Messier.cpp`) comes from NASA HEASARC's catalogues (public domain). The watch font is
+(`main/Messier.cpp`) comes from NASA HEASARC's catalogues and the magnetic model
+(`main/Magnetic.cpp`) is NOAA's World Magnetic Model WMM2025 (both public domain). The watch font is
 [JetBrains Mono](https://github.com/JetBrains/JetBrainsMono) (SIL Open Font License 1.1,
 `tools/fonts/OFL.txt`).
