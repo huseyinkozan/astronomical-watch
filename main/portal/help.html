@@ -225,6 +225,13 @@ function show(language) {
   document.documentElement.lang = language;
 }
 show(location.hash === '#tr' ? 'tr' : 'en');
+// Keeps the portal on while the page is read (the watch closes it 2 min after the last request):
+// a ping every 10 s while the page is visible, one at once when it shows again.
+function keepAlive() {
+  if (document.visibilityState === 'visible') fetch('/api/ping', { cache: 'no-store' }).catch(() => {});
+}
+setInterval(keepAlive, 10000);
+document.addEventListener('visibilitychange', keepAlive);
 </script>
 </body>
 </html>

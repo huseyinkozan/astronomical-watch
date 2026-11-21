@@ -20,7 +20,7 @@ menu "Astronomical Watch"
 
     config WATCH_SETUP_PORTAL_TIMEOUT_S
         int "Setup portal closes after no request for (s)"
-        default 300
+        default 120
         range 60 1800
         depends on WATCH_SETUP_PORTAL
         help

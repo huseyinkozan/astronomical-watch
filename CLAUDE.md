@@ -312,8 +312,9 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   Diyanet; checked against its published 2026 tables (`tests/PrayerTest.cpp`, all within a
   minute). Research notes on this and other topics live in `research/` (excluded from git).
 - Setup portal (M9, `main/Portal.*`, `main/portal/`): a row on the watch's Setup page starts it
-  (not every charge); the same row stops it, and it stops by itself 5 min after the last browser
-  request or when the page saves (not after a face page's "show on the watch", which saves the
+  (not every charge); the same row stops it, and it stops by itself 2 min after the last browser
+  request (the pages ping it every 10 s while they are visible; a page switched away has 2 min to
+  come back) or when the page saves (not after a face page's "show on the watch", which saves the
   faces, shows that page and keeps the portal on for the next change). The watch opens a WPA2 soft AP with a captive portal (DNS
   answers every name with the watch's address, so phones and computers open the page by
   themselves; otherwise the IP address shown on the watch is typed in). The password is four
