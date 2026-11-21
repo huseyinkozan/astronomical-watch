@@ -343,7 +343,10 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   `docs/superpowers/specs/2026-11-19-alarms-design.md`. Development commands: "R <s>" a test
   alarm, "K <n> <text>" defines an alarm, "Q" ends active mode as without the always-on face,
   "H" makes the next PWR wake a phantom (it must go back to sleep), "W" starves the idle task
-  (the task watchdog must reset the watch).
+  (the task watchdog must reset the watch). "W <tile>" swipes to a tile (0 to 2), "W 3" and
+  "W 4" scroll the launcher down and up; "n <mode>" sets the launcher rows' trial until the next
+  reset (0 one width, the default; 1 the rows on screen narrow near the corners to stay clear of
+  the gauges; 2 also dim as they narrow).
 
 ## Dependency Selection
 
