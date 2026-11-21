@@ -265,8 +265,9 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   part orders) without the hidden parts; a tap opens that part on the third tile and slides there.
   Off screen, the list is scrolled so that the last opened part's row is the second from the top,
   its outline brighter; a mark at the right edge, like the part marks, shows the scroll position.
-  Near the bottom corners the rows on screen narrow, centred, and the page names move in, so that
-  they stay a few pixels clear of the gauges, dimming as they do (colours, not LVGL opacity;
+  Near the corners the rows on screen narrow, centred, and the page names move in, so that
+  they stay a few pixels clear of the gauges, dimming as they do (at the top as they slide under
+  the page name, their own hidden top edge deciding; colours, not LVGL opacity;
   `Display::narrowLauncherRows`, in the list's scroll event; the owner's choice of 2026-11-21). The stacked pages: clock (world clock, stopwatch, countdown,
   Gregorian and Hijri calendars, day counters, alarms; `main/ClockPages.*`), information (sun,
   twilight, prayer times, moon, compass, time, battery, about), planets (the seven planets and the

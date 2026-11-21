@@ -842,7 +842,10 @@ void Display::narrowLauncherRows()
         if ( bottom < s_listTop || top >= Panel::HEIGHT ) {
             continue;
         }
-        const int shownTop = top < s_listTop ? s_listTop : top;
+        // At the bottom the screen's edge cuts an item off, at the top the page name: there the
+        // item's own top edge, hidden under the name, decides, so that an item narrows and dims
+        // as it slides under the upper gauges as one does under the lower ones.
+        const int shownTop = top;
         const int shownBottom = bottom >= Panel::HEIGHT ? Panel::HEIGHT - 1 : bottom;
         // Dimmer colours rather than LVGL's opacity, which draws each item on a layer of its
         // own: 100 % in the middle band, 30 % at the narrowest.
