@@ -99,6 +99,8 @@ void ToolParts::build( lv_obj_t *metronome, lv_obj_t *card, const EmergencyCard 
     lv_obj_set_pos( m_dots, s_left, 176 );
     lv_obj_set_size( m_dots, s_right - s_left, 60 );
     lv_obj_set_scrollable( m_dots, false );
+    // A swipe that starts on the dots leaves them: no tap.
+    lv_obj_set_press_lock( m_dots, false );
     lv_obj_add_event_cb( m_dots, onDrawDots, LV_EVENT_DRAW_MAIN, this );
     lv_obj_add_event_cb( m_dots, onKeyEvent, LV_EVENT_SHORT_CLICKED, this );
     m_minus = key( metronome, s_left, 248, 146, 312, "-", onKeyEvent, this );
