@@ -273,7 +273,10 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   the page name, their own hidden top edge deciding; colours, not LVGL opacity;
   `Display::narrowLauncherRows`, in the list's scroll event; the owner's choice of 2026-11-21). The stacked pages: clock (world clock, stopwatch, countdown,
   Gregorian and Hijri calendars, day counters, alarms; `main/ClockPages.*`), information (sun,
-  twilight, prayer times, moon, compass, time, battery, about), planets (the seven planets and the
+  twilight, prayer times, moon, compass, time, battery, about; the Sun part shows the time to
+  sunset or sunrise and, while the Sun is up, a turnaround time, now plus half the daylight left,
+  `Sky::turnaround`; the Time part's UTC row names its date when it is not the local one),
+  planets (the seven planets and the
   Earth: the solar system on a logarithmic scale, the sky seen from the south, the day's rise and
   set, distances; `main/PlanetPages.*`, the day's rise and set computed in the main task on the
   page's request, 0.4 s; design: `docs/superpowers/specs/2026-11-19-planets-design.md`) and
@@ -382,7 +385,18 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   upper corner gauges, over a line bending up to them; their parts start `StackPage::HeaderPad`
   lower. On a calendar a sideways swipe steps the month, so the page
   swipe stops there ("<" ">" at the bottom say so; BOOT still goes back); a tap chooses a day, marked on both calendars
-  until the next wake (the Hijri month of a day chosen on the Gregorian one is computed then). Only the
+  until the next wake (the Hijri month of a day chosen on the Gregorian one is computed then).
+  The Hijri calendar marks Diyanet's religious days with a green dot (`main/HolyDays.*`,
+  host-tested against Diyanet's 2026 calendar: the kandils on their evenings, Regaip the
+  Thursday before Rajab's first Friday, Ramadan's first day, both bayrams, the Hijri new year,
+  Ashura) and names the next one with the days left; below it the Ramadan count in Shaban and
+  Ramadan, else the method. main.cpp searches the next one with the watch's Hijri method once a
+  day when the calendar asks for a month (up to `HolyDays::MaxMonths` months; RTC memory).
+  The countdown's title is a button: a tap switches to the regatta start (`main/Regatta.*`,
+  host-tested): 5:00, Sync rounds the time left to the nearest minute, short 1000 Hz beeps at
+  the alarm's lowest level at 4:00, 1:00 and the start (`Ringer::signal`), serviced every 20 ms
+  in active mode (`ClockPages::serviceRegatta`), which stays on until the start (PWR still ends
+  it, and the signals with it); no alarm rings for it. Only the
   watch face and the launcher are built at a PWR wake; the opened page is built when the launcher is
   shown and freed at the face, and only one stacked page is built at a time (`Display::keepPages`,
   `ensureApp`; a page's values, timers and part survive its objects): a glance at the time built
@@ -404,7 +418,9 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   the last set, when at least two days have passed.
 - Prayer times (`Sky::prayerTimes`): Diyanet's method, the Sun's values taken once a day like
   Diyanet; checked against its published 2026 tables (`tests/PrayerTest.cpp`, all within a
-  minute). Research notes on this and other topics live in `research/` (excluded from git).
+  minute). The prayer part shows the current or next kerahat interval (`Sky::kerahat`, Diyanet's
+  fetva on its table's times: sunrise to +45 min, dhuhr -10 min, maghrib -45 min; after maghrib
+  tomorrow's morning as today's a day later). Research notes on this and other topics live in `research/` (excluded from git).
 - Setup portal (M9, `main/Portal.*`, `main/portal/`): a row on the watch's Setup page starts it
   (not every charge); the same row stops it, and it stops by itself 2 min after the last browser
   request (the pages ping it every 10 s while they are visible; a page switched away has 2 min to
@@ -445,7 +461,7 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   region, docs/hardware.md, "Speaker and alarm sound"), from -18 dB to at most -12 dB (the meter: -6 dB drew 0.17 A, full scale browned the board out), through
   `main/Sound.*`, for at most 60 s; a tap, PWR or BOOT stops it. Design:
   `docs/superpowers/specs/2026-11-19-alarms-design.md`. Development commands: "B <name>" presses a button of the opened page (clock page:
-  `ClockPages::press`; tools page: count, undo, target, reset, roll, dice, coin, number, torch, "keys <keys>" as
+  `ClockPages::press`, with "regatta" and "sync" for the countdown's mode; tools page: count, undo, target, reset, roll, dice, coin, number, torch, "keys <keys>" as
   `Calculator::keyForChar`, kind, "unit <n>", level, hold, input; observing page: mode, "drag <min>", now, hold,
   flip, "scroll <px>", eyepiece, calc, body, aim, satellite),
   "R <s>" a test
