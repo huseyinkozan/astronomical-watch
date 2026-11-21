@@ -890,6 +890,8 @@ fetch('/api/state').then((r) => r.json()).then((s) => {
   if (s.faceItems) faceLimits = s.faceItems;
   if (s.faceDefaults) defaultFaces = s.faceDefaults;
   faces = decodeFaces(s.faces);
+  // The page the watch shows now (Settings::FaceStyle).
+  facePage = Number(s.face) || 0;
   drawFaces();
   drawGauges();
   if (s.zone && zoneValid(s.zone)) { homeZone = s.zone; showZone(); }
