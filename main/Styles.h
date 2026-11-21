@@ -19,7 +19,12 @@ public:
     // The settings rows and the clock page's buttons: black with a mid-grey outline, lit while
     // pressed; `radius` 24 (rows, with 24 px side padding) or 18 (buttons, no padding).
     static void row( lv_obj_t *object );
+    // A button also takes an amber outline while checked (LV_STATE_CHECKED: a chosen mode).
     static void button( lv_obj_t *object );
+    // The key that does the main thing (the counter's +1): a button with an amber outline, lit
+    // amber while pressed; its label is amber too (the caller's).
+    static void accent( lv_obj_t *object );
+    static const uint32_t Amber = 0xFFB040;
 
     // The launcher's rows, on an object without styles (lv_obj_remove_style_all): a faint 1 px
     // outline and no background, cheap to draw while the list scrolls; lit while pressed, a

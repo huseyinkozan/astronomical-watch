@@ -10,8 +10,8 @@ struct TextStyle
 };
 
 // Enough for the font and colour pairs of today's pages (white, grey and amber in two sizes, the
-// face's digits).
-const int s_maxTextStyles = 12;
+// face's digits, the tools).
+const int s_maxTextStyles = 16;
 TextStyle s_textStyles[s_maxTextStyles];
 int s_textStyleCount = 0;
 
@@ -20,6 +20,9 @@ lv_style_t s_centred;
 lv_style_t s_row;
 lv_style_t s_rowPressed;
 lv_style_t s_button;
+lv_style_t s_buttonChecked;
+lv_style_t s_accent;
+lv_style_t s_accentPressed;
 lv_style_t s_launcherRow;
 lv_style_t s_launcherRowPressed;
 lv_style_t s_launcherRowCurrent;
@@ -50,6 +53,12 @@ void initialise()
     lv_style_set_radius( &s_button, 18 );
     lv_style_set_pad_all( &s_button, 0 );
     lv_style_set_bg_color( &s_button, lv_color_black() );
+    lv_style_init( &s_buttonChecked );
+    lv_style_set_border_color( &s_buttonChecked, lv_color_hex( Styles::Amber ) );
+    lv_style_init( &s_accent );
+    lv_style_set_border_color( &s_accent, lv_color_hex( Styles::Amber ) );
+    lv_style_init( &s_accentPressed );
+    lv_style_set_bg_color( &s_accentPressed, lv_color_hex( 0x604018 ) );
     lv_style_init( &s_launcherRow );
     lv_style_set_border_width( &s_launcherRow, 1 );
     lv_style_set_border_color( &s_launcherRow, lv_color_hex( 0x2C2C2C ) );
@@ -123,4 +132,13 @@ void Styles::button( lv_obj_t *object )
     initialise();
     lv_obj_add_style( object, &s_button, 0 );
     lv_obj_add_style( object, &s_rowPressed, LV_STATE_PRESSED );
+    lv_obj_add_style( object, &s_buttonChecked, LV_STATE_CHECKED );
+}
+
+void Styles::accent( lv_obj_t *object )
+{
+    initialise();
+    lv_obj_add_style( object, &s_button, 0 );
+    lv_obj_add_style( object, &s_accent, 0 );
+    lv_obj_add_style( object, &s_accentPressed, LV_STATE_PRESSED );
 }

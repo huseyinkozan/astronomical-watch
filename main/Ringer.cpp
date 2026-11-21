@@ -1,5 +1,6 @@
 #include "Ringer.h"
 
+#include "Morse.h"
 #include "Sound.h"
 #include "esp_log.h"
 #include "esp_timer.h"
@@ -23,6 +24,24 @@ static const int s_riseMs = 2000;
 static volatile bool s_running = false;
 static volatile bool s_stopRequested = false;
 static volatile bool s_finished = false;
+// The torch's SOS beeps instead of the alarm: their start (esp_timer us), 0 for the alarm.
+static volatile int64_t s_sosStartUs = 0;
+static const int s_sosFrequency = 1000;
+
+// Beeps while the SOS light is on: each tone lasts the whole sign (a dash in one piece, without
+// the ramps' notch between pieces), the silences come in short pieces so that a stop is quick.
+static void playSos( Sound &sound )
+{
+    while ( !s_stopRequested ) {
+        int remainingMs = 0;
+        const bool lit = Morse::sosLit( ( esp_timer_get_time() - s_sosStartUs ) / 1000, &remainingMs );
+        if ( lit ) {
+            sound.tone( s_sosFrequency, remainingMs, false );
+        } else {
+            sound.silence( remainingMs < 50 ? remainingMs : 50 );
+        }
+    }
+}
 
 static void ringTask( void * )
 {
@@ -32,10 +51,13 @@ static void ringTask( void * )
         sound.setAmplifier( true );
         // The amplifier's start-up (NS4150B: 120 ms) passes in silence.
         sound.silence( 150 );
+        if ( s_sosStartUs != 0 ) {
+            playSos( sound );
+        }
         const int64_t startUs = esp_timer_get_time();
         int beep = 0;
         int volume = s_firstVolume;
-        while ( !s_stopRequested ) {
+        while ( !s_stopRequested && s_sosStartUs == 0 ) {
             const int elapsedMs = static_cast<int>( ( esp_timer_get_time() - startUs ) / 1000 );
             if ( elapsedMs >= s_durationMs ) {
                 s_finished = true;
@@ -58,11 +80,17 @@ static void ringTask( void * )
     vTaskDelete( nullptr );
 }
 
-bool Ringer::start()
+// Waits until the task has ended (a beep and a gap at most, then the codec's suspend sequence).
+static void waitForEnd()
 {
-    if ( s_running ) {
-        return true;
+    for ( int i = 0; i < 100 && s_running; ++i ) {
+        vTaskDelay( pdMS_TO_TICKS( 10 ) );
     }
+}
+
+static bool startTask( int64_t sosStartUs )
+{
+    s_sosStartUs = sosStartUs;
     s_stopRequested = false;
     s_finished = false;
     s_running = true;
@@ -75,12 +103,41 @@ bool Ringer::start()
     return true;
 }
 
+bool Ringer::start()
+{
+    if ( s_running && s_sosStartUs != 0 ) {
+        stop();
+    }
+    if ( s_running ) {
+        return true;
+    }
+    return startTask( 0 );
+}
+
 void Ringer::stop()
 {
     s_stopRequested = true;
-    // A beep and a gap at most (250 ms), then the codec's suspend sequence.
-    for ( int i = 0; i < 100 && s_running; ++i ) {
-        vTaskDelay( pdMS_TO_TICKS( 10 ) );
+    waitForEnd();
+}
+
+bool Ringer::startSos( int64_t startUs )
+{
+    if ( s_running && s_sosStartUs == 0 && !s_stopRequested ) {
+        return false;  // an alarm rings
+    }
+    // A stop asked for a moment ago may still be running.
+    waitForEnd();
+    return startTask( startUs != 0 ? startUs : 1 );
+}
+
+void Ringer::stopSos( bool wait )
+{
+    if ( !s_running || s_sosStartUs == 0 ) {
+        return;
+    }
+    s_stopRequested = true;
+    if ( wait ) {
+        waitForEnd();
     }
 }
 

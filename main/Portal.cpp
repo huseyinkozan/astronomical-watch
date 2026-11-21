@@ -42,6 +42,7 @@ extern const char s_updateEnd[] asm( "_binary_update_html_gz_end" );
 
 // Field names of the save request, one per Settings::Item.
 static const char *s_fieldNames[] = { "timeout", "alwaysOn", "devMode",    "autoOff", "usbStayOn", "language", "nightMode",
+                                                         "bootCounter",
                                                          "offset",  "lat",      "lon",        "hijri", "isha",
                                                          "face",
                                                          "brightness", "aodDay", "aodNight",
@@ -53,7 +54,10 @@ static const char *s_fieldNames[] = { "timeout", "alwaysOn", "devMode",    "auto
                                                          // Set by the watch itself.
                                                          "pwrPullUp", "unplugged",
                                                          "settingsHidden", "mirror", "planetsOrder", "planetsHidden",
-                                                         "pagesOrder" };
+                                                         "pagesOrder", "toolsOrder", "toolsHidden", "observingOrder",
+                                                         "observingHidden",
+                                                         // Set by the watch itself (the counter).
+                                                         "counter", "counterTarget", "counterStart" };
 // One name per setting: a missing one would be read as a null name.
 static_assert( sizeof( s_fieldNames ) / sizeof( s_fieldNames[0] ) == Settings::ItemCount, "a field name per setting" );
 
@@ -360,7 +364,8 @@ esp_err_t Portal::onState( httpd_req_t *request )
               "\"aodDay\":%d,\"aodNight\":%d,\"devMode\":%d,\"usbStayOn\":%d,\"nightMode\":%d,\"isha\":%d,\"language\":%d,"
               "\"clockOrder\":%d,\"clockHidden\":%d,\"infoOrder\":%d,\"infoHidden\":%d,"
               "\"settingsOrder\":%d,\"settingsHidden\":%d,\"mirror\":%d,\"planetsOrder\":%d,\"planetsHidden\":%d,"
-              "\"pagesOrder\":%d,"
+              "\"pagesOrder\":%d,\"toolsOrder\":%d,\"toolsHidden\":%d,\"observingOrder\":%d,\"observingHidden\":%d,"
+              "\"bootCounter\":%d,"
               "\"version\":\"%s\",\"battery\":%d,\"usb\":%d,\"updateMin\":%d,\"coreDump\":%d,"
               "\"zone\":\"%s\",\"place\":\"%s\",\"cities\":[",
               settings.value( Settings::DisplayTimeout ), settings.value( Settings::AlwaysOnFace ),
@@ -376,7 +381,9 @@ esp_err_t Portal::onState( httpd_req_t *request )
               settings.value( Settings::InfoHidden ), settings.value( Settings::SettingsOrder ),
               settings.value( Settings::SettingsHidden ), settings.value( Settings::Mirror ),
               settings.value( Settings::PlanetsOrder ), settings.value( Settings::PlanetsHidden ),
-              settings.value( Settings::PagesOrder ),
+              settings.value( Settings::PagesOrder ), settings.value( Settings::ToolsOrder ),
+              settings.value( Settings::ToolsHidden ), settings.value( Settings::ObservingOrder ),
+              settings.value( Settings::ObservingHidden ), settings.value( Settings::BootCounter ),
               esp_app_get_description()->version, portal->m_batteryPercent, portal->m_usb ? 1 : 0, UpdateMinPercent,
               portal->m_hasCoreDump ? 1 : 0,
               world.homeZoneName(),

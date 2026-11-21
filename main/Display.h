@@ -16,6 +16,7 @@
 #include "StackPage.h"
 #include "PlanetPages.h"
 #include "SkyPages.h"
+#include "ToolPages.h"
 #include "TablePart.h"
 #include "lvgl.h"
 #include "sdkconfig.h"
@@ -24,7 +25,7 @@
 // DSI_PWR_EN is pulled up from AXP2101 ALDO2, so the caller switches ALDO2 on first
 // (docs/hardware.md). Three tiles side by side, a horizontal swipe moves between them: the watch
 // face (its face pages, FacePage), the launcher (a scrolled list of the stacked pages' parts) and
-// the page last opened from it. The stacked pages (clock, information, planets, settings) hold
+// the page last opened from it. The stacked pages (clock, information, tools, planets, settings) hold
 // their parts one over the other (StackPage); a vertical swipe moves between them, and on the
 // watch face between the face pages. Only one stacked page is built at a time.
 class Display
@@ -86,7 +87,8 @@ public:
     void showFaceTile();
 
     // The BOOT key's short press: from the opened page back to the launcher, from the launcher to
-    // the watch face; on the face it closes the brightness control.
+    // the watch face; on the face it closes the brightness control. On the tools page's counter
+    // it counts instead (Settings::BootCounter).
     void back();
 
     // Local time, its UTC offset in minutes, and the battery state; `timeValid` false: the clock
@@ -155,6 +157,10 @@ public:
     // reports one press for minutes is stuck: it would keep active mode on (main.cpp).
     bool touchPressed() const;
 
+    // Seconds until the torch switches itself off while it shows, -1 when it does not, as of the
+    // last inactiveMs() call: meanwhile no display timeout, at 0 active mode ends (main.cpp).
+    int torchSecondsLeft() const;
+
     // The ringing alarm over every page: its name and the time, and a tap anywhere stops it
     // (alarmTapped() once true until the next showAlarm()).
     void showAlarm( const char *name, const char *time );
@@ -189,7 +195,8 @@ public:
     // The fixed scene of the screenshots: sample states on the clock page.
     void setScene( bool scene );
 
-    // Presses a clock page button by name (ClockPages::press).
+    // Presses a button of the opened page by name (ToolPages::press on the tools page, else
+    // ClockPages::press).
     bool pressClockButton( const char *name );
 
     // The launcher rows' trial mode (narrowLauncherRows).
@@ -261,6 +268,9 @@ private:
     int m_appPage = -1;  // the stacked page built in the App tile, -1: none
     bool m_appReady = false;  // built and its part restored
     PlanetPages m_planets;
+    ToolPages m_tools;
+    // The observing page: no parts yet (its launcher entry stays out until it has some), never built.
+    StackPage m_observing;
     FaceText::AlarmIconState m_alarmIcons = {};
     lv_obj_t *m_alarm = nullptr;
     lv_obj_t *m_alarmTime = nullptr;
@@ -368,10 +378,16 @@ private:
     // One object draws the modules (qrcodegen's bit table, up to version 5); LVGL's qrcode widget
     // kept a 13 KB bitmap, which the portal's Wi-Fi needs.
     static void onDrawJoinCode( lv_event_t *event );
-    // The panel at s_joinCodeBrightness while the QR code part shows, else at the setting.
-    void updateJoinCodeBrightness();
+    // The panel at s_joinCodeBrightness while the QR code part shows, at the torch's level while
+    // the torch shows (and the torch told so), else at the setting.
+    void updateBrightness();
+    static void onTorchLevel( void *user );
     bool m_joinCodeDimmed = false;
-    // The red night mode: wanted (showCorners) and shown (not over the QR code); read by the flush.
+    bool m_torchShown = false;
+    int m_torchLevel = 0;   // the level set while the torch shows
+    int m_torchLeft = -1;   // torchSecondsLeft()
+    // The red night mode: wanted (showCorners) and shown (not over the QR code or the torch);
+    // read by the flush.
     void updateRed();
     bool m_redWanted = false;
     bool m_red = false;

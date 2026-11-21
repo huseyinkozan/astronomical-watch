@@ -94,7 +94,9 @@ development builds `v0.0.1-3-gabc1234-dirty`. A new release is a new tag, pushed
     the watch goes to always-on, or straight to off when always-on is disabled in the settings.
     A PWR press in active mode does the same at once. Touch cannot wake the watch (GPIO38).
     A touch reported as pressed without a break for 60 s ends active mode too (a stuck touch
-    controller would keep the display on until the battery is flat).
+    controller would keep the display on until the battery is flat). While the torch (tools
+    page) shows, its own 2 min auto-off replaces the display timeout (a tap restarts it), and at
+    0:00 active mode ends as at a timeout.
   - **Always-on**: the panel keeps showing a dim, minimal face from its own memory while the ESP32
     is in deep sleep; a timer wake once per minute updates it. At wide intervals (default every
     10 min) the accelerometer is sampled once; when the watch has not moved for a while (default
@@ -275,11 +277,22 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   set, distances; `main/PlanetPages.*`, the day's rise and set computed in the main task on the
   page's request, 0.4 s; design: `docs/superpowers/specs/2026-11-19-planets-design.md`) and
   settings (settings, more settings, what the portal set, setup portal, its QR code; the setup
-  part always shown); a page for tools will come between information and planets (`s_pageEntries`).
+  part always shown), tools (torch, counter, random; `main/ToolPages.*`, the counter's rules in
+  `main/Tally.*`, the SOS timing in `main/Morse.*`, both host-tested; plan:
+  `docs/superpowers/plans/2026-11-21-tools.md`) and observing (no parts yet: a page whose part list is
+  empty stays out of the launcher and the portal's lists by itself). The `Page` numbers are kept in
+  the saved launcher order, so new pages come last in the enum; the default order puts tools and
+  observing after information. The torch fills the screen (the page name hides): red, amber,
+  white, SOS, SOS with beeps (`Ringer::startSos`, the alarm's lowest level, on the light's clock;
+  an alarm stops them); a long press, then a drag: sideways the colour, up or down the panel's
+  brightness while it shows (kept in RTC memory; `Display::updateBrightness` also dims the QR
+  code); the night-red mode leaves it as it is. The counter's count, target and first minute are
+  settings written when active mode ends, not at each count; a long press on the count resets it.
   The page and part last opened stay in RTC memory over the always-on wakes (lost at power-off:
   then the clock page's first part). The BOOT key (GPIO0, polled in `runActiveMode`, never a
   wake source) steps back: opened page to launcher, launcher to face, on the face it closes the
-  brightness control; it stops a ringing alarm like PWR; a press of 1 s or more is reserved (a
+  brightness control; on the tools page's counter it counts instead (`Settings::BootCounter`,
+  "BOOT counter" on the settings page and in the portal; the back chevron still goes back); it stops a ringing alarm like PWR; a press of 1 s or more is reserved (a
   log line). A back button does the same on the launcher and the opened page: a grey chevron at
   the left edge's middle between the left corner gauges, a 40 x 120 px tap zone that takes taps
   only (swipes from it still scroll the list, step the parts and the calendars, swipe the tiles). A vertical swipe steps the face page on the watch face and the part on
@@ -350,7 +363,9 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   vibration motor on the board: `main/Ringer.*` beeps 1000/1500 Hz (the speaker's loudest
   region, docs/hardware.md, "Speaker and alarm sound"), from -18 dB to at most -12 dB (the meter: -6 dB drew 0.17 A, full scale browned the board out), through
   `main/Sound.*`, for at most 60 s; a tap, PWR or BOOT stops it. Design:
-  `docs/superpowers/specs/2026-11-19-alarms-design.md`. Development commands: "R <s>" a test
+  `docs/superpowers/specs/2026-11-19-alarms-design.md`. Development commands: "B <name>" presses a button of the opened page (clock page:
+  `ClockPages::press`; tools page: count, undo, target, reset, roll, dice, coin, number, torch),
+  "R <s>" a test
   alarm, "K <n> <text>" defines an alarm, "Q" ends active mode as without the always-on face,
   "H" makes the next PWR wake a phantom (it must go back to sleep), "W" starves the idle task
   (the task watchdog must reset the watch). "W <tile>" swipes to a tile (0 to 2), "W 3" and

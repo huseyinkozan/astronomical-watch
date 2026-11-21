@@ -230,6 +230,33 @@ public:
         PartSetupInfo,
         PartSetup,
         PartQrCode,
+        // Tools page (ToolPages) and the observing page's name.
+        ToolsPageName,
+        ObservingPageName,
+        PartTorch,
+        PartCounter,
+        PartRandom,
+        TorchRed,
+        TorchAmber,
+        TorchWhite,
+        TorchSos,
+        TorchSosBeep,
+        TorchHint,
+        PercentValue,   // "%d%%"
+        CounterRate,    // "%d/h"
+        CounterStep,    // "step %d / %d"
+        TargetNone,
+        TargetValue,    // "Target %d"
+        TargetSteps,
+        CounterHint,
+        RandomDice,
+        RandomCoin,
+        CoinHeads,
+        CoinTails,
+        RandomHint,
+        DiceHint,
+        BootCounterRow,  // settings page: what BOOT does on the counter
+        BootBack,
         TextCount
     };
 

@@ -13,6 +13,7 @@
 #include "PartOrder.h"
 #include "FaceTap.h"
 #include "Corners.h"
+#include "Ringer.h"
 #include <cmath>
 
 #include "bsp/display.h"
@@ -51,7 +52,7 @@ static const int s_rowWidth = 318;
 static const int s_rowGap = 12;
 static const Language::Text s_settingNames[Settings::PageItemCount] = {
     Language::ScreenOff, Language::AlwaysOnRow, Language::DevMode, Language::AutoOff, Language::OnUsb,
-    Language::LanguageRow, Language::NightModeRow };
+    Language::LanguageRow, Language::NightModeRow, Language::BootCounterRow };
 // Four rows fit on a part; the next ones go to the part below.
 static const int s_rowsPerPart = 4;
 
@@ -65,13 +66,17 @@ enum Tile
 };
 static_assert( TileCount == Display::TileCount, "Display.h sizes m_tiles for the tiles" );
 
-// The stacked pages, in the launcher's order; the App tile holds one of them at a time.
+// The stacked pages; the App tile holds one of them at a time. The numbers are kept in the saved
+// order of the launcher (Settings::PagesOrder, whose default puts tools and observing after the
+// information page): a new page comes last.
 enum Page
 {
-    ClockPage,     // world clock, timers and calendars, one over the other (ClockPages)
-    InfoPage,      // the information parts, one over the other (InfoPart)
-    PlanetsPage,   // the solar system, the sky, rise and set, distances (PlanetPages)
-    SettingsPage,  // the settings, and under them the setup portal
+    ClockPage,      // world clock, timers and calendars, one over the other (ClockPages)
+    InfoPage,       // the information parts, one over the other (InfoPart)
+    PlanetsPage,    // the solar system, the sky, rise and set, distances (PlanetPages)
+    SettingsPage,   // the settings, and under them the setup portal
+    ToolsPage,      // torch, counter, random (ToolPages)
+    ObservingPage,  // no parts yet: left out of the launcher
     PageCount
 };
 
@@ -96,6 +101,8 @@ static const Language::Text s_infoParts[Display::InfoCount] = {
     Language::Battery, Language::PartAbout };
 static const Language::Text s_planetsParts[PlanetPages::PartCount] = {
     Language::PartSolarSystem, Language::PartSky, Language::RiseAndSet, Language::Distance };
+static const Language::Text s_toolsParts[ToolPages::PartCount] = { Language::PartTorch, Language::PartCounter,
+                                                                    Language::PartRandom };
 static const Language::Text s_settingsParts[SettingsPartCount] = {
     Language::PartSettings, Language::PartMoreSettings, Language::PartSetupInfo,
 #if CONFIG_WATCH_SETUP_PORTAL
@@ -106,7 +113,7 @@ struct PageEntry
 {
     Language::Text name;
     const Language::Text *parts;
-    int partCount;
+    int partCount;  // 0: no parts yet, the page is not shown
     Settings::Item order;   // PartOrder's settings of the page
     Settings::Item hidden;
 };
@@ -114,7 +121,9 @@ static const PageEntry s_pageEntries[PageCount] = {
     { Language::ClockPageName, s_clockParts, ClockPages::PartCount, Settings::ClockOrder, Settings::ClockHidden },
     { Language::InfoPageName, s_infoParts, Display::InfoCount, Settings::InfoOrder, Settings::InfoHidden },
     { Language::PlanetsPageName, s_planetsParts, PlanetPages::PartCount, Settings::PlanetsOrder, Settings::PlanetsHidden },
-    { Language::SettingsPageName, s_settingsParts, SettingsPartCount, Settings::SettingsOrder, Settings::SettingsHidden } };
+    { Language::SettingsPageName, s_settingsParts, SettingsPartCount, Settings::SettingsOrder, Settings::SettingsHidden },
+    { Language::ToolsPageName, s_toolsParts, ToolPages::PartCount, Settings::ToolsOrder, Settings::ToolsHidden },
+    { Language::ObservingPageName, nullptr, 0, Settings::ObservingOrder, Settings::ObservingHidden } };
 
 // The page and part last opened from the launcher, for the App tile: kept over the always-on
 // wakes in RTC memory and lost at power-off (then the clock page's first part shown; -1).
@@ -170,6 +179,8 @@ struct Shot
     { "rise-set", PlanetsPage, PlanetPages::RiseSetPart }, { "distance", PlanetsPage, PlanetPages::DistancePart },
     { "alarms", ClockPage, ClockPages::AlarmsPart },
     { "launcher", LauncherShot, -1 },
+    { "torch", ToolsPage, ToolPages::TorchPart }, { "counter", ToolsPage, ToolPages::CounterPart },
+    { "random", ToolsPage, ToolPages::RandomPart },
 };
 [[maybe_unused]] static const int s_shotCount = sizeof( s_shots ) / sizeof( s_shots[0] );
 
@@ -411,11 +422,11 @@ bool Display::start( Settings &settings, bool red, bool resume )
         keepPages( s_endTile );
         lv_tileview_set_tile_by_index( pages, static_cast<uint32_t>( s_endTile ), 0, LV_ANIM_OFF );
         updatePageSwipe();
-        updateJoinCodeBrightness();
+        updateBrightness();
         ESP_LOGI( TAG, "Resumed at tile %d", s_endTile );
     }
     // The LVGL task draws the first frame (rendering needs its larger stack), then lights it.
-    s_pendingBrightness = m_joinCodeDimmed ? s_joinCodeBrightness : brightnessPercent;
+    s_pendingBrightness = m_joinCodeDimmed ? s_joinCodeBrightness : ( m_torchShown ? m_torchLevel : brightnessPercent );
     lv_display_add_event_cb( display, onFirstFrame, LV_EVENT_REFR_READY, nullptr );
     bsp_display_unlock();
 
@@ -525,7 +536,14 @@ void Display::back()
     if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
         return;
     }
-    goBack();
+    const bool counter = m_appReady && m_appPage == ToolsPage && activeTile() == AppTile &&
+                         m_tools.stack().current() == ToolPages::CounterPart;
+    if ( counter && m_settings->value( Settings::BootCounter ) != 0 ) {
+        m_tools.countUp();
+        lv_display_trigger_activity( nullptr );
+    } else {
+        goBack();
+    }
     bsp_display_unlock();
 }
 
@@ -632,6 +650,12 @@ StackPage &Display::stack( int page )
     if ( page == PlanetsPage ) {
         return m_planets.stack();
     }
+    if ( page == ToolsPage ) {
+        return m_tools.stack();
+    }
+    if ( page == ObservingPage ) {
+        return m_observing;
+    }
     return m_settingsPage;
 }
 
@@ -647,8 +671,8 @@ void Display::applyOrders()
 
 void Display::ensureApp()
 {
-    // RTC memory left by another firmware.
-    if ( s_appPage < 0 || s_appPage >= PageCount ) {
+    // RTC memory left by another firmware, or a page without parts.
+    if ( s_appPage < 0 || s_appPage >= PageCount || s_pageEntries[s_appPage].partCount == 0 ) {
         s_appPage = ClockPage;
         s_appPart = -1;
     }
@@ -667,6 +691,9 @@ void Display::ensureApp()
     } else if ( page == PlanetsPage ) {
         m_planets.build( m_tiles[AppTile] );
         applyOrders();
+    } else if ( page == ToolsPage ) {
+        m_tools.build( m_tiles[AppTile], m_pages, *m_settings, onTorchLevel, this );
+        applyOrders();
     } else {
         buildSettingsPage();
     }
@@ -676,7 +703,7 @@ void Display::ensureApp()
     stack( page ).restore( s_appPart );
     m_appReady = true;
     updatePageSwipe();
-    updateJoinCodeBrightness();
+    updateBrightness();
     ESP_LOGI( TAG, "Page %d built in %d ms, internal heap %u free, %u largest", page,
               static_cast<int>( ( esp_timer_get_time() - buildStartUs ) / 1000 ),
               static_cast<unsigned>( heap_caps_get_free_size( MALLOC_CAP_INTERNAL ) ),
@@ -725,6 +752,8 @@ void Display::freeApp()
         m_clock.forget();
     } else if ( page == PlanetsPage ) {
         m_planets.forget();
+    } else if ( page == ToolsPage ) {
+        m_tools.forget();
     } else if ( page == InfoPage ) {
         m_info.forget();
         m_sky.forget();
@@ -749,7 +778,7 @@ void Display::freeApp()
         m_setupTable.forget();
     }
     lv_obj_clean( m_tiles[AppTile] );
-    updateJoinCodeBrightness();
+    updateBrightness();
 }
 
 void Display::buildLauncher()
@@ -896,12 +925,12 @@ void Display::fillLauncher()
     for ( int p = 0; p < pageCount; ++p ) {
         const int page = pages[p];
         const PageEntry &entry = s_pageEntries[page];
-        int parts[PartOrder::MaxParts] = {};
-        const int shown = decodeOrder( page, parts );
-        // No name without rows (PartOrder::decode keeps one part shown today).
-        if ( shown == 0 ) {
+        // No name without rows: a page whose parts are still to come.
+        if ( entry.partCount == 0 ) {
             continue;
         }
+        int parts[PartOrder::MaxParts] = {};
+        const int shown = decodeOrder( page, parts );
         lv_obj_t *name = lv_label_create( m_launcherList );
         Styles::text( name, &jetbrains_mono_26, lv_color_hex( 0xA0A0A0 ) );
         lv_label_set_text_static( name, Language::text( entry.name ) );
@@ -1234,7 +1263,7 @@ void Display::showCorners( const Corners::Gauge gauges[Corners::CornerCount], bo
 // With the display lock held.
 void Display::updateRed()
 {
-    const bool red = m_redWanted && !m_joinCodeDimmed;
+    const bool red = m_redWanted && !m_joinCodeDimmed && !m_torchShown;
     if ( red != m_red ) {
         m_red = red;
         // Every pixel changes colour: the whole screen is drawn again.
@@ -1478,22 +1507,34 @@ void Display::onPageChanged( lv_event_t *event )
         display->placeLauncher();
     }
     display->updatePageSwipe();
-    display->updateJoinCodeBrightness();
+    display->updateBrightness();
 }
 
-void Display::updateJoinCodeBrightness()
+void Display::updateBrightness()
 {
+    const bool app = m_appReady && activeTile() == AppTile;
 #if CONFIG_WATCH_SETUP_PORTAL
-    const bool code = m_appReady && m_appPage == SettingsPage && activeTile() == AppTile &&
-                      m_settingsPage.current() == SetupCodePart;
+    const bool code = app && m_appPage == SettingsPage && m_settingsPage.current() == SetupCodePart;
 #else
     const bool code = false;
 #endif
-    if ( code != m_joinCodeDimmed ) {
+    const bool torch = app && m_appPage == ToolsPage && m_tools.stack().current() == ToolPages::TorchPart;
+    if ( m_appPage == ToolsPage ) {
+        m_tools.setTorchShown( torch );
+    }
+    const int torchLevel = torch ? m_tools.torchLevel() : 0;
+    if ( code != m_joinCodeDimmed || torch != m_torchShown || torchLevel != m_torchLevel ) {
         m_joinCodeDimmed = code;
-        setBrightness( code ? s_joinCodeBrightness : m_settings->value( Settings::Brightness ) );
+        m_torchShown = torch;
+        m_torchLevel = torchLevel;
+        setBrightness( code ? s_joinCodeBrightness : ( torch ? torchLevel : m_settings->value( Settings::Brightness ) ) );
         updateRed();
     }
+}
+
+void Display::onTorchLevel( void *user )
+{
+    static_cast<Display *>( user )->updateBrightness();
 }
 
 void Display::onAppPartChanged( lv_event_t *event )
@@ -1507,7 +1548,7 @@ void Display::onAppPartChanged( lv_event_t *event )
         display->placeLauncher();
     }
     display->updatePageSwipe();
-    display->updateJoinCodeBrightness();
+    display->updateBrightness();
 }
 
 void Display::updatePageSwipe()
@@ -1540,9 +1581,10 @@ void Display::refreshSettings()
     setBrightness( m_settings->value( Settings::Brightness ) );
     applyMirror( m_settings->value( Settings::Mirror ) );
     lv_obj_invalidate( lv_screen_active() );
-    // A save from the portal while the code shows keeps it dim.
+    // A save from the portal while the code or the torch shows keeps its level.
     m_joinCodeDimmed = false;
-    updateJoinCodeBrightness();
+    m_torchShown = false;
+    updateBrightness();
     bsp_display_unlock();
 }
 
@@ -1580,6 +1622,10 @@ void Display::stop()
     if ( m_started ) {
         bsp_display_lock( s_lockTimeoutMs );
         s_endTile = activeTile();
+        // No beeps into deep sleep.
+        m_tools.setTorchShown( false );
+        Ringer ringer;
+        ringer.stopSos( true );
     }
 }
 
@@ -1600,7 +1646,9 @@ void Display::update( const Rtc::DateTime &time, int utcOffsetMinutes, const Bat
     fields.tm_hour = time.hour;
     fields.tm_min = time.minute;
     fields.tm_sec = time.second;
-    m_clock.update( static_cast<int64_t>( mktime( &fields ) ) - utcOffsetMinutes * 60, utcOffsetMinutes, time );
+    const int64_t utcSeconds = static_cast<int64_t>( mktime( &fields ) ) - utcOffsetMinutes * 60;
+    m_clock.update( utcSeconds, utcOffsetMinutes, time );
+    m_tools.update( timeValid ? utcSeconds : 0 );
 
     showBattery();
     m_localTime = time;
@@ -1852,7 +1900,7 @@ bool Display::pressClockButton( const char *name )
     if ( !m_started || !bsp_display_lock( 1000 ) ) {
         return false;
     }
-    const bool pressed = m_clock.press( name );
+    const bool pressed = m_appPage == ToolsPage ? m_tools.press( name ) : m_clock.press( name );
     bsp_display_unlock();
     return pressed;
 }
@@ -1929,6 +1977,8 @@ void Display::showSetting( int item )
         lv_label_set_text( label, Language::text( value != 0 ? Language::StayOn : Language::TimeoutValue ) );
     } else if ( item == Settings::NightMode ) {
         lv_label_set_text( label, Language::text( value != 0 ? Language::AutoValue : Language::Off ) );
+    } else if ( item == Settings::BootCounter ) {
+        lv_label_set_text( label, value != 0 ? "+1" : Language::text( Language::BootBack ) );
     } else if ( item == Settings::Language ) {
         // Each language by its own name.
         lv_label_set_text( label, value == Language::Turkish ? "Türkçe" : "English" );
@@ -1959,6 +2009,7 @@ uint32_t Display::inactiveMs()
     if ( m_started && bsp_display_lock( s_lockTimeoutMs ) ) {
         m_inactiveMs = lv_display_get_inactive_time( nullptr );
         m_touchPressed = m_touch != nullptr && lv_indev_get_state( m_touch ) == LV_INDEV_STATE_PRESSED;
+        m_torchLeft = m_torchShown ? m_tools.torchSecondsLeft() : -1;
         bsp_display_unlock();
     }
     return m_inactiveMs;
@@ -1967,6 +2018,11 @@ uint32_t Display::inactiveMs()
 bool Display::touchPressed() const
 {
     return m_touchPressed;
+}
+
+int Display::torchSecondsLeft() const
+{
+    return m_torchLeft;
 }
 
 void Display::showPlanets( int64_t now, const Astronomy::Observer &observer, int utcOffsetMinutes, bool located )

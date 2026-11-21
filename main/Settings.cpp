@@ -37,6 +37,7 @@ static const ItemInfo s_items[Settings::ItemCount] = {
     { "usb_stay_on", 1, 2, { 1, 0 }, 0, 0 },
     { "language", 0, 2, { 0, 1 }, 0, 0 },
     { "night_mode", 1, 2, { 1, 0 }, 0, 0 },
+    { "boot_counter", 1, 2, { 1, 0 }, 0, 0 },
     { "utc_offset_min", 0, 0, {}, -720, 840 },
     { "latitude_ud", 0, 0, {}, -90000000, 90000000 },
     { "longitude_ud", 0, 0, {}, -180000000, 180000000 },
@@ -64,7 +65,16 @@ static const ItemInfo s_items[Settings::ItemCount] = {
     { "mirror", 0, 0, {}, 0, 3 },
     { "plan_order", 0, 0, {}, 0, 16777215 },
     { "plan_hidden", 0, 0, {}, 0, 255 },
-    { "pages_order", 0, 0, {}, 0, 16777215 },
+    // Clock, information, tools, observing, planets, settings (Display.cpp, Page: the pages added
+    // later have the higher numbers, so that saved orders keep their places).
+    { "pages_order", 0 | 1 << 3 | 4 << 6 | 5 << 9 | 2 << 12 | 3 << 15, 0, {}, 0, 16777215 },
+    { "tools_order", 0, 0, {}, 0, 16777215 },
+    { "tools_hidden", 0, 0, {}, 0, 255 },
+    { "obs_order", 0, 0, {}, 0, 16777215 },
+    { "obs_hidden", 0, 0, {}, 0, 255 },
+    { "counter", 0, 0, {}, 0, 999999 },
+    { "counter_target", 0, 0, {}, 0, 4 },
+    { "counter_start", 0, 0, {}, 0, 70000000 },
 };
 
 static int indexOf( const ItemInfo &info, int value )

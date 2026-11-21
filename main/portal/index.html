@@ -180,6 +180,8 @@
   eye stays used to the dark. The Wi-Fi QR code stays as it is.</small>
   <label for="usbStayOn" data-tr="USB takılıyken ekran açık kalsın">Screen stays on while USB is plugged in</label>
   <select id="usbStayOn"></select>
+  <label for="bootCounter" data-tr="Araçlar sayfasının sayacında BOOT tuşu">BOOT key on the Tools page's counter</label>
+  <select id="bootCounter"></select>
   <label for="autoOff" data-tr="Hareketsiz kalınca kapanma">Switch off without motion after</label>
   <select id="autoOff"></select>
   <label for="devMode" data-tr="Geliştirme modu (olay kaydına daha çok kayıt)">Development mode (more entries in the watch's event log)</label>
@@ -272,6 +274,7 @@ function fillLists() {
   fill($('hijri'), [[0, t('Local crescent', 'Yerel hilal')], [1, 'Diyanet']], keep('hijri'));
   fill($('devMode'), [[0, off], [1, on]], keep('devMode'));
   fill($('usbStayOn'), [[1, on], [0, off]], keep('usbStayOn'));
+  fill($('bootCounter'), [[1, t('Counts (+1)', 'Sayar (+1)')], [0, t('Goes back', 'Geri gider')]], keep('bootCounter'));
   fill($('nightMode'), [[1, t('Auto', 'Oto')], [0, off]], keep('nightMode'));
   fill($('isha'), [[17, t('17° (Turkey)', '17° (Türkiye)')], [16, '16°']], keep('isha'));
   fill($('mirror'), [[0, t('Normal', 'Normal')], [3, t('Turned around (180°)', 'Ters çevrilmiş (180°)')],
@@ -472,11 +475,14 @@ showZone();
 
 
 // Orders and hidden parts (main/PartOrder.h): part numbers in 3-bit fields, hidden ones as bits.
-// Titles and names as [English, Turkish].
+// Titles and names as [English, Turkish]. A page without parts yet (observing) has no list, and
+// its row in the pages' order stays out (null) while keeping its number.
+const observingParts = [];
 const orderLists = [
   // The launcher's pages (Display.cpp, Page); a page is not hidden, only its parts.
   { title: ['Order of the pages', 'Sayfaların sırası'], order: 'pagesOrder',
-    names: [['Clock', 'Saat'], ['Information', 'Bilgi'], ['Planets', 'Gezegen'], ['Settings', 'Ayar']] },
+    names: [['Clock', 'Saat'], ['Information', 'Bilgi'], ['Planets', 'Gezegen'], ['Settings', 'Ayar'],
+            ['Tools', 'Araçlar'], observingParts.length > 0 ? ['Observing', 'Gözlem'] : null] },
   { title: ['Clock page', 'Saat sayfası'], order: 'clockOrder', hidden: 'clockHidden',
     names: [['World clock', 'Dünya saati'], ['Stopwatch', 'Kronometre'], ['Timer', 'Geri sayım'],
             ['Gregorian calendar', 'Miladi takvim'], ['Hijri calendar', 'Hicri takvim'], ['Day counters', 'Gün sayaçları'], ['Alarms', 'Alarmlar']] },
@@ -488,16 +494,30 @@ const orderLists = [
   { title: ['Settings page', 'Ayar sayfası'], order: 'settingsOrder', hidden: 'settingsHidden', fixed: 3,
     names: [['Settings', 'Ayarlar'], ['More settings', 'Diğer ayarlar'], ['What this page set', 'Bu sayfanın girdikleri'],
             ['Wi-Fi setup', 'Wi-Fi kurulum'], ['Wi-Fi QR code', 'Wi-Fi QR kodu']] },
+  { title: ['Tools page', 'Araçlar sayfası'], order: 'toolsOrder', hidden: 'toolsHidden',
+    names: [['Torch', 'Fener'], ['Counter', 'Sayaç'], ['Random', 'Rastgele']] },
+  { title: ['Observing page', 'Gözlem sayfası'], order: 'observingOrder', hidden: 'observingHidden',
+    names: observingParts },
 ];
+// As PartOrder::decode: an order saved before parts were added keeps its places, the new parts follow.
 function decodeOrder(value, count) {
-  const parts = [];
-  for (let i = 0; i < count; i++) parts.push((value >> (3 * i)) & 7);
-  const valid = value > 0 && parts.every((p, i) => p < count && parts.indexOf(p) === i);
-  return valid ? parts : [...Array(count).keys()];
+  for (let k = count; k > 0 && value > 0; k--) {
+    if (k < count && (value >> (3 * k)) !== 0) continue;
+    const parts = [];
+    for (let i = 0; i < k; i++) parts.push((value >> (3 * i)) & 7);
+    if (parts.every((p, i) => p < k && parts.indexOf(p) === i)) {
+      for (let i = k; i < count; i++) parts.push(i);
+      return parts;
+    }
+  }
+  return [...Array(count).keys()];
 }
 function drawOrder(list) {
   list.box.innerHTML = '';
+  // The places of the rows shown; the arrows swap with the next one shown.
+  const shown = list.parts.map((part, i) => i).filter((i) => list.names[list.parts[i]]);
   list.parts.forEach((part, i) => {
+    if (!list.names[part]) return;
     const row = document.createElement('div');
     const label = document.createElement('label');
     if (list.hidden) {
@@ -508,7 +528,7 @@ function drawOrder(list) {
       check.disabled = part === list.fixed;
       check.addEventListener('change', () => {
         // At least one part stays shown.
-        if (!check.checked && list.off.size + 1 >= list.parts.length) { check.checked = true; return; }
+        if (!check.checked && list.off.size + 1 >= list.names.length) { check.checked = true; return; }
         if (check.checked) list.off.delete(part); else list.off.add(part);
       });
       label.appendChild(check);
@@ -519,9 +539,10 @@ function drawOrder(list) {
       const button = document.createElement('button');
       button.type = 'button';
       button.textContent = text;
-      button.disabled = i + move < 0 || i + move >= list.parts.length;
+      const j = shown[shown.indexOf(i) + move];
+      button.disabled = j === undefined;
       button.addEventListener('click', () => {
-        [list.parts[i], list.parts[i + move]] = [list.parts[i + move], list.parts[i]];
+        [list.parts[i], list.parts[j]] = [list.parts[j], list.parts[i]];
         drawOrder(list);
       });
       row.appendChild(button);
@@ -532,6 +553,7 @@ function drawOrder(list) {
 function drawOrders() {
   $('orders').innerHTML = '';
   for (const list of orderLists) {
+    if (list.names.length === 0) continue;
     const title = document.createElement('label');
     title.textContent = list.title[L];
     $('orders').appendChild(title);
@@ -937,7 +959,7 @@ setInterval(() => { $('now').textContent = t('This device: ', 'Bu cihaz: ') + ne
 fetch('/api/state').then((r) => r.json()).then((s) => {
   if (s.language !== undefined) setLanguage(s.language);
   $('version').textContent = s.version || '?';
-  for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'hijri', 'aodDay', 'aodNight', 'devMode', 'usbStayOn', 'nightMode', 'isha', 'mirror']) $(id).value = String(s[id]);
+  for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'hijri', 'aodDay', 'aodNight', 'devMode', 'usbStayOn', 'nightMode', 'isha', 'mirror', 'bootCounter']) $(id).value = String(s[id]);
   setOrders(s);
   if (s.faceItems) faceLimits = s.faceItems;
   if (s.faceDefaults) defaultFaces = s.faceDefaults;
@@ -980,7 +1002,7 @@ $('save').addEventListener('click', async () => {
   $('status').textContent = t('Saving…', 'Kaydediliyor…');
   try {
     const fields = new URLSearchParams();
-    for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'offset', 'hijri', 'aodDay', 'aodNight', 'devMode', 'usbStayOn', 'nightMode', 'isha', 'language', 'mirror']) fields.set(id, $(id).value);
+    for (const id of ['timeout', 'alwaysOn', 'brightness', 'autoOff', 'offset', 'hijri', 'aodDay', 'aodNight', 'devMode', 'usbStayOn', 'nightMode', 'isha', 'language', 'mirror', 'bootCounter']) fields.set(id, $(id).value);
     // The own zone's clock changes, unless the offset was set by hand.
     const home = zoneValid(homeZone) ? zoneInfo(homeZone) : null;
     const byZone = home !== null && String(home[0]) === $('offset').value;

@@ -63,7 +63,8 @@ void StackPage::build( lv_obj_t *tile, int count, const char *title )
     }
     m_shown = m_count;
     // After the parts, so that it stays over them while they slide.
-    buildHeader( tile, title );
+    buildHeader( tile, title, &m_headerLine, &m_headerName );
+    m_swipeLocked = false;
     // A single part needs no marks.
     if ( m_count > 1 ) {
         m_marks.build( tile, m_count );
@@ -71,7 +72,7 @@ void StackPage::build( lv_obj_t *tile, int count, const char *title )
     show( 0, 0 );
 }
 
-void StackPage::buildHeader( lv_obj_t *tile, const char *title )
+void StackPage::buildHeader( lv_obj_t *tile, const char *title, lv_obj_t **lineObject, lv_obj_t **nameObject )
 {
     lv_obj_t *line = lv_obj_create( tile );
     lv_obj_remove_style_all( line );
@@ -84,6 +85,25 @@ void StackPage::buildHeader( lv_obj_t *tile, const char *title )
     lv_label_set_text( name, title );
     lv_obj_align( name, LV_ALIGN_TOP_MID, 0, 2 );
     lv_obj_set_clickable( name, false );
+    if ( lineObject != nullptr ) {
+        *lineObject = line;
+    }
+    if ( nameObject != nullptr ) {
+        *nameObject = name;
+    }
+}
+
+void StackPage::setSwipeLocked( bool locked )
+{
+    m_swipeLocked = locked;
+}
+
+void StackPage::setHeaderHidden( bool hidden )
+{
+    if ( m_headerLine != nullptr ) {
+        lv_obj_set_hidden( m_headerLine, hidden );
+        lv_obj_set_hidden( m_headerName, hidden );
+    }
 }
 
 void StackPage::onDrawHeaderLine( lv_event_t *event )
@@ -177,7 +197,7 @@ void StackPage::onGesture( lv_event_t *event )
 {
     StackPage *self = static_cast<StackPage *>( lv_event_get_user_data( event ) );
     const lv_dir_t direction = lv_indev_get_gesture_dir( lv_indev_active() );
-    if ( self->m_shown < 2 || ( direction != LV_DIR_TOP && direction != LV_DIR_BOTTOM ) ) {
+    if ( self->m_swipeLocked || self->m_shown < 2 || ( direction != LV_DIR_TOP && direction != LV_DIR_BOTTOM ) ) {
         return;
     }
     const int step = direction == LV_DIR_TOP ? 1 : -1;
@@ -190,6 +210,8 @@ void StackPage::forget()
         lv_obj_remove_event_cb_with_user_data( m_tile, onGesture, this );
     }
     m_tile = nullptr;
+    m_headerLine = nullptr;
+    m_headerName = nullptr;
     for ( int i = 0; i < MaxParts; ++i ) {
         m_parts[i] = nullptr;
     }

@@ -1352,7 +1352,7 @@ static int runActiveMode()
             }
         } else {
             if ( bootHeldMs >= s_bootPressMs && !bootUsed && s_displayOn ) {
-                ESP_LOGI( TAG, "BOOT press: back" );
+                ESP_LOGI( TAG, "BOOT press" );
                 s_display.back();
                 activeMs = 0;
             }
@@ -1390,6 +1390,16 @@ static int runActiveMode()
                 ESP_LOGW( TAG, "Touch held %u s: active mode ends", static_cast<unsigned>( touchHeldMs / 1000 ) );
                 return 3;
             }
+        }
+        // The torch keeps active mode on until its own auto-off, which ends it as a timeout does.
+        const int torchLeft = s_displayOn ? s_display.torchSecondsLeft() : -1;
+        if ( torchLeft == 0 ) {
+            ESP_LOGI( TAG, "Torch auto-off: active mode ends" );
+            return 1;
+        }
+        if ( torchLeft > 0 ) {
+            activeMs = 0;
+            idleMs = 0;
         }
         // Read every time: the settings page can change it.
         const uint32_t timeoutMs = s_settings.value( Settings::DisplayTimeout ) * 1000;

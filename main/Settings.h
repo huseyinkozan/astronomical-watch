@@ -16,6 +16,7 @@ public:
         UsbStayOn,       // 1: no display timeout while USB power is present
         Language,        // Language::Id: 0 English, 1 Turkish
         NightMode,       // 1: the red night mode from civil dusk to civil dawn (NightRed), 0: off
+        BootCounter,     // 1: a BOOT press counts on the Tools page's counter (ToolPages), 0: back
         UtcOffset,       // minutes added to the RTC's UTC for the displayed time
         Latitude,        // micro-degrees, north positive
         Longitude,       // micro-degrees, east positive
@@ -48,6 +49,15 @@ public:
         PlanetsOrder,    // the planets page's parts (PartOrder)
         PlanetsHidden,
         PagesOrder,      // the order of the launcher's pages (PartOrder; Display.cpp, Page)
+        ToolsOrder,      // the tools page's parts (PartOrder)
+        ToolsHidden,
+        ObservingOrder,  // the observing page's parts (PartOrder)
+        ObservingHidden,
+        // The tools page's counter (Tally), set by the watch: saved with the other settings when
+        // active mode ends, not at each count.
+        CounterValue,
+        CounterTarget,   // Tally::Target
+        CounterStart,    // the first count's minute since 1970 UTC, 0: none
         ItemCount
     };
     // The items before this one are on the watch's settings page; FaceStyle is chosen by a
