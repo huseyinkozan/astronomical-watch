@@ -14,8 +14,7 @@ g++ -std=c++17 -O2 -Wall -Wextra -I main tests/PartOrderTest.cpp main/PartOrder.
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/TallyTest.cpp main/Tally.cpp main/Morse.cpp -o build-host/tally_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/CalculatorTest.cpp main/Calculator.cpp main/Units.cpp -o build-host/calculator_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/TiltTest.cpp main/Tilt.cpp -o build-host/tilt_test
-g++ -std=c++17 -O2 -Wall -Wextra -I main tests/BatteryLimitTest.cpp main/BatteryLimit.cpp -o build-host/tilt_test
-build-host/battery_limit_test
+g++ -std=c++17 -O2 -Wall -Wextra -I main tests/BatteryLimitTest.cpp main/BatteryLimit.cpp -o build-host/battery_limit_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/NightRedTest.cpp main/NightRed.cpp -o build-host/night_red_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/FaceConfigTest.cpp main/FaceConfig.cpp -o build-host/face_config_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/FaceTapTest.cpp main/FaceTap.cpp -o build-host/face_tap_test
@@ -27,6 +26,7 @@ g++ -std=c++17 -O2 -Wall -Wextra -I main tests/SevenSegmentTest.cpp main/SevenSe
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/TableTextTest.cpp main/TableText.cpp -o build-host/table_text_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/AlarmsTest.cpp main/Alarms.cpp main/AlarmIcons.cpp main/Zones.cpp main/Sky.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/alarms_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/AstrolabeTest.cpp main/Astrolabe.cpp main/Astronomy.cpp -o build-host/astrolabe_test
+g++ -std=c++17 -O2 -Wall -Wextra -I main tests/ObservingTest.cpp main/Observing.cpp main/Messier.cpp main/Optics.cpp main/Astronomy.cpp -o build-host/observing_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/PlanetsTest.cpp main/Planets.cpp main/Astronomy.cpp -o build-host/planets_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tools/make_corner_table.cpp main/Corners.cpp main/Sky.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/make_corner_table
 build-host/astronomy_test tests/astronomy_reference.csv
@@ -38,6 +38,7 @@ build-host/prayer_test
 build-host/part_order_test
 build-host/tally_test
 build-host/calculator_test
+build-host/tilt_test
 build-host/battery_limit_test
 build-host/night_red_test
 build-host/face_config_test tools/portal_preview.py
@@ -50,6 +51,7 @@ build-host/milky_way_test
 build-host/table_text_test
 build-host/alarms_test
 build-host/astrolabe_test tests/astrolabe_reference.csv
+build-host/observing_test tests/observing_reference.csv
 build-host/planets_test tests/planet_reference.csv tests/planet_risings.csv tests/planet_arcs.csv
 # main/CornerTable.c must be what the corner geometry gives today.
 build-host/make_corner_table > build-host/CornerTable.c
