@@ -255,9 +255,13 @@ static void applyMirror( int mirror )
     }
 }
 
+// Until LVGL's first frame the panel stays dark (s_pendingBrightness): a level chosen before it,
+// as when active mode resumes on the QR code or the torch, waits for it.
+static bool s_lit = false;
+
 static void setBrightness( int percent )
 {
-    if ( s_panelIo != nullptr ) {
+    if ( s_panelIo != nullptr && s_lit ) {
         Panel::setBrightness( s_panelIo, percent );
     }
 }
@@ -273,6 +277,7 @@ static int s_pendingBrightness = 0;
 static void onFirstFrame( lv_event_t * )
 {
     if ( s_pendingBrightness > 0 ) {
+        s_lit = true;
         setBrightness( s_pendingBrightness );
         s_pendingBrightness = 0;
     }
@@ -341,6 +346,7 @@ static void onTouchPressed( lv_event_t *event )
 bool Display::start( Settings &settings, bool red, bool resume )
 {
     m_settings = &settings;
+    s_lit = false;
     m_redWanted = red;
     m_red = red;
     const int brightnessPercent = settings.value( Settings::Brightness );
