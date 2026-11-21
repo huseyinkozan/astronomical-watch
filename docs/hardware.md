@@ -572,6 +572,13 @@ Scrolling speed (2026-11-14, `configs/perf`: LVGL's system monitor) [HW]:
   launcher and the opened page, 142–160 ms to and from the watch face. The scroll costs less than
   the page swipe, so it adds no new limit; this build's figures run above the 85–90 ms above
   (another build). A finger's scroll with momentum has not been measured [HW].
+- The launcher rows' trial (2026-11-21, 18:12, same method and build with the scroll mark and the
+  highlight added; host command `n <mode>`, six `W 3`/`W 4` pairs per mode, about 40 frames
+  each): one width 115–116 ms per frame, narrowing 115–118 ms, narrowing and dimming 116–118 ms
+  (render 47–48 ms, flush 65–66 ms in all three). Narrowing the rows on screen in the scroll event
+  costs about 2 ms or less. All three ran after dusk, probably with the red night mode converting
+  each band in the flush, which would explain the flush's 65 ms against 50 ms in the afternoon's
+  run [HW].
 - LVGL rendering on both cores (`LV_OS_FREERTOS`, 2 draw units, as in the Waveshare LVGL example)
   crashed five times in three minutes (LoadProhibited on core 0) and rendered slower (143 ms):
   rejected.
