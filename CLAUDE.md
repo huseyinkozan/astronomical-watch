@@ -217,6 +217,14 @@ picture along it instead of ending active mode (Settings::Mirror, also in the po
 directions turn it around): the panel's own MADCTL bits, the touch points mirrored to match
 (docs/hardware.md, Display).
 
+Red night mode (Settings::NightMode, Auto by default, on the settings page and in the portal):
+from civil dusk to civil dawn (the Sun below -6 degrees, `Corners::dark`, its events kept with the
+always-on face) everything is shown in red of the same brightness, so that the eye stays used to
+the dark; never without a location. Active mode converts each band just before it is sent
+(`NightRed`, host-tested, after the night palette of mkvesala/ESP32-Waveshare-SkippersWatch, MIT),
+except while the Wi-Fi QR code shows; the always-on face draws every lit pixel in idle-mode red.
+Development command "I 1" forces it on, "I 0" back to the setting.
+
 Event log (`main/EventLog.*`, NVS): boots with their reset reason, the end of each active session
 (touches, touch controller state), the end of always-on and power-offs, with battery, smallest
 heap and stack margins. Written once at the event, never at every minute wake; the development
@@ -314,7 +322,9 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   region, docs/hardware.md, "Speaker and alarm sound"), from -18 dB to at most -12 dB (the meter: -6 dB drew 0.17 A, full scale browned the board out), through
   `main/Sound.*`, for at most 60 s; a tap or PWR stops it. Design:
   `docs/superpowers/specs/2026-11-19-alarms-design.md`. Development commands: "R <s>" a test
-  alarm, "K <n> <text>" defines an alarm, "Q" ends active mode as without the always-on face.
+  alarm, "K <n> <text>" defines an alarm, "Q" ends active mode as without the always-on face,
+  "H" makes the next PWR wake a phantom (it must go back to sleep), "W" starves the idle task
+  (the task watchdog must reset the watch).
 
 ## Dependency Selection
 

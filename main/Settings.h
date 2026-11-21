@@ -15,6 +15,7 @@ public:
         AutoOff,         // minutes without motion in always-on until power-off, 0: never
         UsbStayOn,       // 1: no display timeout while USB power is present
         Language,        // Language::Id: 0 English, 1 Turkish
+        NightMode,       // 1: the red night mode from civil dusk to civil dawn (NightRed), 0: off
         UtcOffset,       // minutes added to the RTC's UTC for the displayed time
         Latitude,        // micro-degrees, north positive
         Longitude,       // micro-degrees, east positive

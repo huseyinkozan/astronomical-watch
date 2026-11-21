@@ -63,6 +63,15 @@ Corners::Input Corners::fromSky( const Sky::Day &day )
     addEvent( input.sun, sun.setting, false, s_dayS );
     input.sun.alwaysUp = sun.alwaysAbove;
     input.sun.alwaysDown = sun.alwaysBelow;
+    // Civil dusk and dawn as the Sun's, yesterday's and tomorrow's taken from today's.
+    const Astronomy::Crossings &civil = day.sun.civil;
+    addEvent( input.civil, civil.rising, true, -s_dayS );
+    addEvent( input.civil, civil.setting, false, -s_dayS );
+    addCrossings( input.civil, civil );
+    addEvent( input.civil, civil.rising, true, s_dayS );
+    addEvent( input.civil, civil.setting, false, s_dayS );
+    input.civil.alwaysUp = civil.alwaysAbove;
+    input.civil.alwaysDown = civil.alwaysBelow;
     addCrossings( input.moon, day.moonBefore );
     addCrossings( input.moon, day.moon );
     addCrossings( input.moon, day.moonAfter );
@@ -304,6 +313,19 @@ bool Corners::night( const Input &input, int64_t now )
         return !up;
     }
     return input.sun.alwaysDown;
+}
+
+bool Corners::dark( const Input &input, int64_t now )
+{
+    bool up = false;
+    int passed = 0;
+    if ( !input.valid ) {
+        return false;
+    }
+    if ( progress( input.civil, now, up, passed ) ) {
+        return !up;
+    }
+    return input.civil.alwaysDown;
 }
 
 void Corners::compute( const Input &input, const Context &context, const uint8_t items[CornerCount],

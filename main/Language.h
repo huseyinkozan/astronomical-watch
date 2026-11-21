@@ -45,10 +45,12 @@ public:
         AutoOff,
         OnUsb,
         LanguageRow,
+        NightModeRow,
         On,
         Off,
         StayOn,
         TimeoutValue,
+        AutoValue,
         Never,
         Seconds,  // "%d s"
         Minutes,  // "%d min"

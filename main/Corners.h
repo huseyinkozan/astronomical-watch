@@ -75,6 +75,7 @@ public:
     {
         bool valid;
         Events sun;
+        Events civil;  // the Sun at -6 degrees: civil dawn as rising, civil dusk as setting
         Events moon;
         int moonPercent;  // illuminated fraction
         bool waxing;
@@ -147,6 +148,10 @@ public:
     // Whether the Sun is down at `now` (the always-on face's night brightness), whatever the
     // corners show; false without the sky.
     static bool night( const Input &input, int64_t now );
+
+    // Whether the Sun is below -6 degrees at `now` (civil twilight over): the red night mode;
+    // false without the sky and in light nights.
+    static bool dark( const Input &input, int64_t now );
 
     // The gauges of `items` (FaceConfig::GaugeItem by corner) with their `parameters`.
     static void compute( const Input &input, const Context &context, const uint8_t items[CornerCount],

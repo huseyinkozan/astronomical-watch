@@ -165,6 +165,8 @@ static void fillLook( int page );
 RTC_DATA_ATTR [[maybe_unused]] static bool s_hostSkipDisplay = false;
 // Set by the host command "H": the next PWR wake counts as a phantom (phantomPowerKey).
 RTC_DATA_ATTR [[maybe_unused]] static bool s_hostPhantomKey = false;
+// Set by the host command "I <0|1>": the red night mode on whatever the Sun (1), or as set (0).
+[[maybe_unused]] static bool s_hostNightRed = false;
 static char s_hostLine[32];
 // The scene of the published screenshots, so that they stay the same and do not show the
 // watch's location: Istanbul on 2026-06-21 at 19:19 local time (UTC+3), the local Hijri method.
@@ -352,6 +354,12 @@ static bool pollHostCommands()
             while ( esp_timer_get_time() < until ) {
             }
             ESP_LOGE( TAG, "Still running after 10 s: the task watchdog did not reset" );
+            continue;
+        }
+        int nightRed = 0;
+        if ( sscanf( s_hostLine, "I %d", &nightRed ) == 1 ) {
+            s_hostNightRed = nightRed != 0;
+            ESP_LOGI( TAG, "Night mode %s", s_hostNightRed ? "forced on" : "as set" );
             continue;
         }
         if ( s_hostLine[0] == 'H' && s_hostLine[1] == '\0' ) {
@@ -595,6 +603,7 @@ static void fillLook( int page )
     s_look.dayBrightness = s_settings.value( Settings::AodDayBrightness );
     s_look.nightBrightness = s_settings.value( Settings::AodNightBrightness );
     s_look.language = s_settings.value( Settings::Language );
+    s_look.nightMode = s_hostNightRed ? AlwaysOn::NightForced : s_settings.value( Settings::NightMode );
     s_look.alarms = alarmIcons();
     if ( s_skyValid ) {
         s_look.moonPercent = static_cast<int>( s_skyDay.phase.illumination * 100 + 0.5 );
@@ -731,7 +740,10 @@ static void updateDisplay()
         context.counterValid[i] = s_faceTable.counterNames[i][0] != '\0';
     }
     Corners::compute( corners, context, s_facePages.gauges, s_facePages.gaugeParameters, gauges );
-    s_display.showCorners( gauges, Corners::night( corners, context.now ) );
+    // The red night mode from civil dusk to civil dawn; never without a location.
+    const bool red = s_hostNightRed ||
+                     ( located && s_settings.value( Settings::NightMode ) != 0 && Corners::dark( corners, context.now ) );
+    s_display.showCorners( gauges, Corners::night( corners, context.now ), red );
 }
 
 #if CONFIG_WATCH_SETUP_PORTAL

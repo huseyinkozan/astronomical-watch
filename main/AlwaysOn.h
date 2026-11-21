@@ -39,8 +39,12 @@ public:
         int dayBrightness;
         int nightBrightness;
         int language;  // Language::Id: the minute wakes read no settings
+        int nightMode;  // Settings::NightMode, or NightForced (development command "I 1")
         FaceText::AlarmIconState alarms;
     };
+
+    // Look::nightMode beyond the setting's 0 (off) and 1 (from civil dusk to civil dawn).
+    static const int NightForced = 2;
 
     enum Colour
     {

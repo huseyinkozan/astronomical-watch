@@ -36,6 +36,7 @@ static const ItemInfo s_items[Settings::ItemCount] = {
     { "auto_off_min", CONFIG_WATCH_MOTION_OFF_MIN, 4, { 20, 30, 60, 0 }, 0, 0 },
     { "usb_stay_on", 1, 2, { 1, 0 }, 0, 0 },
     { "language", 0, 2, { 0, 1 }, 0, 0 },
+    { "night_mode", 1, 2, { 1, 0 }, 0, 0 },
     { "utc_offset_min", 0, 0, {}, -720, 840 },
     { "latitude_ud", 0, 0, {}, -90000000, 90000000 },
     { "longitude_ud", 0, 0, {}, -180000000, 180000000 },

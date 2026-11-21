@@ -41,7 +41,7 @@ extern const char s_updateStart[] asm( "_binary_update_html_gz_start" );
 extern const char s_updateEnd[] asm( "_binary_update_html_gz_end" );
 
 // Field names of the save request, one per Settings::Item.
-static const char *s_fieldNames[] = { "timeout", "alwaysOn", "devMode",    "autoOff", "usbStayOn", "language",
+static const char *s_fieldNames[] = { "timeout", "alwaysOn", "devMode",    "autoOff", "usbStayOn", "language", "nightMode",
                                                          "offset",  "lat",      "lon",        "hijri", "isha",
                                                          "face",
                                                          "brightness", "aodDay", "aodNight",
@@ -356,7 +356,7 @@ esp_err_t Portal::onState( httpd_req_t *request )
     snprintf( json, jsonSize,
               "{\"timeout\":%d,\"alwaysOn\":%d,\"brightness\":%d,\"autoOff\":%d,\"face\":%d,"
               "\"offset\":%d,\"lat\":%.6f,\"lon\":%.6f,\"hijri\":%d,"
-              "\"aodDay\":%d,\"aodNight\":%d,\"devMode\":%d,\"usbStayOn\":%d,\"isha\":%d,\"language\":%d,"
+              "\"aodDay\":%d,\"aodNight\":%d,\"devMode\":%d,\"usbStayOn\":%d,\"nightMode\":%d,\"isha\":%d,\"language\":%d,"
               "\"clockOrder\":%d,\"clockHidden\":%d,\"infoOrder\":%d,\"infoHidden\":%d,"
               "\"settingsOrder\":%d,\"settingsHidden\":%d,\"mirror\":%d,\"planetsOrder\":%d,\"planetsHidden\":%d,"
               "\"version\":\"%s\",\"battery\":%d,\"usb\":%d,\"updateMin\":%d,\"coreDump\":%d,"
@@ -367,7 +367,7 @@ esp_err_t Portal::onState( httpd_req_t *request )
               settings.value( Settings::UtcOffset ), settings.value( Settings::Latitude ) / 1e6,
               settings.value( Settings::Longitude ) / 1e6, settings.value( Settings::HijriMethod ),
               settings.value( Settings::AodDayBrightness ), settings.value( Settings::AodNightBrightness ),
-              settings.value( Settings::DevMode ), settings.value( Settings::UsbStayOn ),
+              settings.value( Settings::DevMode ), settings.value( Settings::UsbStayOn ), settings.value( Settings::NightMode ),
               settings.value( Settings::IshaAngle ), settings.value( Settings::Language ),
               settings.value( Settings::ClockOrder ),
               settings.value( Settings::ClockHidden ), settings.value( Settings::InfoOrder ),

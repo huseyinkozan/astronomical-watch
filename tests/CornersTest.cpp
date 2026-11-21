@@ -272,6 +272,51 @@ int main()
         }
     }
 
+    // Dark enough for the red night mode: the Sun below -6 degrees (civil twilight over). Istanbul
+    // on 21 June 2026: sunset 20:38, civil dusk about 21:12, civil dawn about 05:00 (Skyfield).
+    {
+        const int today = dayNumber( 2026, 6, 21 );
+        const Corners::Input sky = Corners::fromSky( Sky::computeDay( today, offsetMinutes, istanbul, Hijri::Diyanet ) );
+        auto at = [&]( int dayOffset, int hour, int minute ) {
+            return static_cast<int64_t>( today + dayOffset ) * 86400 + ( hour * 60 + minute - offsetMinutes ) * 60;
+        };
+        const struct
+        {
+            const char *name;
+            int64_t time;
+            bool dark;
+        } cases[] = {
+            { "dark: noon", at( 0, 12, 0 ), false },
+            { "dark: after sunset, in civil twilight", at( 0, 20, 50 ), false },
+            { "dark: after civil dusk", at( 0, 21, 20 ), true },
+            { "dark: midnight", at( 1, 0, 30 ), true },
+            { "dark: before civil dawn", at( 1, 4, 50 ), true },
+            { "dark: after civil dawn", at( 1, 5, 10 ), false },
+            { "dark: yesterday evening", at( -1, 21, 30 ), true },
+        };
+        for ( const auto &c : cases ) {
+            ++s_checks;
+            if ( Corners::dark( sky, c.time ) != c.dark ) {
+                ++s_failures;
+                printf( "FAIL %s: %d\n", c.name, Corners::dark( sky, c.time ) );
+            }
+        }
+        // Light nights: the Sun stays above -6 degrees all night (polar summer), never dark.
+        Corners::Input white = sky;
+        white.civil.count = 0;
+        white.civil.alwaysUp = true;
+        ++s_checks;
+        if ( Corners::dark( white, at( 1, 0, 30 ) ) ) {
+            ++s_failures;
+            printf( "FAIL dark: light night\n" );
+        }
+        ++s_checks;
+        if ( Corners::dark( Corners::Input {}, at( 1, 0, 30 ) ) ) {
+            ++s_failures;
+            printf( "FAIL dark: without the sky\n" );
+        }
+    }
+
     printf( "Corners: %d checks, %d failures\n", s_checks, s_failures );
     return s_failures == 0 ? 0 : 1;
 }

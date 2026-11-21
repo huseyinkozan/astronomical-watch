@@ -9,6 +9,7 @@
 #include "Fonts.h"
 #include "Panel.h"
 #include "Language.h"
+#include "NightRed.h"
 #include "PartOrder.h"
 
 #include "bsp/display.h"
@@ -46,7 +47,7 @@ static const int s_rowWidth = 318;
 static const int s_rowGap = 12;
 static const Language::Text s_settingNames[Settings::PageItemCount] = {
     Language::ScreenOff, Language::AlwaysOnRow, Language::DevMode, Language::AutoOff, Language::OnUsb,
-    Language::LanguageRow };
+    Language::LanguageRow, Language::NightModeRow };
 // Four rows fit on a part; the next ones go to the part below.
 static const int s_rowsPerPart = 4;
 
@@ -833,14 +834,27 @@ void Display::showSky( const Sky::Day &day, const Sky::Now &now, const Astronomy
     bsp_display_unlock();
 }
 
-void Display::showCorners( const Corners::Gauge gauges[Corners::CornerCount], bool night )
+void Display::showCorners( const Corners::Gauge gauges[Corners::CornerCount], bool night, bool red )
 {
     if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
         return;
     }
     m_corners.show( gauges );
     m_night = night;
+    m_redWanted = red;
+    updateRed();
     bsp_display_unlock();
+}
+
+// With the display lock held.
+void Display::updateRed()
+{
+    const bool red = m_redWanted && !m_joinCodeDimmed;
+    if ( red != m_red ) {
+        m_red = red;
+        // Every pixel changes colour: the whole screen is drawn again.
+        lv_obj_invalidate( lv_screen_active() );
+    }
 }
 
 // The bar of the brightness control runs over this many pixels: dragging its length covers 0 to
@@ -1061,6 +1075,7 @@ void Display::updateJoinCodeBrightness()
     if ( code != m_joinCodeDimmed ) {
         m_joinCodeDimmed = code;
         setBrightness( code ? s_joinCodeBrightness : m_settings->value( Settings::Brightness ) );
+        updateRed();
     }
 }
 
@@ -1283,6 +1298,9 @@ void Display::onFlushStart( lv_event_t *event )
     const lv_area_t *area = static_cast<const lv_area_t *>( lv_event_get_param( event ) );
     lv_draw_buf_t *band = lv_display_get_buf_active( lv_display_get_default() );
     self->m_corners.paint( *area, reinterpret_cast<uint16_t *>( band->data ) );
+    if ( self->m_red ) {
+        NightRed::convert( reinterpret_cast<uint16_t *>( band->data ), lv_area_get_width( area ) * lv_area_get_height( area ) );
+    }
 #if CONFIG_WATCH_DEV_LOGGING
     if ( !self->m_capturing ) {
         return;
@@ -1463,6 +1481,8 @@ void Display::showSetting( int item )
         lv_label_set_text( label, Language::text( value != 0 ? Language::On : Language::Off ) );
     } else if ( item == Settings::UsbStayOn ) {
         lv_label_set_text( label, Language::text( value != 0 ? Language::StayOn : Language::TimeoutValue ) );
+    } else if ( item == Settings::NightMode ) {
+        lv_label_set_text( label, Language::text( value != 0 ? Language::AutoValue : Language::Off ) );
     } else if ( item == Settings::Language ) {
         // Each language by its own name.
         lv_label_set_text( label, value == Language::Turkish ? "Türkçe" : "English" );

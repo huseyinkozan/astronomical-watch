@@ -107,7 +107,8 @@ public:
 
     // The corner gauges, on every page.
     // `night`: the Sun is down (the brightness control names the night level).
-    void showCorners( const Corners::Gauge gauges[Corners::CornerCount], bool night );
+    // `red`: the red night mode (NightRed), on every part but the Wi-Fi QR code.
+    void showCorners( const Corners::Gauge gauges[Corners::CornerCount], bool night, bool red );
 
     // The clock page's Hijri calendar: a month it asked for (ClockPages::takeHijriRequest), and
     // the month computed by the main task.
@@ -329,6 +330,10 @@ private:
     // The panel at s_joinCodeBrightness while the QR code part shows, else at the setting.
     void updateJoinCodeBrightness();
     bool m_joinCodeDimmed = false;
+    // The red night mode: wanted (showCorners) and shown (not over the QR code); read by the flush.
+    void updateRed();
+    bool m_redWanted = false;
+    bool m_red = false;
     lv_obj_t *m_joinCode = nullptr;
     lv_obj_t *m_joinHint = nullptr;
     char m_joinPayload[80] = {};

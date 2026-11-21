@@ -16,6 +16,7 @@ GPS or online service is used. Battery life comes first: the processor sleeps mo
 - Alarms at a clock time or a sky event or prayer time; they beep through the speaker
 - Gauges in the screen corners: the battery, day or night, the Moon, the next prayer and more
 - A dim always-on face between uses; switches itself off when not moved or at 10 % battery
+- A red night mode from dusk to dawn, so that the eyes stay used to the dark
 - Setup page over the watch's own Wi-Fi: time, location, faces, alarms, settings, software updates
 - English and Turkish
 

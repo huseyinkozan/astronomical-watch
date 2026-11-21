@@ -27,6 +27,17 @@ static const bool s_idleMode = false;
 // AlwaysOn::Colour in RGB565 with the bytes swapped, as the panel takes them (Panel::buffer()).
 // Idle mode shows each channel on or off, so only full colours are used.
 static const uint16_t s_colours[7] = { 0xFFFF, 0xE0FF, 0x00F8, 0xE007, 0x1F00, 0xFFFF, 0xFF07 };
+// The red night mode (NightRed): idle mode has only full colours, so every lit pixel is full red.
+static const uint16_t s_red = 0x00F8;
+// Whether the face being drawn is red, and whether the one on the panel is (a change redraws the
+// corners too).
+static bool s_drawRed = false;
+RTC_DATA_ATTR static bool s_drawnRed;
+
+static uint16_t colourOf( int colour )
+{
+    return s_drawRed ? s_red : s_colours[colour];
+}
 
 static const int s_moonRadius = 18;  // the corner moon, as large as the active face's
 static const int s_moonSize = 2 * s_moonRadius + 1;
@@ -593,7 +604,7 @@ static uint16_t ringPixel( const Corners::Gauge *gauges, int x, int y )
         return 0;
     }
     if ( pixel->flags & CORNER_AOD_NOTCH ) {
-        return s_colours[AlwaysOn::White];
+        return colourOf( AlwaysOn::White );
     }
     const Corners::Gauge &gauge = gauges[corner];
     const int colour = AlwaysOn::gaugeColour( gauge.kind );
@@ -601,10 +612,10 @@ static uint16_t ringPixel( const Corners::Gauge *gauges, int x, int y )
         return 0;
     }
     if ( along >= gauge.start * CORNER_ALONG_SCALE && along <= gauge.end * CORNER_ALONG_SCALE ) {
-        return ( gauge.kind == Corners::MoonDown && ( ( x + y ) & 3 ) != 0 ) ? 0 : s_colours[colour];
+        return ( gauge.kind == Corners::MoonDown && ( ( x + y ) & 3 ) != 0 ) ? 0 : colourOf( colour );
     }
     // While the battery charges, the part above its value is white (CornerView animates it).
-    return ( gauge.charging && along > gauge.end * CORNER_ALONG_SCALE ) ? s_colours[AlwaysOn::White] : 0;
+    return ( gauge.charging && along > gauge.end * CORNER_ALONG_SCALE ) ? colourOf( AlwaysOn::White ) : 0;
 }
 
 // Draws the part of `glyph` (top-left corner at x, y on the screen) that falls into the band;
@@ -642,7 +653,7 @@ static inline void putPixel( uint16_t *pixels, int bandTop, int rows, int left, 
 static void drawShape( uint16_t *pixels, int bandTop, int rows, int left, int width, const AlwaysOn::Shape &shape,
                        int shiftX, int shiftY )
 {
-    const uint16_t colour = s_colours[shape.colour];
+    const uint16_t colour = colourOf( shape.colour );
     const int x0 = shiftX + shape.x0;
     const int y0 = shiftY + shape.y0;
     switch ( shape.kind ) {
@@ -772,7 +783,7 @@ static void render( Panel &panel, const AlwaysOn::Face &face, int shiftX, int sh
         for ( int i = 0; i < face.count; ++i ) {
             const AlwaysOn::Sprite &sprite = face.sprites[i];
             drawGlyph( pixels, bandTop, rows, left, width, *sprite.glyph, shiftX + sprite.x, shiftY + sprite.y,
-                       s_colours[sprite.colour], sprite.colour == AlwaysOn::Grey );
+                       colourOf( sprite.colour ), sprite.colour == AlwaysOn::Grey );
         }
         for ( int i = 0; i < face.shapeCount; ++i ) {
             drawShape( pixels, bandTop, rows, left, width, face.shapes[i], shiftX, shiftY );
@@ -849,6 +860,8 @@ void AlwaysOn::capture( const Look &look, int page, bool timeSet )
     // The chosen gauges at the scene's moment, the battery at 92 %.
     Corners::Gauge gauges[Corners::CornerCount] = {};
     computeGauges( look, utcNow, 180, 92, false, gauges );
+    // The scene is in daylight: red only when forced ("I 1").
+    s_drawRed = look.nightMode == NightForced;
     Panel panel;
     panel.record();
     printf( "SHOT BEGIN -1 %d %d always-on-%d\n", Panel::WIDTH, Panel::HEIGHT, page );
@@ -940,6 +953,14 @@ uint64_t AlwaysOn::update( const Rtc::DateTime &time, int64_t utcNow, bool timeR
     computeGauges( look, shownUtc, static_cast<int>( ( shownLocal - shownUtc ) / 60 ), batteryPercent, charging, gauges );
     // The day level from sunrise to sunset, else the night level (whatever the corners show).
     const int brightness = Corners::night( look.corners, shownUtc ) ? look.nightBrightness : look.dayBrightness;
+    s_drawRed = look.nightMode == NightForced ||
+                ( look.nightMode != 0 && look.skyValid && Corners::dark( look.corners, shownUtc ) );
+    if ( s_drawRed != s_drawnRed ) {
+        for ( int i = 0; i < Corners::CornerCount; ++i ) {
+            s_drawnGauges[i][2] = -1;
+        }
+        s_drawnRed = s_drawRed;
+    }
     if ( !s_screenCleared ) {
         // Dim first: the panel still runs at the active-mode brightness.
         panel.setBrightness( brightness );
