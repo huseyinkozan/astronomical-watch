@@ -225,6 +225,9 @@ private:
     // The launcher: its name over a scrolled list of the stacked pages and their parts.
     void buildLauncher();
     void fillLauncher();
+    // Lights the last opened part's row and scrolls it to the second place from the top; only
+    // while the launcher is off screen, so that no jump is seen.
+    void placeLauncher();
     static void onLauncherClicked( lv_event_t *event );
     lv_obj_t *m_launcherList = nullptr;
     void endAdjust();

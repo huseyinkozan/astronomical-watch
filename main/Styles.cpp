@@ -22,6 +22,7 @@ lv_style_t s_rowPressed;
 lv_style_t s_button;
 lv_style_t s_launcherRow;
 lv_style_t s_launcherRowPressed;
+lv_style_t s_launcherRowCurrent;
 
 void initialise()
 {
@@ -60,6 +61,9 @@ void initialise()
     // (inside the 1 px border, the 26 px font's line of about 32 px).
     lv_style_set_pad_left( &s_launcherRow, 16 );
     lv_style_set_pad_top( &s_launcherRow, ( Styles::LauncherRowHeight - 2 - 32 ) / 2 );
+    // The part last opened: a brighter outline, no fill (dark-grey areas shimmer on this panel).
+    lv_style_init( &s_launcherRowCurrent );
+    lv_style_set_border_color( &s_launcherRowCurrent, lv_color_hex( 0x707070 ) );
     lv_style_init( &s_launcherRowPressed );
     lv_style_set_bg_color( &s_launcherRowPressed, lv_color_hex( 0x404040 ) );
     lv_style_set_bg_opa( &s_launcherRowPressed, LV_OPA_COVER );
@@ -110,6 +114,7 @@ void Styles::launcherRow( lv_obj_t *object )
 {
     initialise();
     lv_obj_add_style( object, &s_launcherRow, 0 );
+    lv_obj_add_style( object, &s_launcherRowCurrent, LV_STATE_CHECKED );
     lv_obj_add_style( object, &s_launcherRowPressed, LV_STATE_PRESSED );
 }
 

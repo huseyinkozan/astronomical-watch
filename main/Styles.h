@@ -22,7 +22,8 @@ public:
     static void button( lv_obj_t *object );
 
     // The launcher's rows, on an object without styles (lv_obj_remove_style_all): a faint 1 px
-    // outline and no background, cheap to draw while the list scrolls; lit while pressed. The
+    // outline and no background, cheap to draw while the list scrolls; lit while pressed, a
+    // brighter outline while checked (LV_STATE_CHECKED: the part last opened). The
     // size and the label's place come from the shared style too: about 15 KB of heap went to the
     // launcher with them set on each row.
     static const int LauncherRowWidth = 306;

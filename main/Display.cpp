@@ -712,7 +712,8 @@ void Display::fillLauncher()
             lv_obj_set_scrollable( row, false );
             // A finger that slides off the row cancels the tap; a scroll cancels it too.
             lv_obj_set_press_lock( row, false );
-            lv_obj_set_user_data( row, reinterpret_cast<void *>( static_cast<intptr_t>( page * PartOrder::MaxParts + parts[i] ) ) );
+            // The page and part, + 1: the names' user data stays 0.
+            lv_obj_set_user_data( row, reinterpret_cast<void *>( static_cast<intptr_t>( page * PartOrder::MaxParts + parts[i] + 1 ) ) );
             lv_obj_add_event_cb( row, onLauncherClicked, LV_EVENT_CLICKED, this );
             // The texts are constants: LVGL keeps the pointer instead of a copy.
             lv_obj_t *label = lv_label_create( row );
@@ -722,13 +723,49 @@ void Display::fillLauncher()
             y += Styles::LauncherRowHeight + s_launcherRowGap;
         }
     }
+    placeLauncher();
+}
+
+static int rowCode( lv_obj_t *object )
+{
+    return static_cast<int>( reinterpret_cast<intptr_t>( lv_obj_get_user_data( object ) ) );
+}
+
+void Display::placeLauncher()
+{
+    if ( m_launcherList == nullptr ) {
+        return;
+    }
+    lv_obj_t *current = nullptr;
+    const int count = static_cast<int>( lv_obj_get_child_count( m_launcherList ) );
+    for ( int i = 0; i < count; ++i ) {
+        lv_obj_t *row = lv_obj_get_child( m_launcherList, i );
+        const int code = rowCode( row ) - 1;
+        if ( code < 0 ) {
+            continue;
+        }
+        lv_obj_remove_state( row, LV_STATE_CHECKED );
+        // The part, else the page's first row (no part opened yet, or the part hidden since).
+        if ( code / PartOrder::MaxParts == s_appPage &&
+             ( current == nullptr || code % PartOrder::MaxParts == s_appPart ) ) {
+            current = row;
+        }
+    }
+    if ( current == nullptr ) {
+        return;
+    }
+    lv_obj_add_state( current, LV_STATE_CHECKED );
+    // The list keeps the scroll within its ends.
+    lv_obj_update_layout( m_launcherList );
+    const int y = lv_obj_get_style_y( current, LV_PART_MAIN ) - ( Styles::LauncherRowHeight + s_launcherRowGap );
+    lv_obj_scroll_to_y( m_launcherList, y, LV_ANIM_OFF );
 }
 
 void Display::onLauncherClicked( lv_event_t *event )
 {
     Display *display = static_cast<Display *>( lv_event_get_user_data( event ) );
     lv_obj_t *row = static_cast<lv_obj_t *>( lv_event_get_current_target( event ) );
-    const int code = static_cast<int>( reinterpret_cast<intptr_t>( lv_obj_get_user_data( row ) ) );
+    const int code = rowCode( row ) - 1;
     display->openPart( code / PartOrder::MaxParts, code % PartOrder::MaxParts, true );
 }
 
@@ -1199,7 +1236,11 @@ void Display::onPageChanged( lv_event_t *event )
 {
     Display *display = static_cast<Display *>( lv_event_get_user_data( event ) );
     // The opened page while the launcher is looked at, so that the next swipe finds it built.
-    display->keepPages( display->activeTile() );
+    const int tile = display->activeTile();
+    display->keepPages( tile );
+    if ( tile != LauncherTile ) {
+        display->placeLauncher();
+    }
     display->updatePageSwipe();
     display->updateJoinCodeBrightness();
 }
@@ -1226,6 +1267,9 @@ void Display::onAppPartChanged( lv_event_t *event )
         return;
     }
     s_appPart = display->stack( display->m_appPage ).current();
+    if ( display->activeTile() != LauncherTile ) {
+        display->placeLauncher();
+    }
     display->updatePageSwipe();
     display->updateJoinCodeBrightness();
 }
@@ -1574,7 +1618,7 @@ void Display::capture( int page )
     if ( shot.page == FaceShot ) {
         lv_tileview_set_tile_by_index( m_pages, FaceTile, 0, LV_ANIM_OFF );
     } else if ( shot.page == LauncherShot ) {
-        lv_obj_scroll_to_y( m_launcherList, 0, LV_ANIM_OFF );
+        // As scrolled (placeLauncher, "W 3", "W 4").
         lv_tileview_set_tile_by_index( m_pages, LauncherTile, 0, LV_ANIM_OFF );
     } else {
         openPart( shot.page, shot.part, false );
