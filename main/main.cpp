@@ -1857,11 +1857,17 @@ extern "C" void app_main( void )
         s_displayOn = s_display.start( s_settings );
 #endif
         // A new image from the portal is kept once it has drawn its pages; a reset before this
-        // returns to the previous one.
+        // returns to the previous one. The call stays out of the log macro: the release build
+        // compiles ESP_LOGI out with its arguments, which had left every update unconfirmed.
         esp_ota_img_states_t state = ESP_OTA_IMG_UNDEFINED;
         if ( s_displayOn && esp_ota_get_state_partition( esp_ota_get_running_partition(), &state ) == ESP_OK &&
              state == ESP_OTA_IMG_PENDING_VERIFY ) {
-            ESP_LOGI( TAG, "New software confirmed: %s", esp_err_to_name( esp_ota_mark_app_valid_cancel_rollback() ) );
+            const esp_err_t confirmed = esp_ota_mark_app_valid_cancel_rollback();
+            if ( confirmed == ESP_OK ) {
+                ESP_LOGI( TAG, "New software confirmed: %s", esp_app_get_description()->version );
+            } else {
+                ESP_LOGW( TAG, "New software not confirmed: %s", esp_err_to_name( confirmed ) );
+            }
         }
         s_worldClock.load();
         s_display.setCities( s_worldClock );

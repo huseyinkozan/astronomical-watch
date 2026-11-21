@@ -77,6 +77,9 @@ development builds `v0.0.1-3-gabc1234-dirty`. A new release is a new tag, pushed
   rows in both languages. A change of language restarts the watch, so the pages are built in it.
 - LVGL's own printf has no floating point (`lv_label_set_text_fmt` with `%f` crashes): format
   with `snprintf` and set the text.
+- No call with an effect inside an `ESP_LOGx` argument: the release build (log level WARN)
+  drops `ESP_LOGI/D/V` with their arguments. Call first, then log the result (an update was
+  never confirmed in release builds up to v0.0.8 this way).
 - All code, comments, identifiers, commit messages and documentation are in English.
 
 ## Power Management Rules
