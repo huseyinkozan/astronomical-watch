@@ -596,6 +596,13 @@ static FaceText::AlarmIconState alarmIcons()
     }
     state.anyOn = s_plan.anyOn;
     state.timerRunning = s_timerRunning;
+    state.next = -1;
+    for ( int i = 0; i < s_alarms.count && i < Alarms::MaxAlarms; ++i ) {
+        if ( s_alarms.alarms[i].on && s_plan.due[i] != 0 &&
+             ( state.next < 0 || s_plan.due[i] < s_plan.due[state.next] ) ) {
+            state.next = static_cast<int8_t>( i );
+        }
+    }
     return state;
 }
 

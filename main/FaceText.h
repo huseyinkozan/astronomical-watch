@@ -13,7 +13,7 @@ class FaceTable;
 class FaceText
 {
 public:
-    // The alarm corner icons (FaceConfig::AlarmDays, TimeIcon).
+    // The time icon (FaceConfig::TimeIcon).
     struct AlarmIconState
     {
         uint8_t days[4];    // per alarm, the lit day notches (bit 0 Monday): its days, or the
@@ -21,6 +21,7 @@ public:
         bool on[4];
         bool anyOn;         // the time icon's bell lit
         bool timerRunning;  // the time icon shows the hourglass: the stopwatch or the countdown runs
+        int8_t next;        // the alarm due next, whose days the ring shows; -1: none
     };
 
     struct Inputs

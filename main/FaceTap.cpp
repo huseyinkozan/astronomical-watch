@@ -95,7 +95,6 @@ FaceTap::Target FaceTap::cornerTarget( int item, bool stopwatchRunning, bool cou
     case FaceConfig::TimeCorner:
         return TimePart;
     case FaceConfig::AlarmDays:
-        return AlarmsPart;
     case FaceConfig::TimeIcon:
     case FaceConfig::TimerGlass:
         // What the icon shows: the timer that runs (the countdown first), else the alarms.

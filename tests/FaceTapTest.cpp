@@ -80,6 +80,7 @@ int main()
     check( "gauge: second", FaceTap::gaugeTarget( FaceConfig::SecondGauge ), FaceTap::TimePart );
     check( "gauge: counter", FaceTap::gaugeTarget( FaceConfig::DayCounterGauge ), FaceTap::DaysPart );
     check( "corner: old hourglass", FaceTap::cornerTarget( FaceConfig::TimerGlass, false, false ), FaceTap::AlarmsPart );
+    check( "corner: old alarm days, stopwatch", FaceTap::cornerTarget( FaceConfig::AlarmDays, true, false ), FaceTap::StopwatchPart );
     check( "text: minute", FaceTap::textTarget( FaceConfig::MinuteText ), FaceTap::TimePart );
     check( "text: none", FaceTap::textTarget( FaceConfig::NoText ), FaceTap::NoTarget );
 

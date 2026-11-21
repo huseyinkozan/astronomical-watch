@@ -99,6 +99,11 @@ loudness measurements (docs/hardware.md, "Speaker and alarm sound").
     (lit, with its sand) while the stopwatch or the countdown runs, else the bell, lit while an
     alarm is on, dim otherwise. Saved pages keep their numbers (`TimeIcon` 14, `TimerGlass` 15
     the same icon); the portal offers it once.
+  - 2026-11-21 (the owner): the alarm days joined it. While an alarm is on (and no timer runs)
+    the time icon shows the small bell inside the ring of the next due alarm's days (as the
+    alarm days drew it, a "once" alarm the day it rings); no alarm on: the bell dim. A saved
+    `AlarmDays` (13) is the time icon, its parameter ignored; the portal shows it as the time
+    icon.
   - Both drawn on the active face and the always-on face (idle-mode colours, the always-on
     bitmaps or shapes); the default pages do not use them.
 - **In the portal:** a box "Alarms" in the Time tab, after the day counters: four entries, each

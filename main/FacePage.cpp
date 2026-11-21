@@ -126,14 +126,8 @@ void FacePage::build( lv_obj_t *tile )
     lv_obj_add_event_cb( m_weekday, onDrawWeekday, LV_EVENT_DRAW_MAIN, this );
     m_weekdayLetter = createLabel( m_weekday, &jetbrains_mono_26, lv_color_white() );
     lv_obj_center( m_weekdayLetter );
-    m_alarmDays = createBox( m_root, weekdaySize, weekdaySize );
-    lv_obj_add_event_cb( m_alarmDays, onDrawAlarmDays, LV_EVENT_DRAW_MAIN, this );
-    // Large enough for the bell and the hourglass.
-    const int iconWidth = AlarmIcons::width( AlarmIcons::Bell ) > AlarmIcons::width( AlarmIcons::Hourglass )
-                              ? AlarmIcons::width( AlarmIcons::Bell ) : AlarmIcons::width( AlarmIcons::Hourglass );
-    const int iconHeight = AlarmIcons::height( AlarmIcons::Bell ) > AlarmIcons::height( AlarmIcons::Hourglass )
-                               ? AlarmIcons::height( AlarmIcons::Bell ) : AlarmIcons::height( AlarmIcons::Hourglass );
-    m_timeIcon = createBox( m_root, iconWidth, iconHeight );
+    // The ring's size: the bell and the hourglass fit inside it.
+    m_timeIcon = createBox( m_root, weekdaySize, weekdaySize );
     lv_obj_add_event_cb( m_timeIcon, onDrawTimeIcon, LV_EVENT_DRAW_MAIN, this );
     apply();
 }
@@ -190,7 +184,6 @@ void FacePage::apply()
     lv_obj_set_hidden( m_analog, m_page.clock != FaceConfig::AnalogClock );
     bool moon = false;
     bool weekday = false;
-    bool alarmDays = false;
     bool timeIcon = false;
     for ( int i = 0; i < 4; ++i ) {
         const int item = m_page.items[FaceConfig::TopLeft + i];
@@ -202,11 +195,6 @@ void FacePage::apply()
         if ( item == FaceConfig::WeekdayIcon && !weekday ) {
             weekday = true;
             centreAt( m_weekday, FaceConfig::CornerX[i], FaceConfig::CornerY[i] );
-        }
-        if ( item == FaceConfig::AlarmDays && !alarmDays ) {
-            alarmDays = true;
-            m_alarmDaysIndex = m_page.parameters[FaceConfig::TopLeft + i];
-            centreAt( m_alarmDays, FaceConfig::CornerX[i], FaceConfig::CornerY[i] );
         }
         if ( FaceConfig::isTimeIcon( item ) && !timeIcon ) {
             timeIcon = true;
@@ -223,7 +211,6 @@ void FacePage::apply()
     }
     lv_obj_set_hidden( m_moon, !moon );
     lv_obj_set_hidden( m_weekday, !weekday );
-    lv_obj_set_hidden( m_alarmDays, !alarmDays );
     lv_obj_set_hidden( m_timeIcon, !timeIcon );
     // The clock and the texts again for the new page.
     m_hour = -1;
@@ -235,7 +222,6 @@ void FacePage::update( const FaceText::Inputs &inputs )
     const bool alarmsChanged = memcmp( &inputs.alarms, &m_inputs.alarms, sizeof( inputs.alarms ) ) != 0;
     m_inputs = inputs;
     if ( alarmsChanged && m_root != nullptr ) {
-        lv_obj_invalidate( m_alarmDays );
         lv_obj_invalidate( m_timeIcon );
     }
     if ( m_root == nullptr ) {
@@ -647,32 +633,23 @@ static void boxCentre( lv_obj_t *box, int32_t &cx, int32_t &cy )
     cy = ( area.y1 + area.y2 + 1 ) / 2;
 }
 
-// The ring of an alarm's days (dim while it is off) with a small bell.
-void FacePage::onDrawAlarmDays( lv_event_t *event )
-{
-    const FacePage *face = static_cast<FacePage *>( lv_event_get_user_data( event ) );
-    const int index = face->m_alarmDaysIndex >= 0 && face->m_alarmDaysIndex < 4 ? face->m_alarmDaysIndex : 0;
-    const bool on = face->m_inputs.alarms.on[index];
-    int32_t cx = 0;
-    int32_t cy = 0;
-    boxCentre( face->m_alarmDays, cx, cy );
-    drawNotches( lv_event_get_layer( event ), cx, cy, on ? face->m_inputs.alarms.days[index] : 0 );
-    drawIcon( lv_event_get_layer( event ), AlarmIcons::SmallBell, cx, cy, on ? s_amber : s_notchOff, false );
-}
-
-// The time icon: the hourglass lit with its sand while a timer runs, else the bell, lit while an
-// alarm is on.
+// The time icon: the hourglass lit with its sand while a timer runs; else while an alarm is on
+// the small bell lit inside the ring of the next due alarm's days; else the bell dim.
 void FacePage::onDrawTimeIcon( lv_event_t *event )
 {
     const FacePage *face = static_cast<FacePage *>( lv_event_get_user_data( event ) );
     const FaceText::AlarmIconState &alarms = face->m_inputs.alarms;
+    lv_layer_t *layer = lv_event_get_layer( event );
     int32_t cx = 0;
     int32_t cy = 0;
     boxCentre( face->m_timeIcon, cx, cy );
     if ( alarms.timerRunning ) {
-        drawIcon( lv_event_get_layer( event ), AlarmIcons::Hourglass, cx, cy, s_amber, true );
+        drawIcon( layer, AlarmIcons::Hourglass, cx, cy, s_amber, true );
+    } else if ( alarms.anyOn && alarms.next >= 0 && alarms.next < 4 ) {
+        drawNotches( layer, cx, cy, alarms.days[alarms.next] );
+        drawIcon( layer, AlarmIcons::SmallBell, cx, cy, s_amber, false );
     } else {
-        drawIcon( lv_event_get_layer( event ), AlarmIcons::Bell, cx, cy, alarms.anyOn ? s_amber : s_notchOff, false );
+        drawIcon( layer, AlarmIcons::Bell, cx, cy, alarms.anyOn ? s_amber : s_notchOff, false );
     }
 }
 

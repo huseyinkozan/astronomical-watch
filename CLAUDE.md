@@ -174,8 +174,9 @@ between the Sun's and the Moon's arcs, `Planets::arcPlace`; the places of the bo
 of our own geometry, `main/SevenSegment.*`; or analog in five styles, `main/AnalogClock.*`, the
 seconds hand only on the active face) and eight slots in fixed places: four
 text lines (top edge, top, bottom, bottom edge) and the four inner corners, filled from
-catalogues (the corners also icons: the Moon's phase, the weekday ring, an alarm's days and the
-time icon, the hourglass while a timer runs, else the alarms' bell; `main/FaceText.*`; today's and tomorrow's events, the counters and cities in
+catalogues (the corners also icons: the Moon's phase, the weekday ring and the time icon: the
+hourglass while a timer runs, else while an alarm is on the bell inside the ring of the next due
+alarm's days, else the bell dim; `main/FaceText.*`; today's and tomorrow's events, the counters and cities in
 `main/FaceTable.*`), each marked whether the always-on face shows it too. A text longer than its
 slot (`FaceConfig::textWidth`) is cut to whole characters, a name before its number.
 `main/FacePage.*` draws a page in active mode. A short tap on it opens a part as the launcher

@@ -161,9 +161,10 @@ int main( int argc, char **argv )
     alarmPages.pages[2].items[FaceConfig::TopRight] = FaceConfig::TimeIcon;
     alarmPages.pages[2].items[FaceConfig::BottomLeft] = FaceConfig::TimerGlass;
     check( "alarm icons valid", FaceConfig::valid( alarmPages ) );
-    // The hourglass of its own, saved before the merge, is the time icon and keeps its number.
-    check( "time icon: both numbers", FaceConfig::isTimeIcon( 14 ) && FaceConfig::isTimeIcon( 15 ) &&
-                                          !FaceConfig::isTimeIcon( FaceConfig::AlarmDays ) );
+    // The alarm days and the hourglass of their own, saved before the merges, are the time icon
+    // and keep their numbers.
+    check( "time icon: three numbers", FaceConfig::isTimeIcon( 13 ) && FaceConfig::isTimeIcon( 14 ) &&
+                                           FaceConfig::isTimeIcon( 15 ) && !FaceConfig::isTimeIcon( FaceConfig::TimeCorner ) );
     char saved[512] = {};
     FaceConfig::encode( alarmPages, saved, sizeof( saved ) );
     FaceConfig::Pages reread = {};

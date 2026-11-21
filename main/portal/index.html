@@ -563,12 +563,11 @@ const faceTexts = [['Nothing', 'Boş'], ['Date, long', 'Tarih, uzun'], ['Date, s
 const faceCorners = [['Nothing', 'Boş'], ['Moon phase', 'Ay evresi'], ['Weekday ring', 'Hafta günü halkası'],
   ['Weekday', 'Hafta günü'], ['Day of the month', 'Ayın günü'], ['Hijri day of the month', 'Hicri ayın günü'],
   ['Month', 'Ay adı'], ['Hijri month', 'Hicri ay adı'], ['Sun altitude', 'Güneş yüksekliği'], ['Moon altitude', 'Ay yüksekliği'],
-  ['Hour (HH)', 'Saat (SS)'], ['Minute (MM)', 'Dakika (DD)'], ['Second', 'Saniye'], ['Alarm days', 'Alarm günleri'],
+  ['Hour (HH)', 'Saat (SS)'], ['Minute (MM)', 'Dakika (DD)'], ['Second', 'Saniye'], null,
   ['Time icon', 'Zaman simgesi'], null, ['Time (HH:MM)', 'Saat (SS:DD)']];
-// FaceConfig::AlarmDays: its parameter is the alarm (1-4).
-const AlarmDaysCorner = 13;
-// FaceConfig::TimeIcon: the hourglass of its own (TimerGlass, offered no more) shows as it.
-const TimeIconCorner = 14, TimerGlassCorner = 15;
+// FaceConfig::TimeIcon: the alarm days and the hourglass of their own (AlarmDays, TimerGlass,
+// offered no more) show as it.
+const AlarmDaysCorner = 13, TimeIconCorner = 14, TimerGlassCorner = 15;
 const slotNames = [['Top edge', 'Üst kenar'], ['Top', 'Üst'], ['Bottom', 'Alt'], ['Bottom edge', 'Alt kenar'],
   ['Top left', 'Sol üst'], ['Top right', 'Sağ üst'], ['Bottom left', 'Sol alt'], ['Bottom right', 'Sağ alt']];
 const CityTime = 8, DayCounter = 9, SecondsHand = 1, MilkyWay = 2, PlanetsOnArcs = 4, Hidden = 128, MaxFaces = 8;
@@ -857,7 +856,7 @@ function drawFaces() {
                            (on) => { v[4] = on ? v[4] | SecondsHand : v[4] & ~SecondsHand; }));
   for (let slot = 0; slot < 8; slot++) {
     const corner = slot >= 4;
-    if (corner && v[5 + slot] === TimerGlassCorner) v[5 + slot] = TimeIconCorner;
+    if (corner && (v[5 + slot] === AlarmDaysCorner || v[5 + slot] === TimerGlassCorner)) v[5 + slot] = TimeIconCorner;
     page.appendChild(labelOf(slotNames[slot][L]));
     const row = document.createElement('div');
     row.className = 'slot';
@@ -865,7 +864,7 @@ function drawFaces() {
     param.className = 'param';
     const showParam = () => {
       const item = v[5 + slot];
-      const count = corner ? (item === AlarmDaysCorner ? 4 : 0) : item === CityTime ? 3 : item === DayCounter ? 4 : 0;
+      const count = corner ? 0 : item === CityTime ? 3 : item === DayCounter ? 4 : 0;
       param.hidden = count === 0;
       fill(param, [...Array(count).keys()].map((i) => [i, String(i + 1)]), Math.min(v[13 + slot], Math.max(count - 1, 0)));
       v[13 + slot] = count === 0 ? 0 : Number(param.value);
