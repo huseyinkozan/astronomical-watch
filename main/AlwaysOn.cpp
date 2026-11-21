@@ -255,8 +255,8 @@ static void addWeekday( AlwaysOn::Face &face, int cx, int cy, int weekday )
 }
 
 // An alarm corner icon in idle-mode yellow while lit, grey (every second pixel) while dim: the
-// ring of an alarm's days (only the lit notches, as the weekday ring) with a small bell, the
-// bell, or the hourglass (with its sand while a timer runs).
+// ring of an alarm's days (only the lit notches, as the weekday ring) with a small bell, or the
+// time icon (the hourglass with its sand while a timer runs, else the bell).
 static void addAlarmIcon( AlwaysOn::Face &face, FaceConfig::CornerItem item, int parameter,
                           const FaceText::AlarmIconState &alarms, int cx, int cy )
 {
@@ -279,10 +279,10 @@ static void addAlarmIcon( AlwaysOn::Face &face, FaceConfig::CornerItem item, int
                       static_cast<int>( lroundf( cx + s_notchRadius * cosf( a1 ) ) ),
                       static_cast<int>( lroundf( cy + s_notchRadius * sinf( a1 ) ) ) );
         }
-    } else if ( item == FaceConfig::TimerGlass ) {
+    } else if ( alarms.timerRunning ) {
         icon = AlarmIcons::Hourglass;
-        lit = alarms.timerRunning;
-        sand = lit;
+        lit = true;
+        sand = true;
     }
     addSprite( face, cx - AlarmIcons::width( icon ) / 2, cy - AlarmIcons::height( icon ) / 2, iconGlyph( icon, sand ),
                lit ? AlwaysOn::Yellow : AlwaysOn::Grey );
@@ -573,7 +573,7 @@ const AlwaysOn::Face &AlwaysOn::layout( const Look &look, const Rtc::DateTime &t
             if ( in.timeValid ) {
                 addWeekday( face, x, y, in.weekday );
             }
-        } else if ( item == FaceConfig::AlarmDays || item == FaceConfig::AlarmBell || item == FaceConfig::TimerGlass ) {
+        } else if ( item == FaceConfig::AlarmDays || FaceConfig::isTimeIcon( item ) ) {
             addAlarmIcon( face, static_cast<FaceConfig::CornerItem>( item ), page.parameters[slot], look.alarms, x, y );
         } else {
             FaceText::corner( static_cast<FaceConfig::CornerItem>( item ), in, text, sizeof( text ) );

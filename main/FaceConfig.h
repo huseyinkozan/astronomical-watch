@@ -112,8 +112,11 @@ public:
         MinuteCorner,
         SecondCorner,
         AlarmDays,   // the ring of an alarm's days with a bell (parameter: the alarm, 0-3)
-        AlarmBell,   // lit while an alarm is on
-        TimerGlass,  // lit while the stopwatch or the countdown runs
+        // The time icon: the hourglass lit while the stopwatch or the countdown runs, else the
+        // bell, lit while an alarm is on. TimerGlass, the hourglass of its own before, means the
+        // same (saved pages keep their numbers; the portal offers TimeIcon only).
+        TimeIcon,
+        TimerGlass,
         TimeCorner,  // HH:MM
         CornerItemCount
     };
@@ -199,6 +202,8 @@ public:
     // The inverse of encode(): false, with `pages` left as it was, for a text that is not such a
     // list; numbers out of their range are clamped.
     static bool decode( const char *text, Pages &pages );
+
+    static bool isTimeIcon( int item ) { return item == TimeIcon || item == TimerGlass; }
 
     // The pages without the hidden flag, in order; at least the first one when all are hidden.
     static int shown( const Pages &pages, int list[MaxPages] );

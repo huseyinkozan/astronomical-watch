@@ -563,9 +563,11 @@ const faceCorners = [['Nothing', 'Boş'], ['Moon phase', 'Ay evresi'], ['Weekday
   ['Weekday', 'Hafta günü'], ['Day of the month', 'Ayın günü'], ['Hijri day of the month', 'Hicri ayın günü'],
   ['Month', 'Ay adı'], ['Hijri month', 'Hicri ay adı'], ['Sun altitude', 'Güneş yüksekliği'], ['Moon altitude', 'Ay yüksekliği'],
   ['Hour (HH)', 'Saat (SS)'], ['Minute (MM)', 'Dakika (DD)'], ['Second', 'Saniye'], ['Alarm days', 'Alarm günleri'],
-  ['Alarm bell', 'Alarm zili'], ['Running timer (hourglass)', 'Çalışan sayaç (kum saati)'], ['Time (HH:MM)', 'Saat (SS:DD)']];
+  ['Time icon', 'Zaman simgesi'], null, ['Time (HH:MM)', 'Saat (SS:DD)']];
 // FaceConfig::AlarmDays: its parameter is the alarm (1-4).
 const AlarmDaysCorner = 13;
+// FaceConfig::TimeIcon: the hourglass of its own (TimerGlass, offered no more) shows as it.
+const TimeIconCorner = 14, TimerGlassCorner = 15;
 const slotNames = [['Top edge', 'Üst kenar'], ['Top', 'Üst'], ['Bottom', 'Alt'], ['Bottom edge', 'Alt kenar'],
   ['Top left', 'Sol üst'], ['Top right', 'Sağ üst'], ['Bottom left', 'Sol alt'], ['Bottom right', 'Sağ alt']];
 const CityTime = 8, DayCounter = 9, SecondsHand = 1, MilkyWay = 2, PlanetsOnArcs = 4, Hidden = 128, MaxFaces = 8;
@@ -585,7 +587,8 @@ function decodeFaces(text) {
 }
 function selectOf(items, limit, value, onChange) {
   const select = document.createElement('select');
-  fill(select, items.slice(0, limit).map((names, i) => [i, names[L]]), value);
+  // An item left out (null) keeps the numbers of the others.
+  fill(select, items.slice(0, limit).map((names, i) => names && [i, names[L]]).filter((item) => item), value);
   select.addEventListener('change', () => onChange(Number(select.value)));
   return select;
 }
@@ -801,6 +804,7 @@ function drawFaces() {
                            (on) => { v[4] = on ? v[4] | SecondsHand : v[4] & ~SecondsHand; }));
   for (let slot = 0; slot < 8; slot++) {
     const corner = slot >= 4;
+    if (corner && v[5 + slot] === TimerGlassCorner) v[5 + slot] = TimeIconCorner;
     page.appendChild(labelOf(slotNames[slot][L]));
     const row = document.createElement('div');
     row.className = 'slot';
