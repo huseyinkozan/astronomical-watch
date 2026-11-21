@@ -282,6 +282,24 @@ static const char *s_texts[][2] = {
     { "distance", "uzaklık" },
     { "height above eye", "gözden yükseklik" },
     { "sight along the top\ntap the angle: hold", "üst kenarla nişan al\naçıya dokun: tut" },
+    // Astrolabe: titles at most 19 characters, the rows at most 21, the hints' lines 19.
+    { "Astrolabe", "Usturlap" },
+    { "Dial", "Kadran" },
+    { "Sun altitude", "Güneş yüksekliği" },
+    { "Polaris", "Kutup Yıldızı" },
+    { "Sundial", "Güneş saati" },
+    { "Analemma", "Analemma" },
+    { "drag: time", "sürükle: zaman" },
+    { "tap: now", "dokun: şimdi" },
+    { "Time %02d:%02d", "Saat %02d:%02d" },
+    { "Latitude %.1f°", "Enlem %.1f°" },
+    { "aim by the shadow\ntap: hold", "gölgesiyle nişan al\ndokun: tut" },
+    { "sight along the top\ntap: hold", "üst kenarla nişan al\ndokun: tut" },
+    { "Solar time %02d:%02d", "Güneş saati %02d:%02d" },
+    { "Clock %02d:%02d", "Saat %02d:%02d" },
+    { "Eq. time %s%dm %02ds", "Denklem %s%dd %02dsn" },
+    { "Declination %.1f°", "Dik açıklık %.1f°" },
+    { "Noon altitude %.1f°", "Öğle yüksekliği %.1f°" },
 };
 // One pair per text: a missing one would shift every text after it.
 static_assert( sizeof( s_texts ) / sizeof( s_texts[0] ) == Language::TextCount, "a text pair per Language::Text" );

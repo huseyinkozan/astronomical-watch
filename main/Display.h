@@ -17,6 +17,7 @@
 #include "PlanetPages.h"
 #include "SkyPages.h"
 #include "ToolPages.h"
+#include "ObservingPages.h"
 #include "TablePart.h"
 #include "lvgl.h"
 #include "sdkconfig.h"
@@ -272,8 +273,12 @@ private:
     PlanetPages m_planets;
     ToolPages m_tools;
     Motion *m_motion = nullptr;
-    // The observing page: no parts yet (its launcher entry stays out until it has some), never built.
-    StackPage m_observing;
+    ObservingPages m_observing;
+    // The sky's inputs as last shown (showPlanets), for a page built later.
+    int64_t m_skyNow = 0;
+    Astronomy::Observer m_skyObserver = { 0, 0 };
+    int m_skyOffsetMinutes = 0;
+    bool m_skyLocated = false;
     FaceText::AlarmIconState m_alarmIcons = {};
     lv_obj_t *m_alarm = nullptr;
     lv_obj_t *m_alarmTime = nullptr;

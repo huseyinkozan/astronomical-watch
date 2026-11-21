@@ -477,7 +477,7 @@ showZone();
 // Orders and hidden parts (main/PartOrder.h): part numbers in 3-bit fields, hidden ones as bits.
 // Titles and names as [English, Turkish]. A page without parts yet (observing) has no list, and
 // its row in the pages' order stays out (null) while keeping its number.
-const observingParts = [];
+const observingParts = [['Astrolabe', 'Usturlap']];
 const orderLists = [
   // The launcher's pages (Display.cpp, Page); a page is not hidden, only its parts.
   { title: ['Order of the pages', 'Sayfaların sırası'], order: 'pagesOrder',

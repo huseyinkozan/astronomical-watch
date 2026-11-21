@@ -282,8 +282,10 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   `main/ToolPages.*`, the counter's rules in `main/Tally.*`, the SOS timing in `main/Morse.*`, the
   calculator's expressions in `main/Calculator.*`, the conversions in `main/Units.*` and the
   level's angles in `main/Tilt.*`, all host-tested; plan:
-  `docs/superpowers/plans/2026-11-21-tools.md`) and observing (no parts yet: a page whose part list is
-  empty stays out of the launcher and the portal's lists by itself). The `Page` numbers are kept in
+  `docs/superpowers/plans/2026-11-21-tools.md`) and observing (the astrolabe, `main/ObservingPages.*`,
+  its geometry and the alidade's answers in `main/Astrolabe.*`, host-tested against Skyfield
+  (`tools/make_astrolabe_reference.py`); a page whose part list is empty stays out of the launcher
+  and the portal's lists by itself). The `Page` numbers are kept in
   the saved launcher order, so new pages come last in the enum; the default order puts tools and
   observing after information. The torch fills the screen (the page name hides): red, amber,
   white, SOS, SOS with beeps (`Ringer::startSos`, the alarm's lowest level, on the light's clock;
@@ -309,6 +311,20 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   same from either end): a height from a distance or a distance from a height, entered with the
   keypad over the part (metres, from eye level, kept in RTC memory); a tap on the angle holds the
   value from the moment the finger touched.
+  The astrolabe has five modes, stepped by a tap on the title: the dial (a northern astrolabe's
+  stereographic projection: the plate for the location with the horizon, almucantars every 15
+  degrees, the equator and the tropics, cut at the far tropic; the rete with the ecliptic, the
+  Sun and 20 bright stars of a J2000 table precessed to the date, white above the horizon, grey
+  below; south of the equator the signs change; no star names), where a sideways drag turns the
+  time by 4 min a pixel up to a day either way and a tap returns to now (the page swipe stops in
+  this mode: `ObservingPages::swipesSideways`, asked again after a mode change through the tile's
+  LV_EVENT_VALUE_CHANGED); the alidade on the Sun (the top edge's altitude, aimed by its shadow,
+  gives the local time, the morning or afternoon solution nearest the clock; geometric, no
+  refraction) and on Polaris (the latitude, corrected by its hour angle); both read the
+  accelerometer like the level and only in these modes, a tap holds the angle; a horizontal
+  sundial (hour lines 6 to 18, the shadow of now, solar and clock time); the analemma (the year's
+  declination against the equation of time, today marked, the noon altitude). The plate's lines
+  are computed once per latitude into a buffer allocated while the page is built.
   The page and part last opened stay in RTC memory over the always-on wakes (lost at power-off:
   then the clock page's first part). The BOOT key (GPIO0, polled in `runActiveMode`, never a
   wake source) steps back: opened page to launcher, launcher to face, on the face it closes the
@@ -386,7 +402,7 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   `main/Sound.*`, for at most 60 s; a tap, PWR or BOOT stops it. Design:
   `docs/superpowers/specs/2026-11-19-alarms-design.md`. Development commands: "B <name>" presses a button of the opened page (clock page:
   `ClockPages::press`; tools page: count, undo, target, reset, roll, dice, coin, number, torch, "keys <keys>" as
-  `Calculator::keyForChar`, kind, "unit <n>", level, hold, input),
+  `Calculator::keyForChar`, kind, "unit <n>", level, hold, input; observing page: mode, "drag <min>", now, hold),
   "R <s>" a test
   alarm, "K <n> <text>" defines an alarm, "Q" ends active mode as without the always-on face,
   "H" makes the next PWR wake a phantom (it must go back to sleep), "W" starves the idle task

@@ -76,7 +76,7 @@ enum Page
     PlanetsPage,    // the solar system, the sky, rise and set, distances (PlanetPages)
     SettingsPage,   // the settings, and under them the setup portal
     ToolsPage,      // torch, counter, random, calculator, unit converter, spirit level (ToolPages)
-    ObservingPage,  // no parts yet: left out of the launcher
+    ObservingPage,  // the astrolabe (ObservingPages)
     PageCount
 };
 
@@ -104,6 +104,7 @@ static const Language::Text s_planetsParts[PlanetPages::PartCount] = {
 static const Language::Text s_toolsParts[ToolPages::PartCount] = { Language::PartTorch, Language::PartCounter,
                                                                     Language::PartRandom, Language::PartCalculator,
                                                                     Language::PartConverter, Language::PartLevel };
+static const Language::Text s_observingParts[ObservingPages::PartCount] = { Language::PartAstrolabe };
 static const Language::Text s_settingsParts[SettingsPartCount] = {
     Language::PartSettings, Language::PartMoreSettings, Language::PartSetupInfo,
 #if CONFIG_WATCH_SETUP_PORTAL
@@ -124,7 +125,8 @@ static const PageEntry s_pageEntries[PageCount] = {
     { Language::PlanetsPageName, s_planetsParts, PlanetPages::PartCount, Settings::PlanetsOrder, Settings::PlanetsHidden },
     { Language::SettingsPageName, s_settingsParts, SettingsPartCount, Settings::SettingsOrder, Settings::SettingsHidden },
     { Language::ToolsPageName, s_toolsParts, ToolPages::PartCount, Settings::ToolsOrder, Settings::ToolsHidden },
-    { Language::ObservingPageName, nullptr, 0, Settings::ObservingOrder, Settings::ObservingHidden } };
+    { Language::ObservingPageName, s_observingParts, ObservingPages::PartCount, Settings::ObservingOrder,
+      Settings::ObservingHidden } };
 
 // The page and part last opened from the launcher, for the App tile: kept over the always-on
 // wakes in RTC memory and lost at power-off (then the clock page's first part shown; -1).
@@ -183,6 +185,7 @@ struct Shot
     { "torch", ToolsPage, ToolPages::TorchPart }, { "counter", ToolsPage, ToolPages::CounterPart },
     { "random", ToolsPage, ToolPages::RandomPart }, { "calculator", ToolsPage, ToolPages::CalculatorPart },
     { "converter", ToolsPage, ToolPages::ConverterPart }, { "level", ToolsPage, ToolPages::LevelPart },
+    { "astrolabe", ObservingPage, ObservingPages::AstrolabePart },
 };
 [[maybe_unused]] static const int s_shotCount = sizeof( s_shots ) / sizeof( s_shots[0] );
 
@@ -667,7 +670,7 @@ StackPage &Display::stack( int page )
         return m_tools.stack();
     }
     if ( page == ObservingPage ) {
-        return m_observing;
+        return m_observing.stack();
     }
     return m_settingsPage;
 }
@@ -706,6 +709,10 @@ void Display::ensureApp()
         applyOrders();
     } else if ( page == ToolsPage ) {
         m_tools.build( m_tiles[AppTile], m_pages, *m_settings, m_motion, onTorchLevel, this );
+        applyOrders();
+    } else if ( page == ObservingPage ) {
+        m_observing.build( m_tiles[AppTile], *m_settings, m_motion );
+        m_observing.show( m_skyNow, m_skyObserver, m_skyOffsetMinutes, m_skyLocated );
         applyOrders();
     } else {
         buildSettingsPage();
@@ -767,6 +774,8 @@ void Display::freeApp()
         m_planets.forget();
     } else if ( page == ToolsPage ) {
         m_tools.forget();
+    } else if ( page == ObservingPage ) {
+        m_observing.forget();
     } else if ( page == InfoPage ) {
         m_info.forget();
         m_sky.forget();
@@ -1538,6 +1547,9 @@ void Display::updateBrightness()
         // only while the level shows.
         m_tools.setLevelShown( app && m_tools.stack().current() == ToolPages::LevelPart );
     }
+    if ( m_appPage == ObservingPage ) {
+        m_observing.setShown( app && m_observing.stack().current() == ObservingPages::AstrolabePart );
+    }
     const int torchLevel = torch ? m_tools.torchLevel() : 0;
     if ( code != m_joinCodeDimmed || torch != m_torchShown || torchLevel != m_torchLevel ) {
         m_joinCodeDimmed = code;
@@ -1569,8 +1581,10 @@ void Display::onAppPartChanged( lv_event_t *event )
 
 void Display::updatePageSwipe()
 {
-    const bool clock = m_appReady && m_appPage == ClockPage && activeTile() == AppTile;
-    lv_obj_set_scrollable( m_pages, !( clock && m_clock.swipesSideways() ) );
+    const bool app = m_appReady && activeTile() == AppTile;
+    const bool sideways = ( m_appPage == ClockPage && m_clock.swipesSideways() ) ||
+                          ( m_appPage == ObservingPage && m_observing.swipesSideways() );
+    lv_obj_set_scrollable( m_pages, !( app && sideways ) );
 }
 
 void Display::onPagesScrolled( lv_event_t *event )
@@ -1641,6 +1655,7 @@ void Display::stop()
         // No beeps into deep sleep, and the accelerometer powered down.
         m_tools.setTorchShown( false );
         m_tools.setLevelShown( false );
+        m_observing.setShown( false );
         Ringer ringer;
         ringer.stopSos( true );
     }
@@ -1917,7 +1932,8 @@ bool Display::pressClockButton( const char *name )
     if ( !m_started || !bsp_display_lock( 1000 ) ) {
         return false;
     }
-    const bool pressed = m_appPage == ToolsPage ? m_tools.press( name ) : m_clock.press( name );
+    const bool pressed = m_appPage == ToolsPage ? m_tools.press( name )
+                         : ( m_appPage == ObservingPage ? m_observing.press( name ) : m_clock.press( name ) );
     bsp_display_unlock();
     return pressed;
 }
@@ -2048,6 +2064,12 @@ void Display::showPlanets( int64_t now, const Astronomy::Observer &observer, int
         return;
     }
     m_planets.show( now, observer, utcOffsetMinutes, located );
+    // The observing page takes the same (kept for its next build).
+    m_skyNow = now;
+    m_skyObserver = observer;
+    m_skyOffsetMinutes = utcOffsetMinutes;
+    m_skyLocated = located;
+    m_observing.show( now, observer, utcOffsetMinutes, located );
     bsp_display_unlock();
 }
 

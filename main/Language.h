@@ -288,6 +288,24 @@ public:
         SightDistance,
         SightHeight,
         SightHint,
+        // Observing page: astrolabe (ObservingPages).
+        PartAstrolabe,
+        AstroDial,
+        AstroSun,
+        AstroPolaris,
+        AstroSundial,
+        AstroAnalemma,
+        DialHint,
+        DialNowHint,
+        AlidadeTime,        // "Time %02d:%02d"
+        AlidadeLatitude,    // "Latitude %.1f°"
+        SunAlidadeHint,
+        PolarisHint,
+        SolarTimeValue,     // "Solar time %02d:%02d"
+        ClockTimeValue,     // "Clock %02d:%02d"
+        EquationValue,      // "Eq. time %s%dm %02ds": the sign, minutes, seconds
+        DeclinationValue,   // "Declination %.1f°"
+        NoonAltitudeValue,  // "Noon altitude %.1f°"
         TextCount
     };
 
