@@ -725,7 +725,10 @@ static bool redAtStart( int64_t now )
 // Whether this active mode goes on where the last one ended.
 static bool resumeAtStart( int64_t now )
 {
-    return s_activeEndedAt != 0 && now >= s_activeEndedAt && now - s_activeEndedAt <= s_resumeSeconds;
+    const bool resume = s_activeEndedAt != 0 && now >= s_activeEndedAt && now - s_activeEndedAt <= s_resumeSeconds;
+    ESP_LOGI( TAG, "Resume: ended at %lld, now %lld, %s", static_cast<long long>( s_activeEndedAt ),
+              static_cast<long long>( now ), resume ? "resumed" : "face" );
+    return resume;
 }
 
 static void updateDisplay()
