@@ -101,6 +101,8 @@ FaceTap::Target FaceTap::cornerTarget( int item, bool stopwatchRunning, bool cou
     case FaceConfig::TimerGlass:
         // What the icon shows: the timer that runs (the countdown first), else the alarms.
         return countdownRunning ? CountdownPart : ( stopwatchRunning ? StopwatchPart : AlarmsPart );
+    case FaceConfig::WifiIcon:
+        return SetupPart;
     default:
         return NoTarget;
     }

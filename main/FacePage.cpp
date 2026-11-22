@@ -16,6 +16,7 @@
 static const lv_color_t s_grey = LV_COLOR_MAKE( 0xA0, 0xA0, 0xA0 );
 static const lv_color_t s_amber = LV_COLOR_MAKE( 0xFF, 0xB0, 0x40 );
 static const lv_color_t s_notchOff = LV_COLOR_MAKE( 0x40, 0x40, 0x40 );
+static const lv_color_t s_wifiOn = LV_COLOR_MAKE( 0xA0, 0xC8, 0xFF );
 static const lv_color_t s_moonDark = LV_COLOR_MAKE( 0x30, 0x30, 0x38 );
 static const lv_color_t s_moonLit = LV_COLOR_MAKE( 0xE6, 0xE8, 0xF0 );
 static const uint32_t s_slideMs = 250;
@@ -129,6 +130,8 @@ void FacePage::build( lv_obj_t *tile )
     // The ring's size: the bell and the hourglass fit inside it.
     m_timeIcon = createBox( m_root, weekdaySize, weekdaySize );
     lv_obj_add_event_cb( m_timeIcon, onDrawTimeIcon, LV_EVENT_DRAW_MAIN, this );
+    m_wifiIcon = createBox( m_root, weekdaySize, weekdaySize );
+    lv_obj_add_event_cb( m_wifiIcon, onDrawWifiIcon, LV_EVENT_DRAW_MAIN, this );
     apply();
 }
 
@@ -185,6 +188,7 @@ void FacePage::apply()
     bool moon = false;
     bool weekday = false;
     bool timeIcon = false;
+    bool wifiIcon = false;
     for ( int i = 0; i < 4; ++i ) {
         const int item = m_page.items[FaceConfig::TopLeft + i];
         // One icon of each kind: the first corner that asks for it.
@@ -200,6 +204,10 @@ void FacePage::apply()
             timeIcon = true;
             centreAt( m_timeIcon, FaceConfig::CornerX[i], FaceConfig::CornerY[i] );
         }
+        if ( item == FaceConfig::WifiIcon && !wifiIcon ) {
+            wifiIcon = true;
+            centreAt( m_wifiIcon, FaceConfig::CornerX[i], FaceConfig::CornerY[i] );
+        }
         // The altitudes in the colour of their body (the font has no sun or moon sign).
         lv_color_t colour = lv_color_white();
         if ( item == FaceConfig::SunAltitudeCorner ) {
@@ -212,6 +220,7 @@ void FacePage::apply()
     lv_obj_set_hidden( m_moon, !moon );
     lv_obj_set_hidden( m_weekday, !weekday );
     lv_obj_set_hidden( m_timeIcon, !timeIcon );
+    lv_obj_set_hidden( m_wifiIcon, !wifiIcon );
     // The clock and the texts again for the new page.
     m_hour = -1;
     update( m_inputs );
@@ -220,9 +229,13 @@ void FacePage::apply()
 void FacePage::update( const FaceText::Inputs &inputs )
 {
     const bool alarmsChanged = memcmp( &inputs.alarms, &m_inputs.alarms, sizeof( inputs.alarms ) ) != 0;
+    const bool wifiChanged = inputs.wifiOn != m_inputs.wifiOn;
     m_inputs = inputs;
     if ( alarmsChanged && m_root != nullptr ) {
         lv_obj_invalidate( m_timeIcon );
+    }
+    if ( wifiChanged && m_root != nullptr ) {
+        lv_obj_invalidate( m_wifiIcon );
     }
     if ( m_root == nullptr ) {
         return;
@@ -650,6 +663,40 @@ void FacePage::onDrawTimeIcon( lv_event_t *event )
         drawIcon( layer, AlarmIcons::SmallBell, cx, cy, s_amber, false );
     } else {
         drawIcon( layer, AlarmIcons::Bell, cx, cy, alarms.anyOn ? s_amber : s_notchOff, false );
+    }
+}
+
+// The Wi-Fi sign: a dot and three arcs above it, lit while the setup portal runs, else dim like
+// the bell without an alarm.
+void FacePage::onDrawWifiIcon( lv_event_t *event )
+{
+    const FacePage *face = static_cast<FacePage *>( lv_event_get_user_data( event ) );
+    lv_layer_t *layer = lv_event_get_layer( event );
+    int32_t cx = 0;
+    int32_t cy = 0;
+    boxCentre( face->m_wifiIcon, cx, cy );
+    const lv_color_t colour = face->m_inputs.wifiOn ? s_wifiOn : s_notchOff;
+    // The arcs' centre below the middle, so that the sign sits centred in the corner.
+    const int32_t baseY = cy + 12;
+    lv_draw_rect_dsc_t dot;
+    lv_draw_rect_dsc_init( &dot );
+    dot.bg_color = colour;
+    dot.radius = LV_RADIUS_CIRCLE;
+    const lv_area_t dotArea = { cx - 3, baseY - 3, cx + 3, baseY + 3 };
+    lv_draw_rect( layer, &dot, &dotArea );
+    lv_draw_arc_dsc_t arc;
+    lv_draw_arc_dsc_init( &arc );
+    arc.color = colour;
+    arc.width = 4;
+    arc.rounded = 1;
+    arc.center.x = cx;
+    arc.center.y = baseY;
+    // LVGL's angles run clockwise from 3 o'clock: 225 to 315 is the upper quarter.
+    arc.start_angle = 225;
+    arc.end_angle = 315;
+    for ( int i = 1; i <= 3; ++i ) {
+        arc.radius = static_cast<uint16_t>( 2 + i * 8 );
+        lv_draw_arc( layer, &arc );
     }
 }
 

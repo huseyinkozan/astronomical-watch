@@ -1462,8 +1462,15 @@ static int runActiveMode()
             ESP_LOGI( TAG, "Display timeout: active mode ends" );
             return 1;
         }
-        // Full while the portal, an alarm, a tool or USB keep the display on (no idle time).
+        // Full while an alarm, a tool or USB keep the display on (no idle time); while the setup
+        // portal runs, its own timeout after the last browser request.
         s_timeoutLeft = static_cast<int>( ( timeoutMs - idleMs ) * 1000 / timeoutMs );
+#if CONFIG_WATCH_SETUP_PORTAL
+        if ( s_portal.isRunning() ) {
+            const int portalLeft = CONFIG_WATCH_SETUP_PORTAL_TIMEOUT_S - s_portal.idleSeconds();
+            s_timeoutLeft = portalLeft <= 0 ? 0 : portalLeft * 1000 / CONFIG_WATCH_SETUP_PORTAL_TIMEOUT_S;
+        }
+#endif
         CornerView::setTimeoutLeft( s_timeoutLeft );
 #if CONFIG_WATCH_DEV_LOGGING
         if ( s_hostEndActive ) {

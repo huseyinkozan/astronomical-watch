@@ -42,6 +42,7 @@ public:
         double moonAltitude;
         bool altitudesValid;
         AlarmIconState alarms;
+        bool wifiOn;  // the setup portal runs (FaceConfig::WifiIcon)
     };
 
     // `parameter`: the city or day counter of a CityTime or DayCounter slot. A text of a name and

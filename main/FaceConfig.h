@@ -120,6 +120,7 @@ public:
         TimeIcon,
         TimerGlass,
         TimeCorner,  // HH:MM
+        WifiIcon,    // lit while the setup portal runs; the active face only
         CornerItemCount
     };
 

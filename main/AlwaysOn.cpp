@@ -572,6 +572,8 @@ const AlwaysOn::Face &AlwaysOn::layout( const Look &look, const Rtc::DateTime &t
             }
         } else if ( FaceConfig::isTimeIcon( item ) ) {
             addTimeIcon( face, look.alarms, x, y );
+        } else if ( item == FaceConfig::WifiIcon ) {
+            // Nothing: the setup portal never runs in always-on.
         } else {
             FaceText::corner( static_cast<FaceConfig::CornerItem>( item ), in, text, sizeof( text ) );
             addSmallText( face, text, x, y, item == FaceConfig::SunAltitudeCorner ? Yellow : White );

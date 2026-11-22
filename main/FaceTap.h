@@ -28,7 +28,8 @@ public:
         AlarmsPart,
         StopwatchPart,
         CountdownPart,
-        SettingsPart    // the settings page's first part (the display timeout)
+        SettingsPart,   // the settings page's first part (the display timeout)
+        SetupPart       // the settings page's setup portal part
     };
 
     struct Input
