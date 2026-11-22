@@ -30,6 +30,7 @@ public:
         int heavyDays;
         int cycleLength;   // to the next start; 0: the current cycle
         uint16_t warnings;
+        bool cut;          // it may have begun before the log: left out of the averages
     };
     struct State
     {

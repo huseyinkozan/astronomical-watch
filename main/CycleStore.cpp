@@ -15,7 +15,7 @@ void CycleStore::load( CycleLog &log )
         return;
     }
     size_t size = sizeof( log );
-    if ( nvs_get_blob( handle, s_key, &log, &size ) != ESP_OK || size != sizeof( log ) ) {
+    if ( nvs_get_blob( handle, s_key, &log, &size ) != ESP_OK || size != sizeof( log ) || log.version != CycleLog::Version ) {
         log.clear();
     }
     nvs_close( handle );

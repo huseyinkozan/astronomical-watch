@@ -22,6 +22,10 @@ struct CycleLog
         TeenAuto  // on for three years from firstPeriodDay (on without it)
     };
 
+    // Saved as one blob (CycleStore): a different version or size starts empty; later fields take
+    // reserved bytes, so that an update keeps the log and the PIN.
+    static const uint8_t Version = 1;
+    uint8_t version;
     uint8_t days[Days];
     int32_t newestDay;        // local day number (days since 1970-01-01) of the ring's newest day, 0: empty
     int32_t ramadanAdded;     // the hayız days of ended Ramadans, added to the make-up balance
@@ -33,6 +37,7 @@ struct CycleLog
     uint8_t pinAsked;         // 1 once the page offered to set a PIN
     uint8_t teenMode;         // TeenMode
     int32_t firstPeriodDay;   // 0: not entered
+    uint8_t reserved[32];
 
     void clear();
 

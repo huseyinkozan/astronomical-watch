@@ -62,6 +62,9 @@ Cycle::State Cycle::analyse( const CycleLog &log, int today )
             }
             current = {};
             current.start = day;
+            // Within the clean days a start needs of the log's first day: the period (and so its
+            // cycle) may have begun earlier.
+            current.cut = day - ( today - CycleLog::Days + 1 ) <= s_cleanToStart;
             inPeriod = true;
             any = true;
         } else if ( inPeriod && day - lastBleeding <= 2 ) {
@@ -89,10 +92,10 @@ Cycle::State Cycle::analyse( const CycleLog &log, int today )
     // Warnings of each period and cycle.
     for ( int i = 0; i < s.count; ++i ) {
         Period &p = s.periods[i];
-        if ( p.cycleLength > 0 && p.cycleLength < shortLimit ) {
+        if ( p.cycleLength > 0 && p.cycleLength < shortLimit && !p.cut ) {
             p.warnings |= Short;
         }
-        if ( p.cycleLength > longLimit ) {
+        if ( p.cycleLength > longLimit && !p.cut ) {
             p.warnings |= Long;
         }
         if ( p.length > bleedingLimit ) {
@@ -117,7 +120,12 @@ Cycle::State Cycle::analyse( const CycleLog &log, int today )
     double sum = 0;
     s.shortest = 0;
     s.longest = 0;
+    int used[s_averaged] = {};
     for ( int i = s.count - 2; i >= 0 && s.complete < s_averaged; --i ) {
+        if ( s.periods[i].cut ) {
+            continue;
+        }
+        used[s.complete] = i;
         const int length = s.periods[i].cycleLength;
         sum += length;
         s.shortest = s.complete == 0 || length < s.shortest ? length : s.shortest;
@@ -128,8 +136,8 @@ Cycle::State Cycle::analyse( const CycleLog &log, int today )
     if ( s.complete > 0 ) {
         mean = sum / s.complete;
         double squares = 0;
-        for ( int i = s.count - 2; i >= s.count - 1 - s.complete; --i ) {
-            const double d = s.periods[i].cycleLength - mean;
+        for ( int k = 0; k < s.complete; ++k ) {
+            const double d = s.periods[used[k]].cycleLength - mean;
             squares += d * d;
         }
         s.spread = s.complete > 1 ? std::sqrt( squares / ( s.complete - 1 ) ) : 0;
@@ -169,8 +177,10 @@ Cycle::State Cycle::analyse( const CycleLog &log, int today )
             s.fertileFirst = s.irregular ? 6 : 8;
             s.fertileLast = s.irregular ? 21 : 19;
         } else {
-            s.fertileFirst = s.shortest - 18;
-            s.fertileLast = s.longest - 11;
+            // Ogino-Knaus, widened to Standard Days' 8-19 (a regular cycle's Ogino window is
+            // narrower) and, when irregular, to 6-21.
+            s.fertileFirst = s.shortest - 18 < 8 ? s.shortest - 18 : 8;
+            s.fertileLast = s.longest - 11 > 19 ? s.longest - 11 : 19;
             if ( s.irregular ) {
                 s.fertileFirst = s.fertileFirst < 6 ? s.fertileFirst : 6;
                 s.fertileLast = s.fertileLast > 21 ? s.fertileLast : 21;

@@ -109,6 +109,24 @@ int main()
     check( "six: Ogino last", s.fertileLast, 20 );
     check( "six: ovulation", s.ovulationDay, 15 );
 
+    // Six regular cycles: Ogino gives 10-17, never narrower than Standard Days' 8-19.
+    const int sixRegular[6] = { 28, 28, 28, 28, 28, 28 };
+    reset();
+    cycles( sixRegular, 6, 11 );
+    s = Cycle::analyse( s_log, Today );
+    check( "six regular: not narrower first", s.fertileFirst, 8 );
+    check( "six regular: not narrower last", s.fertileLast, 19 );
+
+    // A period that began before the log: its cycle is cut and left out of the averages.
+    reset();
+    bleed( Today - 365, 3 );  // the window's first day: the period's end
+    bleed( Today - 365 + 58, 5 );
+    bleed( Today - 365 + 58 + 28, 5 );
+    s = Cycle::analyse( s_log, Today );
+    check( "cut first period: a cycle less", s.complete, 1 );
+    check( "cut first period: the real one", s.shortest, 28 );
+    check( "cut first period: no warning", s.periods[0].warnings & Cycle::Long, 0 );
+
     const int four[4] = { 28, 28, 28, 28 };
     reset();
     cycles( four, 4, 11 );

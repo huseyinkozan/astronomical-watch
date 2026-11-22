@@ -11,6 +11,7 @@ static int indexOf( int day )
 void CycleLog::clear()
 {
     memset( this, 0, sizeof( *this ) );
+    version = Version;
 }
 
 void CycleLog::advance( int today )

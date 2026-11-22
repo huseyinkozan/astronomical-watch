@@ -517,6 +517,7 @@ public:
         CycleDeleteRow,
         CycleChange,
         CycleNotSet,
+        CycleClockBack,
         TextCount
     };
 

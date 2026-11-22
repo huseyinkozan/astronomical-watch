@@ -772,9 +772,9 @@ void CyclePages::drawPinHeader( lv_layer_t *layer, const lv_area_t &area ) const
         break;
     }
     centred( layer, &jetbrains_mono_26, white(), 44, Language::text( title ) );
-    if ( m_waitUntilUs != 0 ) {
+    if ( waitLeftSeconds() > 0 ) {
         char wait[24];
-        const int seconds = static_cast<int>( ( m_waitUntilUs - esp_timer_get_time() ) / 1000000 ) + 1;
+        const int seconds = static_cast<int>( waitLeftSeconds() );
         snprintf( wait, sizeof( wait ), Language::text( Language::PinWait ), seconds > 0 ? seconds : 0 );
         centred( layer, &jetbrains_mono_18, CycleDraw::amber(), 82, wait );
     } else if ( m_input <= OldPinChange ) {

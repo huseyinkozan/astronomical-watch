@@ -31,7 +31,8 @@ public:
         SettingsPart,   // the settings page's first part (the display timeout)
         SetupPart,      // the settings page's setup portal part
         EmergencyPart,  // the tools page's emergency card
-        CyclePart       // the cycle page's spiral
+        CyclePart,      // the cycle page's spiral
+        TargetCount     // Display's tables of pages and parts have one entry per target
     };
 
     struct Input

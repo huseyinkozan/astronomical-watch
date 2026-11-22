@@ -13,7 +13,10 @@
 #include "Panel.h"
 #include "esp_log.h"
 #include "esp_random.h"
+#include "esp_attr.h"
 #include "esp_timer.h"
+
+#include <sys/time.h>
 
 static const char *TAG = "cycle";
 
@@ -21,7 +24,17 @@ static const char *TAG = "cycle";
 static const int s_tapSlopPx = 30;
 // Three wrong PINs in a row: a wait before the next try.
 static const int s_wrongPins = 3;
-static const int64_t s_pinWaitUs = 30000000;
+static const int64_t s_pinWaitSeconds = 30;
+// On the system clock, which keeps running in deep sleep; lost only at a power-off.
+RTC_DATA_ATTR static int s_wrongPinCount;
+RTC_DATA_ATTR static int64_t s_pinWaitUntil;
+
+static int64_t clockSeconds()
+{
+    timeval now = {};
+    gettimeofday( &now, nullptr );
+    return now.tv_sec;
+}
 static const int64_t s_normalShowUs = 4000000;
 static const int64_t s_confirmUs = 3000000;
 // The keypad under the PIN's title and dots.
@@ -104,11 +117,11 @@ void CyclePages::update( int today, bool timeValid, bool night )
         m_deleteArmedUs = 0;
         refresh();
     }
-    if ( m_open == PinOverlay && m_waitUntilUs != 0 && m_pinHeader != nullptr ) {
-        if ( now >= m_waitUntilUs ) {
-            m_waitUntilUs = 0;
-            m_wrongPins = 0;
-        }
+    if ( s_pinWaitUntil != 0 && waitLeftSeconds() <= 0 ) {
+        s_pinWaitUntil = 0;
+        s_wrongPinCount = 0;
+    }
+    if ( m_open == PinOverlay && m_pinHeader != nullptr ) {
         lv_obj_invalidate( m_pinHeader );
     }
     if ( changed ) {
@@ -118,6 +131,9 @@ void CyclePages::update( int today, bool timeValid, bool night )
 
 void CyclePages::reload()
 {
+    if ( interactive() ) {
+        m_log->advance( m_today );
+    }
     recompute();
     refresh();
 }
@@ -125,8 +141,11 @@ void CyclePages::reload()
 void CyclePages::lock()
 {
     m_unlocked = false;
-    m_wrongPins = 0;
-    m_waitUntilUs = 0;
+}
+
+int64_t CyclePages::waitLeftSeconds() const
+{
+    return s_pinWaitUntil == 0 ? 0 : s_pinWaitUntil - clockSeconds();
 }
 
 bool CyclePages::unlocked() const
@@ -223,6 +242,27 @@ void CyclePages::onDraw( lv_event_t *event )
         text.align = LV_TEXT_ALIGN_CENTER;
         text.text = Language::text( Language::CycleNoTime );
         const lv_area_t box = { area.x1 + 30, area.y1 + 220, area.x2 - 30, area.y1 + 300 };
+        lv_draw_label( layer, &text, &box );
+        return;
+    }
+    if ( !self->interactive() && part != SettingsPart ) {
+        // The clock moved back past the newest entry: nothing to draw or write until it is right.
+        int year = 0;
+        int month = 0;
+        int date = 0;
+        Dates::civil( self->m_log->newestDay, year, month, date );
+        char newest[16];
+        snprintf( newest, sizeof( newest ), "%d %s", date, Language::shortMonth( month ) );
+        char message[96];
+        snprintf( message, sizeof( message ), Language::text( Language::CycleClockBack ), newest );
+        lv_draw_label_dsc_t text;
+        lv_draw_label_dsc_init( &text );
+        text.font = &jetbrains_mono_26;
+        text.color = lv_color_hex( 0xA0A0A0 );
+        text.align = LV_TEXT_ALIGN_CENTER;
+        text.text = message;
+        text.text_local = 1;
+        const lv_area_t box = { area.x1 + 30, area.y1 + 200, area.x2 - 30, area.y1 + 320 };
         lv_draw_label( layer, &text, &box );
         return;
     }
@@ -325,7 +365,9 @@ void CyclePages::onOverlayTouch( lv_event_t *event )
 
 void CyclePages::tapPart( int part, const lv_point_t &point )
 {
-    if ( !interactive() || !unlocked() ) {
+    // With the clock before the newest entry only the settings part's delete row works.
+    const bool deleteRow = part == SettingsPart && point.y >= 80 + 5 * 64 && point.y < 80 + 6 * 64;
+    if ( !unlocked() || !m_timeValid || ( !interactive() && !deleteRow ) ) {
         return;
     }
     if ( part == SpiralPart ) {
@@ -448,6 +490,8 @@ void CyclePages::tapOverlay( const lv_point_t &point )
             m_entryValue ^= CycleLog::MadeUpFast;
         }
     } else if ( point.y >= 390 && point.y <= 450 ) {
+        // A log emptied meanwhile (the portal's delete) starts again at today.
+        m_log->advance( m_today );
         m_log->set( m_entryDay, m_entryValue );
         ESP_LOGI( TAG, "Entry for day %d: 0x%02x", m_entryDay, m_entryValue );
         closeOverlay();
@@ -485,7 +529,7 @@ void CyclePages::openInput( Input input )
 void CyclePages::onKey( void *user, Calculator::Key key )
 {
     CyclePages *self = static_cast<CyclePages *>( user );
-    if ( self->m_waitUntilUs != 0 ) {
+    if ( self->waitLeftSeconds() > 0 ) {
         return;
     }
     const size_t length = strlen( self->m_typed );
@@ -526,14 +570,14 @@ void CyclePages::submitInput()
     case OldPinChange:
         if ( hash( m_typed ) != m_log->pinHash ) {
             ESP_LOGW( TAG, "Wrong PIN" );
-            if ( ++m_wrongPins >= s_wrongPins ) {
-                m_waitUntilUs = esp_timer_get_time() + s_pinWaitUs;
+            if ( ++s_wrongPinCount >= s_wrongPins ) {
+                s_pinWaitUntil = clockSeconds() + s_pinWaitSeconds;
             }
             m_typed[0] = '\0';
             lv_obj_invalidate( m_pinHeader );
             return;
         }
-        m_wrongPins = 0;
+        s_wrongPinCount = 0;
         m_unlocked = true;
         if ( m_input == OldPinOff ) {
             m_log->pinHash = 0;
@@ -602,6 +646,7 @@ bool CyclePages::press( const char *name )
     int together = 0;
     int madeUp = 0;
     if ( sscanf( name, "entry %d %d %d", &flow, &together, &madeUp ) >= 2 && interactive() ) {
+        m_log->advance( m_today );
         m_log->set( m_today, static_cast<uint8_t>( ( flow & CycleLog::FlowMask ) | ( together ? CycleLog::Intercourse : 0 ) |
                                                    ( madeUp ? CycleLog::MadeUpFast : 0 ) ) );
         save();

@@ -141,8 +141,9 @@ private:
     Input m_input = CheckPin;
     char m_typed[12] = {};
     uint32_t m_firstPin = 0;     // the new PIN's hash while it is repeated
-    int m_wrongPins = 0;
-    int64_t m_waitUntilUs = 0;   // after three wrong PINs
+    // The wrong PINs and the wait after three are kept in RTC memory (CyclePages.cpp): a PWR
+    // press and a wake must not clear them.
+    int64_t waitLeftSeconds() const;
     int64_t m_normalUntilUs = 0;
     int64_t m_deleteArmedUs = 0;
     int m_entryDay = 0;
