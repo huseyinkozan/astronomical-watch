@@ -12,13 +12,24 @@ GPS or online service is used. Battery life comes first: the processor sleeps mo
 - Moon: phase, illumination, age, rise and set, the new crescent; the Hijri date
 - Prayer times by Diyanet's method; solar, ezani and sidereal time, the qibla time
 - Planets: the solar system, the sky, rise and set, distances
-- Clock page: world clock, stopwatch, countdown, Gregorian and Hijri calendars, day counters, alarms
+- Clock page: world clock, stopwatch, countdown (with a regatta start), Gregorian and Hijri
+  calendars with Diyanet's religious days, day counters, alarms
+- Tools: torch (red, amber, white, SOS), calculator, unit converter, spirit level with a
+  height and distance sight, counter, dice and coin, metronome, emergency card
+- Observing: an astrolabe with alidade, sundial and analemma, polar alignment, the Milky Way
+  window, a deep-sky finder (Messier), eyepiece and night-photo calculators, a nautical almanac,
+  satellite dish and solar panel aiming
+- Cycle page: menstrual cycle tracking entered and read on the watch, an optional PIN, the
+  next period's range, the fertile days as an estimate (not for contraception), warning signs,
+  an adolescent mode and Diyanet's hayız rulings; hidden until shown
 - A launcher lists every page's parts; a tap opens one, the BOOT key steps back
 - Alarms at a clock time or a sky event or prayer time; they beep through the speaker
-- Gauges in the screen corners: the battery, day or night, the Moon, the next prayer and more
+- Gauges in the screen corners: the battery, day or night, the Moon, the display timeout, the
+  next prayer and more; a Wi-Fi icon to the setup page and the emergency card's blood type on the face
 - A dim always-on face between uses; switches itself off when not moved or at 10 % battery
 - A red night mode from dusk to dawn, so that the eyes stay used to the dark
-- Setup page over the watch's own Wi-Fi: time, location, faces, alarms, settings, software updates
+- Setup page over the watch's own Wi-Fi: time, location, faces, alarms, settings, software
+  updates, a factory reset
 - English and Turkish
 
 ## Screenshots
