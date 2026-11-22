@@ -345,7 +345,26 @@ void CyclePages::onOverlayDraw( lv_event_t *event )
     lv_layer_t *layer = lv_event_get_layer( event );
     if ( object == self->m_pinHeader ) {
         self->drawPinHeader( layer, area );
-    } else if ( self->m_open == EntryOverlay ) {
+        return;
+    }
+    if ( !( self->m_open == PinOverlay && self->m_input == CheckPin ) ) {
+        // The back chevron as Display draws it on the pages.
+        const int cy = ( area.y1 + area.y2 + 1 ) / 2;
+        lv_draw_line_dsc_t line;
+        lv_draw_line_dsc_init( &line );
+        line.color = lv_color_hex( 0x808080 );
+        line.width = 4;
+        line.round_start = 1;
+        line.round_end = 1;
+        line.p1.x = area.x1 + 18;
+        line.p1.y = cy - 14;
+        line.p2.x = area.x1 + 8;
+        line.p2.y = cy;
+        lv_draw_line( layer, &line );
+        line.p1.y = cy + 14;
+        lv_draw_line( layer, &line );
+    }
+    if ( self->m_open == EntryOverlay ) {
         self->drawEntry( layer, area );
     } else if ( self->m_open == LegendOverlay ) {
         self->drawLegend( layer, area );
@@ -444,16 +463,10 @@ void CyclePages::openOverlay( Overlay overlay )
     lv_obj_add_event_cb( m_overlay, onOverlayDraw, LV_EVENT_DRAW_MAIN, this );
     lv_obj_add_event_cb( m_overlay, onOverlayTouch, LV_EVENT_PRESSED, this );
     lv_obj_add_event_cb( m_overlay, onOverlayTouch, LV_EVENT_CLICKED, this );
-    // The parts stay put under an overlay. The back chevron (Display's, its user data -1) comes
-    // over it, so that an overlay is left as a page is: back to the launcher.
+    // The parts stay put under an overlay. Its own back chevron closes it (onOverlayDraw,
+    // tapOverlay); the PIN that unlocks the page brings Display's chevron (its user data -1)
+    // over it instead: back to the launcher, as from a page (openInput).
     m_stack.setSwipeLocked( true );
-    const int count = static_cast<int>( lv_obj_get_child_count( m_tile ) );
-    for ( int i = 0; i < count; ++i ) {
-        lv_obj_t *child = lv_obj_get_child( m_tile, i );
-        if ( reinterpret_cast<intptr_t>( lv_obj_get_user_data( child ) ) == -1 ) {
-            lv_obj_move_foreground( child );
-        }
-    }
 }
 
 void CyclePages::closeOverlay()
@@ -471,6 +484,11 @@ void CyclePages::closeOverlay()
 
 void CyclePages::tapOverlay( const lv_point_t &point )
 {
+    // The overlay's own back chevron (Display's zone: 40 x 120 px at the left edge's middle).
+    if ( point.x < 40 && abs( point.y - Panel::HEIGHT / 2 ) <= 60 && !( m_open == PinOverlay && m_input == CheckPin ) ) {
+        closeOverlay();
+        return;
+    }
     if ( m_open == LegendOverlay || m_open == NormalOverlay ) {
         closeOverlay();
         return;
@@ -532,6 +550,15 @@ void CyclePages::openInput( Input input )
     lv_obj_add_event_cb( m_pinHeader, onOverlayDraw, LV_EVENT_DRAW_MAIN, this );
     m_calculator = Calculator();
     m_keypad.build( m_overlay, ( Panel::WIDTH - Keypad::Width ) / 2, s_keypadY, m_calculator, onKey, this );
+    if ( input == CheckPin ) {
+        const int count = static_cast<int>( lv_obj_get_child_count( m_tile ) );
+        for ( int i = 0; i < count; ++i ) {
+            lv_obj_t *child = lv_obj_get_child( m_tile, i );
+            if ( reinterpret_cast<intptr_t>( lv_obj_get_user_data( child ) ) == -1 ) {
+                lv_obj_move_foreground( child );
+            }
+        }
+    }
 }
 
 void CyclePages::onKey( void *user, Calculator::Key key )
