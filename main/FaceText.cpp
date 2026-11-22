@@ -107,6 +107,15 @@ void FaceText::text( FaceConfig::TextItem item, int parameter, const Inputs &in,
                      int maxCharacters )
 {
     out[0] = '\0';
+    // The emergency card needs no time: a helper reads it on a watch that lost its time too.
+    if ( item == FaceConfig::EmergencyText ) {
+        if ( in.table != nullptr && in.table->bloodType[0] != '\0' ) {
+            snprintf( out, size, "%s", in.table->bloodType );
+        } else if ( in.table != nullptr && in.table->emergencyCard ) {
+            snprintf( out, size, "%s", Language::text( Language::CardTitle ) );
+        }
+        return;
+    }
     if ( !in.timeValid ) {
         return;
     }

@@ -672,7 +672,8 @@ const faceTexts = [['Nothing', 'Boş'], ['Date, long', 'Tarih, uzun', 'Sunday 21
   ['Moon altitude', 'Ay yüksekliği', '25°', '25°'], ['Time (HH:MM)', 'Saat (SS:DD)', '19:19', '19:19'],
   ['Weekday', 'Hafta günü', 'Sun', 'Paz'], ['Day of the month', 'Ayın günü', '21', '21'], ['Month', 'Ay adı', 'Jun', 'Haz'],
   ['Hijri day of the month', 'Hicri ayın günü', '5', '5'], ['Hijri month', 'Hicri ay adı', 'Muh', 'Muh'],
-  ['Hour (HH)', 'Saat (SS)', '19', '19'], ['Minute (MM)', 'Dakika (DD)', '19', '19']];
+  ['Hour (HH)', 'Saat (SS)', '19', '19'], ['Minute (MM)', 'Dakika (DD)', '19', '19'],
+  ['Emergency info (the card\'s blood type)', 'Acil bilgisi (kartın kan grubu)', 'A Rh+', 'A Rh+']];
 const faceCorners = [['Nothing', 'Boş'], ['Moon phase', 'Ay evresi'], ['Weekday ring', 'Hafta günü halkası'],
   ['Weekday', 'Hafta günü', 'Sun', 'Paz'], ['Day of the month', 'Ayın günü', '21', '21'],
   ['Hijri day of the month', 'Hicri ayın günü', '5', '5'], ['Month', 'Ay adı', 'Jun', 'Haz'],
@@ -699,7 +700,7 @@ function decodeFaces(text) {
   if (parts.length === 8 && parts.every((n) => Number.isInteger(n) && n >= 0 && n <= 255)) gauges = parts;
   const pages = pageText.split(';').map((page) => page.split(',').map(Number))
     .filter((v) => v.length === 22 && v.every((n) => Number.isInteger(n) && n >= 0 && n <= 255));
-  return pages.length > 0 ? pages : [[0, 0, 1, 0, 0, 2, 5, 0, 9, 2, 8, 1, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0b11010001]];
+  return pages.length > 0 ? pages : [[0, 0, 1, 0, 0, 2, 5, 0, 9, 2, 8, 1, 17, 0, 0, 0, 0, 0, 0, 0, 0, 0b01010001]];
 }
 function selectOf(items, limit, value, onChange) {
   const select = document.createElement('select');

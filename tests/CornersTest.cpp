@@ -238,8 +238,12 @@ int main()
         check( "always-on: the power-off's share left", one( FaceConfig::TimeoutGauge, 0, at( 0, 12, 0 ), true ), Corners::Timeout, 0, 600 );
         context.timeoutLeft = 1400;
         check( "display timeout: at most full", one( FaceConfig::TimeoutGauge, 0, at( 0, 12, 0 ) ), Corners::Timeout, 0, 1000 );
+        context.timeoutLeft = 401;
+        check( "display timeout: above 40 % white", one( FaceConfig::TimeoutGauge, 0, at( 0, 12, 0 ) ), Corners::Timeout, 0, 401 );
+        context.timeoutLeft = 400;
+        check( "display timeout: 40 % orange", one( FaceConfig::TimeoutGauge, 0, at( 0, 12, 0 ) ), Corners::TimeoutMiddle, 0, 400 );
         context.timeoutLeft = 201;
-        check( "display timeout: above 20 % white", one( FaceConfig::TimeoutGauge, 0, at( 0, 12, 0 ) ), Corners::Timeout, 0, 201 );
+        check( "display timeout: above 20 % orange", one( FaceConfig::TimeoutGauge, 0, at( 0, 12, 0 ) ), Corners::TimeoutMiddle, 0, 201 );
         context.timeoutLeft = 200;
         check( "display timeout: 20 % red", one( FaceConfig::TimeoutGauge, 0, at( 0, 12, 0 ) ), Corners::TimeoutLow, 0, 200 );
         context.timeoutLeft = -1;

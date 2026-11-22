@@ -51,7 +51,7 @@ static void addCrossings( Corners::Events &events, const Astronomy::Crossings &c
 Corners::Gauge Corners::timeoutGauge( int left )
 {
     left = left < 0 ? 0 : ( left > 1000 ? 1000 : left );
-    return { 0, left, left <= 200 ? TimeoutLow : Timeout, false };
+    return { 0, left, left <= 200 ? TimeoutLow : ( left <= 400 ? TimeoutMiddle : Timeout ), false };
 }
 
 Corners::Input Corners::fromSky( const Sky::Day &day )

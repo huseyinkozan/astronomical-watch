@@ -89,6 +89,14 @@ int main()
     checkText( "tr city", text, "London 17:19" );
     FaceText::text( FaceConfig::DayCounter, 0, in, text, sizeof( text ) );
     checkText( "tr day counter", text, "Ramazan 232" );
+    FaceText::text( FaceConfig::EmergencyText, 0, in, text, sizeof( text ) );
+    checkText( "tr emergency, no card", text, "" );
+    table.emergencyCard = true;
+    FaceText::text( FaceConfig::EmergencyText, 0, in, text, sizeof( text ) );
+    checkText( "tr emergency, card without blood type", text, "Acil durum" );
+    snprintf( table.bloodType, sizeof( table.bloodType ), "%s", "A Rh+" );
+    FaceText::text( FaceConfig::EmergencyText, 0, in, text, sizeof( text ) );
+    checkText( "tr emergency: the blood type", text, "A Rh+" );
     FaceText::text( FaceConfig::CityTime, 1, in, text, sizeof( text ) );
     checkText( "tr city not set", text, "" );
     FaceText::corner( FaceConfig::WeekdayShort, in, text, sizeof( text ) );
@@ -138,11 +146,15 @@ int main()
     }
     check( "short items in a line as in a corner", sameAsCorner );
 
-    // No clock set yet: every slot stays empty.
+    // No clock set yet: every slot stays empty but the emergency card, which a helper may need
+    // on a watch that lost its time too.
     FaceText::Inputs none = in;
     none.timeValid = false;
     bool allEmpty = true;
     for ( int item = 1; item < FaceConfig::TextItemCount; ++item ) {
+        if ( item == FaceConfig::EmergencyText ) {
+            continue;
+        }
         FaceText::text( static_cast<FaceConfig::TextItem>( item ), 0, none, text, sizeof( text ) );
         allEmpty = allEmpty && text[0] == '\0';
     }
@@ -151,6 +163,8 @@ int main()
         allEmpty = allEmpty && text[0] == '\0';
     }
     check( "no time: all empty", allEmpty );
+    FaceText::text( FaceConfig::EmergencyText, 0, none, text, sizeof( text ) );
+    checkText( "no time: the emergency card still shows", text, "A Rh+" );
     // No location: the sky slots stay empty.
     FaceText::Inputs noSky = in;
     noSky.skyValid = false;

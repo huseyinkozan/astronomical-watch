@@ -29,7 +29,8 @@ public:
         StopwatchPart,
         CountdownPart,
         SettingsPart,   // the settings page's first part (the display timeout)
-        SetupPart       // the settings page's setup portal part
+        SetupPart,      // the settings page's setup portal part
+        EmergencyPart   // the tools page's emergency card
     };
 
     struct Input

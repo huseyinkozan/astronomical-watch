@@ -529,6 +529,8 @@ static void buildFaceTable( const Astronomy::Observer &observer, int offsetMinut
     for ( int i = 0; i < s_worldClock.count() && i < FaceTable::CityCount; ++i ) {
         s_faceTable.setCity( i, s_worldClock.city( i ).name, s_worldClock.city( i ).zone );
     }
+    snprintf( s_faceTable.bloodType, sizeof( s_faceTable.bloodType ), "%s", s_card.fields[EmergencyCard::BloodType] );
+    s_faceTable.emergencyCard = !s_card.empty();
 #if CONFIG_WATCH_DEV_LOGGING
     if ( s_scene ) {
         // The published pictures show the scene's counters and cities, not the owner's.
@@ -539,6 +541,8 @@ static void buildFaceTable( const Astronomy::Observer &observer, int offsetMinut
         for ( int i = 0; i < FaceTable::CityCount; ++i ) {
             s_faceTable.setCity( i, ClockPages::SceneCityNames[i], { ClockPages::SceneCityOffsets[i], { 0, 0 }, { 0, 0 } } );
         }
+        snprintf( s_faceTable.bloodType, sizeof( s_faceTable.bloodType ), "%s", "A Rh+" );
+        s_faceTable.emergencyCard = true;
     }
 #endif
     s_faceTableStale = false;
@@ -1048,6 +1052,7 @@ static bool servicePortal( bool everySecond )
             s_card = card;
             s_card.save();
             s_display.setCard( s_card );
+            s_faceTableStale = true;  // the face's emergency text
             ESP_LOGI( TAG, "Setup page: emergency card %s", s_card.empty() ? "cleared" : "saved" );
         }
     }
@@ -2074,6 +2079,7 @@ extern "C" void app_main( void )
         s_display.setMotion( &s_motion );
         s_card.load();
         s_display.setCard( s_card );
+        s_faceTableStale = true;  // the face's emergency text
 #if CONFIG_WATCH_DEV_LOGGING
         if ( s_hostSkipDisplay ) {
             s_hostSkipDisplay = false;

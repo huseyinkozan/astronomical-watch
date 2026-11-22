@@ -48,6 +48,12 @@ int main( int argc, char **argv )
     check( "defaults: full and half arcs with the planets",
            ( full.flags & FaceConfig::PlanetsFlag ) != 0 && ( half.flags & FaceConfig::PlanetsFlag ) != 0 );
     check( "defaults: large pages without the planets", ( first.flags & FaceConfig::PlanetsFlag ) == 0 );
+    bool wifi = true;
+    for ( int i = 0; i < 4; ++i ) {
+        wifi = wifi && pages.pages[i].items[FaceConfig::BottomRight] == FaceConfig::WifiIcon &&
+               !FaceConfig::alwaysOnSlot( pages.pages[i], FaceConfig::BottomRight );
+    }
+    check( "defaults: the Wi-Fi icon bottom right, not on the always-on face", wifi );
     check( "defaults: Mono last", pages.pages[4].layout == FaceConfig::Large && pages.pages[4].digital == FaceConfig::MonoDigits );
     check( "defaults: today's corner gauges", pages.gauges[0] == FaceConfig::DayNightGauge &&
                                                   pages.gauges[1] == FaceConfig::BatteryGauge &&

@@ -83,6 +83,7 @@ int main()
     check( "corner: Wi-Fi icon", FaceTap::cornerTarget( FaceConfig::WifiIcon, false, false ), FaceTap::SetupPart );
     check( "corner: old hourglass", FaceTap::cornerTarget( FaceConfig::TimerGlass, false, false ), FaceTap::AlarmsPart );
     check( "corner: old alarm days, stopwatch", FaceTap::cornerTarget( FaceConfig::AlarmDays, true, false ), FaceTap::StopwatchPart );
+    check( "text: emergency", FaceTap::textTarget( FaceConfig::EmergencyText ), FaceTap::EmergencyPart );
     check( "text: minute", FaceTap::textTarget( FaceConfig::MinuteText ), FaceTap::TimePart );
     check( "text: none", FaceTap::textTarget( FaceConfig::NoText ), FaceTap::NoTarget );
 

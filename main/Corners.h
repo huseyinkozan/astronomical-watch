@@ -47,6 +47,7 @@ public:
         Clock,          // the hour, the minute, the second
         Timeout,        // the display timeout's time left
         TimeoutLow,     // 20 % of it or less
+        TimeoutMiddle,  // above 20 %, 40 % or less
         KindCount
     };
 

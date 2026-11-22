@@ -34,8 +34,9 @@ static const uint32_t s_activeColours[] = { 0x000000, 0xFFD040, 0x5078FF, 0x40D0
                                             // white.
                                             0xFFD040, 0xB8C4DC, 0xFFB040, 0xD0D0D0, 0x40C080,
                                             0x6090FF, 0xFFD040, 0xFFFFFF,
-                                            // The display timeout white, red at its end.
-                                            0xFFFFFF, 0xFF4030 };
+                                            // The display timeout white, red at its end,
+                                            // orange before it as the battery.
+                                            0xFFFFFF, 0xFF4030, 0xFF8020 };
 static_assert( sizeof( s_activeColours ) / sizeof( s_activeColours[0] ) == Corners::KindCount, "a colour per kind" );
 
 static float clamp01( float value )
@@ -115,7 +116,7 @@ void CornerView::onTimeoutStep( lv_timer_t *timer )
     const int left = s_timeoutLeft.load();
     for ( int i = 0; i < Corners::CornerCount; ++i ) {
         Corners::Gauge &shown = self->m_gauges[i];
-        if ( shown.kind != Corners::Timeout && shown.kind != Corners::TimeoutLow ) {
+        if ( shown.kind != Corners::Timeout && shown.kind != Corners::TimeoutLow && shown.kind != Corners::TimeoutMiddle ) {
             continue;
         }
         const int wanted = left > shown.end + s_timeoutGrowth ? shown.end + s_timeoutGrowth : left;

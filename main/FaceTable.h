@@ -45,6 +45,8 @@ public:
     int counterSavedDays[CounterCount];            // the day each was saved, 0: unknown
     Zone cityZones[CityCount];
     char cityNames[CityCount][NameLength];        // empty: no city
+    char bloodType[32];  // from the emergency card (EmergencyCard::FieldSize), empty: not filled in
+    bool emergencyCard;          // the card has any field filled in
 
     // Tomorrow's sun and prayer times are computed here (Astronomy::sunDay, Sky::prayerTimes),
     // not with a whole Sky::computeDay.

@@ -93,6 +93,7 @@ public:
         HijriMonthText,
         HourText,
         MinuteText,
+        EmergencyText,  // the emergency card's blood type (red; a tap opens the card)
         TextItemCount
     };
 

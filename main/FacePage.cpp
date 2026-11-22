@@ -17,6 +17,7 @@ static const lv_color_t s_grey = LV_COLOR_MAKE( 0xA0, 0xA0, 0xA0 );
 static const lv_color_t s_amber = LV_COLOR_MAKE( 0xFF, 0xB0, 0x40 );
 static const lv_color_t s_notchOff = LV_COLOR_MAKE( 0x40, 0x40, 0x40 );
 static const lv_color_t s_wifiOn = LV_COLOR_MAKE( 0xA0, 0xC8, 0xFF );
+static const lv_color_t s_red = LV_COLOR_MAKE( 0xFF, 0x40, 0x30 );
 static const lv_color_t s_moonDark = LV_COLOR_MAKE( 0x30, 0x30, 0x38 );
 static const lv_color_t s_moonLit = LV_COLOR_MAKE( 0xE6, 0xE8, 0xF0 );
 static const uint32_t s_slideMs = 250;
@@ -216,6 +217,12 @@ void FacePage::apply()
             colour = s_moonLit;
         }
         lv_obj_set_style_text_color( m_cornerTexts[i], colour, 0 );
+    }
+    // The emergency card in red, as its part's title; the other texts in their slot's colour.
+    for ( int i = 0; i < FaceConfig::TextSlotCount; ++i ) {
+        const bool edge = i == FaceConfig::TopEdge || i == FaceConfig::BottomEdge;
+        const lv_color_t colour = m_page.items[i] == FaceConfig::EmergencyText ? s_red : ( edge ? lv_color_white() : s_grey );
+        lv_obj_set_style_text_color( m_texts[i], colour, 0 );
     }
     lv_obj_set_hidden( m_moon, !moon );
     lv_obj_set_hidden( m_weekday, !weekday );

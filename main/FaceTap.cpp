@@ -139,6 +139,8 @@ FaceTap::Target FaceTap::textTarget( int item )
     case FaceConfig::HourText:
     case FaceConfig::MinuteText:
         return TimePart;
+    case FaceConfig::EmergencyText:
+        return EmergencyPart;
     default:
         return NoTarget;
     }

@@ -181,7 +181,11 @@ text lines (top edge, top, bottom, bottom edge) and the four inner corners, fill
 catalogues (the corners also icons: the Moon's phase, the weekday ring and the time icon: the
 hourglass while a timer runs, else while an alarm is on the bell inside the ring of the next due
 alarm's days, else the bell dim; `main/FaceText.*`; today's and tomorrow's events, the counters and cities in
-`main/FaceTable.*`), each marked whether the always-on face shows it too. A text longer than its
+`main/FaceTable.*`), each marked whether the always-on face shows it too. The texts include the emergency card's
+blood type (else "Emergency" for a card without it), in red, also without a valid time; a tap
+opens the card. The corners include the Wi-Fi icon (light blue while the setup portal runs, dim
+otherwise, none on the always-on face; a tap opens the setup part), bottom right on the default
+pages (the owner's choice of 2026-11-22). A text longer than its
 slot (`FaceConfig::textWidth`) is cut to whole characters, a name before its number.
 `main/FacePage.*` draws a page in active mode. A short tap on it opens a part as the launcher
 does (`main/FaceTap.*`, host-tested; not after a swipe or a long press): the Sun or the Moon on
@@ -208,9 +212,9 @@ battery (green, orange above 10 %, red at the power-off limit; while charging, t
 value is white: in active mode it grows step by step to the full end and starts again, on the
 always-on face it is drawn solid from the next minute wake), bottom left the Moon above the
 horizon (bluish white, rise to set) or below it (dark grey, set to rise), bottom right the
-display timeout's time left (white, red at 20 % or less; full at a touch, shrinking to the lower
+display timeout's time left (white, orange at 40 % or less, red at 20 % or less; full at a touch, shrinking to the lower
 end, moved every 100 ms and grown back in steps after a touch, `CornerView::setTimeoutLeft`; full
-while something keeps the display on; a tap opens the settings; on the always-on face the time
+while something keeps the display on, the portal's own timeout while it runs; a tap opens the settings; on the always-on face the time
 left until the power-off without motion, from each minute wake's motion state; the owner's choice of 2026-11-22, as
 info pages ended unnoticed). The Moon's phase as a gauge lights a part that grows from the lower
 end and shrinks towards the upper end. Each is
