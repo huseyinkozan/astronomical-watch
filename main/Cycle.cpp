@@ -55,6 +55,11 @@ Cycle::State Cycle::analyse( const CycleLog &log, int today )
         if ( flow == 0 ) {
             continue;
         }
+        // Spotting, a single light day, is no period: day 1 is the first day of a heavier flow or
+        // of two bleeding days (a light day today counts until tomorrow is logged).
+        if ( flow == 1 && log.flow( day - 1 ) == 0 && day != today && log.flow( day + 1 ) == 0 ) {
+            continue;
+        }
         if ( !any || day - lastBleeding > s_cleanToStart ) {
             if ( any ) {
                 current.cycleLength = day - current.start;

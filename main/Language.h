@@ -466,6 +466,7 @@ public:
         EntryYes,
         EntryNo,
         EntryOk,
+        EntryCancel,
         LegendPast,
         LegendFuture,
         LegendBleeding,

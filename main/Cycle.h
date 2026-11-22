@@ -6,7 +6,9 @@
 
 // What the cycle page shows, derived from the log (docs/superpowers/specs/
 // 2026-11-22-cycle-page-design.md, "Rules"): the periods and cycles, the next start's likely
-// range, the fertile window as an estimate, regularity and warning signs. Plain C++, host-tested
+// range, the fertile window as an estimate, regularity and warning signs. Spotting (a single
+// light day) is shown but neither starts a cycle nor warns, as cycle trackers and studies count
+// day 1 from the first bleeding heavier than spotting. Plain C++, host-tested
 // (tests/CycleTest.cpp). Days are local day numbers; "cycle days" count from 1 at a start.
 class Cycle
 {

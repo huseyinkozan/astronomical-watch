@@ -320,8 +320,9 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   symbols of `main/CycleDraw.*` (boxes days, drops bleeding, rings fertile days, the open ring
   with a sperm intercourse; shapes, not colours, carry the meaning for the red night mode). Its
   parts: the spiral (a turn per Moon month), calendar, history rows, Moon rows, pregnancy
-  estimate, hayız, settings; a day's entry opens over the part from today's box or a calendar
-  day; an optional PIN (the calculator's keypad) locks the page until active mode ends; the
+  estimate, hayız, settings; a day's entry opens over the part from the spiral's middle (the day's
+  number), today's box or a calendar day; the "?" at the spiral's top right shows the legend; an
+  optional PIN (off by default, set on the page's settings part; the calculator's keypad) locks the page until active mode ends; the
   corner gauge and icon (`CycleGauge`, `CycleIcon`) are neutral grey while it is locked and on
   the always-on face; the portal never shows its data, only deletes it (`/api/cycle/delete`);
   the main task adds an ended Ramadan's hayız days (Hijri months cost seconds). The `Page` numbers are kept in

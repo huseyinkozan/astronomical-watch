@@ -92,6 +92,34 @@ int main()
     check( "ten clean days: a new cycle", s.count, 2 );
     check( "ten clean days: its length", s.periods[0].cycleLength, 13 );
 
+    // Spotting (a single light day) neither starts a cycle nor warns; day 1 is the first day
+    // of a heavier flow or of two bleeding days.
+    reset();
+    bleed( Today - 40, 5 );
+    bleed( Today - 15, 1, 1 );   // spotting three days before the period
+    bleed( Today - 12, 5 );
+    s = Cycle::analyse( s_log, Today );
+    check( "spotting before: two periods", s.count, 2 );
+    check( "spotting before: the cycle's length", s.periods[0].cycleLength, 28 );
+    check( "spotting before: no warning", s.periods[1].warnings & Cycle::BetweenPeriods, 0 );
+    check( "spotting before: day 13", s.cycleDay, 13 );
+    reset();
+    bleed( Today - 30, 5 );
+    bleed( Today - 16, 1, 1 );   // mid-cycle spotting
+    s = Cycle::analyse( s_log, Today );
+    check( "mid-cycle spotting: no new cycle", s.count, 1 );
+    check( "mid-cycle spotting: no warning", s.periods[0].warnings & Cycle::BetweenPeriods, 0 );
+    reset();
+    bleed( Today - 30, 5 );
+    bleed( Today - 1, 2, 1 );    // two light days: a light period
+    s = Cycle::analyse( s_log, Today );
+    check( "two light days: a new cycle", s.count, 2 );
+    reset();
+    bleed( Today - 30, 5 );
+    bleed( Today, 1, 1 );        // a light day today: a start until tomorrow says otherwise
+    s = Cycle::analyse( s_log, Today );
+    check( "light today: a start", s.cycleDay, 1 );
+
     // Six cycles (the mock-ups' sample).
     const int six[6] = { 26, 29, 27, 28, 31, 26 };
     reset();

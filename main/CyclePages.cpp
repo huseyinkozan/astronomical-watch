@@ -37,6 +37,9 @@ static int64_t clockSeconds()
 }
 static const int64_t s_normalShowUs = 4000000;
 static const int64_t s_confirmUs = 3000000;
+// The "?" that opens the legend, at the spiral part's top right inside the corner gauge.
+static const int s_helpX = 342;
+static const int s_helpY = 76;
 // The keypad under the PIN's title and dots.
 static const int s_keypadY = 150;
 
@@ -63,11 +66,10 @@ void CyclePages::build( lv_obj_t *tile, CycleLog &log, void ( *onChange )( void 
     }
     lv_obj_add_event_cb( tile, onGesture, LV_EVENT_GESTURE, this );
     recompute();
-    // Locked: the PIN first; never asked: offer one.
+    // Locked: the PIN first. Without one the page is open; a PIN is set on its settings part
+    // (the owner's choice: an offer at the first opening was not understood).
     if ( m_log->pinHash != 0 && !m_unlocked ) {
         openInput( CheckPin );
-    } else if ( m_log->pinHash == 0 && m_log->pinAsked == 0 ) {
-        openInput( NewPin );
     }
 }
 
@@ -375,9 +377,11 @@ void CyclePages::tapPart( int part, const lv_point_t &point )
         int y = 0;
         float angle = 0;
         spiralPoint( 0, 0, x, y, angle );
-        if ( abs( point.x - x ) <= 22 && abs( point.y - y ) <= 22 ) {
+        // Today's box, or the day's number in the middle (the larger target): today's entry.
+        const bool middle = abs( point.x - Panel::WIDTH / 2 ) <= 55 && abs( point.y - 236 ) <= 55;
+        if ( middle || ( abs( point.x - x ) <= 22 && abs( point.y - y ) <= 22 ) ) {
             openEntry( m_today );
-        } else if ( abs( point.x - Panel::WIDTH / 2 ) <= 50 && abs( point.y - 236 ) <= 50 ) {
+        } else if ( abs( point.x - s_helpX ) <= 24 && abs( point.y - s_helpY ) <= 24 ) {
             openOverlay( LegendOverlay );
         } else if ( point.y >= 440 ) {
             m_normalUntilUs = esp_timer_get_time() + s_normalShowUs;
@@ -440,8 +444,16 @@ void CyclePages::openOverlay( Overlay overlay )
     lv_obj_add_event_cb( m_overlay, onOverlayDraw, LV_EVENT_DRAW_MAIN, this );
     lv_obj_add_event_cb( m_overlay, onOverlayTouch, LV_EVENT_PRESSED, this );
     lv_obj_add_event_cb( m_overlay, onOverlayTouch, LV_EVENT_CLICKED, this );
-    // The parts stay put under an overlay.
+    // The parts stay put under an overlay. The back chevron (Display's, its user data -1) comes
+    // over it, so that an overlay is left as a page is: back to the launcher.
     m_stack.setSwipeLocked( true );
+    const int count = static_cast<int>( lv_obj_get_child_count( m_tile ) );
+    for ( int i = 0; i < count; ++i ) {
+        lv_obj_t *child = lv_obj_get_child( m_tile, i );
+        if ( reinterpret_cast<intptr_t>( lv_obj_get_user_data( child ) ) == -1 ) {
+            lv_obj_move_foreground( child );
+        }
+    }
 }
 
 void CyclePages::closeOverlay()
@@ -464,14 +476,7 @@ void CyclePages::tapOverlay( const lv_point_t &point )
         return;
     }
     if ( m_open == PinOverlay ) {
-        // Only the "No PIN" key of the offer, under the title; the keys are the keypad's.
-        if ( m_input == NewPin && m_log->pinHash == 0 && m_log->pinAsked == 0 && point.y >= 100 && point.y < 145 ) {
-            m_log->pinAsked = 1;
-            m_unlocked = true;
-            closeOverlay();
-            save();
-        }
-        return;
+        return;  // the keys are the keypad's
     }
     if ( m_open != EntryOverlay ) {
         return;
@@ -489,6 +494,9 @@ void CyclePages::tapOverlay( const lv_point_t &point )
         } else if ( point.x >= Panel::WIDTH / 2 && m_hayizShown ) {
             m_entryValue ^= CycleLog::MadeUpFast;
         }
+    } else if ( point.y >= 390 && point.y <= 450 && point.x < Panel::WIDTH / 2 ) {
+        closeOverlay();
+        return;
     } else if ( point.y >= 390 && point.y <= 450 ) {
         // A log emptied meanwhile (the portal's delete) starts again at today.
         m_log->advance( m_today );
@@ -544,7 +552,8 @@ void CyclePages::onKey( void *user, Calculator::Key key )
     } else if ( key == Calculator::Back && length > 0 ) {
         self->m_typed[length - 1] = '\0';
     } else if ( key == Calculator::Clear ) {
-        if ( length == 0 && self->m_input != CheckPin && self->m_input != NewPin ) {
+        // C on nothing goes back, but from the PIN that unlocks the page (BOOT leaves it).
+        if ( length == 0 && self->m_input != CheckPin ) {
             self->closeOverlay();
             return;
         }

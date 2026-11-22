@@ -109,6 +109,9 @@ static int cycleDayOf( const Cycle::State &s, int day )
 void CyclePages::drawSpiral( lv_layer_t *layer, const lv_area_t &area ) const
 {
     const Cycle::State &s = m_state;
+    // The legend's "?", top right (CyclePages.cpp, s_helpX/Y).
+    outline( layer, 342 - 14, 76 - 14, 342 + 14, 76 + 14, textGrey(), 2, LV_RADIUS_CIRCLE, lv_color_black(), false );
+    text( layer, &jetbrains_mono_18, textGrey(), LV_TEXT_ALIGN_CENTER, 342 - 14, 76 - 11, 342 + 14, 76 + 13, "?" );
     // The Moon's phases around it, fixed: one turn is one Moon month.
     for ( int i = 0; i < 30; ++i ) {
         const float a = static_cast<float>( ( -90 + i * 12 ) * M_PI / 180 );
@@ -692,8 +695,11 @@ void CyclePages::drawEntry( lv_layer_t *layer, const lv_area_t &area ) const
         text( layer, &jetbrains_mono_26, white(), LV_TEXT_ALIGN_LEFT, 270, 298, 366, 330,
               Language::text( madeUp ? Language::EntryYes : Language::EntryNo ) );
     }
-    outline( layer, 110, 390, 300, 450, lv_color_hex( 0xC8C8C8 ), 2, 14, lv_color_black(), false );
-    centred( layer, &jetbrains_mono_26, white(), 404, Language::text( Language::EntryOk ) );
+    // Cancel leaves the day as it was; OK saves it.
+    outline( layer, 50, 390, 195, 450, lv_color_hex( 0x808080 ), 2, 14, lv_color_black(), false );
+    text( layer, &jetbrains_mono_26, textGrey(), LV_TEXT_ALIGN_CENTER, 50, 404, 195, 436, Language::text( Language::EntryCancel ) );
+    outline( layer, 215, 390, 360, 450, lv_color_hex( 0xC8C8C8 ), 2, 14, lv_color_black(), false );
+    text( layer, &jetbrains_mono_26, white(), LV_TEXT_ALIGN_CENTER, 215, 404, 360, 436, Language::text( Language::EntryOk ) );
     (void)area;
 }
 
@@ -786,10 +792,9 @@ void CyclePages::drawPinHeader( lv_layer_t *layer, const lv_area_t &area ) const
     } else {
         centred( layer, &jetbrains_mono_26, white(), 76, m_typed[0] != '\0' ? m_typed : ( m_input == FirstPeriod ? "2025.9" : "0" ) );
     }
-    // The first offer of a PIN can be declined.
-    if ( m_input == NewPin && m_log->pinHash == 0 && m_log->pinAsked == 0 ) {
-        outline( layer, s_cx - 70, 108, s_cx + 70, 142, lv_color_hex( 0x808080 ), 2, 10, lv_color_black(), false );
-        centred( layer, &jetbrains_mono_18, white(), 113, Language::text( Language::PinSkip ) );
+    // C on an empty entry goes back (but from the PIN that unlocks the page).
+    if ( m_input != CheckPin ) {
+        centred( layer, &jetbrains_mono_14, textGrey(), 112, Language::text( Language::PinHint ) );
     }
     (void)area;
 }
