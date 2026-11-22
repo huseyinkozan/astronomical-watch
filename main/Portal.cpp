@@ -209,7 +209,7 @@ esp_err_t Portal::start( const Settings &settings, const WorldClock &worldClock,
         stop();
         return err;
     }
-    const httpd_uri_t handlers[13] = {
+    const httpd_uri_t handlers[14] = {
         { "/", HTTP_GET, onPage, this },
         { "/help", HTTP_GET, onHelp, this },
         { "/tools", HTTP_GET, onToolsHelp, this },
@@ -223,8 +223,9 @@ esp_err_t Portal::start( const Settings &settings, const WorldClock &worldClock,
         { "/api/state", HTTP_GET, onState, this },
         { "/api/ping", HTTP_GET, onPing, this },
         { "/api/save", HTTP_POST, onSave, this },
+        { "/api/reset", HTTP_POST, onReset, this },
     };
-    for ( int i = 0; i < 13; ++i ) {
+    for ( int i = 0; i < 14; ++i ) {
         httpd_register_uri_handler( m_server, &handlers[i] );
     }
     httpd_register_err_handler( m_server, HTTPD_404_NOT_FOUND, onNotFound );
@@ -310,6 +311,15 @@ bool Portal::takeCard( EmergencyCard &card )
     }
     taskEXIT_CRITICAL( &m_lock );
     return taken;
+}
+
+bool Portal::takeReset()
+{
+    taskENTER_CRITICAL( &m_lock );
+    const bool wanted = m_resetWanted;
+    m_resetWanted = false;
+    taskEXIT_CRITICAL( &m_lock );
+    return wanted;
 }
 
 bool Portal::takeReceived( Received &received )
@@ -599,6 +609,18 @@ esp_err_t Portal::onCoreDump( httpd_req_t *request )
         done += part;
     }
     return httpd_resp_send_chunk( request, nullptr, 0 );
+}
+
+// The page asked twice (a confirmation in the browser); the main task erases and restarts.
+esp_err_t Portal::onReset( httpd_req_t *request )
+{
+    Portal *portal = static_cast<Portal *>( request->user_ctx );
+    portal->touch();
+    taskENTER_CRITICAL( &portal->m_lock );
+    portal->m_resetWanted = true;
+    taskEXIT_CRITICAL( &portal->m_lock );
+    noCache( request );
+    return httpd_resp_sendstr( request, "ok" );
 }
 
 esp_err_t Portal::onPing( httpd_req_t *request )

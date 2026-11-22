@@ -31,6 +31,7 @@
 #endif
 #include "Rtc.h"
 #include "Settings.h"
+#include "nvs.h"
 #include "Sound.h"
 #include "Fonts.h"
 #include "DayCounters.h"
@@ -1020,6 +1021,31 @@ static void applyPortalData( const Portal::Received &received )
     }
 }
 
+// The settings page's or the portal's factory reset: every saved choice goes but the clock's
+// rate correction (Settings::factoryReset), the portal's password and the event log; the time
+// stays in the RTC. Then a restart, so that everything starts from its defaults.
+[[noreturn]] static void factoryReset()
+{
+    ESP_LOGW( TAG, "Factory reset" );
+    // The namespaces of FaceStore, AlarmStore, DayCounters, EmergencyCard, Timers and WorldClock.
+    static const char *const s_stores[6] = { "faces", "alarms", "days", "card", "timers", "world" };
+    for ( int i = 0; i < 6; ++i ) {
+        nvs_handle_t handle = 0;
+        if ( nvs_open( s_stores[i], NVS_READWRITE, &handle ) == ESP_OK ) {
+            nvs_erase_all( handle );
+            nvs_commit( handle );
+            nvs_close( handle );
+        }
+    }
+    s_settings.factoryReset();
+    // The browser's answer on its way before the Wi-Fi goes.
+    vTaskDelay( pdMS_TO_TICKS( 500 ) );
+#if CONFIG_WATCH_SETUP_PORTAL
+    s_portal.stop();
+#endif
+    esp_restart();
+}
+
 // Setup page taps, data from the browser and the portal timeout. Returns true while the portal
 // runs, which keeps active mode on.
 static bool servicePortal( bool everySecond )
@@ -1029,6 +1055,9 @@ static bool servicePortal( bool everySecond )
     requests |= s_hostRequests;
     s_hostRequests = 0;
 #endif
+    if ( ( requests & Display::FactoryReset ) || s_portal.takeReset() ) {
+        factoryReset();
+    }
     if ( requests & Display::Restart ) {
         // A new language: every page is built again in it after the restart.
         ESP_LOGI( TAG, "Language changed: restart" );
@@ -1374,6 +1403,10 @@ static int runActiveMode()
         if ( s_displayOn && servicePortal( everySecond ) ) {
             // The display stays on while the portal runs; the timeout counts again after it.
             activeMs = 0;
+        }
+#else
+        if ( s_displayOn && ( s_display.takeRequests() & Display::FactoryReset ) ) {
+            factoryReset();
         }
 #endif
         const int level = gpio_get_level( s_powerKeyGpio );

@@ -291,8 +291,10 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   Earth: the solar system on a logarithmic scale, the sky seen from the south, the day's rise and
   set, distances; `main/PlanetPages.*`, the day's rise and set computed in the main task on the
   page's request, 0.4 s; design: `docs/superpowers/specs/2026-11-19-planets-design.md`) and
-  settings (settings, more settings, what the portal set, setup portal, its QR code; the setup
-  part always shown), tools (torch, calculator, unit converter, spirit level, counter, random,
+  settings (settings, more settings, what the portal set, setup portal, its QR code, factory
+  reset; the setup part always shown; the reset, tapped twice within 3 s or confirmed on the
+  portal's update tab, erases every NVS store but the event log, the portal's password and the
+  RTC's rate correction, then restarts: `factoryReset` in `main.cpp`, `Settings::factoryReset`), tools (torch, calculator, unit converter, spirit level, counter, random,
   metronome, emergency card; the metronome hidden by default, the card while it is empty;
   `main/ToolPages.*`, the last two in `main/ToolParts.*`, the counter's rules in `main/Tally.*`, the SOS timing in `main/Morse.*`, the
   calculator's expressions in `main/Calculator.*`, the conversions in `main/Units.*` and the

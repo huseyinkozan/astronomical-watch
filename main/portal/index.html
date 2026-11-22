@@ -284,6 +284,14 @@
   <small data-tr="Yeni sürüm telefonun giriş penceresinden değil, tarayıcıdan yüklenir; sayfa nasıl yapılacağını anlatır. Sorun bildirmek için kayıtlar da oradadır.">A new version is installed from the browser, not from the phone's sign-in window; the page
   explains how. The logs for a problem report are there too.</small>
 </fieldset>
+
+<fieldset>
+  <legend data-tr="Fabrika ayarları">Factory reset</legend>
+  <small data-tr="Ayarlar, yüzler, köşe göstergeleri, alarmlar, şehirler, gün sayaçları ve acil durum kartı silinir; saat yeniden başlar. Saat ve tarih, saatin hız düzeltmesi, olay kaydı ve Wi-Fi şifresi korunur.">The settings, faces, corner gauges, alarms, cities, day counters and the emergency card are
+  cleared and the watch restarts. The time and date, the clock's rate correction, the event log
+  and the Wi-Fi password stay.</small>
+  <p><button type="button" id="factoryReset" data-tr="Fabrika ayarlarına sıfırla">Reset to factory settings</button></p>
+</fieldset>
 </section>
 
 
@@ -577,7 +585,7 @@ const orderLists = [
     names: [['Solar system', 'Güneş sistemi'], ['Sky', 'Gökyüzü'], ['Rise and set', 'Doğuş ve batış'], ['Distance', 'Uzaklık']] },
   { title: ['Settings page', 'Ayar sayfası'], order: 'settingsOrder', hidden: 'settingsHidden', fixed: 3,
     names: [['Settings', 'Ayarlar'], ['More settings', 'Diğer ayarlar'], ['What this page set', 'Bu sayfanın girdikleri'],
-            ['Wi-Fi setup', 'Wi-Fi kurulum'], ['Wi-Fi QR code', 'Wi-Fi QR kodu']] },
+            ['Wi-Fi setup', 'Wi-Fi kurulum'], ['Wi-Fi QR code', 'Wi-Fi QR kodu'], ['Factory reset', 'Fabrika ayarları']] },
   { title: ['Tools page', 'Araçlar sayfası'], order: 'toolsOrder', hidden: 'toolsHidden',
     names: [['Torch', 'Fener'], ['Counter', 'Sayaç'], ['Random', 'Rastgele'], ['Calculator', 'Hesap makinesi'],
             ['Unit converter', 'Birim çevirici'], ['Spirit level', 'Su terazisi'], ['Metronome', 'Metronom'],
@@ -1103,6 +1111,11 @@ fetch('/api/card').then((r) => r.json()).then((c) => {
   for (const [id, key] of Object.entries(cardFields)) $(id).value = c[key] || '';
   cardLoaded = true;
 }).catch(() => {});
+$('factoryReset').addEventListener('click', async () => {
+  if (!confirm(t('Clear every setting of the watch and restart it?', 'Saatin bütün ayarları silinip yeniden başlatılsın mı?'))) return;
+  await fetch('/api/reset', { method: 'POST' }).catch(() => {});
+  $('status').textContent = t('The watch restarts with its factory settings.', 'Saat fabrika ayarlarıyla yeniden başlıyor.');
+});
 async function saveCard() {
   // Not read from the watch: sending empty fields would clear its card.
   if (!cardLoaded) return;

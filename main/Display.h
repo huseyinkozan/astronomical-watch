@@ -72,7 +72,9 @@ public:
         NewPassword = 2,
         // The language changed: the main task saves the settings and restarts, so that every
         // page is built in it.
-        Restart = 4
+        Restart = 4,
+        // The settings page's factory reset, tapped twice: the main task erases and restarts.
+        FactoryReset = 8
     };
 
     // Starts LVGL, the panel and touch (BSP), sets the brightness and builds the pages. A tap on
@@ -318,6 +320,8 @@ private:
     lv_obj_t *createRow( lv_obj_t *parent, const char *name, lv_event_cb_t onClicked );
     void buildSetupPage( lv_obj_t *page );
     void buildSetupCodePage( lv_obj_t *page );
+    void buildResetPart( lv_obj_t *part );
+    static void onResetClicked( lv_event_t *event );
     static void onFlushStart( lv_event_t *event );
 #if CONFIG_WATCH_DEV_LOGGING
     static void onRefreshReady( lv_event_t *event );
@@ -392,6 +396,8 @@ private:
     // Setup page.
     lv_obj_t *m_portalRow = nullptr;
     lv_obj_t *m_portalValue = nullptr;
+    lv_obj_t *m_resetValue = nullptr;  // "Again?" after the first tap
+    int64_t m_resetArmedUs = 0;        // the first tap, 0: none
     lv_obj_t *m_passwordRow = nullptr;
     lv_obj_t *m_networkLabel = nullptr;
     lv_obj_t *m_passwordLabel = nullptr;

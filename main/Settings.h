@@ -90,6 +90,11 @@ public:
     // Writes the values that changed since load(); test builds write nothing.
     void save();
 
+    // Erases every saved setting but the RTC's rate correction and the time it was last set (a
+    // property of this board's crystal, measured over days); the watch restarts afterwards, so
+    // that the others come back as their defaults. Test builds erase nothing.
+    void factoryReset();
+
     // Steps the item to the next value of its list; after the last comes the first.
     void next( Item item );
 

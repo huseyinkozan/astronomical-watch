@@ -90,6 +90,7 @@ enum SettingsPart
     SetupPart,
     SetupCodePart,  // the network as a QR code
 #endif
+    ResetPart,      // the factory reset (last: the saved part orders keep their numbers)
     SettingsPartCount
 };
 
@@ -111,8 +112,9 @@ static const Language::Text s_observingParts[ObservingPages::PartCount] = {
 static const Language::Text s_settingsParts[SettingsPartCount] = {
     Language::PartSettings, Language::PartMoreSettings, Language::PartSetupInfo,
 #if CONFIG_WATCH_SETUP_PORTAL
-    Language::PartSetup, Language::PartQrCode
+    Language::PartSetup, Language::PartQrCode,
 #endif
+    Language::PartReset
 };
 struct PageEntry
 {
@@ -198,6 +200,7 @@ struct Shot
     { "photo", ObservingPage, ObservingPages::PhotoPart }, { "almanac", ObservingPage, ObservingPages::AlmanacPart },
     { "aiming", ObservingPage, ObservingPages::AimingPart },
     { "metronome", ToolsPage, ToolPages::MetronomePart }, { "card", ToolsPage, ToolPages::CardPart },
+    { "reset", SettingsPage, ResetPart },
 };
 [[maybe_unused]] static const int s_shotCount = sizeof( s_shots ) / sizeof( s_shots[0] );
 
@@ -495,6 +498,7 @@ void Display::buildSettingsPage()
     buildSetupPage( m_settingsPage.part( SetupPart ) );
     buildSetupCodePage( m_settingsPage.part( SetupCodePart ) );
 #endif
+    buildResetPart( m_settingsPage.part( ResetPart ) );
     for ( int i = 0; i < 2; ++i ) {
         lv_obj_set_flex_flow( settingsParts[i], LV_FLEX_FLOW_COLUMN );
         // The rows of the second part start where those of the first do: a single row in the
@@ -814,6 +818,8 @@ void Display::freeApp()
         m_joinCode = nullptr;
         m_joinHint = nullptr;
         m_setupTable.forget();
+        m_resetValue = nullptr;
+        m_resetArmedUs = 0;
     }
     lv_obj_clean( m_tiles[AppTile] );
     updateBrightness();
@@ -1140,6 +1146,38 @@ static const int s_joinQuietModules = 2;
 // Not full white: a large white area at the face's brightness glared in a phone camera, and the
 // Wi-Fi settings' QR reader could not read the code until the brightness was lowered.
 static const lv_color_t s_joinPaper = LV_COLOR_MAKE( 0x80, 0x80, 0x80 );
+
+// One row and what it clears; the first tap asks again, the second within s_resetConfirmUs asks
+// the main task to reset.
+static const int64_t s_resetConfirmUs = 3000000;
+
+void Display::buildResetPart( lv_obj_t *part )
+{
+    lv_obj_set_flex_flow( part, LV_FLEX_FLOW_COLUMN );
+    lv_obj_set_flex_align( part, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER );
+    lv_obj_set_style_pad_row( part, 24, 0 );
+    m_resetValue = createRow( part, Language::text( Language::ResetRow ), onResetClicked );
+    lv_obj_set_style_text_color( m_resetValue, lv_color_hex( 0xFF4030 ), 0 );
+    m_resetArmedUs = 0;
+    lv_obj_t *info = lv_label_create( part );
+    lv_obj_set_style_text_font( info, &jetbrains_mono_26, 0 );
+    lv_obj_set_style_text_color( info, lv_color_hex( 0xA0A0A0 ), 0 );
+    lv_label_set_text_static( info, Language::text( Language::ResetInfo ) );
+    lv_obj_set_clickable( info, false );
+}
+
+void Display::onResetClicked( lv_event_t *event )
+{
+    Display *self = static_cast<Display *>( lv_event_get_user_data( event ) );
+    const int64_t now = esp_timer_get_time();
+    if ( self->m_resetArmedUs != 0 && now - self->m_resetArmedUs < s_resetConfirmUs ) {
+        ESP_LOGW( TAG, "Factory reset confirmed" );
+        self->m_requests.fetch_or( FactoryReset );
+        return;
+    }
+    self->m_resetArmedUs = now;
+    lv_label_set_text_static( self->m_resetValue, Language::text( Language::ResetAgain ) );
+}
 
 void Display::buildSetupCodePage( lv_obj_t *page )
 {
@@ -1711,6 +1749,13 @@ void Display::update( const Rtc::DateTime &time, int utcOffsetMinutes, const Bat
         return;
     }
     m_battery = battery;
+    // The factory reset's question goes after a while without the second tap.
+    if ( m_resetArmedUs != 0 && esp_timer_get_time() - m_resetArmedUs >= s_resetConfirmUs ) {
+        m_resetArmedUs = 0;
+        if ( m_resetValue != nullptr ) {
+            lv_label_set_text_static( m_resetValue, "" );
+        }
+    }
     // The firmware never sets TZ, so mktime() works in UTC.
     tm fields = {};
     fields.tm_year = time.year - 1900;

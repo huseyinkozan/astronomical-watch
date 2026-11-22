@@ -422,6 +422,11 @@ public:
         CardAllergies,
         CardMedication,
         CardContact,
+        // Settings page: factory reset.
+        PartReset,
+        ResetRow,
+        ResetAgain,  // the row's value after the first tap
+        ResetInfo,
         TextCount
     };
 

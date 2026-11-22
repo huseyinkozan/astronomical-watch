@@ -413,6 +413,12 @@ static const char *s_texts[][2] = {
     { "Allergy", "Alerji" },
     { "Meds", "İlaç" },
     { "Contact", "Yakını" },
+    // Factory reset; the information at most 19 characters a line.
+    { "Factory reset", "Fabrika ayarları" },
+    { "Reset", "Sıfırla" },
+    { "Again?", "Tekrar?" },
+    { "Clears settings,\nfaces, alarms,\ncities, counters\nand the emergency\ncard. Time stays.",
+      "Ayarlar, yüzler,\nalarmlar, şehirler,\nsayaçlar ve acil\nkart silinir.\nSaat korunur." },
 };
 // One pair per text: a missing one would shift every text after it.
 static_assert( sizeof( s_texts ) / sizeof( s_texts[0] ) == Language::TextCount, "a text pair per Language::Text" );

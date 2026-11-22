@@ -166,6 +166,28 @@ void Settings::load()
               m_values[DevMode] );
 }
 
+void Settings::factoryReset()
+{
+#if !CONFIG_WATCH_TEST_SETTINGS
+    nvs_handle_t handle = 0;
+    esp_err_t err = nvs_open( s_namespace, NVS_READWRITE, &handle );
+    if ( err == ESP_OK ) {
+        err = nvs_erase_all( handle );
+        if ( err == ESP_OK ) {
+            err = nvs_set_i32( handle, s_items[RtcOffset].key, m_values[RtcOffset] );
+        }
+        if ( err == ESP_OK ) {
+            err = nvs_set_i32( handle, s_items[RtcSetMinute].key, m_values[RtcSetMinute] );
+        }
+        if ( err == ESP_OK ) {
+            err = nvs_commit( handle );
+        }
+        nvs_close( handle );
+    }
+    ESP_LOGW( TAG, "Settings reset, RTC correction kept: %s", esp_err_to_name( err ) );
+#endif
+}
+
 void Settings::save()
 {
 #if !CONFIG_WATCH_TEST_SETTINGS
