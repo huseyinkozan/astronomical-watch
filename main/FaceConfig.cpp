@@ -40,14 +40,14 @@ static int parameterLimit( int slot, int item )
 //    time on the top edge, the short date on the bottom edge; the weekday ring, alarm 1's days,
 //    the Moon's phase, the Hijri day.
 // 5. Large JetBrains Mono, the short date and the next sunrise or sunset below, no corners.
-// The corner gauges: the day or night, the battery, the Moon's pass and its phase.
+// The corner gauges: the day or night, the battery, the Moon's pass and the display timeout.
 static const char *const s_defaultPages =
     "1,0,1,0,6,2,4,0,9,2,0,1,4,0,0,0,0,0,0,0,0,17;"
     "2,0,0,0,6,0,0,0,9,2,8,1,4,0,0,0,0,0,0,0,0,80;"
     "0,0,1,0,0,2,5,0,9,2,8,1,4,0,0,0,0,0,0,0,0,209;"
     "1,1,1,0,7,12,0,0,2,2,13,1,5,0,0,0,0,0,0,0,0,25;"
     "0,0,0,0,0,0,2,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
-    "/1,2,3,4,0,0,0,0";
+    "/1,2,3,19,0,0,0,0";
 
 void FaceConfig::defaults( Pages &pages )
 {
@@ -237,7 +237,7 @@ bool FaceConfig::decode( const char *text, Pages &pages )
     }
     // The corner gauges; an older string without them gets the default four (named here: the
     // defaults themselves are decoded from a string).
-    static const uint8_t s_defaultGauges[4] = { DayNightGauge, BatteryGauge, MoonPassGauge, MoonPhaseGauge };
+    static const uint8_t s_defaultGauges[4] = { DayNightGauge, BatteryGauge, MoonPassGauge, TimeoutGauge };
     for ( int i = 0; i < 4; ++i ) {
         result.gauges[i] = s_defaultGauges[i];
         result.gaugeParameters[i] = 0;

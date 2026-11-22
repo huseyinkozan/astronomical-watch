@@ -78,6 +78,7 @@ int main()
 
     // Every item kind has its target.
     check( "gauge: second", FaceTap::gaugeTarget( FaceConfig::SecondGauge ), FaceTap::TimePart );
+    check( "gauge: display timeout", FaceTap::gaugeTarget( FaceConfig::TimeoutGauge ), FaceTap::SettingsPart );
     check( "gauge: counter", FaceTap::gaugeTarget( FaceConfig::DayCounterGauge ), FaceTap::DaysPart );
     check( "corner: old hourglass", FaceTap::cornerTarget( FaceConfig::TimerGlass, false, false ), FaceTap::AlarmsPart );
     check( "corner: old alarm days, stopwatch", FaceTap::cornerTarget( FaceConfig::AlarmDays, true, false ), FaceTap::StopwatchPart );

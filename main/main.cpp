@@ -748,6 +748,10 @@ static bool resumeAtStart( int64_t now )
     return resume;
 }
 
+// The display timeout's share left in thousandths, for its corner gauge: set in the active loop,
+// shown at its next second.
+static int s_timeoutLeft = 1000;
+
 static void updateDisplay()
 {
     Rtc::DateTime time = {};
@@ -823,6 +827,7 @@ static void updateDisplay()
     context.batteryPercent = batteryRead ? battery.percent : -1;
     context.charging = s_usbPower && s_pmu.charging();
     context.hijriDay = s_skyValid ? s_skyDay.hijri.day : 0;
+    context.timeoutLeft = s_timeoutLeft;
     const bool located = inputs[0] != 0 || inputs[1] != 0;
     for ( int i = 0; i < Corners::CornerCount; ++i ) {
         if ( s_facePages.gauges[i] == FaceConfig::SunAltitudeGauge && located && !context.sunAltitudeValid ) {
@@ -1328,6 +1333,7 @@ static int runActiveMode()
     uint32_t bootHeldMs = 0;
     bool bootUsed = false;  // the press stopped an alarm or was long: no step back at its release
     ESP_LOGI( TAG, "Active mode, display timeout %d s", s_settings.value( Settings::DisplayTimeout ) );
+    s_timeoutLeft = 1000;
     uint32_t activeMs = 0;
     int sinceUpdateMs = 1000;
     // The AXP2101's key flags are read after the first second (the waking press is over by then
@@ -1454,6 +1460,8 @@ static int runActiveMode()
             ESP_LOGI( TAG, "Display timeout: active mode ends" );
             return 1;
         }
+        // Full while the portal, an alarm, a tool or USB keep the display on (no idle time).
+        s_timeoutLeft = static_cast<int>( ( timeoutMs - idleMs ) * 1000 / timeoutMs );
 #if CONFIG_WATCH_DEV_LOGGING
         if ( s_hostEndActive ) {
             s_hostEndActive = false;

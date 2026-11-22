@@ -683,7 +683,7 @@ let faces = [];
 let faceLimits = [faceTexts.length, faceCorners.length];
 
 // The corner gauges (FaceConfig::Pages::gauges): four items and four parameters after a "/".
-let gauges = [1, 2, 3, 4, 0, 0, 0, 0];
+let gauges = [1, 2, 3, 19, 0, 0, 0, 0];
 const encodeFaces = () => faces.map((v) => v.join(',')).join(';') + '/' + gauges.join(',');
 function decodeFaces(text) {
   const [pageText, gaugeText] = (text || '').split('/');
@@ -721,7 +721,8 @@ const gaugeItems = [['Nothing', 'Boş'], ['Day or night', 'Gündüz ya da gece']
   ['Next prayer time', 'Sonraki namaz vakti'], ['Next sunrise', 'Sonraki gün doğumu'], ['Next sunset', 'Sonraki gün batımı'],
   ['Next moonrise', 'Sonraki Ay doğuşu'], ['Next moonset', 'Sonraki Ay batışı'], ['Week', 'Hafta'], ['Month', 'Ay (takvim)'],
   ['Hijri month', 'Hicri ay'], ['Year', 'Yıl'], ['Day counter', 'Gün sayacı'], ['Sun altitude', 'Güneş yüksekliği'],
-  ['Hour', 'Saat'], ['Minute', 'Dakika'], ['Second (not on the always-on face)', 'Saniye (beklemede yok)']];
+  ['Hour', 'Saat'], ['Minute', 'Dakika'], ['Second (not on the always-on face)', 'Saniye (beklemede yok)'],
+  ['Display timeout, time left (not on the always-on face)', 'Ekran zaman aşımı, kalan süre (beklemede yok)']];
 const gaugeCounterFills = [['since it was saved', 'kaydedildiğinden beri'], ['yearly', 'yıllık'], ['the last 30 days', 'son 30 gün'],
   ['the last 100 days', 'son 100 gün']];
 const DayCounterGauge = 14, HourGauge = 16;

@@ -232,6 +232,12 @@ static Corners::Gauge gaugeOf( int item, int parameter, const Corners::Input &in
             gauge = { 0, share( seconds % 60, 60 ), Corners::Clock, false };
         }
         return gauge;
+    case FaceConfig::TimeoutGauge:
+        if ( !context.alwaysOn ) {
+            const int left = context.timeoutLeft < 0 ? 0 : ( context.timeoutLeft > 1000 ? 1000 : context.timeoutLeft );
+            gauge = { 0, left, Corners::Clock, false };
+        }
+        return gauge;
     case FaceConfig::DayCounterGauge:
         if ( counterShare( context, parameter, t, passed ) ) {
             gauge = { 0, passed, Corners::Counter, false };

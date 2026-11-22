@@ -169,6 +169,7 @@ public:
         HourGauge,         // parameter: 0 24 hours a turn, 1 12 hours
         MinuteGauge,
         SecondGauge,       // the active face only
+        TimeoutGauge,      // the display timeout's time left; the active face only
         GaugeItemCount
     };
     enum CounterFill : uint8_t

@@ -68,6 +68,8 @@ FaceTap::Target FaceTap::gaugeTarget( int gauge )
     case FaceConfig::MinuteGauge:
     case FaceConfig::SecondGauge:
         return TimePart;
+    case FaceConfig::TimeoutGauge:
+        return SettingsPart;
     default:
         return NoTarget;
     }

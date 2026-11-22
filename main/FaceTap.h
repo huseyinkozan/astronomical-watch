@@ -27,7 +27,8 @@ public:
         DaysPart,
         AlarmsPart,
         StopwatchPart,
-        CountdownPart
+        CountdownPart,
+        SettingsPart    // the settings page's first part (the display timeout)
     };
 
     struct Input

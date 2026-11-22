@@ -233,6 +233,13 @@ int main()
         check( "minute at 19:15", one( FaceConfig::MinuteGauge, 0, at( 0, 19, 15 ) ), Corners::Clock, 0, 250 );
         check( "second on the always-on face: empty", one( FaceConfig::SecondGauge, 0, at( 0, 19, 15 ) + 30, true ), Corners::Empty, 0, 0 );
         check( "second on the active face", one( FaceConfig::SecondGauge, 0, at( 0, 19, 15 ) + 30 ), Corners::Clock, 0, 500 );
+        context.timeoutLeft = 600;
+        check( "display timeout: the share left", one( FaceConfig::TimeoutGauge, 0, at( 0, 12, 0 ) ), Corners::Clock, 0, 600 );
+        check( "display timeout on the always-on face: empty", one( FaceConfig::TimeoutGauge, 0, at( 0, 12, 0 ), true ), Corners::Empty, 0, 0 );
+        context.timeoutLeft = 1400;
+        check( "display timeout: at most full", one( FaceConfig::TimeoutGauge, 0, at( 0, 12, 0 ) ), Corners::Clock, 0, 1000 );
+        context.timeoutLeft = -20;
+        check( "display timeout: at least empty", one( FaceConfig::TimeoutGauge, 0, at( 0, 12, 0 ) ), Corners::Clock, 0, 0 );
         check( "sun altitude 45", one( FaceConfig::SunAltitudeGauge, 0, at( 0, 12, 0 ) ), Corners::Altitude, 0, 500 );
         context.sunAltitude = -5;
         check( "sun altitude at night: empty", one( FaceConfig::SunAltitudeGauge, 0, at( 0, 23, 0 ) ), Corners::Empty, 0, 0 );

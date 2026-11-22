@@ -200,14 +200,17 @@ chosen in the portal, the same on every page (`FaceConfig::GaugeItem`, kept afte
 day or night, the battery, the Moon's pass or phase, the next prayer time, sunrise, sunset,
 moonrise or moonset from the previous one, the week, the month, the Hijri month, the year, a day
 counter (since it was saved, yearly, the last 30 or 100 days), the Sun's altitude, the hour, the
-minute or the second, which stays empty on the always-on face). `main/Corners.*` computes them
+minute, the second or the display timeout's time left, the last two empty on the always-on face). `main/Corners.*` computes them
 (host-tested rules), `main/CornerView.*` draws them on LVGL's top layer, `AlwaysOn` with its own
 bitmaps. The defaults: top left the day (yellow, sunrise to sunset) or the night (blue), top right the
 battery (green, orange above 10 %, red at the power-off limit; while charging, the part above the
 value is white: in active mode it grows step by step to the full end and starts again, on the
 always-on face it is drawn solid from the next minute wake), bottom left the Moon above the
 horizon (bluish white, rise to set) or below it (dark grey, set to rise), bottom right the
-Moon's phase (the lit part grows from the lower end and shrinks towards the upper end). Each is
+display timeout's time left (white, full at a touch, shrinking to the lower end; full while
+something keeps the display on; a tap opens the settings; the owner's choice of 2026-11-22, as
+info pages ended unnoticed). The Moon's phase as a gauge lights a part that grows from the lower
+end and shrinks towards the upper end. Each is
 a quarter circle 3 px inside the visible edge, starting at its lower end, with a notch in the
 middle as long as the gauge is wide. Active mode draws them 5 px wide with round ends in a
 channel of a dim tone of their own colour. The always-on face draws them 2 px wide without the

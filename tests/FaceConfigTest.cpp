@@ -52,7 +52,7 @@ int main( int argc, char **argv )
     check( "defaults: today's corner gauges", pages.gauges[0] == FaceConfig::DayNightGauge &&
                                                   pages.gauges[1] == FaceConfig::BatteryGauge &&
                                                   pages.gauges[2] == FaceConfig::MoonPassGauge &&
-                                                  pages.gauges[3] == FaceConfig::MoonPhaseGauge );
+                                                  pages.gauges[3] == FaceConfig::TimeoutGauge );
 
     // The clock's place and size by template.
     const FaceConfig::ClockPlace large = FaceConfig::clockPlace( FaceConfig::Large );
@@ -76,7 +76,7 @@ int main( int argc, char **argv )
 
     // The corner gauges (global): today's four by default; encoded after the pages.
     const uint8_t todays[4] = { FaceConfig::DayNightGauge, FaceConfig::BatteryGauge, FaceConfig::MoonPassGauge,
-                                FaceConfig::MoonPhaseGauge };
+                                FaceConfig::TimeoutGauge };
     check( "gauges: today's four", memcmp( pages.gauges, todays, 4 ) == 0 );
     {
         FaceConfig::Pages withGauges = pages;

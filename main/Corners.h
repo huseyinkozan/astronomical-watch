@@ -9,8 +9,7 @@
 // - top left: the day from sunrise to sunset, or the night from sunset to sunrise;
 // - top right: the battery;
 // - bottom left: the Moon above the horizon from rise to set, or below it from set to rise;
-// - bottom right: the Moon's phase as a lit part that grows from the lower end to full and then
-//   shrinks towards the upper end.
+// - bottom right: the display timeout's time left (active mode only).
 // What a gauge shows is computed here; CornerView (LVGL) and AlwaysOn draw it. Plain C++ like
 // Sky, so the host tests can use it too.
 class Corners
@@ -85,7 +84,8 @@ public:
 
     // What the chosen gauges take beyond the sky: the moment, the clock's offset, the battery, the
     // Sun's altitude, the Hijri day of the month (0: unknown), the four day counters' dates and the
-    // days they were saved (0: unknown), and whether it is the always-on face (no second gauge).
+    // days they were saved (0: unknown), the display timeout's share left (thousandths), and
+    // whether it is the always-on face (no second or timeout gauge).
     struct Context
     {
         int64_t now;
@@ -98,6 +98,7 @@ public:
         int counterDays[4];
         int counterSavedDays[4];
         bool counterValid[4];
+        int timeoutLeft;
         bool alwaysOn;
     };
 
