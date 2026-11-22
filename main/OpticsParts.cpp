@@ -64,7 +64,7 @@ static lv_obj_t *tapArea( lv_obj_t *part, int height, lv_event_cb_t onTap, void 
     return area;
 }
 
-// "25" or "6.5" from tenths.
+// "25" or "6.5" from tenths; the text needs 16 bytes for any int ("-214748364.8").
 static void tenths( int value, char *text, size_t size )
 {
     if ( value % 10 == 0 ) {
@@ -147,7 +147,7 @@ void OpticsParts::showEyepiece()
     TableText &table = m_eyepieceTable.text();
     const int focal = m_settings->value( Settings::ScopeFocal );
     const int aperture = m_settings->value( Settings::ScopeAperture );
-    char ratio[12];
+    char ratio[16];
     tenths( static_cast<int>( std::lround( Optics::focalRatio( focal, aperture ) * 10.0 ) ), ratio, sizeof( ratio ) );
     char text[48];
     snprintf( text, sizeof( text ), Language::text( Language::ScopeValue ), focal, ratio );
@@ -181,7 +181,7 @@ void OpticsParts::showEyepiece()
     s_eyepiece = index;
     const int eyepieceTenths = m_settings->value( s_eyepieceFocals[index] );
     const int field = m_settings->value( s_eyepieceFields[index] );
-    char length[12];
+    char length[16];
     tenths( eyepieceTenths, length, sizeof( length ) );
     snprintf( text, sizeof( text ), Language::text( Language::EyepieceValue ), length, field );
     table.setLine( 1, text );
@@ -222,7 +222,7 @@ void OpticsParts::showPhoto()
         const int focal = m_settings->value( Settings::CameraFocal );
         const int fTenths = m_settings->value( Settings::CameraFNumber );
         const Optics::Sensor &sensor = Optics::Sensors[m_settings->value( Settings::CameraSensor )];
-        char fNumber[12];
+        char fNumber[16];
         tenths( fTenths, fNumber, sizeof( fNumber ) );
         snprintf( text, sizeof( text ), "%d mm f/%s %s", focal, fNumber, sensor.name );
         table.setLine( 1, text );
