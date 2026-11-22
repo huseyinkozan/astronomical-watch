@@ -45,6 +45,8 @@ public:
         Counter,        // a day counter
         Altitude,       // the Sun's altitude
         Clock,          // the hour, the minute, the second
+        Timeout,        // the display timeout's time left
+        TimeoutLow,     // 20 % of it or less
         KindCount
     };
 
@@ -84,8 +86,9 @@ public:
 
     // What the chosen gauges take beyond the sky: the moment, the clock's offset, the battery, the
     // Sun's altitude, the Hijri day of the month (0: unknown), the four day counters' dates and the
-    // days they were saved (0: unknown), the display timeout's share left (thousandths), and
-    // whether it is the always-on face (no second or timeout gauge).
+    // days they were saved (0: unknown), the display timeout's share left (thousandths; on the
+    // always-on face the share left until the power-off without motion, < 0 when there is none),
+    // and whether it is the always-on face (no second gauge).
     struct Context
     {
         int64_t now;
@@ -116,6 +119,10 @@ public:
                           int &upperAngle );
 
     static Input fromSky( const Sky::Day &day );
+
+    // The display timeout's gauge for its share left in thousandths (clamped to 0..1000); also
+    // used by CornerView, which moves it more often than once a second.
+    static Gauge timeoutGauge( int left );
 
     // A body's pass around `now`: from its rise (upStart) to its set (upEnd) and on to the next
     // rise (downEnd); `up` when `now` lies in the first part. False when the events do not

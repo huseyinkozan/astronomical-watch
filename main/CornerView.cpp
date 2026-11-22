@@ -1,5 +1,6 @@
 #include "CornerView.h"
 
+#include <atomic>
 #include <cmath>
 
 #include "Panel.h"
@@ -11,6 +12,12 @@ static const float s_chargeColour = 0xFF;  // white
 static const int s_chargeSteps = 8;
 static const uint32_t s_chargeStepMs = 200;
 static const float s_notchColour = 0xD0;
+// The display timeout's gauge: moved every 100 ms when it changed by about a pixel (a thousandth
+// is 0.18 px), grown back after a touch by at most 200 a step, half a second from empty to full.
+static const uint32_t s_timeoutStepMs = 100;
+static const int s_timeoutMinMove = 5;
+static const int s_timeoutGrowth = 200;
+static std::atomic<int> s_timeoutLeft( 1000 );
 // The channel: the gauge's colour at this share of its brightness.
 static const float s_channelShare = 0.3f;
 static const float s_halfWidth = Corners::ActiveWidth / 2.0f;
@@ -26,7 +33,9 @@ static const uint32_t s_activeColours[] = { 0x000000, 0xFFD040, 0x5078FF, 0x40D0
                                             // green, counters blue, the altitude as the Sun, clocks
                                             // white.
                                             0xFFD040, 0xB8C4DC, 0xFFB040, 0xD0D0D0, 0x40C080,
-                                            0x6090FF, 0xFFD040, 0xFFFFFF };
+                                            0x6090FF, 0xFFD040, 0xFFFFFF,
+                                            // The display timeout white, red at its end.
+                                            0xFFFFFF, 0xFF4030 };
 static_assert( sizeof( s_activeColours ) / sizeof( s_activeColours[0] ) == Corners::KindCount, "a colour per kind" );
 
 static float clamp01( float value )
@@ -91,6 +100,33 @@ void CornerView::build()
     }
     m_built = true;
     lv_timer_create( onChargeStep, s_chargeStepMs, this );
+    lv_timer_create( onTimeoutStep, s_timeoutStepMs, this );
+}
+
+void CornerView::setTimeoutLeft( int left )
+{
+    s_timeoutLeft.store( left );
+}
+
+// Runs in the LVGL task. Only the corners that show the display timeout change.
+void CornerView::onTimeoutStep( lv_timer_t *timer )
+{
+    CornerView *self = static_cast<CornerView *>( lv_timer_get_user_data( timer ) );
+    const int left = s_timeoutLeft.load();
+    for ( int i = 0; i < Corners::CornerCount; ++i ) {
+        Corners::Gauge &shown = self->m_gauges[i];
+        if ( shown.kind != Corners::Timeout && shown.kind != Corners::TimeoutLow ) {
+            continue;
+        }
+        const int wanted = left > shown.end + s_timeoutGrowth ? shown.end + s_timeoutGrowth : left;
+        const Corners::Gauge gauge = Corners::timeoutGauge( wanted );
+        if ( gauge.kind == shown.kind && abs( gauge.end - shown.end ) < s_timeoutMinMove ) {
+            continue;
+        }
+        shown = gauge;
+        self->updateLook( i );
+        self->invalidate( i );
+    }
 }
 
 // Runs in the LVGL task, which holds the display lock. Only the battery corners are drawn again,

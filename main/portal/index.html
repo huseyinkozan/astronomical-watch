@@ -662,17 +662,24 @@ setOrders({});
 // Face pages (main/FaceConfig.h): 22 numbers each (template, clock, digital style, analog style,
 // flags, eight slot items, eight parameters, the always-on bits), pages separated by ";". The
 // lists follow FaceConfig's enums; the watch sends how many items it knows.
-const faceTexts = [['Nothing', 'Boş'], ['Date, long', 'Tarih, uzun'], ['Date, short', 'Tarih, kısa'], ['Hijri date', 'Hicri tarih'],
-  ['Next sunrise or sunset', 'Sonraki gün doğumu ya da batımı'], ['Next prayer time', 'Sonraki namaz vakti'],
-  ['Seconds', 'Saniye'], ['Battery', 'Pil'], ['World clock city', 'Dünya saati şehri'], ['Day counter', 'Gün sayacı'],
-  ['Sun altitude', 'Güneş yüksekliği'], ['Moon altitude', 'Ay yüksekliği'], ['Time (HH:MM)', 'Saat (SS:DD)'],
-  ['Weekday', 'Hafta günü'], ['Day of the month', 'Ayın günü'], ['Month', 'Ay adı'], ['Hijri day of the month', 'Hicri ayın günü'],
-  ['Hijri month', 'Hicri ay adı'], ['Hour (HH)', 'Saat (SS)'], ['Minute (MM)', 'Dakika (DD)']];
+// Each with an example in both languages, as the watch writes it (tests/FaceTextTest.cpp).
+const faceTexts = [['Nothing', 'Boş'], ['Date, long', 'Tarih, uzun', 'Sunday 21 June', '21 Haziran Pazar'],
+  ['Date, short', 'Tarih, kısa', 'Jun 21', '21 Haz'], ['Hijri date', 'Hicri tarih', '5 Muharram 1448', '5 Muharrem 1448'],
+  ['Next sunrise or sunset', 'Sonraki gün doğumu ya da batımı', 'Sunset 1:21', 'Gün batımı 1:21'],
+  ['Next prayer time', 'Sonraki namaz vakti', 'Maghrib 1:28', 'Akşam 1:28'], ['Seconds', 'Saniye', ':42', ':42'],
+  ['Battery', 'Pil', '68 %', '68 %'], ['World clock city', 'Dünya saati şehri', 'London 17:19', 'London 17:19'],
+  ['Day counter', 'Gün sayacı', 'Holiday 12', 'Tatil 12'], ['Sun altitude', 'Güneş yüksekliği', '13°', '13°'],
+  ['Moon altitude', 'Ay yüksekliği', '25°', '25°'], ['Time (HH:MM)', 'Saat (SS:DD)', '19:19', '19:19'],
+  ['Weekday', 'Hafta günü', 'Sun', 'Paz'], ['Day of the month', 'Ayın günü', '21', '21'], ['Month', 'Ay adı', 'Jun', 'Haz'],
+  ['Hijri day of the month', 'Hicri ayın günü', '5', '5'], ['Hijri month', 'Hicri ay adı', 'Muh', 'Muh'],
+  ['Hour (HH)', 'Saat (SS)', '19', '19'], ['Minute (MM)', 'Dakika (DD)', '19', '19']];
 const faceCorners = [['Nothing', 'Boş'], ['Moon phase', 'Ay evresi'], ['Weekday ring', 'Hafta günü halkası'],
-  ['Weekday', 'Hafta günü'], ['Day of the month', 'Ayın günü'], ['Hijri day of the month', 'Hicri ayın günü'],
-  ['Month', 'Ay adı'], ['Hijri month', 'Hicri ay adı'], ['Sun altitude', 'Güneş yüksekliği'], ['Moon altitude', 'Ay yüksekliği'],
-  ['Hour (HH)', 'Saat (SS)'], ['Minute (MM)', 'Dakika (DD)'], ['Second', 'Saniye'], null,
-  ['Time icon', 'Zaman simgesi'], null, ['Time (HH:MM)', 'Saat (SS:DD)']];
+  ['Weekday', 'Hafta günü', 'Sun', 'Paz'], ['Day of the month', 'Ayın günü', '21', '21'],
+  ['Hijri day of the month', 'Hicri ayın günü', '5', '5'], ['Month', 'Ay adı', 'Jun', 'Haz'],
+  ['Hijri month', 'Hicri ay adı', 'Muh', 'Muh'], ['Sun altitude', 'Güneş yüksekliği', '13°', '13°'],
+  ['Moon altitude', 'Ay yüksekliği', '25°', '25°'], ['Hour (HH)', 'Saat (SS)', '19', '19'],
+  ['Minute (MM)', 'Dakika (DD)', '19', '19'], ['Second', 'Saniye', '42', '42'], null,
+  ['Time icon', 'Zaman simgesi'], null, ['Time (HH:MM)', 'Saat (SS:DD)', '19:19', '19:19']];
 // FaceConfig::TimeIcon: the alarm days and the hourglass of their own (AlarmDays, TimerGlass,
 // offered no more) show as it.
 const AlarmDaysCorner = 13, TimeIconCorner = 14, TimerGlassCorner = 15;
@@ -696,7 +703,9 @@ function decodeFaces(text) {
 function selectOf(items, limit, value, onChange) {
   const select = document.createElement('select');
   // An item left out (null) keeps the numbers of the others.
-  fill(select, items.slice(0, limit).map((names, i) => names && [i, names[L]]).filter((item) => item), value);
+  // An example of the text, when the item has one, after its name.
+  const nameOf = (names) => names[2 + L] ? names[L] + ': ' + names[2 + L] : names[L];
+  fill(select, items.slice(0, limit).map((names, i) => names && [i, nameOf(names)]).filter((item) => item), value);
   select.addEventListener('change', () => onChange(Number(select.value)));
   return select;
 }
@@ -722,7 +731,8 @@ const gaugeItems = [['Nothing', 'Boş'], ['Day or night', 'Gündüz ya da gece']
   ['Next moonrise', 'Sonraki Ay doğuşu'], ['Next moonset', 'Sonraki Ay batışı'], ['Week', 'Hafta'], ['Month', 'Ay (takvim)'],
   ['Hijri month', 'Hicri ay'], ['Year', 'Yıl'], ['Day counter', 'Gün sayacı'], ['Sun altitude', 'Güneş yüksekliği'],
   ['Hour', 'Saat'], ['Minute', 'Dakika'], ['Second (not on the always-on face)', 'Saniye (beklemede yok)'],
-  ['Display timeout, time left (not on the always-on face)', 'Ekran zaman aşımı, kalan süre (beklemede yok)']];
+  ['Display timeout, time left (always-on: until it switches off without motion)',
+   'Ekran zaman aşımı, kalan süre (beklemede: hareketsiz kapanmaya kalan)']];
 const gaugeCounterFills = [['since it was saved', 'kaydedildiğinden beri'], ['yearly', 'yıllık'], ['the last 30 days', 'son 30 gün'],
   ['the last 100 days', 'son 100 gün']];
 const DayCounterGauge = 14, HourGauge = 16;

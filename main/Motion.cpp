@@ -192,6 +192,26 @@ bool Motion::stillTooLong()
     return s_stillChecks * CONFIG_WATCH_MOTION_CHECK_MIN >= s_offMinutes;
 }
 
+int Motion::offShareLeft() const
+{
+    if ( s_offMinutes <= 0 ) {
+        return -1;
+    }
+    // The checks that must find no motion, a check interval apart (stillTooLong()).
+    const int intervalS = CONFIG_WATCH_MOTION_CHECK_MIN * 60;
+    const int needed = ( s_offMinutes + CONFIG_WATCH_MOTION_CHECK_MIN - 1 ) / CONFIG_WATCH_MOTION_CHECK_MIN;
+    const int totalS = needed * intervalS;
+    if ( !s_hasReference ) {
+        return 1000;
+    }
+    timeval now = {};
+    gettimeofday( &now, nullptr );
+    const int sinceCheckS = static_cast<int>( static_cast<uint32_t>( now.tv_sec ) - s_lastCheckSeconds );
+    int leftS = ( needed - s_stillChecks ) * intervalS - sinceCheckS;
+    leftS = leftS < 0 ? 0 : ( leftS > totalS ? totalS : leftS );
+    return static_cast<int>( static_cast<int64_t>( leftS ) * 1000 / totalS );
+}
+
 esp_err_t Motion::readUntilSamples( int samples, Reading &reading )
 {
     // Power-down keeps the output registers, so a new sample shows only as a new time stamp.

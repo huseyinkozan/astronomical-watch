@@ -33,6 +33,10 @@ public:
     // no-motion threshold; always false, without a reading, when it is 0.
     bool stillTooLong();
 
+    // Always-on: the share of the time until stillTooLong() powers the watch off, if it stays
+    // still, in thousandths (for the timeout gauge); -1 when it never does (the setting 0).
+    int offShareLeft() const;
+
     // Active mode (the spirit level, the alidade): while on, the accelerometer runs at about 56 Hz
     // (ODR code 0111 from the internal oscillator) and readLatest() takes its newest sample; off
     // powers it down again (about 6 uA). Only the part that shows the readings keeps it on.

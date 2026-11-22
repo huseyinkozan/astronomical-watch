@@ -48,6 +48,12 @@ static void addCrossings( Corners::Events &events, const Astronomy::Crossings &c
     addEvent( events, crossings.setting, false );
 }
 
+Corners::Gauge Corners::timeoutGauge( int left )
+{
+    left = left < 0 ? 0 : ( left > 1000 ? 1000 : left );
+    return { 0, left, left <= 200 ? TimeoutLow : Timeout, false };
+}
+
 Corners::Input Corners::fromSky( const Sky::Day &day )
 {
     Input input = {};
@@ -233,9 +239,9 @@ static Corners::Gauge gaugeOf( int item, int parameter, const Corners::Input &in
         }
         return gauge;
     case FaceConfig::TimeoutGauge:
-        if ( !context.alwaysOn ) {
-            const int left = context.timeoutLeft < 0 ? 0 : ( context.timeoutLeft > 1000 ? 1000 : context.timeoutLeft );
-            gauge = { 0, left, Corners::Clock, false };
+        // On the always-on face the time left until the power-off without motion; < 0: none.
+        if ( context.timeoutLeft >= 0 ) {
+            gauge = Corners::timeoutGauge( context.timeoutLeft );
         }
         return gauge;
     case FaceConfig::DayCounterGauge:

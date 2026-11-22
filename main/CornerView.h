@@ -25,6 +25,10 @@ public:
 
     void show( const Corners::Gauge gauges[Corners::CornerCount] );
 
+    // From any task, without the display lock: the display timeout's share left (thousandths).
+    // Its gauges follow it ten times a second and grow back in steps after a touch.
+    static void setTimeoutLeft( int left );
+
     // Writes the gauges into a rendered band: `pixels` hold `area` row after row, in LVGL's
     // RGB565 (before the flush swaps the bytes).
     void paint( const lv_area_t &area, uint16_t *pixels ) const;
@@ -45,6 +49,7 @@ private:
     void invalidate( int corner );
     uint16_t colour( int corner, const CornerPixel &pixel, int along ) const;
     static void onChargeStep( lv_timer_t *timer );
+    static void onTimeoutStep( lv_timer_t *timer );
 
     Corners::Gauge m_gauges[Corners::CornerCount] = {};
     Look m_looks[Corners::CornerCount] = {};

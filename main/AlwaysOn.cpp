@@ -584,7 +584,7 @@ int AlwaysOn::gaugeColour( Corners::Kind kind )
 {
     // By Corners::Kind; orange and the Moon's dark grey have no idle-mode colour.
     static const int colours[] = { -1,     Yellow, Blue,  Green, Yellow, Red,   White, White, White,
-                                   Yellow, White,  Yellow, White, Green,  Blue,  Yellow, White };
+                                   Yellow, White,  Yellow, White, Green,  Blue,  Yellow, White, White, Red };
     static_assert( sizeof( colours ) / sizeof( colours[0] ) == Corners::KindCount, "an idle colour per kind" );
     return colours[kind];
 }
@@ -827,9 +827,10 @@ int AlwaysOn::cycleStyle( uint32_t seconds )
 // The chosen corner gauges at `utcNow` (local time `offsetMinutes` ahead); the second gauge stays
 // empty on this face.
 static void computeGauges( const AlwaysOn::Look &look, int64_t utcNow, int offsetMinutes, int batteryPercent,
-                           bool charging, Corners::Gauge gauges[Corners::CornerCount] )
+                           bool charging, int offLeft, Corners::Gauge gauges[Corners::CornerCount] )
 {
     Corners::Context context = {};
+    context.timeoutLeft = offLeft;
     context.now = utcNow;
     context.utcOffsetMinutes = offsetMinutes;
     context.batteryPercent = batteryPercent;
@@ -856,7 +857,7 @@ void AlwaysOn::capture( const Look &look, int page, bool timeSet )
     const Face &face = layout( look, time, utcNow, 92, timeSet );
     // The chosen gauges at the scene's moment, the battery at 92 %.
     Corners::Gauge gauges[Corners::CornerCount] = {};
-    computeGauges( look, utcNow, 180, 92, false, gauges );
+    computeGauges( look, utcNow, 180, 92, false, 1000, gauges );
     // The scene is in daylight: red only when forced ("I 1").
     s_drawRed = look.nightMode == NightForced;
     Panel panel;
@@ -905,7 +906,7 @@ int AlwaysOn::minutes() const
 }
 
 uint64_t AlwaysOn::update( const Rtc::DateTime &time, int64_t utcNow, bool timeRead, bool timeSet, int batteryPercent,
-                           bool charging )
+                           bool charging, int offLeft )
 {
     // A failed or corrupt read must not turn into a long sleep: try again in a minute.
     if ( !timeRead || time.hour > 23 || time.minute > 59 || time.second > 59 || !dateValid( time ) ) {
@@ -947,7 +948,7 @@ uint64_t AlwaysOn::update( const Rtc::DateTime &time, int64_t utcNow, bool timeR
     Corners::Gauge gauges[Corners::CornerCount] = {};
     const int shownDay = Dates::dayNumber( shown.year, shown.month, shown.day );
     const int64_t shownLocal = static_cast<int64_t>( shownDay ) * 86400 + shown.hour * 3600 + shown.minute * 60;
-    computeGauges( look, shownUtc, static_cast<int>( ( shownLocal - shownUtc ) / 60 ), batteryPercent, charging, gauges );
+    computeGauges( look, shownUtc, static_cast<int>( ( shownLocal - shownUtc ) / 60 ), batteryPercent, charging, offLeft, gauges );
     // The day level from sunrise to sunset, else the night level (whatever the corners show).
     const int brightness = Corners::night( look.corners, shownUtc ) ? look.nightBrightness : look.dayBrightness;
     s_drawRed = look.nightMode == NightForced ||

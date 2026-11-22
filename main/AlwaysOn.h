@@ -145,8 +145,9 @@ public:
     // nothing and asks for another wake in a minute. `timeSet` false: the clock runs but was never
     // set (its oscillator stopped, as after the battery was unplugged): the face shows "--:--".
     // `batteryPercent` < 0: unknown; `charging` draws the battery gauge's part above its value white.
+    // `offLeft`: the timeout gauge's share left until the power-off without motion (Corners::Context).
     uint64_t update( const Rtc::DateTime &time, int64_t utcNow, bool timeRead, bool timeSet, int batteryPercent,
-                     bool charging );
+                     bool charging, int offLeft );
 
 #if CONFIG_WATCH_AOD_CYCLE_MIN > 0
     // Battery run V: 0 when the face is shown `seconds` after power-on, -1 for the blank face.

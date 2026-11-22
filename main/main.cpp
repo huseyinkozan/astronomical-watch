@@ -13,6 +13,7 @@
 #include "BatteryLimit.h"
 #include "BatteryLog.h"
 #include "ClockPages.h"
+#include "CornerView.h"
 #include "Corners.h"
 #include "Dates.h"
 #include "EventLog.h"
@@ -1334,6 +1335,7 @@ static int runActiveMode()
     bool bootUsed = false;  // the press stopped an alarm or was long: no step back at its release
     ESP_LOGI( TAG, "Active mode, display timeout %d s", s_settings.value( Settings::DisplayTimeout ) );
     s_timeoutLeft = 1000;
+    CornerView::setTimeoutLeft( s_timeoutLeft );
     uint32_t activeMs = 0;
     int sinceUpdateMs = 1000;
     // The AXP2101's key flags are read after the first second (the waking press is over by then
@@ -1462,6 +1464,7 @@ static int runActiveMode()
         }
         // Full while the portal, an alarm, a tool or USB keep the display on (no idle time).
         s_timeoutLeft = static_cast<int>( ( timeoutMs - idleMs ) * 1000 / timeoutMs );
+        CornerView::setTimeoutLeft( s_timeoutLeft );
 #if CONFIG_WATCH_DEV_LOGGING
         if ( s_hostEndActive ) {
             s_hostEndActive = false;
@@ -1694,14 +1697,16 @@ static void alwaysOnTick( i2c_master_bus_handle_t bus, bool pmuReady )
         return;
     }
     const int offsetMinutes = Zones::offsetAt( s_alwaysOnZone, unixTime( time ) );
-    uint64_t sleepUs = s_alwaysOn.update( Rtc::addMinutes( time, offsetMinutes ), unixTime( time ),
-                                                timeRead, !oscillatorStopped, batteryPercent, charging );
-    // Without the device the readings fail, which the motion check counts as no motion.
+    // Without the device the readings fail, which the motion check counts as no motion. Before
+    // the face, so that its timeout gauge shows the time left after this check.
     s_motion.init( bus );
 #if CONFIG_WATCH_MOTION_LOG
     s_motion.recordLog();
 #endif
-    const bool still = sleepUs != 0 && s_motion.stillTooLong();
+    const bool stillLong = s_motion.stillTooLong();
+    uint64_t sleepUs = s_alwaysOn.update( Rtc::addMinutes( time, offsetMinutes ), unixTime( time ), timeRead,
+                                          !oscillatorStopped, batteryPercent, charging, s_motion.offShareLeft() );
+    const bool still = sleepUs != 0 && stillLong;
     if ( pmuReady ) {
         s_batteryLog.recordIfDue( s_pmu );
     }
