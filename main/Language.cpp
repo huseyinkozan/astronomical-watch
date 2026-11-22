@@ -233,7 +233,7 @@ static const char *s_texts[][2] = {
     { "White", "Beyaz" },
     { "SOS", "SOS" },
     { "SOS + beep", "SOS + ses" },
-    { "hold, then drag:\nsideways: colour\nup, down: light", "basılı tut, sürükle:\nyana: renk\nyukarı, aşağı: ışık" },
+    { "title: colour\nhold, then drag\nup, down: light", "başlık: renk\nbasılı tut, sürükle\nyukarı, aşağı: ışık" },
     { "%d%%", "%%%d" },
     { "%d/h", "%d/sa" },
     { "step %d / %d", "adım %d / %d" },

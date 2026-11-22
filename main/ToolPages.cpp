@@ -199,6 +199,7 @@ void ToolPages::forget()
     }
     m_tile = nullptr;
     m_torch = nullptr;
+    m_torchTitle = nullptr;
     m_torchHint = nullptr;
     m_torchStatus = nullptr;
     m_count = nullptr;
@@ -317,6 +318,11 @@ void ToolPages::buildTorch( lv_obj_t *part )
     for ( int i = 0; i < 6; ++i ) {
         lv_obj_add_event_cb( m_torch, onTorchEvent, codes[i], this );
     }
+    // The colour as the title, stepped by a tap like the other parts' titles: a held finger
+    // hid the text under it. Where the stacked pages show their first row (screen y, the part has
+    // no header padding here).
+    m_torchTitle = lv_obj_get_child( button( m_torch, s_left, StackPage::HeaderPad + 36, s_right, StackPage::HeaderPad + 84,
+                                             "", onTorchTitle, this ), 0 );
     // Black text on the colour (an own style: it changes with the SOS flashes).
     m_torchHint = lv_label_create( m_torch );
     lv_obj_set_style_text_font( m_torchHint, &jetbrains_mono_26, 0 );
@@ -345,10 +351,28 @@ void ToolPages::showTorch()
     snprintf( percent, sizeof( percent ), Language::text( Language::PercentValue ), s_torchLevel );
     const int left = m_torchShown ? torchSecondsLeft() : s_torchOnUs / 1000000;
     m_shownSeconds = m_torchShown ? left : -1;
-    char status[48];
-    snprintf( status, sizeof( status ), "%s  %s  %d:%02d", Language::text( s_torchNames[s_torchColour] ), percent,
-              left / 60, left % 60 );
+    setText( m_torchTitle, Language::text( s_torchNames[s_torchColour] ) );
+    char status[24];
+    snprintf( status, sizeof( status ), "%s  %d:%02d", percent, left / 60, left % 60 );
     setText( m_torchStatus, status );
+}
+
+void ToolPages::stepTorch()
+{
+    s_torchColour = ( s_torchColour + 1 ) % TorchColourCount;
+    // SOS from its start, so that it reads from the first letter.
+    m_sosStartUs = esp_timer_get_time();
+    m_sosLit = true;
+    applySound();
+    showTorch();
+}
+
+void ToolPages::onTorchTitle( lv_event_t *event )
+{
+    ToolPages *self = static_cast<ToolPages *>( lv_event_get_user_data( event ) );
+    self->stepTorch();
+    // A tap, so the auto-off starts again.
+    self->restartTorch();
 }
 
 void ToolPages::setTorchShown( bool shown )
@@ -1441,11 +1465,7 @@ bool ToolPages::press( const char *name )
     } else if ( strcmp( name, "input" ) == 0 ) {
         openLevelEntry();
     } else if ( strcmp( name, "torch" ) == 0 ) {
-        s_torchColour = ( s_torchColour + 1 ) % TorchColourCount;
-        m_sosStartUs = esp_timer_get_time();
-        m_sosLit = true;
-        applySound();
-        showTorch();
+        stepTorch();
     } else {
         return false;
     }

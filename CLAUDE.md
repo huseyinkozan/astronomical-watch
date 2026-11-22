@@ -305,7 +305,7 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   the saved launcher order, so new pages come last in the enum; the default order puts tools and
   observing after information. The torch fills the screen (the page name hides): red, amber,
   white, SOS, SOS with beeps (`Ringer::startSos`, the alarm's lowest level, on the light's clock;
-  an alarm stops them); a long press, then a drag: sideways the colour (round the list), up or down the panel's
+  an alarm stops them); a tap on its title steps the colour (round the list), so does a long press, then a sideways drag; up or down after the long press the panel's
   brightness while it shows (kept in RTC memory; `Display::updateBrightness` also dims the QR
   code); the night-red mode leaves it as it is. The counter's count, target and first minute are
   settings written when active mode ends, not at each count; a long press on the count resets it.

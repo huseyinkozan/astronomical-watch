@@ -97,6 +97,7 @@ public:
 private:
     static void onTick( lv_timer_t *timer );
     static void onTorchEvent( lv_event_t *event );
+    static void onTorchTitle( lv_event_t *event );
     static void onCounterButton( lv_event_t *event );
     static void onCountPressed( lv_event_t *event );
     static void onRandomEvent( lv_event_t *event );
@@ -108,6 +109,7 @@ private:
     void buildRandom( lv_obj_t *part );
     void showTorch();
     void restartTorch();
+    void stepTorch();
     void endTorchAdjust();
     // Starts or stops the SOS beeps as the torch and its colour want them.
     void applySound();
@@ -146,6 +148,7 @@ private:
 
     // Torch.
     lv_obj_t *m_torch = nullptr;
+    lv_obj_t *m_torchTitle = nullptr;  // the colour; a tap steps it
     lv_obj_t *m_torchHint = nullptr;
     lv_obj_t *m_torchStatus = nullptr;
     bool m_torchShown = false;
