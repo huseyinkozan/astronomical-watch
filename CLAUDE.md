@@ -54,6 +54,7 @@ development builds `v0.0.1-3-gabc1234-dirty`. A new release is a new tag, pushed
 | `tools/make_fonts.sh`, `tools/fonts/` | The watch fonts in `main/fonts/` (JetBrains Mono, ASCII, ° and the Turkish letters; needs Node.js for `npx lv_font_conv`) |
 | `tests/` | Host tests of the astronomy code (`sh tests/run_host_tests.sh`, needs only g++) and their reference data |
 | `tools/setup_reference.sh`, `tools/make_*.py` | Python environment (Skyfield, Pillow in `tools/.venv`, ignored) and generators of reference data, tables, the always-on bitmaps (`main/AodGlyphs.c`) and the README animations |
+| `site/`, `tools/make_site.sh` | The project's site (GitHub and GitLab Pages, `.github/workflows/pages.yml`, `.gitlab-ci.yml`): the preview of the watch from the screenshots (their extra views from `tools/screenshot.py --views`), the setup portal's pictures, the browser installer (ESP Web Tools, served from `site/vendor/`) with the latest release's full image; `make_site.sh` assembles `public/` (ignored); `tools/make_social_image.sh` makes `site/social.png`. The site loads nothing from other hosts but the latest version's number from GitHub |
 | `archive/wom-validator/` | Earlier QMI8658 Wake-on-Motion validator and its docs (git tag `wom-validator`). Read-only reference; do not build or extend it |
 | `managed_components/`, `build/` | Generated; never edit |
 
@@ -623,6 +624,8 @@ remotes), the About page and the portal pictures captured again from a clean bui
 `astronomical_watch-vX.Y.Z.bin` (the update through the portal) and, with
 `esptool --chip esp32s3 merge-bin -o astronomical_watch-vX.Y.Z-full.bin @flash_args` in the
 build directory, the full image for a first install over USB. Both go on the release pages of
-GitLab and GitHub with the notes.
+GitLab and GitHub with the notes. The sites then take the new full image and version by themselves:
+GitHub Pages on the release's publication, GitLab Pages at its next pipeline (run it by hand, or
+its schedule); only a new feature needs its text in `site/` (and its pictures, `tools/screenshot.py`).
 `tools/screenshot.py` can also be used during development to check a layout without the tester
 (`--live` for the watch's own time and settings).

@@ -1,0 +1,206 @@
+/* The watch's font, served from the site (SIL Open Font License, fonts/OFL.txt). */
+@font-face { font-family: "JetBrains Mono"; src: url("fonts/JetBrainsMono-Regular.ttf") format("truetype"); font-display: swap; }
+:root {
+  --bg: #0b0b0d;
+  --panel: #16161a;
+  --text: #e8e8ea;
+  --dim: #a0a0a6;
+  --accent: #ffb040;
+  --line: #2c2c32;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+main, footer, .intro, .top .bar { max-width: 960px; margin: 0 auto; padding: 0 20px; }
+/* The title and the links stay at the top while the page scrolls. */
+.top { position: sticky; top: 0; z-index: 10; background: rgba(11, 11, 13, 0.94); border-bottom: 1px solid var(--line);
+       backdrop-filter: blur(6px); }
+.top .bar { padding-top: 12px; padding-bottom: 12px; }
+.links { display: flex; align-items: center; gap: 8px; }
+.icon-button { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px;
+               border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--text); }
+.icon-button:hover { border-color: var(--accent); color: var(--accent); }
+.icon-button svg { width: 22px; height: 22px; fill: currentColor; }
+.icon-button svg[fill="none"] { fill: none; }
+.intro { padding-top: 16px; }
+.portal-shots { display: flex; flex-wrap: wrap; gap: 16px; }
+.portal-shot { display: flex; flex-direction: column; gap: 8px; padding: 10px; width: 200px; }
+.portal-shot img { width: 100%; height: 220px; object-fit: cover; object-position: top; border-radius: 8px; display: block; }
+.portal-shot:hover { border-color: var(--accent); }
+.portal-dialog { padding: 14px; }
+.phone { width: min(400px, 82vw); height: min(760px, 78vh); overflow-y: auto; border: 8px solid #2a2a30; border-radius: 26px; background: #000; }
+.phone img { width: 100%; display: block; }
+.bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+h1 { margin: 0; font-size: 1.6rem; letter-spacing: 0.01em; }
+h2 { margin: 2.2rem 0 0.8rem; font-size: 1.35rem; color: var(--accent); }
+.lead { color: var(--dim); max-width: 46rem; }
+button {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 14px;
+  font: inherit;
+  cursor: pointer;
+}
+button:hover { border-color: #55555c; }
+button.selected { border-color: var(--accent); color: var(--accent); }
+.hint { color: var(--dim); }
+.heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.help-button { width: 40px; height: 40px; padding: 0; font-size: 1.2rem; font-weight: 600; color: var(--accent); margin-top: 1.4rem; }
+dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 14px; max-width: 34rem; padding: 18px 22px; }
+dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
+dialog h3 { margin: 0 0 8px; color: var(--accent); }
+dialog form { text-align: right; margin-top: 12px; }
+.views-hint { margin: 0; padding: 10px 16px; border-radius: 12px; background: #3a2a0c; border: 1px solid #6a4a12; color: #ffd590; }
+.steps { padding-left: 1.2rem; margin: 0; }
+.steps li { margin: 0.25rem 0; }
+/* The controls as tall as the watch: the note on top, the arrows held at the bottom so that they
+   stay put whatever the note's length. */
+.stage { display: flex; flex-wrap: wrap; gap: 48px 84px; align-items: stretch; }
+.watch { align-self: flex-start; }
+.controls .arrows { margin-top: auto; }
+.watch {
+  /* The bezel, with the two keys on its right side as on the board. */
+  position: relative;
+  padding: 18px;
+  background: #1c1c20;
+  border-radius: 140px;
+  box-shadow: 0 0 0 2px #2a2a30, 0 18px 40px rgba(0, 0, 0, 0.6);
+  user-select: none;
+}
+.scaler { width: 410px; height: 502px; }
+.screen {
+  /* The panel at its own 410 x 502 pixels, scaled to fit; it hides its corners outside a 120 px
+     quarter circle. */
+  width: 410px;
+  height: 502px;
+  overflow: hidden;
+  border-radius: 120px;
+  background: #000;
+  transform-origin: top left;
+  touch-action: none;
+  cursor: grab;
+}
+.screen.views { cursor: pointer; }
+.track { display: flex; width: 1230px; height: 502px; transition: transform 0.28s ease-out; }
+.tile { flex: 0 0 410px; width: 410px; height: 502px; display: block; }
+.launcher { position: relative; background: #000; font-family: "JetBrains Mono", ui-monospace, monospace; }
+.launcher-title {
+  position: absolute; top: 0; left: 0; right: 0; height: 44px;
+  text-align: center; font-size: 26px; line-height: 40px; color: #fff;
+  border-bottom: 2px solid #3a3a3a; margin: 0 120px;
+}
+.launcher-list { position: absolute; top: 44px; left: 0; width: 410px; height: 458px; overflow: hidden; }
+.launcher-list .name { position: absolute; left: 36px; font-size: 26px; line-height: 32px; color: #a0a0a0; white-space: nowrap; }
+.launcher-list .row {
+  position: absolute; height: 68px; border: 1px solid #2c2c2c; border-radius: 12px;
+  font-size: 26px; line-height: 66px; padding-left: 16px; color: #fff; white-space: nowrap; overflow: hidden;
+  box-sizing: border-box;
+}
+.launcher-list .row.current { border: 2px solid #d0d0d0; }
+.launcher-list .row { cursor: pointer; }
+.launcher-list .row:hover { border-color: #ffb040; }
+.gauge-layer { position: absolute; left: 0; top: 0; width: 410px; height: 502px; pointer-events: none; }
+.chevron { position: absolute; left: 6px; top: 221px; width: 34px; height: 60px; font-size: 44px; line-height: 56px; color: #808080; cursor: pointer; }
+.screen.red .launcher-title, .screen.red .launcher-list .row { color: #ff2818; }
+.screen.red .launcher-list .name, .screen.red .chevron { color: #a01810; }
+.screen.red .launcher-list .row { border-color: #4a0c08; }
+.key {
+  position: absolute; right: -14px; width: 22px; height: 64px; padding: 0;
+  border-radius: 6px; background: #2c2c32; border: 1px solid #45454c; color: transparent;
+  font-size: 0; cursor: pointer;
+}
+.key::after {
+  content: attr(title); position: absolute; left: 30px; top: 22px; font-size: 12px; color: #a0a0a6; letter-spacing: 0.05em;
+}
+.key:active { background: #45454c; }
+.key.boot { top: 130px; }
+.key.pwr { top: 330px; }
+.controls { display: flex; flex-direction: column; gap: 12px; min-width: 220px; flex: 1 1 260px; max-width: 420px; }
+.note { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; min-height: 9.5em; }
+.note .where { color: var(--accent); font-weight: 600; margin: 0 0 6px; }
+.note p { margin: 0; }
+.arrows { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 140px; }
+.arrows div { display: flex; gap: 46px; }
+.arrows button { width: 46px; }
+.where { margin: 0; min-height: 1.5em; }
+label { color: var(--dim); cursor: pointer; }
+ul { padding-left: 1.2rem; }
+li { margin: 0.3rem 0; }
+.install { background: var(--accent); color: #111; border: none; font-weight: 600; padding: 12px 20px; }
+.small { color: var(--dim); font-size: 0.92rem; }
+pre {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  font-size: 0.85rem;
+}
+.anatomy-figure { overflow-x: auto; }
+#anatomySvg { width: 100%; min-width: 560px; max-width: 910px; display: block; }
+#anatomySvg .area { cursor: pointer; }
+#anatomySvg .area text { fill: var(--text); font-size: 19px; }
+#anatomySvg .area line { stroke: #ffb040; stroke-width: 1.6; opacity: 0.55; }
+#anatomySvg .area:hover line, #anatomySvg .area.selected line { opacity: 1; }
+#anatomySvg .area.selected text, #anatomySvg .area:hover text { fill: var(--accent); }
+#anatomySvg .area:focus { outline: none; }
+.anatomy-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.anatomy-table table { border-collapse: collapse; width: 100%; margin: 8px 0 16px; }
+.anatomy-table th, .anatomy-table td { text-align: left; vertical-align: middle; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+.anatomy-table th { color: var(--dim); font-weight: normal; }
+.anatomy-table .icon { width: 52px; height: 52px; border-radius: 50%; background-color: #000; background-repeat: no-repeat; }
+.anatomy-table .thumb { width: 82px; height: 100px; border-radius: 22px; display: block; }
+a { color: #8fb8ff; }
+footer { color: var(--dim); font-size: 0.9rem; padding-top: 24px; padding-bottom: 40px; }
+@media (max-width: 520px) {
+  .watch { padding: 10px; border-radius: 120px; }
+}
+.phone:focus, .phone:focus-visible { outline: none; }
+
+/* How to reach the portal: four steps with arrows, a column on a phone. The marks are purple: the
+   watch's own screens use amber, red, blue, green and white, never purple. */
+:root { --mark: #b46cff; }
+.portal-steps { list-style: none; padding: 0; margin: 0 0 24px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px; }
+.portal-steps .step { width: 164px; }
+.portal-steps .step p { margin: 8px 0 0; font-size: 0.92rem; color: var(--dim); }
+.portal-steps .arrow { display: flex; flex-direction: column; align-items: center; padding-top: 70px; color: var(--mark); }
+.portal-steps .arrow span { font-size: 1.8rem; line-height: 1; }
+.portal-steps .arrow small { font-size: 0.8rem; }
+.crop { position: relative; width: 164px; height: 201px; overflow: hidden; border-radius: 22px; background: #000; border: 1px solid var(--line); }
+.crop .ring { position: absolute; border: 3px solid var(--mark); box-shadow: 0 0 0 3px rgba(180, 108, 255, 0.3); }
+.setup-crop img { width: 164px; height: 201px; display: block; }
+.portal-crop { background-repeat: no-repeat; background-size: 164px auto; background-position: top; }
+.wifi-list { background: #000; color: #f2f2f2; font-family: system-ui, sans-serif; border-radius: 22px; }
+.wifi-head { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 1.05rem; padding: 18px 14px 10px; }
+.toggle { width: 34px; height: 20px; border-radius: 10px; background: #34c759; position: relative; }
+.toggle::after { content: ""; position: absolute; right: 2px; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; }
+.wifi-row { display: flex; justify-content: space-between; padding: 10px 12px; font-size: 0.8rem; white-space: nowrap; border-top: 1px solid #2a2a2e; background: #141416; }
+.wifi-row.chosen { font-weight: 600; outline: 3px solid var(--mark); outline-offset: -3px; }
+@media (max-width: 520px) {
+  .portal-steps { flex-direction: column; align-items: center; }
+  .portal-steps .arrow { padding-top: 0; transform: rotate(90deg); }
+}
+
+.controls-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+a.install { display: inline-block; text-decoration: none; border-radius: 10px; }
+section { scroll-margin-top: 72px; }
+details { border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin: 8px 0; background: var(--panel); }
+summary { cursor: pointer; font-weight: 600; }
+details p { margin: 8px 0 0; color: var(--dim); }
+table.power { border-collapse: collapse; }
+table.power td { padding: 4px 18px 4px 0; border-bottom: 1px solid var(--line); }
+table.power td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+/* Night mode as a button: red while on, as the watch's screen turns red. */
+.night-toggle { display: inline-flex; align-items: center; gap: 8px; border-radius: 22px; padding: 8px 16px 8px 12px; }
+.night-toggle svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+.night-toggle[aria-pressed="true"] { background: #3a0c08; border-color: #ff2818; color: #ff5040; }
+.night-toggle[aria-pressed="true"] svg { fill: currentColor; }
+.views-hint { white-space: pre-line; }
+a.install[aria-disabled="true"] { opacity: 0.4; pointer-events: none; filter: grayscale(1); }
+html:not([lang="tr"]) .tr-only { display: none; }

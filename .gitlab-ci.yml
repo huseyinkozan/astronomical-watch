@@ -1,0 +1,21 @@
+# The project's site on GitLab Pages: site/ with the screenshots, and the latest release's full
+# image for the browser installer: GitLab's release first (the main repository), else the GitHub
+# mirror's. It runs on master, and by hand or on a schedule (CI/CD > Pipelines, Schedules) to
+# take a release published after the last push.
+pages:
+  image: alpine:3.20
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+    - if: $CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "schedule"
+  variables:
+    SITE_URL: https://huseyinkozan.gitlab.io/astronomical-watch/
+  script:
+    - apk add --no-cache curl
+    - mkdir -p release
+    - url=$(curl -fsSL "https://gitlab.com/api/v4/projects/huseyinkozan%2Fastronomical-watch/releases/permalink/latest" | grep -o '"direct_asset_url": *"[^"]*-full\.bin"' | sed 's/.*"\(http[^"]*\)"/\1/' | head -n 1) || true
+    - if [ -z "$url" ]; then url=$(curl -fsSL https://api.github.com/repos/huseyinkozan/astronomical-watch/releases/latest | grep -o '"browser_download_url": *"[^"]*-full\.bin"' | sed 's/.*"\(http[^"]*\)"/\1/' | head -n 1) || true; fi
+    - if [ -n "$url" ]; then curl -fsSL -o "release/$(basename "$url")" "$url"; fi
+    - sh tools/make_site.sh $(ls release/*-full.bin 2>/dev/null | head -n 1)
+  artifacts:
+    paths:
+      - public

@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Astronomical Watch</title>
+<meta name="description" content="A low-power astronomical watch firmware for the Waveshare ESP32-S3-Touch-AMOLED-2.06: sun, moon, planets, prayer times, tools and more, computed on the watch.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Astronomical Watch">
+<meta property="og:description" content="Firmware for the Waveshare ESP32-S3-Touch-AMOLED-2.06: the Sun, the Moon, the planets, prayer times and tools, computed on the watch. No phone, no internet.">
+<meta property="og:url" content="@SITE_URL@">
+<meta property="og:image" content="@SITE_URL@social.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="style.css">
+<!-- Everything is served from this site: the font and ESP Web Tools too, so that no other host
+     sees the visitors. -->
+<script type="module" src="vendor/esp-web-tools/install-button.js"></script>
+</head>
+<body>
+<header class="top">
+  <div class="bar">
+    <h1>Astronomical Watch</h1>
+    <nav class="links">
+      <!-- Waveshare has no icon of its own: a watch stands for the board. -->
+      <a class="icon-button" href="https://www.waveshare.com/wiki/ESP32-S3-Touch-AMOLED-2.06" title="Waveshare ESP32-S3-Touch-AMOLED-2.06" aria-label="Waveshare">
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round">
+          <path d="M8.5 5.5 9.5 1.5h5l1 4M8.5 18.5l1 4h5l1-4"/><rect x="5.5" y="5.5" width="13" height="13" rx="3.5"/><path d="M12 9v3l2 1.5"/></svg></a>
+      <a class="icon-button" href="https://gitlab.com/huseyinkozan/astronomical-watch" title="GitLab" aria-label="GitLab">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m23.6004 9.5927-.0337-.0862L20.3.9814a.851.851 0 0 0-.3362-.405.8748.8748 0 0 0-.9997.0539.8748.8748 0 0 0-.29.4399l-2.2055 6.748H7.5375l-2.2057-6.748a.8573.8573 0 0 0-.29-.4412.8748.8748 0 0 0-.9997-.0537.8585.8585 0 0 0-.3362.4049L.4332 9.5015l-.0325.0862a6.0657 6.0657 0 0 0 2.0119 7.0105l.0113.0087.03.0213 4.976 3.7264 2.462 1.8633 1.4995 1.1321a1.0085 1.0085 0 0 0 1.2197 0l1.4995-1.1321 2.4619-1.8633 5.006-3.7489.0125-.01a6.0682 6.0682 0 0 0 2.0094-7.003z"/></svg></a>
+      <a class="icon-button" href="https://github.com/huseyinkozan/astronomical-watch" title="GitHub" aria-label="GitHub">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a>
+      <button id="language" type="button">Türkçe</button>
+    </nav>
+  </div>
+</header>
+<div class="intro">
+  <p class="lead" data-en="Firmware for the Waveshare ESP32-S3-Touch-AMOLED-2.06. Everything is computed on the watch from its time and location: no internet, GPS or phone. Battery life comes first."
+     data-tr="Waveshare ESP32-S3-Touch-AMOLED-2.06 için yazılım. Her şey saatin kendi zamanı ve konumundan saatte hesaplanır: internet, GPS ya da telefon gerekmez. Önce pil ömrü gelir."></p>
+</div>
+
+<main>
+<section id="preview">
+  <div class="heading">
+    <h2 data-en="Try it" data-tr="Deneyin"></h2>
+    <button type="button" class="help-button" id="helpOpen" aria-label="How to use it">?</button>
+  </div>
+  <dialog id="helpDialog">
+  <h3 data-en="How to use the preview" data-tr="Önizleme nasıl kullanılır"></h3>
+  <ul class="steps">
+    <li data-en="Drag the screen sideways with the mouse, or press ▶: from the watch face to the page list, as a swipe on the watch."
+        data-tr="Ekranı fareyle yana sürükleyin ya da ▶'ye basın: saatteki kaydırma gibi ön yüzden sayfa listesine geçer."></li>
+    <li data-en="In the page list, click a row (World clock, Torch...) to open that page. Drag up or down, or turn the mouse wheel, for more rows."
+        data-tr="Sayfa listesinde bir satıra (Dünya saati, Fener...) tıklayınca o sayfa açılır. Diğer satırlar için yukarı ya da aşağı sürükleyin veya fare tekerini çevirin."></li>
+    <li data-en="On the face and on an opened page, the mouse wheel, ▲ ▼ or a drag up or down shows the next face page or part."
+        data-tr="Ön yüzde ve açılan sayfada fare tekeri, ▲ ▼ ya da yukarı-aşağı sürükleme sonraki yüz sayfasını veya bölümü gösterir."></li>
+    <li data-en="The keys on the watch's side work as on the watch: BOOT goes one step back, PWR shows the dim always-on face and wakes the watch again."
+        data-tr="Saatin yanındaki tuşlar saattekiyle aynı çalışır: BOOT bir adım geri götürür, PWR sönük bekleme yüzünü gösterir ve saati yeniden uyandırır."></li>
+  </ul>
+  <form method="dialog"><button type="submit" data-en="Close" data-tr="Kapat"></button></form>
+  </dialog>
+  <div class="stage">
+    <div class="watch" id="watch">
+      <div class="scaler" id="scaler">
+        <div class="screen" id="screen">
+          <div class="track" id="track">
+            <canvas class="tile" id="faceTile" width="410" height="502"></canvas>
+            <div class="tile launcher" id="launcher">
+              <div class="launcher-title" id="launcherTitle"></div>
+              <div class="launcher-list" id="list"></div>
+              <div class="chevron" id="launcherBack">&#8249;</div>
+              <canvas class="gauge-layer" id="gaugeLayer" width="410" height="502"></canvas>
+            </div>
+            <canvas class="tile" id="pageTile" width="410" height="502"></canvas>
+          </div>
+        </div>
+      </div>
+      <button type="button" class="key pwr" id="pwr" title="PWR">PWR</button>
+      <button type="button" class="key boot" id="boot" title="BOOT">BOOT</button>
+    </div>
+    <div class="controls">
+      <div class="note">
+        <p id="where" class="where"></p>
+        <p id="note"></p>
+      </div>
+      <p class="views-hint" id="viewsHint" hidden></p>
+      <div class="arrows">
+        <!-- As the keyboard's arrows: towards the tile, the face page or the part in that direction
+             (a swipe the other way). -->
+        <button type="button" data-move="down" aria-label="previous">&#9650;</button>
+        <div>
+          <button type="button" data-move="right" aria-label="left">&#9664;</button>
+          <button type="button" data-move="left" aria-label="right">&#9654;</button>
+        </div>
+        <button type="button" data-move="up" aria-label="next">&#9660;</button>
+      </div>
+      <div class="controls-row">
+        <button type="button" class="night-toggle" id="red" aria-pressed="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>
+          <span data-en="Night mode" data-tr="Gece modu"></span></button>
+        <a class="install" id="installJump" href="#install" data-en="Install on the watch" data-tr="Saate kur"></a>
+      </div>
+      <p class="small" id="noSerial" hidden data-en="This browser cannot reach USB, so it cannot install: use Chrome or Edge on a computer."
+         data-tr="Bu tarayıcı USB'ye erişemediği için kurulum yapamaz: bilgisayarda Chrome ya da Edge kullanın."></p>
+   </div>
+  </div>
+</section>
+
+<section id="anatomy">
+  <h2 data-en="The watch face" data-tr="Ön yüz"></h2>
+  <p class="hint" data-en="Each face page is put together in the setup portal. Tap an area's name to see what it can show."
+     data-tr="Her yüz sayfası kurulum portalında oluşturulur. Neler gösterebileceğini görmek için bir alanın adına dokunun."></p>
+  <div class="anatomy-figure"><svg id="anatomySvg" viewBox="0 0 910 542" role="img"></svg></div>
+  <div class="anatomy-buttons" id="anatomyButtons"></div>
+  <div class="anatomy-table" id="anatomyTable"></div>
+</section>
+
+<section id="portal">
+  <h2 data-en="Setup portal" data-tr="Kurulum portalı"></h2>
+  <p class="hint" data-en="Started on the watch, it opens on a phone or a computer over the watch's own Wi-Fi: the time and place, the face pages, the alarms, the settings and updates. Click a page to see it whole."
+     data-tr="Saatte başlatılır, saatin kendi Wi-Fi ağı üzerinden telefonda ya da bilgisayarda açılır: saat ve yer, yüz sayfaları, alarmlar, ayarlar ve güncellemeler. Tamamını görmek için bir sayfaya tıklayın."></p>
+  <!-- How to reach the portal: the watch's pictures (cut by CSS, both languages) and a phone's
+       Wi-Fi list drawn here, plain and of no brand. -->
+  <ol class="portal-steps">
+    <li class="step">
+      <div class="crop setup-crop"><img data-shot-img="face-0" alt=""><span class="ring" style="left: 117px; top: 154px; width: 34px; height: 34px; border-radius: 50%;"></span></div>
+      <p data-en="On the watch face, tap the Wi-Fi icon." data-tr="Ön yüzde Wi-Fi simgesine dokunun."></p>
+    </li>
+    <li class="arrow" aria-hidden="true"><span>&#10140;</span><small data-en="tap" data-tr="dokunun"></small></li>
+    <li class="step">
+      <div class="crop setup-crop"><img data-shot-img="17-setup" alt=""><span class="ring" style="left: 18px; top: 20px; width: 128px; height: 40px; border-radius: 8px;"></span></div>
+      <p data-en="Tap Setup: the watch shows its network and password." data-tr="Kurulum satırına dokunun: saat ağ adını ve şifresini gösterir."></p>
+    </li>
+    <li class="arrow" aria-hidden="true"><span>&#10140;</span><small data-en="tap" data-tr="dokunun"></small></li>
+    <li class="step">
+      <div class="crop wifi-list">
+        <div class="wifi-head">Wi-Fi <span class="toggle"></span></div>
+        <div class="wifi-row chosen">AstroWatch-F455<span>&#128274;</span></div>
+        <div class="wifi-row" data-en="Home" data-tr="Ev"></div>
+        <div class="wifi-row" data-en="Office" data-tr="Ofis"></div>
+        <div class="wifi-row">Cafe-Guest</div>
+      </div>
+      <p data-en="On the phone, choose the watch's network and type the password." data-tr="Telefonda saatin ağını seçip şifreyi yazın."></p>
+    </li>
+    <li class="arrow" aria-hidden="true"><span>&#10140;</span><small data-en="it opens" data-tr="açılır"></small></li>
+    <li class="step">
+      <div class="crop portal-crop" data-shot-bg="portal"></div>
+      <p data-en="The setup page opens by itself (otherwise go to 192.168.4.1)." data-tr="Kurulum sayfası kendiliğinden açılır (açılmazsa 192.168.4.1 adresine gidin)."></p>
+    </li>
+  </ol>
+  <div class="portal-shots">
+    <button type="button" class="portal-shot" data-shot="portal"><img alt=""><span data-en="Settings" data-tr="Ayarlar"></span></button>
+    <button type="button" class="portal-shot" data-shot="portal-faces"><img alt=""><span data-en="Face pages" data-tr="Yüz sayfaları"></span></button>
+    <button type="button" class="portal-shot" data-shot="update"><img alt=""><span data-en="Update" data-tr="Güncelleme"></span></button>
+  </div>
+  <dialog id="portalDialog" class="portal-dialog">
+    <div class="phone"><img id="portalImage" alt=""></div>
+    <form method="dialog"><button type="submit" data-en="Close" data-tr="Kapat"></button></form>
+  </dialog>
+</section>
+
+<section id="features">
+  <h2 data-en="Features" data-tr="Özellikler"></h2>
+  <ul id="featureList"></ul>
+</section>
+
+<section id="hardware">
+  <h2 data-en="Hardware" data-tr="Donanım"></h2>
+  <p data-en="Only for the Waveshare ESP32-S3-Touch-AMOLED-2.06: an ESP32-S3 with a 2.06 inch AMOLED screen (410 x 502), the AXP2101 power chip, the PCF85063 clock, the QMI8658 motion sensor and a speaker, in its case with a battery. Other boards are not supported."
+     data-tr="Yalnız Waveshare ESP32-S3-Touch-AMOLED-2.06 için: 2,06 inç AMOLED ekranlı (410 x 502) bir ESP32-S3, AXP2101 güç yongası, PCF85063 saat, QMI8658 hareket algılayıcı ve hoparlör; kasası ve piliyle. Başka kartlar desteklenmez."></p>
+  <p><a href="https://www.waveshare.com/esp32-s3-touch-amoled-2.06.htm" data-en="The board at Waveshare's shop" data-tr="Kart, Waveshare'in mağazasında"></a></p>
+  <p class="tr-only">Türkiye'deki resmi dağıtıcılar (<a href="https://www.waveshare.com/distributors">Waveshare'in listesi</a>):
+    <a href="https://market.samm.com">SAMM Teknoloji</a>, <a href="https://www.direnc.net">Direnc</a>,
+    <a href="https://www.robotistan.com">Robotistan</a>, <a href="https://robotsepeti.com">Robotsepeti</a>,
+    <a href="https://www.m2mmarket.com.tr">LTE Elektronik</a>, <a href="https://www.motorobit.com/waveshare">Motorobit (İnfotek)</a>,
+    <a href="https://www.robocombo.com">Robocombo</a>.</p>
+  <p class="small" data-en="Battery current, measured with a meter on the board (the cell is labelled 400 mAh but behaves like about 150 mAh):"
+     data-tr="Pil akımı, kartta ölçü aletiyle ölçüldü (pilin üstünde 400 mAh yazar ama yaklaşık 150 mAh gibi davranır):"></p>
+  <table class="power">
+    <tr><td data-en="Screen on" data-tr="Ekran açık"></td><td>≈ 38 mA</td></tr>
+    <tr><td data-en="Always-on face (about 35 to 40 hours on its own)" data-tr="Bekleme yüzü (tek başına yaklaşık 35-40 saat)"></td><td>≈ 4 mA</td></tr>
+    <tr><td data-en="Off, the clock still running (months)" data-tr="Kapalı, saat işlemeye devam eder (aylarca)"></td><td>0.05 mA</td></tr>
+  </table>
+</section>
+
+<section id="install">
+  <h2 data-en="Install" data-tr="Kurulum"></h2>
+  <p data-en="Connect the watch with USB, then press the button (Chrome or Edge on a computer). The first install clears the watch's settings; later versions install from the watch's own setup page, from a phone."
+     data-tr="Saati USB ile bağlayın, sonra düğmeye basın (bilgisayarda Chrome ya da Edge). İlk kurulum saatin ayarlarını siler; sonraki sürümler saatin kendi kurulum sayfasından, telefondan kurulur."></p>
+  <esp-web-install-button manifest="firmware/manifest.json">
+    <button slot="activate" type="button" class="install" data-en="Install on the watch" data-tr="Saate kur"></button>
+    <span slot="unsupported" data-en="This browser cannot reach USB: use Chrome or Edge on a computer, or the command below." data-tr="Bu tarayıcı USB'ye erişemiyor: bilgisayarda Chrome ya da Edge kullanın ya da aşağıdaki komutu."></span>
+  </esp-web-install-button>
+  <p class="small" id="release" hidden></p>
+  <p class="small"><span data-en="The images: " data-tr="Kurulum dosyaları: "></span><a href="https://gitlab.com/huseyinkozan/astronomical-watch/-/releases" data-en="releases on GitLab" data-tr="GitLab sürümleri"></a> ·
+     <a href="https://github.com/huseyinkozan/astronomical-watch/releases" data-en="releases on GitHub" data-tr="GitHub sürümleri"></a></p>
+  <p class="small" data-en="No port? Hold BOOT while pressing PWR for the download mode. Without a browser:" data-tr="Port görünmüyor mu? İndirme modu için BOOT'u basılı tutup PWR'a basın. Tarayıcısız:"></p>
+  <pre><code>pip install esptool
+esptool --chip esp32s3 -p /dev/ttyACM0 write-flash 0x0 astronomical_watch-&lt;version&gt;-full.bin</code></pre>
+</section>
+
+<section id="guide">
+  <h2 data-en="Using it" data-tr="Kullanım"></h2>
+  <ul id="guideList"></ul>
+</section>
+
+<section id="faq">
+  <h2 data-en="Questions" data-tr="Sorular"></h2>
+  <details><summary data-en="Can I go back to the watch's original software?" data-tr="Saatin eski yazılımına dönebilir miyim?"></summary>
+    <p data-en="Yes, if you save it first. Before the first install, read the whole flash (32 MB) with esptool, and write it back the same way when you want it again. Waveshare also publishes its demo programs on its wiki."
+       data-tr="Evet, önce kaydederseniz. İlk kurulumdan önce esptool ile tüm belleği (32 MB) okuyun; geri istediğinizde aynı yolla yazın. Waveshare de deneme programlarını kendi wiki sayfasında yayımlar."></p>
+    <pre><code>esptool --chip esp32s3 -p /dev/ttyACM0 read-flash 0 0x2000000 backup.bin
+esptool --chip esp32s3 -p /dev/ttyACM0 write-flash 0x0 backup.bin</code></pre></details>
+  <details><summary data-en="How long does the battery last?" data-tr="Pil ne kadar dayanır?"></summary>
+    <p data-en="It depends on how often the screen is on: that costs the most. The always-on face lasts about a day and a half on its own; the watch switches itself off when it lies still for a while (30 min by default) or at 10 %, and then keeps the time for months. The always-on face can be turned off in the settings."
+       data-tr="Ekranın ne sıklıkla açık olduğuna bağlıdır; en çok o harcar. Bekleme yüzü tek başına bir buçuk gün kadar dayanır; saat bir süre hareketsiz kalınca (varsayılan 30 dk) ya da %10'da kendini kapatır ve zamanı aylarca tutar. Bekleme yüzü ayarlardan kapatılabilir."></p></details>
+  <details><summary data-en="Why no Bluetooth, GPS or time from the internet?" data-tr="Neden Bluetooth, GPS ya da internetten saat yok?"></summary>
+    <p data-en="Battery life comes first. The Sun, the Moon, the planets and the prayer times are computed from the time and the place set once in the setup portal. The clock chip keeps the time, and each setting corrects its rate. Open the portal again once a year, or when you travel."
+       data-tr="Önce pil ömrü gelir. Güneş, Ay, gezegenler ve namaz vakitleri kurulum portalında bir kez girilen saat ve yerden hesaplanır. Zamanı saat yongası tutar; her ayar onun hızını düzeltir. Portalı yılda bir ya da yolculuğa çıkınca yeniden açın."></p></details>
+  <details><summary data-en="Which browsers can install it?" data-tr="Hangi tarayıcılar kurabilir?"></summary>
+    <p data-en="A browser on a computer that can reach USB (Web Serial), such as Chrome or Edge; the install button is greyed out in one that cannot. Phones cannot do the first install; later versions install from a phone through the watch's setup portal."
+       data-tr="Bilgisayarda USB'ye (Web Serial) erişebilen bir tarayıcı, örneğin Chrome ya da Edge; erişemeyen tarayıcıda kurulum düğmesi soluk görünür. Telefonlar ilk kurulumu yapamaz; sonraki sürümler telefondan, saatin kurulum portalıyla kurulur."></p></details>
+  <details><summary data-en="The installer does not show the watch." data-tr="Kurulum saati göstermiyor."></summary>
+    <p data-en="A sleeping watch has no USB port: press PWR first. Use a USB cable that carries data, not only power. If it still does not show, hold BOOT while you press PWR: the watch starts in its download mode. On Linux your user may need the dialout group."
+       data-tr="Uyuyan saatin USB portu olmaz: önce PWR'a basın. Yalnız şarj eden değil, veri taşıyan bir USB kablosu kullanın. Yine görünmezse BOOT'u basılı tutup PWR'a basın: saat indirme modunda açılır. Linux'ta kullanıcınızın dialout grubunda olması gerekebilir."></p></details>
+  <details><summary data-en="Which languages does it speak?" data-tr="Hangi dilleri konuşur?"></summary>
+    <p data-en="English and Turkish, chosen on the watch's settings page or in the portal." data-tr="İngilizce ve Türkçe; saatin ayarlar sayfasında ya da portalda seçilir."></p></details>
+  <details><summary data-en="Can the cycle page be used for birth control?" data-tr="Döngü sayfası doğum kontrolü için kullanılabilir mi?"></summary>
+    <p data-en="No. It shows estimates from the days entered, and it is not a medical device. The page is hidden until it is shown in the portal, and it can be locked with a PIN."
+       data-tr="Hayır. Girilen günlerden tahminler gösterir ve tıbbi bir cihaz değildir. Sayfa portalda gösterilene kadar gizlidir ve bir PIN ile kilitlenebilir."></p></details>
+</section>
+
+<section id="privacy">
+  <h2 data-en="Privacy" data-tr="Gizlilik"></h2>
+  <p data-en="The watch sends nothing anywhere: it has no Bluetooth, no GPS and no internet. Its place, alarms, emergency card and cycle log stay in its own memory. The setup portal is the watch's own Wi-Fi network, on only while you set it up, and it never shows the cycle data."
+     data-tr="Saat hiçbir yere bir şey göndermez: Bluetooth, GPS ve internet yoktur. Yeri, alarmları, acil durum kartı ve döngü kaydı kendi belleğinde kalır. Kurulum portalı saatin kendi Wi-Fi ağıdır, yalnız kurulum sırasında açıktır ve döngü verilerini hiç göstermez."></p>
+  <p data-en="This site keeps no cookies and counts no visitors. It loads everything from itself; it only asks GitLab or GitHub for the latest version's number."
+     data-tr="Bu site çerez tutmaz, ziyaretçi saymaz. Her şeyi kendinden yükler; yalnız son sürümün numarasını GitLab'a ya da GitHub'a sorar."></p>
+</section>
+<section id="license">
+  <h2 data-en="License" data-tr="Lisans"></h2>
+  <p data-en="The watch's software is free under the MIT License: you may use, copy, change and share it, also in your own products, keeping its copyright notice. It comes without any warranty."
+     data-tr="Saatin yazılımı MIT Lisansı ile özgürdür: telif bildirimini koruyarak kullanabilir, kopyalayabilir, değiştirebilir ve paylaşabilirsiniz; kendi ürünlerinizde de. Hiçbir garanti verilmez."></p>
+  <p data-en="It also carries the work of others under their own licenses: ESP-IDF, the Waveshare board package and LVGL; the city list of GeoNames (CC BY 4.0); Natural Earth's land, NASA HEASARC's Messier catalogue and NOAA's World Magnetic Model (public domain); the JetBrains Mono font (SIL Open Font License). This site serves ESP Web Tools (Apache License 2.0)."
+     data-tr="Başkalarının emeğini de kendi lisanslarıyla taşır: ESP-IDF, Waveshare kart paketi ve LVGL; GeoNames şehir listesi (CC BY 4.0); Natural Earth kara verisi, NASA HEASARC Messier kataloğu ve NOAA Dünya Manyetik Modeli (kamu malı); JetBrains Mono yazı tipi (SIL Open Font License). Bu site ESP Web Tools'u (Apache Lisansı 2.0) sunar."></p>
+  <p><a href="https://gitlab.com/huseyinkozan/astronomical-watch/-/blob/master/LICENSE" data-en="The license text" data-tr="Lisans metni"></a></p>
+</section>
+</main>
+
+<footer>
+  <p data-en="The pictures are taken from the watch in a fixed scene (Istanbul, 21 June 2026, 19:19) with made-up data."
+     data-tr="Resimler saatten, uydurma verilerle sabit bir sahnede alındı (İstanbul, 21 Haziran 2026, 19:19)."></p>
+</footer>
+<script src="views.js"></script>
+<script src="notes.js"></script>
+<script src="anatomy.js"></script>
+<script src="preview.js"></script>
+</body>
+</html>
