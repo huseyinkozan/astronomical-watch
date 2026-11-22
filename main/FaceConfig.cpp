@@ -30,23 +30,24 @@ static int parameterLimit( int slot, int item )
 }
 
 // The owner's pages of 2026-11-19, as encode() writes them (read from the watch with the
-// development command "M"), with the Wi-Fi icon bottom right on the first four (2026-11-22):
-// 1. Full arcs, seven-segment digits, Milky Way and planets; short date, next sunrise or sunset,
-//    day counter; the weekday ring, the Moon's phase and the Wi-Fi icon in the corners.
-// 2. Half arcs, JetBrains Mono, Milky Way and planets; a day counter; the weekday ring, the Sun's
+// development command "M"), with the Wi-Fi icon bottom right on the first four and the emergency
+// card's blood type on every bottom edge, also on the always-on face (2026-11-22):
+// 1. Full arcs, seven-segment digits, Milky Way and planets; short date, next sunrise or sunset;
+//    the weekday ring, the Moon's phase and the Wi-Fi icon in the corners.
+// 2. Half arcs, JetBrains Mono, Milky Way and planets; the weekday ring, the Sun's
 //    altitude, the Moon's phase, the Wi-Fi icon.
 // 3. Large seven-segment digits with the slots of earlier versions.
 // 4. Full arcs around an analog Classic clock with the seconds hand, Milky Way and planets; the
-//    time on the top edge, the short date on the bottom edge; the weekday ring, alarm 1's days,
+//    time on the top edge, the short date below it; the weekday ring, alarm 1's days,
 //    the Moon's phase, the Wi-Fi icon.
 // 5. Large JetBrains Mono, the short date and the next sunrise or sunset below, no corners.
 // The corner gauges: the day or night, the battery, the Moon's pass and the display timeout.
 static const char *const s_defaultPages =
-    "1,0,1,0,6,2,4,0,9,2,0,1,17,0,0,0,0,0,0,0,0,17;"
-    "2,0,0,0,6,0,0,0,9,2,8,1,17,0,0,0,0,0,0,0,0,80;"
-    "0,0,1,0,0,2,5,0,9,2,8,1,17,0,0,0,0,0,0,0,0,81;"
-    "1,1,1,0,7,12,0,0,2,2,13,1,17,0,0,0,0,0,0,0,0,25;"
-    "0,0,0,0,0,0,2,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0"
+    "1,0,1,0,6,2,4,0,20,2,0,1,17,0,0,0,0,0,0,0,0,25;"
+    "2,0,0,0,6,0,0,0,20,2,8,1,17,0,0,0,0,0,0,0,0,88;"
+    "0,0,1,0,0,2,5,0,20,2,8,1,17,0,0,0,0,0,0,0,0,89;"
+    "1,1,1,0,7,12,2,0,20,2,13,1,17,0,0,0,0,0,0,0,0,27;"
+    "0,0,0,0,0,0,2,4,20,0,0,0,0,0,0,0,0,0,0,0,0,8"
     "/1,2,3,19,0,0,0,0";
 
 void FaceConfig::defaults( Pages &pages )

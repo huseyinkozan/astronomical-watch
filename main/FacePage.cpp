@@ -673,8 +673,8 @@ void FacePage::onDrawTimeIcon( lv_event_t *event )
     }
 }
 
-// The Wi-Fi sign: a dot and three arcs above it, lit while the setup portal runs, else dim like
-// the bell without an alarm.
+// The Wi-Fi sign with a gear at its lower right (the setup portal's settings), lit while the
+// portal runs, else dim like the bell without an alarm.
 void FacePage::onDrawWifiIcon( lv_event_t *event )
 {
     const FacePage *face = static_cast<FacePage *>( lv_event_get_user_data( event ) );
@@ -683,28 +683,54 @@ void FacePage::onDrawWifiIcon( lv_event_t *event )
     int32_t cy = 0;
     boxCentre( face->m_wifiIcon, cx, cy );
     const lv_color_t colour = face->m_inputs.wifiOn ? s_wifiOn : s_notchOff;
-    // The arcs' centre below the middle, so that the sign sits centred in the corner.
-    const int32_t baseY = cy + 12;
-    lv_draw_rect_dsc_t dot;
-    lv_draw_rect_dsc_init( &dot );
-    dot.bg_color = colour;
-    dot.radius = LV_RADIUS_CIRCLE;
-    const lv_area_t dotArea = { cx - 3, baseY - 3, cx + 3, baseY + 3 };
-    lv_draw_rect( layer, &dot, &dotArea );
+    lv_draw_rect_dsc_t disc;
+    lv_draw_rect_dsc_init( &disc );
+    disc.radius = LV_RADIUS_CIRCLE;
+    // The sign left of the middle: the dot, then three arcs above it.
+    const int32_t signX = cx - 4;
+    const int32_t signY = cy + 9;
+    disc.bg_color = colour;
+    const lv_area_t dotArea = { signX - 3, signY - 3, signX + 3, signY + 3 };
+    lv_draw_rect( layer, &disc, &dotArea );
     lv_draw_arc_dsc_t arc;
     lv_draw_arc_dsc_init( &arc );
     arc.color = colour;
     arc.width = 4;
     arc.rounded = 1;
-    arc.center.x = cx;
-    arc.center.y = baseY;
+    arc.center.x = signX;
+    arc.center.y = signY;
     // LVGL's angles run clockwise from 3 o'clock: 225 to 315 is the upper quarter.
     arc.start_angle = 225;
     arc.end_angle = 315;
-    for ( int i = 1; i <= 3; ++i ) {
-        arc.radius = static_cast<uint16_t>( 2 + i * 8 );
+    static const uint16_t s_radii[3] = { 8, 15, 22 };
+    for ( int i = 0; i < 3; ++i ) {
+        arc.radius = s_radii[i];
         lv_draw_arc( layer, &arc );
     }
+    // The gear on a black disc that cuts the arcs: a body, eight teeth and a hole.
+    const int32_t gearX = cx + 12;
+    const int32_t gearY = cy + 11;
+    disc.bg_color = lv_color_black();
+    const lv_area_t cut = { gearX - 9, gearY - 9, gearX + 9, gearY + 9 };
+    lv_draw_rect( layer, &disc, &cut );
+    disc.bg_color = colour;
+    const lv_area_t body = { gearX - 5, gearY - 5, gearX + 5, gearY + 5 };
+    lv_draw_rect( layer, &disc, &body );
+    lv_draw_line_dsc_t tooth;
+    lv_draw_line_dsc_init( &tooth );
+    tooth.color = colour;
+    tooth.width = 3;
+    for ( int i = 0; i < 8; ++i ) {
+        const float angle = static_cast<float>( M_PI ) * i / 4.0f;
+        tooth.p1.x = gearX + lroundf( 4.0f * cosf( angle ) );
+        tooth.p1.y = gearY + lroundf( 4.0f * sinf( angle ) );
+        tooth.p2.x = gearX + lroundf( 7.5f * cosf( angle ) );
+        tooth.p2.y = gearY + lroundf( 7.5f * sinf( angle ) );
+        lv_draw_line( layer, &tooth );
+    }
+    disc.bg_color = lv_color_black();
+    const lv_area_t hole = { gearX - 2, gearY - 2, gearX + 2, gearY + 2 };
+    lv_draw_rect( layer, &disc, &hole );
 }
 
 // Seven notches around the weekday's letter, from 12 o'clock clockwise: the first n lit on the

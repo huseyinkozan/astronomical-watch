@@ -700,7 +700,7 @@ function decodeFaces(text) {
   if (parts.length === 8 && parts.every((n) => Number.isInteger(n) && n >= 0 && n <= 255)) gauges = parts;
   const pages = pageText.split(';').map((page) => page.split(',').map(Number))
     .filter((v) => v.length === 22 && v.every((n) => Number.isInteger(n) && n >= 0 && n <= 255));
-  return pages.length > 0 ? pages : [[0, 0, 1, 0, 0, 2, 5, 0, 9, 2, 8, 1, 17, 0, 0, 0, 0, 0, 0, 0, 0, 0b01010001]];
+  return pages.length > 0 ? pages : [[0, 0, 1, 0, 0, 2, 5, 0, 20, 2, 8, 1, 17, 0, 0, 0, 0, 0, 0, 0, 0, 0b01011001]];
 }
 function selectOf(items, limit, value, onChange) {
   const select = document.createElement('select');

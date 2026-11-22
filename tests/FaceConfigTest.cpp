@@ -54,6 +54,14 @@ int main( int argc, char **argv )
                !FaceConfig::alwaysOnSlot( pages.pages[i], FaceConfig::BottomRight );
     }
     check( "defaults: the Wi-Fi icon bottom right, not on the always-on face", wifi );
+    bool emergency = true;
+    for ( int i = 0; i < pages.count; ++i ) {
+        emergency = emergency && pages.pages[i].items[FaceConfig::BottomEdge] == FaceConfig::EmergencyText &&
+                    FaceConfig::alwaysOnSlot( pages.pages[i], FaceConfig::BottomEdge );
+    }
+    check( "defaults: the emergency card on every bottom edge, also always-on", emergency );
+    check( "defaults: the analog page's short date moved to the top row",
+           analog.items[FaceConfig::TopInner] == FaceConfig::ShortDate && FaceConfig::alwaysOnSlot( analog, FaceConfig::TopInner ) );
     check( "defaults: Mono last", pages.pages[4].layout == FaceConfig::Large && pages.pages[4].digital == FaceConfig::MonoDigits );
     check( "defaults: today's corner gauges", pages.gauges[0] == FaceConfig::DayNightGauge &&
                                                   pages.gauges[1] == FaceConfig::BatteryGauge &&
