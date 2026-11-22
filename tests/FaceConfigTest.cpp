@@ -21,22 +21,23 @@ int main( int argc, char **argv )
 {
     FaceConfig::Pages pages = {};
     FaceConfig::defaults( pages );
-    // The owner's pages of 2026-11-19: Full arcs, Half arcs, Large seven segment, Full arcs with an
-    // analog Classic clock and the time on top, Large JetBrains Mono.
+    // The owner's pages of 2026-11-19, in the owner's order of 2026-11-22: Full arcs with an analog
+    // Classic clock and the time on top, Full arcs, Half arcs, Large seven segment, Large JetBrains
+    // Mono.
     check( "defaults: five pages", pages.count == 5 );
     check( "defaults: valid", FaceConfig::valid( pages ) );
-    const FaceConfig::Page &full = pages.pages[0];
+    const FaceConfig::Page &full = pages.pages[1];
     check( "defaults: full arcs, seven segment", full.layout == FaceConfig::FullArcs && full.clock == FaceConfig::DigitalClock &&
                                                      full.digital == FaceConfig::SevenSegment );
-    const FaceConfig::Page &half = pages.pages[1];
+    const FaceConfig::Page &half = pages.pages[2];
     check( "defaults: half arcs, Mono, Milky Way", half.layout == FaceConfig::HalfArcs && half.digital == FaceConfig::MonoDigits &&
                                                        ( half.flags & FaceConfig::MilkyWayFlag ) != 0 );
-    const FaceConfig::Page &first = pages.pages[2];
+    const FaceConfig::Page &first = pages.pages[3];
     check( "defaults: large", first.layout == FaceConfig::Large );
     check( "defaults: digital", first.clock == FaceConfig::DigitalClock );
     check( "defaults: seven segment", first.digital == FaceConfig::SevenSegment );
     check( "defaults: weekday icon top left", first.items[FaceConfig::TopLeft] == FaceConfig::WeekdayIcon );
-    const FaceConfig::Page &analog = pages.pages[3];
+    const FaceConfig::Page &analog = pages.pages[0];
     check( "defaults: full arcs analog Classic", analog.layout == FaceConfig::FullArcs && analog.clock == FaceConfig::AnalogClock &&
                                                      analog.analog == FaceConfig::ClassicHands );
     check( "defaults: Classic with the seconds hand", ( analog.flags & FaceConfig::SecondsHandFlag ) != 0 );

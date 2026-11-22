@@ -230,7 +230,7 @@ int main()
 
     // The default pages' texts fit their slots in both languages, except a name before a number
     // (the next event or prayer, a city, a day counter), which loses letters of its name only: the
-    // defaults are the owner's own pages (2026-11-19), whose first page cuts "Gün batımı" in
+    // defaults are the owner's own pages (2026-11-19), whose second page cuts "Gün batımı" in
     // Turkish.
     FaceConfig::Pages defaults = {};
     FaceConfig::defaults( defaults );
