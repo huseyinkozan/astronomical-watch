@@ -26,6 +26,9 @@ Without page numbers it takes every page, then the always-on face of every face 
 (always-on-<page>.png) and every face page (face-<page>.png);
 tools/make_gifs.py turns those into the animations of the README.
 
+The other views of some parts (the torch's colours, the astrolabe's modes...) for the site's
+preview: python tools/screenshot.py --views --out docs/screenshots/<en|tr>
+
 Screenshots for the repository (before a push): the setup portal on, then off with a new
 password, so that the published one is not in use:
     python tools/screenshot.py --send P --after P --after N
@@ -50,6 +53,28 @@ FACE_STYLES = 5
 # Parts that ask the main task for their values once they show (the Milky Way window): the first
 # picture only opens them, the second one, after the answer, is kept.
 ASK_ON_SHOW = {34}
+# The other views of a part, for the site's preview (--views): the presses ("B <button>" on the
+# opened page; several joined by ";") before each further picture, saved as <page>-<name>-2.png and so on, then the
+# presses that bring the part back to its first view. The torch's SOS views blink: left out; the
+# regatta start too, as the scene puts the countdown back at each picture; the scene's equipment
+# has two eyepieces.
+VIEWS = {
+    26: (['torch', 'torch'], ['torch', 'torch', 'torch']),
+    # Dice again steps the count of dice: two, three; then the coin and the number.
+    28: (['dice', 'dice', 'coin', 'number'], ['dice', 'dice']),
+    # fn steps the keypad: functions, inverse functions.
+    29: (['keys f', 'keys f'], ['keys f']),
+    # The keypads over a part (a value, the level's input) close when "S" opens the part again.
+    30: (['kind', 'kind'], ['kind']),
+    31: (['level', 'level'], ['level']),
+    32: (['mode', 'mode', 'mode', 'mode'], ['mode']),
+    33: (['flip'], ['flip']),
+    36: (['eyepiece'], ['eyepiece']),
+    37: (['calc', 'calc'], ['calc']),
+    38: (['body', 'body', 'body', 'body', 'body'], ['body']),
+    39: (['aim'], ['aim']),
+    43: (['legend', 'close;open-entry'], ['close']),
+}
 
 
 def writePng(path, width, height, rows):
@@ -155,6 +180,11 @@ def main():
     parser.add_argument('--after', action='append', default=[],
                         help='development command to send at the end, e.g. N (a new portal password, '
                              'so that published screenshots do not show the one in use); repeatable')
+    parser.add_argument('--faces', action='store_true',
+                        help='only the watch face, the always-on faces and the face pages')
+    parser.add_argument('--views', action='store_true',
+                        help="only the other views of the parts that have them (VIEWS), for the site; "
+                             "with page numbers, of those pages")
     parser.add_argument('--live', action='store_true',
                         help="the watch's own time and settings instead of the fixed scene")
     args = parser.parse_args()
@@ -220,11 +250,41 @@ def main():
                     return 1
         time.sleep(4)
     failures = 0
+    if args.views:
+        # With page numbers, only their views.
+        for target, (presses, restore) in VIEWS.items():
+            if args.pages and target not in args.pages:
+                continue
+            if capture(port, reader, target, verbose=args.verbose) is None:
+                print(f'page {target}: no answer (is the watch in active mode?)')
+                failures += 1
+                break
+            for k, buttons in enumerate(presses):
+                for button in buttons.split(';'):
+                    port.write(f'B {button}\n'.encode())
+                    time.sleep(0.3)
+                time.sleep(1.5)
+                result = capture(port, reader, target, verbose=args.verbose)
+                if result is None:
+                    failures += 1
+                    break
+                name, width, height, rows, missing = result
+                path = os.path.join(args.out, f'{target}-{name}-{k + 2}.png')
+                writePng(path, width, height, rows)
+                print(f'{name} view {k + 2}: {path}')
+                failures += 1 if missing else 0
+            for button in restore:
+                port.write(f'B {button}\n'.encode())
+                time.sleep(0.3)
+            time.sleep(1)
+        args.pages = [] if failures else args.pages
+    if args.faces:
+        args.pages = [FACE_PAGE] + [-1 - style for style in range(ALWAYS_ON_STYLES)]
     page = 0
-    everything = not args.pages
+    everything = not args.pages and not args.views
     allPages = everything
     pages = list(args.pages)
-    while True:
+    while not args.views:
         if allPages:
             target = page
         elif pages:
@@ -257,7 +317,7 @@ def main():
             failures += 1
         page += 1
     # Every layout of the watch face too, for the animation in the README (tools/make_gifs.py).
-    for style in range(FACE_STYLES if everything and failures == 0 else 0):
+    for style in range(FACE_STYLES if (everything or args.faces) and failures == 0 else 0):
         port.write(f'F {style}\n'.encode())
         time.sleep(1)
         result = capture(port, reader, FACE_PAGE, verbose=args.verbose)
