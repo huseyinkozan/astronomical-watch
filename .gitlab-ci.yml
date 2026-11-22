@@ -7,8 +7,6 @@ pages:
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
     - if: $CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "schedule"
-  variables:
-    SITE_URL: https://huseyinkozan.gitlab.io/astronomical-watch/
   # One block, so that YAML does not read the "key": in the patterns as a mapping.
   script:
     - |
@@ -19,7 +17,8 @@ pages:
         url=$(curl -fsSL https://api.github.com/repos/huseyinkozan/astronomical-watch/releases/latest | grep -o '"browser_download_url": *"[^"]*-full\.bin"' | sed 's/.*"\(http[^"]*\)"/\1/' | head -n 1) || true
       fi
       if [ -n "$url" ]; then curl -fsSL -o "release/$(basename "$url")" "$url"; fi
-      sh tools/make_site.sh $(ls release/*-full.bin 2>/dev/null | head -n 1)
+      # GitLab's own address for the site (a unique domain, or the project's path).
+      SITE_URL="$CI_PAGES_URL/" sh tools/make_site.sh $(ls release/*-full.bin 2>/dev/null | head -n 1)
   artifacts:
     paths:
       - public
