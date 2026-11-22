@@ -466,6 +466,20 @@ static bool pollHostCommands()
         if ( s_hostLine[0] == 'D' && s_hostLine[1] == '\0' ) {
             s_scene = true;
             sceneCycleLog();
+            // The published pictures show the default face pages and corner gauges, in RAM only
+            // (FaceStore keeps the owner's; only the portal saves them).
+            FaceConfig::defaults( s_facePages );
+            s_display.setPages( s_facePages );
+            // A sample emergency card, never the owner's (RAM only: s_card stays as loaded).
+            EmergencyCard sceneCard = {};
+            const bool turkish = Language::current() == 1;
+            sceneCard.set( EmergencyCard::Name, turkish ? "Ayşe Yılmaz" : "Jane Doe" );
+            sceneCard.set( EmergencyCard::BloodType, "A Rh+" );
+            sceneCard.set( EmergencyCard::Allergies, turkish ? "Penisilin" : "Penicillin" );
+            sceneCard.set( EmergencyCard::Medication, turkish ? "Yok" : "None" );
+            sceneCard.set( EmergencyCard::ContactName, turkish ? "Mehmet Yılmaz" : "John Doe" );
+            sceneCard.set( EmergencyCard::ContactPhone, "+90 555 000 00 00" );
+            s_display.setCard( sceneCard );
             s_faceTableStale = true;
             s_display.setScene( true );
             // Never the real place in a published picture.

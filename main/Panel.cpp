@@ -175,6 +175,11 @@ void Panel::draw( int x, int y, int width, int height, const uint16_t *pixels )
                 start = end;
             }
             printf( "\n" );
+            // A whole face over USB takes seconds: a tick now and then, or the task watchdog
+            // (the idle task starved for 5 s) resets the watch in the middle of the picture.
+            if ( row % 16 == 15 ) {
+                vTaskDelay( 1 );
+            }
         }
         return;
     }

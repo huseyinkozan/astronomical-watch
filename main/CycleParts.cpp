@@ -203,9 +203,11 @@ void CyclePages::drawSpiral( lv_layer_t *layer, const lv_area_t &area ) const
 
     // Below: the carry-a-pad hint, the estimate's warning, the next period's range with a drop.
     if ( s.carryPad ) {
-        centred( layer, &jetbrains_mono_16, CycleDraw::amber(), 408, Language::text( Language::CycleCarryPad ) );
+        centred( layer, &jetbrains_mono_16, CycleDraw::amber(), 392, Language::text( Language::CycleCarryPad ) );
     }
-    centred( layer, &jetbrains_mono_14, CycleDraw::amber(), 432, Language::text( Language::CycleEstimate ) );
+    // Two lines between the lower gauges (wrapped by the label).
+    text( layer, &jetbrains_mono_14, CycleDraw::amber(), LV_TEXT_ALIGN_CENTER, 70, 418, Panel::WIDTH - 71, 454,
+          Language::text( Language::CycleEstimate ) );
     char range[32];
     if ( s.nextEarly > 0 && start > 0 ) {
         char from[12];
