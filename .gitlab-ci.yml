@@ -9,13 +9,17 @@ pages:
     - if: $CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "schedule"
   variables:
     SITE_URL: https://huseyinkozan.gitlab.io/astronomical-watch/
+  # One block, so that YAML does not read the "key": in the patterns as a mapping.
   script:
-    - apk add --no-cache curl
-    - mkdir -p release
-    - url=$(curl -fsSL "https://gitlab.com/api/v4/projects/huseyinkozan%2Fastronomical-watch/releases/permalink/latest" | grep -o '"direct_asset_url": *"[^"]*-full\.bin"' | sed 's/.*"\(http[^"]*\)"/\1/' | head -n 1) || true
-    - if [ -z "$url" ]; then url=$(curl -fsSL https://api.github.com/repos/huseyinkozan/astronomical-watch/releases/latest | grep -o '"browser_download_url": *"[^"]*-full\.bin"' | sed 's/.*"\(http[^"]*\)"/\1/' | head -n 1) || true; fi
-    - if [ -n "$url" ]; then curl -fsSL -o "release/$(basename "$url")" "$url"; fi
-    - sh tools/make_site.sh $(ls release/*-full.bin 2>/dev/null | head -n 1)
+    - |
+      apk add --no-cache curl
+      mkdir -p release
+      url=$(curl -fsSL "https://gitlab.com/api/v4/projects/huseyinkozan%2Fastronomical-watch/releases/permalink/latest" | grep -o '"direct_asset_url": *"[^"]*-full\.bin"' | sed 's/.*"\(http[^"]*\)"/\1/' | head -n 1) || true
+      if [ -z "$url" ]; then
+        url=$(curl -fsSL https://api.github.com/repos/huseyinkozan/astronomical-watch/releases/latest | grep -o '"browser_download_url": *"[^"]*-full\.bin"' | sed 's/.*"\(http[^"]*\)"/\1/' | head -n 1) || true
+      fi
+      if [ -n "$url" ]; then curl -fsSL -o "release/$(basename "$url")" "$url"; fi
+      sh tools/make_site.sh $(ls release/*-full.bin 2>/dev/null | head -n 1)
   artifacts:
     paths:
       - public
