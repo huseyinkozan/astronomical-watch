@@ -292,6 +292,12 @@
   and the Wi-Fi password stay.</small>
   <p><button type="button" id="factoryReset" data-tr="Fabrika ayarlarına sıfırla">Reset to factory settings</button></p>
 </fieldset>
+
+<fieldset>
+  <legend data-tr="Döngü verileri">Cycle data</legend>
+  <small data-tr="Döngü sayfasının kayıtları ve PIN'i yalnız saatte tutulur; portal onları göstermez. PIN unutulursa buradan silinebilir.">The cycle page's log and PIN stay on the watch; the portal never shows them. A forgotten PIN is cleared here with them.</small>
+  <p><button type="button" id="cycleDelete" data-tr="Döngü verilerini sil">Delete cycle data</button></p>
+</fieldset>
 </section>
 
 
@@ -592,6 +598,9 @@ const orderLists = [
             ['Emergency card', 'Acil durum kartı']] },
   { title: ['Observing page', 'Gözlem sayfası'], order: 'observingOrder', hidden: 'observingHidden',
     names: observingParts },
+  { title: ['Cycle page', 'Döngü sayfası'], order: 'cycleOrder', hidden: 'cycleHidden',
+    names: [['Cycle', 'Döngü'], ['Calendar', 'Takvim'], ['History', 'Geçmiş'], ['With the Moon', 'Ay ile'],
+            ['Pregnancy', 'Gebelik'], ['Hayz (Diyanet)', 'Hayız (Diyanet)'], ['Cycle settings', 'Döngü ayarları']] },
 ];
 // As PartOrder::decode: an order saved before parts were added keeps its places, the new parts follow.
 function decodeOrder(value, count) {
@@ -689,7 +698,8 @@ const faceCorners = [['Nothing', 'Boş'], ['Moon phase', 'Ay evresi'], ['Weekday
   ['Moon altitude', 'Ay yüksekliği', '25°', '25°'], ['Hour (HH)', 'Saat (SS)', '19', '19'],
   ['Minute (MM)', 'Dakika (DD)', '19', '19'], ['Second', 'Saniye', '42', '42'], null,
   ['Time icon', 'Zaman simgesi'], null, ['Time (HH:MM)', 'Saat (SS:DD)', '19:19', '19:19'],
-  ['Wi-Fi icon (lit while the setup portal runs)', 'Wi-Fi simgesi (kurulum portalı açıkken yanar)']];
+  ['Wi-Fi icon (lit while the setup portal runs)', 'Wi-Fi simgesi (kurulum portalı açıkken yanar)'],
+  ['Cycle icon (colours only while the cycle page is unlocked)', 'Döngü simgesi (renkler yalnız döngü sayfası açıkken)']];
 // FaceConfig::TimeIcon: the alarm days and the hourglass of their own (AlarmDays, TimerGlass,
 // offered no more) show as it.
 const AlarmDaysCorner = 13, TimeIconCorner = 14, TimerGlassCorner = 15;
@@ -742,7 +752,8 @@ const gaugeItems = [['Nothing', 'Boş'], ['Day or night', 'Gündüz ya da gece']
   ['Hijri month', 'Hicri ay'], ['Year', 'Yıl'], ['Day counter', 'Gün sayacı'], ['Sun altitude', 'Güneş yüksekliği'],
   ['Hour', 'Saat'], ['Minute', 'Dakika'], ['Second (not on the always-on face)', 'Saniye (beklemede yok)'],
   ['Display timeout, time left (always-on: until it switches off without motion)',
-   'Ekran zaman aşımı, kalan süre (beklemede: hareketsiz kapanmaya kalan)']];
+   'Ekran zaman aşımı, kalan süre (beklemede: hareketsiz kapanmaya kalan)'],
+  ['Menstrual cycle (colours only while the cycle page is unlocked)', 'Adet döngüsü (renkler yalnız döngü sayfası açıkken)']];
 const gaugeCounterFills = [['since it was saved', 'kaydedildiğinden beri'], ['yearly', 'yıllık'], ['the last 30 days', 'son 30 gün'],
   ['the last 100 days', 'son 100 gün']];
 const DayCounterGauge = 14, HourGauge = 16;
@@ -1115,6 +1126,11 @@ $('factoryReset').addEventListener('click', async () => {
   if (!confirm(t('Clear every setting of the watch and restart it?', 'Saatin bütün ayarları silinip yeniden başlatılsın mı?'))) return;
   await fetch('/api/reset', { method: 'POST' }).catch(() => {});
   $('status').textContent = t('The watch restarts with its factory settings.', 'Saat fabrika ayarlarıyla yeniden başlıyor.');
+});
+$('cycleDelete').addEventListener('click', async () => {
+  if (!confirm(t('Delete the cycle page\'s log and PIN on the watch?', 'Saatteki döngü kayıtları ve PIN silinsin mi?'))) return;
+  await fetch('/api/cycle/delete', { method: 'POST' }).catch(() => {});
+  $('status').textContent = t('Cycle data deleted.', 'Döngü verileri silindi.');
 });
 async function saveCard() {
   // Not read from the watch: sending empty fields would clear its card.

@@ -104,6 +104,10 @@ static const ItemInfo s_items[Settings::ItemCount] = {
     { "trail_int", 30, 0, {}, 1, 600 },
     // Türksat 42.0 degrees east, one of the presets: no own entry until the portal sets another.
     { "sat_lon", 420, 0, {}, -1800, 1800 },
+    // The cycle page (CyclePages::Part): every part hidden, so that the page stays out of the
+    // launcher until a woman shows it in the portal; the Hayız part is chosen there too.
+    { "cycle_order", 0, 0, {}, 0, 16777215 },
+    { "cycle_hidden", 0x7F, 0, {}, 0, 255 },
 };
 
 static int indexOf( const ItemInfo &info, int value )

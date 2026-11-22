@@ -122,6 +122,7 @@ public:
         TimerGlass,
         TimeCorner,  // HH:MM
         WifiIcon,    // lit while the setup portal runs; the active face only
+        CycleIcon,   // the cycle's ring around its day (CyclePages); neutral while the page is locked
         CornerItemCount
     };
 
@@ -172,6 +173,7 @@ public:
         MinuteGauge,
         SecondGauge,       // the active face only
         TimeoutGauge,      // the display timeout's time left; always-on: until the power-off without motion
+        CycleGauge,        // the menstrual cycle from its start to its mean length (CyclePages)
         GaugeItemCount
     };
     enum CounterFill : uint8_t

@@ -29,6 +29,10 @@ public:
     // Its gauges follow it ten times a second and grow back in steps after a touch.
     static void setTimeoutLeft( int left );
 
+    // From any task: the cycle gauge's phases (its mean length, bleeding days and fertile window
+    // in cycle days) and whether to colour them (the cycle page unlocked); neutral grey otherwise.
+    static void setCycle( int length, int period, int fertileFirst, int fertileLast, bool colour );
+
     // Writes the gauges into a rendered band: `pixels` hold `area` row after row, in LVGL's
     // RGB565 (before the flush swaps the bytes).
     void paint( const lv_area_t &area, uint16_t *pixels ) const;
@@ -56,4 +60,5 @@ private:
     bool m_built = false;
     // The charging animation's step: 0 shows the value alone (CornerView.cpp).
     int m_chargeStep = 0;
+    uint32_t m_cycleKey = 0;  // the cycle colours last drawn (CornerView.cpp)
 };

@@ -17,6 +17,8 @@
 #include "PlanetPages.h"
 #include "SkyPages.h"
 #include "ToolPages.h"
+#include "CycleLog.h"
+#include "CyclePages.h"
 #include "ObservingPages.h"
 #include "TablePart.h"
 #include "lvgl.h"
@@ -74,7 +76,9 @@ public:
         // page is built in it.
         Restart = 4,
         // The settings page's factory reset, tapped twice: the main task erases and restarts.
-        FactoryReset = 8
+        FactoryReset = 8,
+        // The cycle page saved a change: the face table's cycle is computed again.
+        CycleChanged = 16
     };
 
     // Starts LVGL, the panel and touch (BSP), sets the brightness and builds the pages. A tap on
@@ -172,6 +176,20 @@ public:
     // metronome stops holding active mode; -1 when neither runs, as of the last inactiveMs()
     // call: meanwhile no display timeout, at 0 active mode ends (main.cpp).
     int toolSecondsLeft() const;
+
+    // The cycle page's log (the main task's), before start(); the page uses it with the display
+    // lock held.
+    void setCycleLog( CycleLog *log );
+    // Whether the cycle page's PIN was given since active mode started (or none is set): the
+    // corner gauge and icon show their colours then.
+    bool cycleUnlocked();
+    // The cycle log changed from the main task (the development scene).
+    void cycleChanged();
+    // A Ramadan that ended, for the cycle page's make-up balance (found by the main task).
+    void addCycleRamadan( int year, int firstDay, int length );
+    static void onCycleChanged( void *user );
+    // The portal's "delete cycle data": the log and the PIN go, the page shows it empty.
+    void deleteCycleData();
 
     // Whether the countdown's regatta sequence runs to its start, as of the last inactiveMs()
     // call, which also gives its signals (ClockPages::serviceRegatta): meanwhile no display
@@ -289,6 +307,8 @@ private:
     EmergencyCard m_card = {};
     Motion *m_motion = nullptr;
     ObservingPages m_observing;
+    CyclePages m_cycle;
+    CycleLog *m_cycleLog = nullptr;
     // The sky's inputs as last shown (showPlanets), for a page built later.
     int64_t m_skyNow = 0;
     Astronomy::Observer m_skyObserver = { 0, 0 };

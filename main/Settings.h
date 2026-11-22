@@ -77,6 +77,8 @@ public:
         TrailMinutes,    // a star-trail series' length
         TrailInterval,   // seconds from one frame to the next
         SatelliteLongitude,  // the aiming part's own satellite, tenths of a degree east (NavParts)
+        CycleOrder,      // the cycle page's parts (PartOrder)
+        CycleHidden,     // all hidden by default: the page stays out of the launcher until shown
         ItemCount
     };
     // The items before this one are on the watch's settings page; FaceStyle is chosen by a

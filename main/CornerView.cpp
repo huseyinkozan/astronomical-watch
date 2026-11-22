@@ -18,6 +18,10 @@ static const uint32_t s_timeoutStepMs = 100;
 static const int s_timeoutMinMove = 5;
 static const int s_timeoutGrowth = 200;
 static std::atomic<int> s_timeoutLeft( 1000 );
+// The cycle gauge's phases, packed so that one store changes them together: length (8 bits),
+// period, fertile first, fertile last (8 each), and the colour flag in bit 31... kept in two words.
+static std::atomic<uint32_t> s_cyclePhases( 0 );
+static std::atomic<bool> s_cycleColour( false );
 // The channel: the gauge's colour at this share of its brightness.
 static const float s_channelShare = 0.3f;
 static const float s_halfWidth = Corners::ActiveWidth / 2.0f;
@@ -36,7 +40,9 @@ static const uint32_t s_activeColours[] = { 0x000000, 0xFFD040, 0x5078FF, 0x40D0
                                             0x6090FF, 0xFFD040, 0xFFFFFF,
                                             // The display timeout white, red at its end,
                                             // orange before it as the battery.
-                                            0xFFFFFF, 0xFF4030, 0xFF8020 };
+                                            0xFFFFFF, 0xFF4030, 0xFF8020,
+                                            // The cycle, neutral grey (its phase colours below).
+                                            0x969696 };
 static_assert( sizeof( s_activeColours ) / sizeof( s_activeColours[0] ) == Corners::KindCount, "a colour per kind" );
 
 static float clamp01( float value )
@@ -104,6 +110,29 @@ void CornerView::build()
     lv_timer_create( onTimeoutStep, s_timeoutStepMs, this );
 }
 
+void CornerView::setCycle( int length, int period, int fertileFirst, int fertileLast, bool colour )
+{
+    const uint32_t packed = static_cast<uint32_t>( length & 0xFF ) | static_cast<uint32_t>( period & 0xFF ) << 8 |
+                            static_cast<uint32_t>( fertileFirst & 0xFF ) << 16 | static_cast<uint32_t>( fertileLast & 0xFF ) << 24;
+    s_cyclePhases.store( packed );
+    s_cycleColour.store( colour );
+}
+
+// The colour of cycle day `day` while unlocked: bleeding red, fertile blue, otherwise grey.
+static uint32_t cyclePhaseColour( int day )
+{
+    const uint32_t packed = s_cyclePhases.load();
+    if ( day <= static_cast<int>( ( packed >> 8 ) & 0xFF ) ) {
+        return 0xFF5064;
+    }
+    const int first = static_cast<int>( ( packed >> 16 ) & 0xFF );
+    const int last = static_cast<int>( packed >> 24 );
+    if ( first > 0 && day >= first && day <= last ) {
+        return 0x5A96FF;
+    }
+    return 0x969696;
+}
+
 void CornerView::setTimeoutLeft( int left )
 {
     s_timeoutLeft.store( left );
@@ -114,6 +143,16 @@ void CornerView::onTimeoutStep( lv_timer_t *timer )
 {
     CornerView *self = static_cast<CornerView *>( lv_timer_get_user_data( timer ) );
     const int left = s_timeoutLeft.load();
+    // The cycle gauge's colours follow the lock and the phases.
+    const uint32_t cycleKey = s_cyclePhases.load() ^ ( s_cycleColour.load() ? 0x80000000u : 0 );
+    if ( cycleKey != self->m_cycleKey ) {
+        self->m_cycleKey = cycleKey;
+        for ( int i = 0; i < Corners::CornerCount; ++i ) {
+            if ( self->m_gauges[i].kind == Corners::CycleKind ) {
+                self->invalidate( i );
+            }
+        }
+    }
     for ( int i = 0; i < Corners::CornerCount; ++i ) {
         Corners::Gauge &shown = self->m_gauges[i];
         if ( shown.kind != Corners::Timeout && shown.kind != Corners::TimeoutLow && shown.kind != Corners::TimeoutMiddle ) {
@@ -183,12 +222,27 @@ uint16_t CornerView::colour( int corner, const CornerPixel &pixel, int along ) c
         }
     }
     const float channel = pixel.channel / 255.0f;
-    const float notch = pixel.notch / 255.0f * channel;
+    float notch = pixel.notch / 255.0f * channel;
+    float channelRgb[3] = { look.channel[0], look.channel[1], look.channel[2] };
+    float fillRgb[3] = { look.fill[0], look.fill[1], look.fill[2] };
+    if ( m_gauges[corner].kind == Corners::CycleKind ) {
+        // By phase while unlocked; and today, the bright part's end, as a white notch.
+        if ( s_cycleColour.load() ) {
+            const int length = static_cast<int>( s_cyclePhases.load() & 0xFF );
+            const int day = length > 0 ? along * length / ( 1000 * CORNER_ALONG_SCALE ) + 1 : 1;
+            const uint32_t hex = cyclePhaseColour( day );
+            toChannels( hex, s_channelShare, channelRgb );
+            toChannels( hex, 1, fillRgb );
+        }
+        if ( !look.empty && fabsf( ( along - look.end ) * s_pixelsPerAlong ) < 1.2f ) {
+            notch = channel;
+        }
+    }
     float rgb[3] = {};
     for ( int i = 0; i < 3; ++i ) {
-        float value = look.channel[i] * channel;
+        float value = channelRgb[i] * channel;
         value = s_chargeColour * charge + value * ( 1 - charge );
-        value = look.fill[i] * fill + value * ( 1 - fill );
+        value = fillRgb[i] * fill + value * ( 1 - fill );
         rgb[i] = s_notchColour * notch + value * ( 1 - notch );
     }
     const int r = static_cast<int>( rgb[0] * 31 / 255 + 0.5f );

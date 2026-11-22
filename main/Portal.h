@@ -82,6 +82,8 @@ public:
 
     // True once after the page asked for a factory reset.
     bool takeReset();
+    // True once after the page asked to delete the cycle page's data.
+    bool takeCycleDelete();
 
     // The battery, for the update's condition (USB power or at least UpdateMinPercent).
     static const int UpdateMinPercent = 30;
@@ -102,6 +104,7 @@ private:
     static esp_err_t onState( httpd_req_t *request );
     static esp_err_t onPing( httpd_req_t *request );
     static esp_err_t onReset( httpd_req_t *request );
+    static esp_err_t onCycleDelete( httpd_req_t *request );
     static esp_err_t onSave( httpd_req_t *request );
     // A new application image from the page (the request body is the .bin file).
     static esp_err_t onUpdate( httpd_req_t *request );
@@ -131,6 +134,7 @@ private:
     Received m_received = {};
     bool m_hasCard = false;
     bool m_resetWanted = false;
+    bool m_cycleDeleteWanted = false;
     EmergencyCard m_receivedCard = {};
     int m_batteryPercent = -1;
     bool m_usb = false;

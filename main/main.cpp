@@ -15,6 +15,9 @@
 #include "ClockPages.h"
 #include "CornerView.h"
 #include "Corners.h"
+#include "CycleLog.h"
+#include "CycleStore.h"
+#include "Cycle.h"
 #include "Dates.h"
 #include "EventLog.h"
 #include "esp_core_dump.h"
@@ -83,6 +86,8 @@ static WorldClock s_worldClock;
 static DayCounters s_dayCounters;
 // The tools page's emergency card, read at each start of active mode (the portal shows it).
 static EmergencyCard s_card;
+// The cycle page's log (CyclePages), loaded at each active start.
+static CycleLog s_cycleLog;
 // The alarms' definitions (NVS); s_alarmsChanged: their due times must be computed again.
 static AlarmStore::List s_alarms;
 static bool s_alarmsChanged = false;
@@ -206,6 +211,34 @@ static int s_hostLineLength = 0;
 // <azimuth> <sun altitude>" puts the galactic centre and the Sun there for the face; "Z" draws the
 // faces as without a valid time ("--:--"), again "Z" with it. Only
 // "E" (the event log, read by tools/read_events.py) also works without CONFIG_WATCH_DEV_LOGGING.
+#if CONFIG_WATCH_DEV_LOGGING
+// The scene's cycle (the published pictures, never the owner's): six cycles of 26 to 31 days,
+// the current one started 11 days before the scene's day, intercourse on its days 10 and 11; in
+// RAM only (a tap that saves on the page would write it, so the scene is for pictures).
+static void sceneCycleLog()
+{
+    static const int s_lengths[6] = { 26, 29, 27, 28, 31, 26 };
+    static const uint8_t s_flows[5] = { 2, 3, 3, 2, 1 };
+    const int today = Dates::dayNumber( 2026, 6, 21 );
+    s_cycleLog.clear();
+    s_cycleLog.advance( today );
+    s_cycleLog.pinAsked = 1;
+    int start = today - 11;
+    for ( int i = 5; i >= 0; --i ) {
+        start -= s_lengths[i];
+    }
+    for ( int i = 0; i <= 6; ++i ) {
+        for ( int d = 0; d < 5; ++d ) {
+            s_cycleLog.set( start + d, s_flows[d] );
+        }
+        start += i < 6 ? s_lengths[i] : 0;
+    }
+    s_cycleLog.set( today - 2, CycleLog::Intercourse );
+    s_cycleLog.set( today - 1, CycleLog::Intercourse );
+    s_display.cycleChanged();
+}
+#endif
+
 // Returns true when a command arrived: like a touch, it restarts the display timeout, so that
 // the watch stays in active mode while tools/screenshot.py works.
 static bool pollHostCommands()
@@ -263,6 +296,17 @@ static bool pollHostCommands()
             s_settings.setValue( Settings::Language, language );
             s_settings.save();
             esp_restart();
+        }
+        int settingItem = 0;
+        int settingValue = 0;
+        if ( sscanf( s_hostLine, "Y %d %d", &settingItem, &settingValue ) == 2 && settingItem >= 0 &&
+             settingItem < Settings::ItemCount ) {
+            // A setting by its number (Settings::Item), as the portal would set it; saved when
+            // active mode ends.
+            const bool set = s_settings.setValue( static_cast<Settings::Item>( settingItem ), settingValue );
+            ESP_LOGI( TAG, "Setting %d = %d: %s", settingItem, settingValue, set ? "set" : "refused" );
+            s_display.refreshSettings();
+            continue;
         }
         if ( s_hostLine[0] == 'B' && s_hostLine[1] == ' ' ) {
             ESP_LOGI( TAG, "Button %s: %s", s_hostLine + 2,
@@ -421,6 +465,7 @@ static bool pollHostCommands()
         }
         if ( s_hostLine[0] == 'D' && s_hostLine[1] == '\0' ) {
             s_scene = true;
+            sceneCycleLog();
             s_faceTableStale = true;
             s_display.setScene( true );
             // Never the real place in a published picture.
@@ -532,6 +577,27 @@ static void buildFaceTable( const Astronomy::Observer &observer, int offsetMinut
     }
     snprintf( s_faceTable.bloodType, sizeof( s_faceTable.bloodType ), "%s", s_card.fields[EmergencyCard::BloodType] );
     s_faceTable.emergencyCard = !s_card.empty();
+    // A Ramadan that ended this Hijri year, for the cycle page's make-up fasts: from Shawwal on,
+    // a few Hijri months back (each a second or so: here in the main task, once a day).
+    const Hijri::Date &hijri = s_skyDay.hijri;
+    if ( s_cycleLog.newestDay != 0 && hijri.day > 0 && hijri.month >= 10 && hijri.year > s_cycleLog.lastRamadanYear ) {
+        const Hijri::Method method = static_cast<Hijri::Method>( s_settings.value( Settings::HijriMethod ) );
+        Hijri::Month month = Hijri::month( s_skyDay.day - hijri.day, offsetMinutes, observer, method );
+        for ( int step = 0; step < 3 && month.month > 9; ++step ) {
+            month = Hijri::month( month.firstDay - 1, offsetMinutes, observer, method );
+        }
+        if ( month.month == 9 ) {
+            s_display.addCycleRamadan( month.year, month.firstDay, month.length );
+        }
+    }
+    const Cycle::State cycle = Cycle::analyse( s_cycleLog, s_skyDay.day );
+    if ( cycle.cycleDay > 0 ) {
+        s_faceTable.cycleStart = cycle.periods[cycle.count - 1].start;
+        s_faceTable.cycleLength = static_cast<int16_t>( cycle.meanLength > 0 ? cycle.meanLength : 28 );
+        s_faceTable.cyclePeriod = static_cast<int8_t>( cycle.periods[cycle.count - 1].length );
+        s_faceTable.fertileFirst = static_cast<int8_t>( cycle.fertileFirst );
+        s_faceTable.fertileLast = static_cast<int8_t>( cycle.fertileLast );
+    }
 #if CONFIG_WATCH_DEV_LOGGING
     if ( s_scene ) {
         // The published pictures show the scene's counters and cities, not the owner's.
@@ -834,6 +900,12 @@ static void updateDisplay()
     context.charging = s_usbPower && s_pmu.charging();
     context.hijriDay = s_skyValid ? s_skyDay.hijri.day : 0;
     context.timeoutLeft = s_timeoutLeft;
+    if ( s_faceTable.cycleStart > 0 ) {
+        context.cycleDay = s_skyDay.day - s_faceTable.cycleStart + 1;
+        context.cycleLength = s_faceTable.cycleLength;
+    }
+    CornerView::setCycle( s_faceTable.cycleLength, s_faceTable.cyclePeriod, s_faceTable.fertileFirst,
+                          s_faceTable.fertileLast, s_display.cycleUnlocked() );
     const bool located = inputs[0] != 0 || inputs[1] != 0;
     for ( int i = 0; i < Corners::CornerCount; ++i ) {
         if ( s_facePages.gauges[i] == FaceConfig::SunAltitudeGauge && located && !context.sunAltitudeValid ) {
@@ -1027,9 +1099,10 @@ static void applyPortalData( const Portal::Received &received )
 [[noreturn]] static void factoryReset()
 {
     ESP_LOGW( TAG, "Factory reset" );
-    // The namespaces of FaceStore, AlarmStore, DayCounters, EmergencyCard, Timers and WorldClock.
-    static const char *const s_stores[6] = { "faces", "alarms", "days", "card", "timers", "world" };
-    for ( int i = 0; i < 6; ++i ) {
+    // The namespaces of FaceStore, AlarmStore, DayCounters, EmergencyCard, Timers, WorldClock and
+    // CycleStore.
+    static const char *const s_stores[7] = { "faces", "alarms", "days", "card", "timers", "world", "cycle" };
+    for ( int i = 0; i < 7; ++i ) {
         nvs_handle_t handle = 0;
         if ( nvs_open( s_stores[i], NVS_READWRITE, &handle ) == ESP_OK ) {
             nvs_erase_all( handle );
@@ -1055,6 +1128,13 @@ static bool servicePortal( bool everySecond )
     requests |= s_hostRequests;
     s_hostRequests = 0;
 #endif
+    if ( s_portal.takeCycleDelete() ) {
+        s_display.deleteCycleData();
+        s_faceTableStale = true;
+    }
+    if ( requests & Display::CycleChanged ) {
+        s_faceTableStale = true;
+    }
     if ( ( requests & Display::FactoryReset ) || s_portal.takeReset() ) {
         factoryReset();
     }
@@ -1405,8 +1485,12 @@ static int runActiveMode()
             activeMs = 0;
         }
 #else
-        if ( s_displayOn && ( s_display.takeRequests() & Display::FactoryReset ) ) {
+        const int requests = s_displayOn ? s_display.takeRequests() : 0;
+        if ( requests & Display::FactoryReset ) {
             factoryReset();
+        }
+        if ( requests & Display::CycleChanged ) {
+            s_faceTableStale = true;
         }
 #endif
         const int level = gpio_get_level( s_powerKeyGpio );
@@ -2112,6 +2196,8 @@ extern "C" void app_main( void )
         s_display.setMotion( &s_motion );
         s_card.load();
         s_display.setCard( s_card );
+        CycleStore::load( s_cycleLog );
+        s_display.setCycleLog( &s_cycleLog );
         s_faceTableStale = true;  // the face's emergency text
 #if CONFIG_WATCH_DEV_LOGGING
         if ( s_hostSkipDisplay ) {

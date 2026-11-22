@@ -1,6 +1,8 @@
 #include "Display.h"
 
+#include "CycleStore.h"
 #include "Dates.h"
+#include "Hayiz.h"
 
 #include <cstdlib>
 #include <cstring>
@@ -78,6 +80,7 @@ enum Page
     ToolsPage,      // torch, counter, random, calculator, unit converter, spirit level, metronome,
                     // emergency card (ToolPages)
     ObservingPage,  // polar alignment ... nautical almanac, astrolabe, aiming (ObservingPages)
+    CyclePage,      // the menstrual cycle, locked by an optional PIN (CyclePages)
     PageCount
 };
 
@@ -109,6 +112,9 @@ static const Language::Text s_toolsParts[ToolPages::PartCount] = {
 static const Language::Text s_observingParts[ObservingPages::PartCount] = {
     Language::PartAstrolabe, Language::PartPolar, Language::PartMilkyWay, Language::PartDeepSky, Language::PartEyepiece,
     Language::PartPhoto, Language::PartAlmanac, Language::PartAiming };
+static const Language::Text s_cycleParts[CyclePages::PartCount] = {
+    Language::PartCycleSpiral, Language::PartCycleCalendar, Language::PartCycleHistory, Language::PartCycleMoon,
+    Language::PartPregnancy,   Language::PartHayiz,         Language::PartCycleSettings };
 static const Language::Text s_settingsParts[SettingsPartCount] = {
     Language::PartSettings, Language::PartMoreSettings, Language::PartSetupInfo,
 #if CONFIG_WATCH_SETUP_PORTAL
@@ -131,7 +137,8 @@ static const PageEntry s_pageEntries[PageCount] = {
     { Language::SettingsPageName, s_settingsParts, SettingsPartCount, Settings::SettingsOrder, Settings::SettingsHidden },
     { Language::ToolsPageName, s_toolsParts, ToolPages::PartCount, Settings::ToolsOrder, Settings::ToolsHidden },
     { Language::ObservingPageName, s_observingParts, ObservingPages::PartCount, Settings::ObservingOrder,
-      Settings::ObservingHidden } };
+      Settings::ObservingHidden },
+    { Language::CyclePageName, s_cycleParts, CyclePages::PartCount, Settings::CycleOrder, Settings::CycleHidden } };
 
 // The page and part last opened from the launcher, for the App tile: kept over the always-on
 // wakes in RTC memory and lost at power-off (then the clock page's first part shown; -1).
@@ -201,6 +208,10 @@ struct Shot
     { "aiming", ObservingPage, ObservingPages::AimingPart },
     { "metronome", ToolsPage, ToolPages::MetronomePart }, { "card", ToolsPage, ToolPages::CardPart },
     { "reset", SettingsPage, ResetPart },
+    { "cycle", CyclePage, CyclePages::SpiralPart }, { "cycle-calendar", CyclePage, CyclePages::CalendarPart },
+    { "cycle-history", CyclePage, CyclePages::HistoryPart }, { "cycle-moon", CyclePage, CyclePages::MoonPart },
+    { "cycle-pregnancy", CyclePage, CyclePages::PregnancyPart }, { "cycle-hayiz", CyclePage, CyclePages::HayizPart },
+    { "cycle-settings", CyclePage, CyclePages::SettingsPart },
 };
 [[maybe_unused]] static const int s_shotCount = sizeof( s_shots ) / sizeof( s_shots[0] );
 
@@ -692,6 +703,9 @@ StackPage &Display::stack( int page )
     if ( page == ObservingPage ) {
         return m_observing.stack();
     }
+    if ( page == CyclePage ) {
+        return m_cycle.stack();
+    }
     return m_settingsPage;
 }
 
@@ -733,6 +747,12 @@ void Display::ensureApp()
     } else if ( page == ObservingPage ) {
         m_observing.build( m_tiles[AppTile], *m_settings, m_motion );
         m_observing.show( m_skyNow, m_skyObserver, m_skyOffsetMinutes, m_skyLocated );
+        applyOrders();
+    } else if ( page == CyclePage && m_cycleLog != nullptr ) {
+        m_cycle.setHayizShown( ( m_settings->value( Settings::CycleHidden ) & ( 1 << CyclePages::HayizPart ) ) == 0 );
+        m_cycle.build( m_tiles[AppTile], *m_cycleLog, onCycleChanged, this );
+        m_cycle.update( m_localTime.year > 0 ? Dates::dayNumber( m_localTime.year, m_localTime.month, m_localTime.day ) : 0,
+                        m_timeValid, m_red );
         applyOrders();
     } else {
         buildSettingsPage();
@@ -796,6 +816,8 @@ void Display::freeApp()
         m_tools.forget();
     } else if ( page == ObservingPage ) {
         m_observing.forget();
+    } else if ( page == CyclePage ) {
+        m_cycle.forget();
     } else if ( page == InfoPage ) {
         m_info.forget();
         m_sky.forget();
@@ -977,6 +999,10 @@ void Display::fillLauncher()
         }
         int parts[PartOrder::MaxParts] = {};
         const int shown = decodeOrder( page, parts );
+        // Every part hidden: the page stays out (the cycle page until it is shown).
+        if ( shown == 0 ) {
+            continue;
+        }
         lv_obj_t *name = lv_label_create( m_launcherList );
         Styles::text( name, &jetbrains_mono_26, lv_color_hex( 0xA0A0A0 ) );
         lv_label_set_text_static( name, Language::text( entry.name ) );
@@ -1337,6 +1363,7 @@ void Display::showSky( const Sky::Day &day, const Sky::Now &now, const Astronomy
     inputs.altitudesValid = located;
     inputs.alarms = m_alarmIcons;
     inputs.wifiOn = m_setup.running;
+    inputs.cycleColour = m_cycleLog != nullptr && ( m_cycleLog->pinHash == 0 || m_cycle.unlocked() );
     m_face.update( inputs );
     bsp_display_unlock();
 }
@@ -1661,7 +1688,8 @@ void Display::updatePageSwipe()
 {
     const bool app = m_appReady && activeTile() == AppTile;
     const bool sideways = ( m_appPage == ClockPage && m_clock.swipesSideways() ) ||
-                          ( m_appPage == ObservingPage && m_observing.swipesSideways() );
+                          ( m_appPage == ObservingPage && m_observing.swipesSideways() ) ||
+                          ( m_appPage == CyclePage && m_cycle.swipesSideways() );
     lv_obj_set_scrollable( m_pages, !( app && sideways ) );
 }
 
@@ -1735,6 +1763,7 @@ void Display::stop()
         m_tools.setLevelShown( false );
         m_tools.setMetronomeShown( false );
         m_observing.setShown( -1 );
+        m_cycle.lock();
         Ringer ringer;
         ringer.stopTool( true );
     }
@@ -1767,6 +1796,9 @@ void Display::update( const Rtc::DateTime &time, int utcOffsetMinutes, const Bat
     const int64_t utcSeconds = static_cast<int64_t>( mktime( &fields ) ) - utcOffsetMinutes * 60;
     m_clock.update( utcSeconds, utcOffsetMinutes, time );
     m_tools.update( timeValid ? utcSeconds : 0 );
+    if ( m_appPage == CyclePage ) {
+        m_cycle.update( Dates::dayNumber( time.year, time.month, time.day ), timeValid, m_red );
+    }
 
     showBattery();
     m_localTime = time;
@@ -2034,8 +2066,16 @@ bool Display::pressClockButton( const char *name )
     if ( !m_started || !bsp_display_lock( 1000 ) ) {
         return false;
     }
-    const bool pressed = m_appPage == ToolsPage ? m_tools.press( name )
-                         : ( m_appPage == ObservingPage ? m_observing.press( name ) : m_clock.press( name ) );
+    bool pressed = false;
+    if ( m_appPage == ToolsPage ) {
+        pressed = m_tools.press( name );
+    } else if ( m_appPage == ObservingPage ) {
+        pressed = m_observing.press( name );
+    } else if ( m_appPage == CyclePage ) {
+        pressed = m_cycle.press( name );
+    } else {
+        pressed = m_clock.press( name );
+    }
     bsp_display_unlock();
     return pressed;
 }
@@ -2154,6 +2194,74 @@ uint32_t Display::inactiveMs()
 bool Display::touchPressed() const
 {
     return m_touchPressed;
+}
+
+void Display::setCycleLog( CycleLog *log )
+{
+    m_cycleLog = log;
+}
+
+bool Display::cycleUnlocked()
+{
+    if ( m_cycleLog == nullptr ) {
+        return false;
+    }
+    if ( m_cycleLog->pinHash == 0 ) {
+        return true;
+    }
+    if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
+        return false;
+    }
+    const bool unlocked = m_cycle.unlocked();
+    bsp_display_unlock();
+    return unlocked;
+}
+
+void Display::addCycleRamadan( int year, int firstDay, int length )
+{
+    if ( m_cycleLog == nullptr || year <= m_cycleLog->lastRamadanYear || !m_started ||
+         !bsp_display_lock( s_lockTimeoutMs ) ) {
+        return;
+    }
+    if ( m_appPage == CyclePage ) {
+        m_cycle.addRamadan( year, firstDay, length );
+    } else {
+        const int days = Hayiz::hayzDays( *m_cycleLog, firstDay, length );
+        m_cycleLog->ramadanAdded += days;
+        m_cycleLog->lastRamadanYear = year;
+        CycleStore::save( *m_cycleLog );
+    }
+    bsp_display_unlock();
+}
+
+void Display::deleteCycleData()
+{
+    if ( m_cycleLog == nullptr || !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
+        return;
+    }
+    CycleStore::erase();
+    m_cycleLog->clear();
+    if ( m_appPage == CyclePage ) {
+        m_cycle.lock();
+        m_cycle.reload();
+    }
+    bsp_display_unlock();
+}
+
+void Display::onCycleChanged( void *user )
+{
+    static_cast<Display *>( user )->m_requests.fetch_or( CycleChanged );
+}
+
+void Display::cycleChanged()
+{
+    if ( !m_started || !bsp_display_lock( s_lockTimeoutMs ) ) {
+        return;
+    }
+    if ( m_appPage == CyclePage ) {
+        m_cycle.reload();
+    }
+    bsp_display_unlock();
 }
 
 int Display::toolSecondsLeft() const

@@ -43,6 +43,7 @@ public:
         bool altitudesValid;
         AlarmIconState alarms;
         bool wifiOn;  // the setup portal runs (FaceConfig::WifiIcon)
+        bool cycleColour;  // the cycle page is unlocked: its icon in the phase colours
     };
 
     // `parameter`: the city or day counter of a CityTime or DayCounter slot. A text of a name and

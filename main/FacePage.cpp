@@ -5,6 +5,8 @@
 #include <cstring>
 
 #include "Styles.h"
+#include "Dates.h"
+#include "FaceTable.h"
 #include "Fonts.h"
 #include "Language.h"
 #include "AlarmIcons.h"
@@ -133,6 +135,9 @@ void FacePage::build( lv_obj_t *tile )
     lv_obj_add_event_cb( m_timeIcon, onDrawTimeIcon, LV_EVENT_DRAW_MAIN, this );
     m_wifiIcon = createBox( m_root, weekdaySize, weekdaySize );
     lv_obj_add_event_cb( m_wifiIcon, onDrawWifiIcon, LV_EVENT_DRAW_MAIN, this );
+    // Larger than the ring: today's mark sits outside it.
+    m_cycleIcon = createBox( m_root, weekdaySize + 22, weekdaySize + 22 );
+    lv_obj_add_event_cb( m_cycleIcon, onDrawCycleIcon, LV_EVENT_DRAW_MAIN, this );
     apply();
 }
 
@@ -190,6 +195,7 @@ void FacePage::apply()
     bool weekday = false;
     bool timeIcon = false;
     bool wifiIcon = false;
+    bool cycleIcon = false;
     for ( int i = 0; i < 4; ++i ) {
         const int item = m_page.items[FaceConfig::TopLeft + i];
         // One icon of each kind: the first corner that asks for it.
@@ -208,6 +214,10 @@ void FacePage::apply()
         if ( item == FaceConfig::WifiIcon && !wifiIcon ) {
             wifiIcon = true;
             centreAt( m_wifiIcon, FaceConfig::CornerX[i], FaceConfig::CornerY[i] );
+        }
+        if ( item == FaceConfig::CycleIcon && !cycleIcon ) {
+            cycleIcon = true;
+            centreAt( m_cycleIcon, FaceConfig::CornerX[i], FaceConfig::CornerY[i] );
         }
         // The altitudes in the colour of their body (the font has no sun or moon sign).
         lv_color_t colour = lv_color_white();
@@ -228,6 +238,7 @@ void FacePage::apply()
     lv_obj_set_hidden( m_weekday, !weekday );
     lv_obj_set_hidden( m_timeIcon, !timeIcon );
     lv_obj_set_hidden( m_wifiIcon, !wifiIcon );
+    lv_obj_set_hidden( m_cycleIcon, !cycleIcon );
     // The clock and the texts again for the new page.
     m_hour = -1;
     update( m_inputs );
@@ -243,6 +254,13 @@ void FacePage::update( const FaceText::Inputs &inputs )
     }
     if ( wifiChanged && m_root != nullptr ) {
         lv_obj_invalidate( m_wifiIcon );
+    }
+    if ( m_root != nullptr && inputs.table != nullptr ) {
+        const int key = ( inputs.table->cycleStart * 64 + inputs.day ) * 2 + ( inputs.cycleColour ? 1 : 0 );
+        if ( key != m_cycleKey ) {
+            m_cycleKey = key;
+            lv_obj_invalidate( m_cycleIcon );
+        }
     }
     if ( m_root == nullptr ) {
         return;
@@ -731,6 +749,73 @@ void FacePage::onDrawWifiIcon( lv_event_t *event )
     disc.bg_color = lv_color_black();
     const lv_area_t hole = { gearX - 2, gearY - 2, gearX + 2, gearY + 2 };
     lv_draw_rect( layer, &disc, &hole );
+}
+
+// The cycle: a ring of its days (its mean length), the passed ones bright, a white mark outside
+// it at today, the day's number inside; in the phase colours while the cycle page is unlocked,
+// one grey otherwise (CyclePages, the lock).
+void FacePage::onDrawCycleIcon( lv_event_t *event )
+{
+    const FacePage *face = static_cast<FacePage *>( lv_event_get_user_data( event ) );
+    const FaceText::Inputs &in = face->m_inputs;
+    lv_layer_t *layer = lv_event_get_layer( event );
+    int32_t cx = 0;
+    int32_t cy = 0;
+    boxCentre( face->m_cycleIcon, cx, cy );
+    const FaceTable *table = in.table;
+    const int length = table != nullptr && table->cycleLength > 0 ? table->cycleLength : 28;
+    const int day = table != nullptr && table->cycleStart > 0 && in.timeValid
+                        ? Dates::dayNumber( in.year, in.month, in.day ) - table->cycleStart + 1
+                        : 0;
+    lv_draw_arc_dsc_t arc;
+    lv_draw_arc_dsc_init( &arc );
+    arc.width = 4;
+    arc.center.x = cx;
+    arc.center.y = cy;
+    arc.radius = 21;
+    for ( int d = 1; d <= length; ++d ) {
+        uint32_t hex = 0x969696;
+        if ( in.cycleColour && table != nullptr ) {
+            if ( d <= table->cyclePeriod ) {
+                hex = 0xFF5064;
+            } else if ( table->fertileFirst > 0 && d >= table->fertileFirst && d <= table->fertileLast ) {
+                hex = 0x5A96FF;
+            }
+        }
+        lv_color_t colour = lv_color_hex( hex );
+        if ( d > day ) {
+            colour = lv_color_mix( colour, lv_color_black(), 80 );
+        }
+        arc.color = colour;
+        arc.start_angle = -90 + ( d - 1 ) * 360.0f / length + 2;
+        arc.end_angle = -90 + d * 360.0f / length - 2;
+        lv_draw_arc( layer, &arc );
+    }
+    if ( day <= 0 ) {
+        return;
+    }
+    const float a = static_cast<float>( ( -90 + ( day - 0.5f ) * 360.0f / length ) * M_PI / 180 );
+    lv_draw_triangle_dsc_t mark;
+    lv_draw_triangle_dsc_init( &mark );
+    mark.color = lv_color_white();
+    mark.p[0].x = cx + static_cast<int32_t>( lroundf( 24 * cosf( a ) ) );
+    mark.p[0].y = cy + static_cast<int32_t>( lroundf( 24 * sinf( a ) ) );
+    mark.p[1].x = cx + static_cast<int32_t>( lroundf( 31 * cosf( a + 0.17f ) ) );
+    mark.p[1].y = cy + static_cast<int32_t>( lroundf( 31 * sinf( a + 0.17f ) ) );
+    mark.p[2].x = cx + static_cast<int32_t>( lroundf( 31 * cosf( a - 0.17f ) ) );
+    mark.p[2].y = cy + static_cast<int32_t>( lroundf( 31 * sinf( a - 0.17f ) ) );
+    lv_draw_triangle( layer, &mark );
+    char number[12];
+    snprintf( number, sizeof( number ), "%d", day );
+    lv_draw_label_dsc_t text;
+    lv_draw_label_dsc_init( &text );
+    text.font = &jetbrains_mono_18;
+    text.color = lv_color_white();
+    text.align = LV_TEXT_ALIGN_CENTER;
+    text.text = number;
+    text.text_local = 1;
+    const lv_area_t box = { cx - 20, cy - 11, cx + 20, cy + 11 };
+    lv_draw_label( layer, &text, &box );
 }
 
 // Seven notches around the weekday's letter, from 12 o'clock clockwise: the first n lit on the

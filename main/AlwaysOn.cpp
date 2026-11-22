@@ -236,6 +236,28 @@ static void addClock( AlwaysOn::Face &face, const AodStyle &style, int centreY, 
 
 // The weekday icon: the lit notches (the first n on the n-th day of the week, Monday one) as
 // chords of the ring, and the day's first letter.
+// The cycle icon, always neutral here (the page's lock is never open in always-on): the passed
+// days as short white strokes around the ring, the day's number inside.
+static void addCycleIcon( AlwaysOn::Face &face, const FaceTable &table, int today, int cx, int cy )
+{
+    if ( table.cycleStart <= 0 ) {
+        return;
+    }
+    const int length = table.cycleLength > 0 ? table.cycleLength : 28;
+    const int day = today - table.cycleStart + 1;
+    const float step = 360.0f / length;
+    for ( int d = 1; d <= day && d <= length; ++d ) {
+        const float a0 = ( 270 + ( d - 1 ) * step + 2 ) * static_cast<float>( M_PI ) / 180.0f;
+        const float a1 = ( 270 + d * step - 2 ) * static_cast<float>( M_PI ) / 180.0f;
+        addShape( face, AlwaysOn::LineShape, AlwaysOn::White, static_cast<int>( lroundf( cx + 20 * cosf( a0 ) ) ),
+                  static_cast<int>( lroundf( cy + 20 * sinf( a0 ) ) ), 0, 2,
+                  static_cast<int>( lroundf( cx + 20 * cosf( a1 ) ) ), static_cast<int>( lroundf( cy + 20 * sinf( a1 ) ) ) );
+    }
+    char number[12];
+    snprintf( number, sizeof( number ), "%d", day );
+    addSmallText( face, number, cx, cy, AlwaysOn::White );
+}
+
 static void addWeekday( AlwaysOn::Face &face, int cx, int cy, int weekday )
 {
     const float step = 360.0f / 7;
@@ -575,6 +597,10 @@ const AlwaysOn::Face &AlwaysOn::layout( const Look &look, const Rtc::DateTime &t
             addTimeIcon( face, look.alarms, x, y );
         } else if ( item == FaceConfig::WifiIcon ) {
             // Nothing: the setup portal never runs in always-on.
+        } else if ( item == FaceConfig::CycleIcon ) {
+            if ( in.timeValid ) {
+                addCycleIcon( face, look.table, Dates::dayNumber( in.year, in.month, in.day ), x, y );
+            }
         } else {
             FaceText::corner( static_cast<FaceConfig::CornerItem>( item ), in, text, sizeof( text ) );
             addSmallText( face, text, x, y, item == FaceConfig::SunAltitudeCorner ? Yellow : White );
@@ -587,7 +613,7 @@ int AlwaysOn::gaugeColour( Corners::Kind kind )
 {
     // By Corners::Kind; orange and the Moon's dark grey have no idle-mode colour.
     static const int colours[] = { -1,     Yellow, Blue,  Green, Yellow, Red,   White, White, White,
-                                   Yellow, White,  Yellow, White, Green,  Blue,  Yellow, White, White, Red, Yellow };
+                                   Yellow, White,  Yellow, White, Green,  Blue,  Yellow, White, White, Red, Yellow, White };
     static_assert( sizeof( colours ) / sizeof( colours[0] ) == Corners::KindCount, "an idle colour per kind" );
     return colours[kind];
 }
@@ -834,6 +860,12 @@ static void computeGauges( const AlwaysOn::Look &look, int64_t utcNow, int offse
 {
     Corners::Context context = {};
     context.timeoutLeft = offLeft;
+    if ( look.table.cycleStart > 0 ) {
+        const int64_t local = utcNow + static_cast<int64_t>( offsetMinutes ) * 60;
+        const int today = static_cast<int>( ( local >= 0 ? local : local - 86399 ) / 86400 );
+        context.cycleDay = today - look.table.cycleStart + 1;
+        context.cycleLength = look.table.cycleLength;
+    }
     context.now = utcNow;
     context.utcOffsetMinutes = offsetMinutes;
     context.batteryPercent = batteryPercent;

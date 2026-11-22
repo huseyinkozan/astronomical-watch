@@ -248,6 +248,13 @@ int main()
         check( "display timeout: 20 % red", one( FaceConfig::TimeoutGauge, 0, at( 0, 12, 0 ) ), Corners::TimeoutLow, 0, 200 );
         context.timeoutLeft = -1;
         check( "always-on without a power-off: empty", one( FaceConfig::TimeoutGauge, 0, at( 0, 12, 0 ), true ), Corners::Empty, 0, 0 );
+        context.cycleDay = 12;
+        context.cycleLength = 28;
+        check( "cycle day 12 of 28", one( FaceConfig::CycleGauge, 0, at( 0, 12, 0 ) ), Corners::CycleKind, 0, 428 );
+        context.cycleDay = 40;
+        check( "cycle past its length: full", one( FaceConfig::CycleGauge, 0, at( 0, 12, 0 ) ), Corners::CycleKind, 0, 1000 );
+        context.cycleDay = 0;
+        check( "no cycle logged: empty", one( FaceConfig::CycleGauge, 0, at( 0, 12, 0 ) ), Corners::Empty, 0, 0 );
         const Corners::Gauge below = Corners::timeoutGauge( -20 );
         check( "timeout gauge: at least empty", below, Corners::TimeoutLow, 0, 0 );
         check( "sun altitude 45", one( FaceConfig::SunAltitudeGauge, 0, at( 0, 12, 0 ) ), Corners::Altitude, 0, 500 );

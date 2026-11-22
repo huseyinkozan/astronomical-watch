@@ -30,7 +30,8 @@ public:
         CountdownPart,
         SettingsPart,   // the settings page's first part (the display timeout)
         SetupPart,      // the settings page's setup portal part
-        EmergencyPart   // the tools page's emergency card
+        EmergencyPart,  // the tools page's emergency card
+        CyclePart       // the cycle page's spiral
     };
 
     struct Input

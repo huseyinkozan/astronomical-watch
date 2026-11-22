@@ -47,6 +47,13 @@ public:
     char cityNames[CityCount][NameLength];        // empty: no city
     char bloodType[32];  // from the emergency card (EmergencyCard::FieldSize), empty: not filled in
     bool emergencyCard;          // the card has any field filled in
+    // The menstrual cycle for its corner gauge and icon (CyclePages): the current cycle's first
+    // day (0: none), its mean length, its bleeding days and fertile window (cycle days, 0: none).
+    int32_t cycleStart;
+    int16_t cycleLength;
+    int8_t cyclePeriod;
+    int8_t fertileFirst;
+    int8_t fertileLast;
 
     // Tomorrow's sun and prayer times are computed here (Astronomy::sunDay, Sky::prayerTimes),
     // not with a whole Sky::computeDay.

@@ -48,6 +48,7 @@ public:
         Timeout,        // the display timeout's time left
         TimeoutLow,     // 20 % of it or less
         TimeoutMiddle,  // above 20 %, 40 % or less
+        CycleKind,      // the menstrual cycle (CornerView colours it by phase while unlocked)
         KindCount
     };
 
@@ -103,6 +104,8 @@ public:
         int counterSavedDays[4];
         bool counterValid[4];
         int timeoutLeft;
+        int cycleDay;     // the cycle's day, 0: none logged
+        int cycleLength;  // its mean length (or 28)
         bool alwaysOn;
     };
 

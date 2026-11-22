@@ -64,7 +64,7 @@ static const char *s_fieldNames[] = { "timeout", "alwaysOn", "devMode",    "auto
                                                          "ep2Focal", "ep2Field", "ep3Focal", "ep3Field", "ep4Focal",
                                                          "ep4Field", "camFocal", "camFNumber", "camSensor",
                                                          "baseShutter", "ndStops", "trailMinutes", "trailInterval",
-                                                         "satLon" };
+                                                         "satLon", "cycleOrder", "cycleHidden" };
 // One name per setting: a missing one would be read as a null name.
 static_assert( sizeof( s_fieldNames ) / sizeof( s_fieldNames[0] ) == Settings::ItemCount, "a field name per setting" );
 // The emergency card's fields (EmergencyCard::Field), in /api/card.
@@ -209,7 +209,7 @@ esp_err_t Portal::start( const Settings &settings, const WorldClock &worldClock,
         stop();
         return err;
     }
-    const httpd_uri_t handlers[14] = {
+    const httpd_uri_t handlers[15] = {
         { "/", HTTP_GET, onPage, this },
         { "/help", HTTP_GET, onHelp, this },
         { "/tools", HTTP_GET, onToolsHelp, this },
@@ -224,8 +224,9 @@ esp_err_t Portal::start( const Settings &settings, const WorldClock &worldClock,
         { "/api/ping", HTTP_GET, onPing, this },
         { "/api/save", HTTP_POST, onSave, this },
         { "/api/reset", HTTP_POST, onReset, this },
+        { "/api/cycle/delete", HTTP_POST, onCycleDelete, this },
     };
-    for ( int i = 0; i < 14; ++i ) {
+    for ( int i = 0; i < 15; ++i ) {
         httpd_register_uri_handler( m_server, &handlers[i] );
     }
     httpd_register_err_handler( m_server, HTTPD_404_NOT_FOUND, onNotFound );
@@ -322,6 +323,15 @@ bool Portal::takeReset()
     return wanted;
 }
 
+bool Portal::takeCycleDelete()
+{
+    taskENTER_CRITICAL( &m_lock );
+    const bool wanted = m_cycleDeleteWanted;
+    m_cycleDeleteWanted = false;
+    taskEXIT_CRITICAL( &m_lock );
+    return wanted;
+}
+
 bool Portal::takeReceived( Received &received )
 {
     bool taken = false;
@@ -412,7 +422,7 @@ esp_err_t Portal::onState( httpd_req_t *request )
               "\"clockOrder\":%d,\"clockHidden\":%d,\"infoOrder\":%d,\"infoHidden\":%d,"
               "\"settingsOrder\":%d,\"settingsHidden\":%d,\"mirror\":%d,\"planetsOrder\":%d,\"planetsHidden\":%d,"
               "\"pagesOrder\":%d,\"toolsOrder\":%d,\"toolsHidden\":%d,\"observingOrder\":%d,\"observingHidden\":%d,"
-              "\"bootCounter\":%d,"
+              "\"bootCounter\":%d,\"cycleOrder\":%d,\"cycleHidden\":%d,"
               "\"version\":\"%s\",\"battery\":%d,\"usb\":%d,\"updateMin\":%d,\"coreDump\":%d,"
               "\"zone\":\"%s\",\"place\":\"%s\",\"cities\":[",
               settings.value( Settings::DisplayTimeout ), settings.value( Settings::AlwaysOnFace ),
@@ -431,6 +441,7 @@ esp_err_t Portal::onState( httpd_req_t *request )
               settings.value( Settings::PagesOrder ), settings.value( Settings::ToolsOrder ),
               settings.value( Settings::ToolsHidden ), settings.value( Settings::ObservingOrder ),
               settings.value( Settings::ObservingHidden ), settings.value( Settings::BootCounter ),
+              settings.value( Settings::CycleOrder ), settings.value( Settings::CycleHidden ),
               esp_app_get_description()->version, portal->m_batteryPercent, portal->m_usb ? 1 : 0, UpdateMinPercent,
               portal->m_hasCoreDump ? 1 : 0,
               world.homeZoneName(),
@@ -618,6 +629,17 @@ esp_err_t Portal::onReset( httpd_req_t *request )
     portal->touch();
     taskENTER_CRITICAL( &portal->m_lock );
     portal->m_resetWanted = true;
+    taskEXIT_CRITICAL( &portal->m_lock );
+    noCache( request );
+    return httpd_resp_sendstr( request, "ok" );
+}
+
+esp_err_t Portal::onCycleDelete( httpd_req_t *request )
+{
+    Portal *portal = static_cast<Portal *>( request->user_ctx );
+    portal->touch();
+    taskENTER_CRITICAL( &portal->m_lock );
+    portal->m_cycleDeleteWanted = true;
     taskEXIT_CRITICAL( &portal->m_lock );
     noCache( request );
     return httpd_resp_sendstr( request, "ok" );

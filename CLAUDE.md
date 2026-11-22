@@ -310,7 +310,21 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   host-tested, the sky against Skyfield (`tools/make_astrolabe_reference.py`,
   `tools/make_observing_reference.py`, `tools/make_navigation_reference.py`), WMM against NOAA's
   test values; a page whose part list is empty stays out of the launcher
-  and the portal's lists by itself). The `Page` numbers are kept in
+  and the portal's lists by itself), and the cycle page (menstrual cycle tracking, every part
+  hidden by default so that the page stays out of the launcher until shown in the portal; design
+  `docs/superpowers/specs/2026-11-22-cycle-page-design.md`): a year's log of a byte a day
+  (`main/CycleLog.*`, NVS namespace `cycle` by `main/CycleStore.*`: flow, intercourse, a make-up
+  fast kept; the page's PIN hash, adolescent mode and make-up balance), the rules host-tested
+  (`main/Cycle.*`: periods, the next start's range, the fertile window, warnings; `main/Hayiz.*`:
+  Diyanet's hayız rulings), drawn by `main/CyclePages.cpp` and `main/CycleParts.cpp` with the
+  symbols of `main/CycleDraw.*` (boxes days, drops bleeding, rings fertile days, the open ring
+  with a sperm intercourse; shapes, not colours, carry the meaning for the red night mode). Its
+  parts: the spiral (a turn per Moon month), calendar, history rows, Moon rows, pregnancy
+  estimate, hayız, settings; a day's entry opens over the part from today's box or a calendar
+  day; an optional PIN (the calculator's keypad) locks the page until active mode ends; the
+  corner gauge and icon (`CycleGauge`, `CycleIcon`) are neutral grey while it is locked and on
+  the always-on face; the portal never shows its data, only deletes it (`/api/cycle/delete`);
+  the main task adds an ended Ramadan's hayız days (Hijri months cost seconds). The `Page` numbers are kept in
   the saved launcher order, so new pages come last in the enum; the default order puts tools and
   observing after information. The torch fills the screen (the page name hides): red, amber,
   white, SOS, SOS with beeps (`Ringer::startSos`, the alarm's lowest level, on the light's clock;
@@ -491,7 +505,9 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   `ClockPages::press`, with "regatta" and "sync" for the countdown's mode; tools page: count, undo, target, reset, roll, dice, coin, number, torch, "keys <keys>" as
   `Calculator::keyForChar`, kind, "unit <n>", level, hold, input, beat, bar, cpr, "tempo <bpm>"; observing page: mode, "drag <min>", now, hold,
   flip, "scroll <px>", eyepiece, calc, body, aim, satellite),
-  "R <s>" a test
+  "Y <item> <value>" sets a setting by its number (as the portal; "Y 61 0" shows the cycle
+  page's parts), "B entry <flow> <intercourse>", "B pin <digits>", "B teen", "B legend",
+  "B month <step>" on the cycle page, "R <s>" a test
   alarm, "K <n> <text>" defines an alarm, "Q" ends active mode as without the always-on face,
   "H" makes the next PWR wake a phantom (it must go back to sleep), "W" starves the idle task
   (the task watchdog must reset the watch). "W <tile>" swipes to a tile (0 to 2), "W 3" and

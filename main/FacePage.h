@@ -44,6 +44,7 @@ private:
     static void onDrawWeekday( lv_event_t *event );
     static void onDrawTimeIcon( lv_event_t *event );
     static void onDrawWifiIcon( lv_event_t *event );
+    static void onDrawCycleIcon( lv_event_t *event );
     void apply();
     void paintMoon();
 
@@ -62,6 +63,8 @@ private:
     // The time icon (FaceConfig::TimeIcon), drawn from m_inputs.alarms.
     lv_obj_t *m_timeIcon = nullptr;
     lv_obj_t *m_wifiIcon = nullptr;  // FaceConfig::WifiIcon, from m_inputs.wifiOn
+    lv_obj_t *m_cycleIcon = nullptr;  // FaceConfig::CycleIcon, from the face table's cycle
+    int m_cycleKey = 0;               // what the cycle icon shows, to draw it again on a change
     FaceConfig::Page m_page = {};
     FaceText::Inputs m_inputs = {};
     int m_hour = -1;  // the time the clock objects show
