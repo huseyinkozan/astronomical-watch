@@ -34,10 +34,12 @@ g++ -std=c++17 -O2 -Wall -Wextra -I main tests/ObservingTest.cpp main/Observing.
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/NavigationTest.cpp main/Almanac.cpp main/Aiming.cpp main/Magnetic.cpp main/Planets.cpp main/Astronomy.cpp -o build-host/navigation_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/CycleLogTest.cpp main/CycleLog.cpp -o build-host/cycle_log_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/CycleTest.cpp main/Cycle.cpp main/CycleLog.cpp -o build-host/cycle_test
+g++ -std=c++17 -O2 -Wall -Wextra -I main tests/HayizTest.cpp main/Hayiz.cpp main/CycleLog.cpp -o build-host/hayiz_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/PlanetsTest.cpp main/Planets.cpp main/Astronomy.cpp -o build-host/planets_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tools/make_corner_table.cpp main/Corners.cpp main/Sky.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/make_corner_table
 build-host/cycle_log_test
 build-host/cycle_test
+build-host/hayiz_test
 build-host/astronomy_test tests/astronomy_reference.csv
 build-host/hijri_test
 build-host/corners_test
