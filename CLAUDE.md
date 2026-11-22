@@ -70,7 +70,7 @@ development builds `v0.0.1-3-gabc1234-dirty`. A new release is a new tag, pushed
 - Return `esp_err_t` for hardware operations. Product code must not abort on a peripheral error and
   must use bounded I2C timeouts, so a failure can still end in deep sleep.
 - Comment only what the code cannot say: the why, a hardware constraint, a workaround.
-- Text uses the monospaced fonts of `main/Fonts.h` (26 and 48 px), so that numbers line up in
+- Text uses the monospaced fonts of `main/Fonts.h` (26 and 48 px; 14, 16 and 18 px for the cycle page's small notes), so that numbers line up in
   columns; a new character or size goes into `tools/make_fonts.sh`, and the C files are made again.
 - Every text the user sees comes from `main/Language.*` in English and Turkish (the portal page
   keeps its Turkish beside the English in `data-tr`); a new text gets both, short enough for the

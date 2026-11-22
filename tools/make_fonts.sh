@@ -1,6 +1,6 @@
 #!/bin/sh
 # Generates the LVGL fonts in main/fonts/ from JetBrains Mono (tools/fonts/, SIL Open Font
-# License): Regular 26 and 48 px with ASCII, the degree sign, the Turkish letters (a monospaced
+# License): Regular 14, 16, 18 (the cycle page's small notes), 26 and 48 px with ASCII, the degree sign, the Turkish letters (a monospaced
 # font, so that numbers line up in columns) and the calculator's signs (² ± × ÷ π ↔ √ ⌫ …), and the large digits of the watch faces (Light 110
 # and 90, and 64 for the arc templates: only 0-9, the colon and the dash of "--:--" without a valid
 # time). Needs Node.js: npx fetches lv_font_conv.
@@ -9,7 +9,7 @@ cd "$(dirname "$0")/.."
 font=tools/fonts/JetBrainsMono-Regular.ttf
 range=0x20-0x7E,0xB0-0xB2,0xC7,0xD6,0xD7,0xDC,0xE7,0xF6,0xF7,0xFC,0x11E-0x11F,0x130-0x131,0x15E-0x15F,0x3C0,0x2026,0x2194,0x221A,0x232B
 mkdir -p main/fonts
-for size in 26 48; do
+for size in 14 16 18 26 48; do
     npx -y lv_font_conv@1.5.3 --font "$font" --range "$range" --size "$size" --bpp 4 --no-compress \
         --format lvgl --lv-include lvgl.h --lv-font-name "jetbrains_mono_$size" \
         -o "main/fonts/jetbrains_mono_$size.c"

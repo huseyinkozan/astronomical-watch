@@ -5,6 +5,9 @@
 // JetBrains Mono (SIL Open Font License), made by tools/make_fonts.sh: ASCII, the degree sign,
 // the Turkish letters and the calculator's signs (² ± × ÷ π ↔ √ ⌫ …). Monospaced, so that
 // numbers line up in columns.
+LV_FONT_DECLARE( jetbrains_mono_14 )  // the small notes, rulers and legends of the cycle page
+LV_FONT_DECLARE( jetbrains_mono_16 )
+LV_FONT_DECLARE( jetbrains_mono_18 )
 LV_FONT_DECLARE( jetbrains_mono_26 )
 LV_FONT_DECLARE( jetbrains_mono_48 )
 // The large digits of the watch faces: 0-9 and the colon only.
