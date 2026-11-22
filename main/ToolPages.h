@@ -182,6 +182,8 @@ private:
     lv_obj_t *m_coin = nullptr;
     lv_obj_t *m_modes[3] = {};
     lv_obj_t *m_diceHint = nullptr;
+    // A new roll shows only after a moment blank, so that the same result again is seen as new.
+    int64_t m_rollShowUs = 0;
 
     // Calculator (its state in RTC memory, ToolPages.cpp).
     Keypad m_calculatorPad;

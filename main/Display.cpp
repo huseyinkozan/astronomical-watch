@@ -148,6 +148,10 @@ static const int s_launcherRowGap = 8;
 static const int s_launcherNameX = 36;
 static const int s_launcherNameLine = 32;  // the 26 px font's line height
 static const int s_launcherRowX = 52;
+// A finger that moved this far along the list meant to drag it, not to tap a row: LVGL starts
+// the scroll only after s_scrollLimitPx, and below that a slow drag ended on the same row was a
+// tap that opened it.
+static const int s_launcherTapSlopPx = 16;
 
 // The development screenshots keep one number per screen: the face, the stacked pages' parts as
 // opened from the launcher, the launcher last. Part -1: no part.
@@ -828,7 +832,9 @@ void Display::buildLauncher()
     lv_obj_set_size( m_launcherList, Panel::WIDTH, Panel::HEIGHT - s_listTop );
     lv_obj_set_scroll_dir( m_launcherList, LV_DIR_VER );
     lv_obj_set_scrollbar_mode( m_launcherList, LV_SCROLLBAR_MODE_OFF );
-    lv_obj_set_style_pad_bottom( m_launcherList, s_listPad, 0 );
+    // An empty row's room below the last row: scrolled up out of the narrow corner, it can be
+    // tapped like the others.
+    lv_obj_set_style_pad_bottom( m_launcherList, s_listPad + Styles::LauncherRowHeight + s_launcherRowGap, 0 );
     // Over the list, at the right edge where the stacked pages show their part marks.
     m_launcherMarks.buildScroll( tile );
     lv_obj_add_event_cb( m_launcherList, onLauncherScrolled, LV_EVENT_SCROLL, this );
@@ -981,6 +987,7 @@ void Display::fillLauncher()
             lv_obj_set_press_lock( row, false );
             // The page and part, + 1: the names' user data stays 0.
             lv_obj_set_user_data( row, reinterpret_cast<void *>( static_cast<intptr_t>( page * PartOrder::MaxParts + parts[i] + 1 ) ) );
+            lv_obj_add_event_cb( row, onLauncherClicked, LV_EVENT_PRESSED, this );
             lv_obj_add_event_cb( row, onLauncherClicked, LV_EVENT_CLICKED, this );
             // The texts are constants: LVGL keeps the pointer instead of a copy.
             lv_obj_t *label = lv_label_create( row );
@@ -1033,6 +1040,19 @@ void Display::placeLauncher()
 void Display::onLauncherClicked( lv_event_t *event )
 {
     Display *display = static_cast<Display *>( lv_event_get_user_data( event ) );
+    lv_point_t point = {};
+    lv_indev_t *indev = lv_indev_active();
+    if ( indev != nullptr ) {
+        lv_indev_get_point( indev, &point );
+    }
+    if ( lv_event_get_code( event ) == LV_EVENT_PRESSED ) {
+        display->m_launcherPressY = point.y;
+        return;
+    }
+    if ( abs( point.y - display->m_launcherPressY ) >= s_launcherTapSlopPx ) {
+        ESP_LOGI( TAG, "Launcher tap dropped: moved %d px", static_cast<int>( point.y - display->m_launcherPressY ) );
+        return;
+    }
     lv_obj_t *row = static_cast<lv_obj_t *>( lv_event_get_current_target( event ) );
     const int code = rowCode( row ) - 1;
     display->openPart( code / PartOrder::MaxParts, code % PartOrder::MaxParts, true );

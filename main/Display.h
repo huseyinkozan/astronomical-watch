@@ -353,6 +353,7 @@ private:
     int m_pressX = 0;
     int m_pressY = 0;
     bool m_pressMoved = false;
+    int m_launcherPressY = 0;  // where the finger touched a launcher row
     lv_obj_t *m_faceTile = nullptr;
     StackPage m_info;
     StackPage m_settingsPage;

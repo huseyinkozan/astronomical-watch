@@ -26,6 +26,7 @@ static const int s_left = 52;
 static const int s_right = 358;
 // 25 a second: the torch's SOS and the spirit level's readings.
 static const int s_tickMs = 40;
+static const int64_t s_rollBlankUs = 200000;
 
 // The torch's colours, then SOS (white flashes) without and with beeps.
 enum TorchColour
@@ -215,6 +216,7 @@ void ToolPages::forget()
         m_modes[i] = nullptr;
     }
     m_diceHint = nullptr;
+    m_rollShowUs = 0;
     m_calculatorPad.forget();
     m_calculatorValue = nullptr;
     m_calculatorText = nullptr;
@@ -280,6 +282,10 @@ void ToolPages::onTick( lv_timer_t *timer )
         self->readLevel();
     }
     self->m_parts.tick();
+    if ( self->m_rollShowUs != 0 && esp_timer_get_time() >= self->m_rollShowUs ) {
+        self->m_rollShowUs = 0;
+        self->showRandom();
+    }
     if ( !self->m_torchShown ) {
         return;
     }
@@ -448,8 +454,10 @@ void ToolPages::onTorchEvent( lv_event_t *event )
             self->m_sideways = abs( dx ) > abs( dy );
         }
         if ( self->m_sideways ) {
-            int colour = self->m_startColour + dx / s_colourStepPx;
-            colour = colour < 0 ? 0 : ( colour >= TorchColourCount ? TorchColourCount - 1 : colour );
+            // Round the list, so that SOS is a step or two away in either direction from any
+            // place the finger started.
+            int colour = ( self->m_startColour + dx / s_colourStepPx ) % TorchColourCount;
+            colour = colour < 0 ? colour + TorchColourCount : colour;
             if ( colour != s_torchColour ) {
                 s_torchColour = colour;
                 // SOS from its start, so that it reads from the first letter.
@@ -690,6 +698,7 @@ void ToolPages::roll()
     } else {
         s_number = static_cast<int>( esp_random() % 100 ) + 1;
     }
+    m_rollShowUs = esp_timer_get_time() + s_rollBlankUs;
     showRandom();
 }
 
@@ -709,8 +718,9 @@ void ToolPages::showRandom()
     snprintf( text, sizeof( text ), "%d", s_number );
     setText( m_number, text );
     setText( m_coin, Language::text( s_coin == 0 ? Language::CoinHeads : Language::CoinTails ) );
-    lv_obj_set_hidden( m_number, s_randomMode != NumberMode );
-    lv_obj_set_hidden( m_coin, s_randomMode != CoinMode );
+    const bool blank = m_rollShowUs != 0;
+    lv_obj_set_hidden( m_number, blank || s_randomMode != NumberMode );
+    lv_obj_set_hidden( m_coin, blank || s_randomMode != CoinMode );
     lv_obj_set_hidden( m_diceHint, s_randomMode != DiceMode );
     lv_obj_invalidate( m_randomArea );
 }
@@ -734,6 +744,7 @@ void ToolPages::onRandomEvent( lv_event_t *event )
 
 void ToolPages::onDrawRandom( lv_event_t *event )
 {
+    const ToolPages *self = static_cast<ToolPages *>( lv_event_get_user_data( event ) );
     lv_obj_t *object = static_cast<lv_obj_t *>( lv_event_get_current_target( event ) );
     lv_layer_t *layer = lv_event_get_layer( event );
     lv_area_t area = {};
@@ -774,6 +785,9 @@ void ToolPages::onDrawRandom( lv_event_t *event )
         box.radius = size / 7;
         const lv_area_t die = { x, y, x + size - 1, y + size - 1 };
         lv_draw_rect( layer, &box, &die );
+        if ( self->m_rollShowUs != 0 ) {
+            continue;  // the dice blank for a moment before the new roll
+        }
         const int value = s_dice[d] < 1 || s_dice[d] > 6 ? 1 : s_dice[d];
         for ( int cell = 0; cell < 9; ++cell ) {
             if ( ( s_pips[value - 1] & ( 1 << cell ) ) == 0 ) {
