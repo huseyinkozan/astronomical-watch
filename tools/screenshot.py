@@ -47,6 +47,9 @@ ALWAYS_ON_STYLES = 5
 # The watch face page and its default face pages (FaceConfig::defaults): "F <page>" shows one.
 FACE_PAGE = 0
 FACE_STYLES = 5
+# Parts that ask the main task for their values once they show (the Milky Way window): the first
+# picture only opens them, the second one, after the answer, is kept.
+ASK_ON_SHOW = {34}
 
 
 def writePng(path, width, height, rows):
@@ -231,6 +234,9 @@ def main():
         # Past the last page the watch answers nothing: then come the always-on styles (-1 - style).
         lastTry = allPages and target > 0
         result = capture(port, reader, target, timeout=8 if lastTry else 30, verbose=args.verbose)
+        if result is not None and target in ASK_ON_SHOW:
+            time.sleep(1.5)
+            result = capture(port, reader, target, verbose=args.verbose)
         if result is None:
             if lastTry:
                 allPages = False

@@ -355,7 +355,8 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   30 min; on a 16:00 to 08:00 bar, with the centre's highest, the Moon and the next night with a
   window (up to 120 nights; from late November at 41 degrees north the next is in March). It is
   computed only while its part shows, asked for 0.4 s after it slid in (`lv_timer`), once a night
-  and place, in the main task like the planets' day (the search is about 0.5 s on the board). The deep-sky finder lists the 110 Messier objects (NASA HEASARC, public domain; `tools/make_messier_table.py`,
+  and place, in the main task like the planets' day (131 ms measured for a June night at 41 degrees; the
+  longest searches about ten times that, by the host's ratio). The deep-sky finder lists the 110 Messier objects (NASA HEASARC, public domain; `tools/make_messier_table.py`,
   packed in 660 bytes; common names in `Language::messierName`) 10 degrees up, highest first,
   with the altitude and the best time in tonight's darkness, again each minute while shown. Its
   list is the pages' second vertical scroll after the launcher's: one drawn object in a scrolling

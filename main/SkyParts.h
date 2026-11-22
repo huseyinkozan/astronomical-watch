@@ -34,8 +34,8 @@ public:
     // Every update of the sky; the parts change once a minute.
     void show( int64_t now, const Astronomy::Observer &observer, int utcOffsetMinutes, bool located );
 
-    // The Milky Way window's night is computed in the main task (up to half a second on the board,
-    // which would freeze the LVGL task): the part asks a moment after it slid in, the answer for a
+    // The Milky Way window's night is computed in the main task (0.13 s measured, a second or more
+    // for the longest searches, which would freeze the LVGL task): the part asks a moment after it slid in, the answer for a
     // night or place no longer shown is dropped.
     static const int SearchNights = 120;
     bool takeMilkyWayRequest( int64_t &noon, Astronomy::Observer &observer );
