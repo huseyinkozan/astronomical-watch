@@ -59,7 +59,8 @@ public:
     bool swipesSideways() const;
 
     // Development: "entry <flow> <intercourse> [<madeup>]" saves today's entry; "pin <digits>"
-    // types and confirms a PIN; "teen" steps the adolescent mode; "legend"; "month <step>".
+    // types and confirms a PIN; "teen" steps the adolescent mode; "legend"; "month <step>";
+    // "open-entry", "open-pin" and "close" for the overlays' pictures.
     bool press( const char *name );
 
 private:

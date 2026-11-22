@@ -630,6 +630,14 @@ bool CyclePages::press( const char *name )
         refresh();
         return true;
     }
+    if ( strcmp( name, "open-entry" ) == 0 && interactive() ) {
+        openEntry( m_today );
+        return true;
+    }
+    if ( strcmp( name, "open-pin" ) == 0 ) {
+        openInput( m_log->pinHash != 0 ? CheckPin : NewPin );
+        return true;
+    }
     if ( strcmp( name, "close" ) == 0 ) {
         closeOverlay();
         return true;
