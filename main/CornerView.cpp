@@ -12,11 +12,12 @@ static const float s_chargeColour = 0xFF;  // white
 static const int s_chargeSteps = 8;
 static const uint32_t s_chargeStepMs = 200;
 static const float s_notchColour = 0xD0;
-// The display timeout's gauge: moved every 100 ms when it changed by about a pixel (a thousandth
-// is 0.18 px), grown back after a touch by at most 200 a step, half a second from empty to full.
-static const uint32_t s_timeoutStepMs = 100;
+// The display timeout's gauge: moved every 200 ms when it changed by about a pixel (a thousandth
+// is 0.18 px), grown back after a touch by at most 400 a step, half a second from empty to full.
+// 200 ms rather than 100 ms halves the corner's redraws (the owner's choice of 2026-11-23).
+static const uint32_t s_timeoutStepMs = 200;
 static const int s_timeoutMinMove = 5;
-static const int s_timeoutGrowth = 200;
+static const int s_timeoutGrowth = 400;
 static std::atomic<int> s_timeoutLeft( 1000 );
 // The cycle gauge's phases, packed so that one store changes them together: length (8 bits),
 // period, fertile first, fertile last (8 each), and the colour flag in bit 31... kept in two words.

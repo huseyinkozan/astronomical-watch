@@ -214,7 +214,7 @@ value is white: in active mode it grows step by step to the full end and starts 
 always-on face it is drawn solid from the next minute wake), bottom left the Moon above the
 horizon (bluish white, rise to set) or below it (dark grey, set to rise), bottom right the
 display timeout's time left (white, orange at 40 % or less, red at 20 % or less; full at a touch, shrinking to the lower
-end, moved every 100 ms and grown back in steps after a touch, `CornerView::setTimeoutLeft`; full
+end, moved every 200 ms and grown back in steps after a touch (half a second to full), `CornerView::setTimeoutLeft`; full
 while something keeps the display on, the portal's own timeout while it runs; a tap opens the settings; on the always-on face the time
 left until the power-off without motion, from each minute wake's motion state; the owner's choice of 2026-11-22, as
 info pages ended unnoticed). The Moon's phase as a gauge lights a part that grows from the lower
