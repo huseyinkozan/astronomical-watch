@@ -18,7 +18,7 @@ microtidal (a few cm to some tens of cm), so the help says where it is of use. R
   height with the part below it blue; between them the crest grows with the level. Shape: B3
   of `mock2.png`, a crest leaning to the shore (a slow rise to 68 % of the width, a steep
   front), the owner's pick. A tap opens D.
-- **D, an information part** on the Info page after the Moon: the day's curve (0-24 h, cyan
+- **D, an information part** on the Info page after the Moon (see the regrouping below): the day's curve (0-24 h, cyan
   rising, blue falling, now marked), today's high and low waters, the state now (rising or
   falling, the level in %), spring or neap by the Moon's age, the interval set, and
   "approximate: the Moon only".
@@ -27,6 +27,14 @@ microtidal (a few cm to some tens of cm), so the help says where it is of use. R
   can know it (a global tide model would be large and coarse near coasts). Without it nothing
   shows the tide.
 - C (a text line) is left out.
+
+## The pages regrouped (the owner, 2026-11-23)
+
+A page holds at most eight parts (`PartOrder`'s 3-bit fields) and the Info page had eight. The
+owner let the parts be regrouped by meaning: the Info page keeps the Sun, the twilights, the
+prayer times, the Moon, the tide (new, after the Moon), the sun compass and the time (seven);
+the battery and the about parts move to the settings page, before the factory reset (eight).
+The Info page's saved order and hidden mask fall back to the defaults once.
 
 ## The model (host-tested, `main/Tide.*`)
 
