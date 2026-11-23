@@ -399,6 +399,7 @@ function fit() {
 
 function translate() {
   document.documentElement.lang = language;
+  document.title = language === 'tr' ? 'Astronomik Saat' : 'Astronomical Watch';
   document.querySelectorAll('[data-en]').forEach((e) => { e.textContent = e.dataset[language]; });
   document.getElementById('language').textContent = language === 'tr' ? 'English' : 'Türkçe';
   document.getElementById('featureList').innerHTML = '';
