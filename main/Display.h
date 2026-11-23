@@ -402,6 +402,7 @@ private:
     Sky::Now m_now = {};
     int m_offsetMinutes = 0;
     bool m_haveSky = false;
+    bool m_located = false;  // the sky was computed for a set location (the tide needs it)
     FaceTable m_faceTable = {};
     Battery m_battery = {};
     bool m_timeValid = false;

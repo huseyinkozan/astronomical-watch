@@ -5,6 +5,8 @@
 #include <cmath>
 #include <cstdlib>
 
+#include "Dates.h"
+#include "Sky.h"
 #include "Tide.h"
 
 static int failures = 0;
@@ -88,6 +90,30 @@ int main()
     near( "wave: half way", std::lround( Tide::waveHeight( 500, 0.68f ) * 1000 ), 600, 1 );
     near( "wave: the left edge stays calm", std::lround( Tide::waveHeight( 1000, 0.0f ) * 1000 ), 200, 1 );
     check( "wave: the front falls steeply", Tide::waveHeight( 1000, 0.80f ) < Tide::waveHeight( 1000, 0.56f ), 1 );
+
+    // A year of real transits (Istanbul, 2026): every 10 minutes of every local day has a tide
+    // for any interval, also before the first known transit's high water (the final review:
+    // mornings were blank on about half the days) and across days without a transit.
+    const Astronomy::Observer istanbul = { 41.0082, 28.9784 };
+    const int intervals[4] = { 0, 300, 600, 745 };
+    int blank = 0;
+    int fewWaters = 0;
+    for ( int day = Dates::dayNumber( 2026, 1, 1 ); day < Dates::dayNumber( 2027, 1, 1 ); ++day ) {
+        const Sky::Day sky = Sky::computeDay( day, 180, istanbul, Hijri::Diyanet, 17 );
+        for ( int k = 0; k < 4; ++k ) {
+            for ( int minute = 0; minute < 1440; minute += 10 ) {
+                if ( !Tide::at( sky.moonTransits, intervals[k], sky.phase.ageDays, sky.localMidnight + minute * 60 ).valid ) {
+                    ++blank;
+                }
+            }
+            Tide::Water list[8];
+            if ( Tide::waters( sky.moonTransits, intervals[k], sky.localMidnight, sky.localMidnight + 86400, list, 8 ) < 3 ) {
+                ++fewWaters;
+            }
+        }
+    }
+    check( "a year: no blank moment", blank, 0 );
+    check( "a year: three or four waters every day", fewWaters, 0 );
 
     printf( "Tide: %d checks, %d failures\n", checks, failures );
     return failures == 0 ? 0 : 1;

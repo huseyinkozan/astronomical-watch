@@ -274,6 +274,15 @@ int main()
     check( "fit: Turkish letters count once", FaceText::fit( "Gün batımı", 16, 64 ) == 5 );
     check( "fit: all of a short text", FaceText::fit( "21 Haz", 16, 160 ) == 6 );
 
+    // The tide on the faces only with a location: at longitude 0 the times would be hours off.
+    FaceTable tide = table;
+    tide.setTide( sky, 320, false );
+    check( "tide without a location: none", !tide.tide( sky.localMidnight + 43200 ).valid );
+    tide.setTide( sky, Tide::Off, true );
+    check( "tide without the interval: none", !tide.tide( sky.localMidnight + 43200 ).valid );
+    tide.setTide( sky, 320, true );
+    check( "tide with both", tide.tide( sky.localMidnight + 43200 ).valid );
+
     printf( "Face text: %d checks, %d failures\n", s_checks, s_failures );
     return s_failures == 0 ? 0 : 1;
 }

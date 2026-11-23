@@ -61,6 +61,9 @@ public:
     int16_t tideInterval;
     float moonAge;
 
+    // The tide's inputs from the day: off without a location (at longitude 0 the times would be
+    // hours off) or without the interval (Tide::Off).
+    void setTide( const Sky::Day &day, int intervalMinutes, bool located );
     // The tide at `now`; not valid without the interval or the transits around it.
     Tide::State tide( int64_t now ) const;
 

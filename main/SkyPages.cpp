@@ -437,7 +437,9 @@ void SkyPages::showTide( const Sky::Day &day, int intervalMinutes, int64_t now, 
         return;
     }
     const Tide::State state = Tide::at( day.moonTransits, intervalMinutes, day.phase.ageDays, now );
-    const bool on = intervalMinutes != Tide::Off && state.valid;
+    // The message only without the interval; a moment out of the transits' reach (rare: an
+    // old table) leaves the curve and the rows of the day.
+    const bool on = intervalMinutes != Tide::Off;
     lv_obj_set_hidden( m_tideMessage, on );
     lv_obj_set_hidden( m_tideCurve, !on );
     // The rows' names and the note with the curve; without the interval the title and the
@@ -520,16 +522,19 @@ void SkyPages::onDrawTideCurve( lv_event_t *event )
     lv_layer_t *layer = lv_event_get_layer( event );
     lv_area_t box;
     lv_obj_get_coords( self->m_tideCurve, &box );
-    const int32_t width = lv_area_get_width( &box ) - 1;
+    // The plot 12 px inside the object on both sides: the end labels ("00", "24") centred on the
+    // first and the last tick stay inside it (LVGL clips the drawing to the object).
+    const int32_t left = box.x1 + 12;
+    const int32_t width = lv_area_get_width( &box ) - 1 - 24;
     const int32_t top = box.y1 + 4;
     const int32_t bottom = box.y2 - 22;
     lv_draw_line_dsc_t line;
     lv_draw_line_dsc_init( &line );
     line.width = 1;
     line.color = lv_color_hex( 0x505050 );
-    line.p1.x = box.x1;
+    line.p1.x = left;
     line.p1.y = bottom;
-    line.p2.x = box.x2;
+    line.p2.x = left + width;
     line.p2.y = bottom;
     lv_draw_line( layer, &line );
     lv_draw_label_dsc_t label;
@@ -537,7 +542,7 @@ void SkyPages::onDrawTideCurve( lv_event_t *event )
     label.font = &jetbrains_mono_16;
     label.color = lv_color_hex( 0xA0A0A0 );
     for ( int hour = 0; hour <= 24; hour += 6 ) {
-        const int32_t x = box.x1 + width * hour / 24;
+        const int32_t x = left + width * hour / 24;
         line.p1.x = x;
         line.p1.y = bottom;
         line.p2.x = x;
@@ -556,16 +561,16 @@ void SkyPages::onDrawTideCurve( lv_event_t *event )
             continue;
         }
         line.color = lv_color_hex( self->m_tideRising[i] ? 0x40D0E0 : 0x4080E0 );
-        line.p1.x = box.x1 + width * ( i - 1 ) / ( TideSamples - 1 );
+        line.p1.x = left + width * ( i - 1 ) / ( TideSamples - 1 );
         line.p1.y = bottom - 4 - ( bottom - 4 - top ) * self->m_tideLevels[i - 1] / 1000;
-        line.p2.x = box.x1 + width * i / ( TideSamples - 1 );
+        line.p2.x = left + width * i / ( TideSamples - 1 );
         line.p2.y = bottom - 4 - ( bottom - 4 - top ) * self->m_tideLevels[i] / 1000;
         lv_draw_line( layer, &line );
     }
     if ( self->m_tideNow < 0 ) {
         return;
     }
-    const int32_t x = box.x1 + width * self->m_tideNow / 1000;
+    const int32_t x = left + width * self->m_tideNow / 1000;
     line.width = 1;
     line.color = lv_color_white();
     line.p1.x = x;

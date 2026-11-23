@@ -489,7 +489,8 @@ void Display::buildInfoPage()
     m_sky.setPlace( m_setupTexts[0] );
     if ( m_haveSky ) {
         m_sky.show( m_day, m_now, m_offsetMinutes );
-        m_sky.showTide( m_day, m_settings->value( Settings::TideInterval ), m_now.time, m_offsetMinutes );
+        m_sky.showTide( m_day, m_located ? m_settings->value( Settings::TideInterval ) : Tide::Off, m_now.time,
+                        m_offsetMinutes );
     }
     applyOrders();
 }
@@ -1326,11 +1327,12 @@ void Display::showSky( const Sky::Day &day, const Sky::Now &now, const Astronomy
         return;
     }
     m_sky.show( day, now, utcOffsetMinutes );
-    m_sky.showTide( day, m_settings->value( Settings::TideInterval ), now.time, utcOffsetMinutes );
+    m_sky.showTide( day, located ? m_settings->value( Settings::TideInterval ) : Tide::Off, now.time, utcOffsetMinutes );
     m_day = day;
     m_now = now;
     m_offsetMinutes = utcOffsetMinutes;
     m_haveSky = true;
+    m_located = located;
     m_moonPercent = static_cast<int>( day.phase.illumination * 100 + 0.5 );
     m_waxing = day.phase.elongation < 180;
     m_face.setMoon( m_moonPercent, m_waxing );

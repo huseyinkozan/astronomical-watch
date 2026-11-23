@@ -5,6 +5,10 @@
 namespace {
 
 const double s_synodicMonth = 29.530589;
+// A lunar day: how far the first and the last span reach beyond the known transits (before
+// yesterday's transit plus the interval, a morning would have no tide; an always-on face's table
+// a day or two old still has one, and then no more).
+const int64_t s_lunarDay = 89428;
 
 // Two neighbouring known transits: high waters at `start` and every `period` until `end`. A day
 // without a transit between them is bridged: the pair then spans four half periods, not two.
@@ -49,7 +53,10 @@ Tide::State Tide::at( const int64_t transits[TransitCount], int intervalMinutes,
     const int count = spans( transits, intervalMinutes, list );
     for ( int i = 0; i < count; ++i ) {
         const Span &span = list[i];
-        if ( now < span.start || now >= span.end ) {
+        // The first span reaches a lunar day back, the last one a lunar day on.
+        const int64_t from = i == 0 ? span.start - s_lunarDay : span.start;
+        const int64_t to = i == count - 1 ? span.end + s_lunarDay : span.end;
+        if ( now < from || now >= to ) {
             continue;
         }
         const double phase = ( now - span.start ) / span.period;
@@ -93,15 +100,18 @@ int Tide::waters( const int64_t transits[TransitCount], int intervalMinutes, int
     int n = 0;
     for ( int i = 0; i < count && n < max; ++i ) {
         const Span &span = list[i];
-        // Every half of a half period: high, low, high, low...
-        for ( int step = 0; n < max; ++step ) {
+        // Every half of a half period: high, low, high, low...; the first span from a lunar day
+        // before its start, the last one to a lunar day after its end (as at()).
+        const int first = i == 0 ? -static_cast<int>( s_lunarDay / ( span.period / 2.0 ) ) : 0;
+        const int64_t limit = i == count - 1 ? span.end + s_lunarDay : span.end;
+        for ( int step = first; n < max; ++step ) {
             const int64_t time = span.start + std::llround( step * span.period / 2.0 );
-            if ( time >= span.end ) {
+            if ( time >= limit ) {
                 break;
             }
             if ( time >= from && time < to ) {
                 out[n].time = time;
-                out[n].high = step % 2 == 0;
+                out[n].high = ( step % 2 + 2 ) % 2 == 0;
                 ++n;
             }
         }

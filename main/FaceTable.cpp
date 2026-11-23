@@ -110,3 +110,12 @@ Tide::State FaceTable::tide( int64_t now ) const
 {
     return Tide::at( moonTransits, tideInterval, moonAge, now );
 }
+
+void FaceTable::setTide( const Sky::Day &day, int intervalMinutes, bool located )
+{
+    for ( int i = 0; i < Tide::TransitCount; ++i ) {
+        moonTransits[i] = day.moonTransits[i];
+    }
+    tideInterval = static_cast<int16_t>( located ? intervalMinutes : Tide::Off );
+    moonAge = static_cast<float>( day.phase.ageDays );
+}
