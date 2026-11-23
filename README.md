@@ -4,6 +4,9 @@ A personal low-power astronomical watch on the **Waveshare ESP32-S3-Touch-AMOLED
 is computed on the watch from the time and the location set on its own setup page; no internet,
 GPS or online service is used. Battery life comes first: the processor sleeps most of the time.
 
+Try it in the browser and install it from there: **https://huseyinkozan.gitlab.io/astronomical-watch/**
+(also on [GitHub Pages](https://huseyinkozan.github.io/astronomical-watch/)).
+
 ## Features
 
 - Face pages composed on the setup page: a digital or analog clock, large or among the Sun's and
@@ -44,7 +47,9 @@ Every page and part, the default face pages, and the setup portal: **[English](d
 
 ## Install and Update
 
-Releases are on the project's release page (GitLab and GitHub), each with two files:
+The [site](https://huseyinkozan.gitlab.io/astronomical-watch/) installs the latest release from the
+browser (Chrome or Edge on a computer). Releases are on the project's release page (GitLab and
+GitHub), each with two files:
 
 - `astronomical_watch-<version>-full.bin`: the first install over USB, one command
   (Python's esptool; if no port appears, hold BOOT while pressing PWR for the download mode).
