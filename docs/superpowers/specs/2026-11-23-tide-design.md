@@ -15,9 +15,9 @@ microtidal (a few cm to some tens of cm), so the help says where it is of use. R
   middle as on every gauge. A tap opens D.
 - **B, a corner icon** (FaceConfig::CornerItem, appended): a wave whose crest reaches the
   icon's top at high water; at low water no wave, a flat blue sea line at 20 % of the icon's
-  height with the part below it blue; between them the crest grows with the level. Shape:
-  the owner picks one of B1 (one crest), B2 (two crests, a sine), B3 (a crest leaning to the
-  shore). A tap opens D.
+  height with the part below it blue; between them the crest grows with the level. Shape: B3
+  of `mock2.png`, a crest leaning to the shore (a slow rise to 68 % of the width, a steep
+  front), the owner's pick. A tap opens D.
 - **D, an information part** on the Info page after the Moon: the day's curve (0-24 h, cyan
   rising, blue falling, now marked), today's high and low waters, the state now (rising or
   falling, the level in %), spring or neap by the Moon's age, the interval set, and
