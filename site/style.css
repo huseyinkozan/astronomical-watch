@@ -204,3 +204,16 @@ table.power td:last-child { text-align: right; font-variant-numeric: tabular-num
 .views-hint { white-space: pre-line; }
 a.install[aria-disabled="true"] { opacity: 0.4; pointer-events: none; filter: grayscale(1); }
 html:not([lang="tr"]) .tr-only { display: none; }
+/* Framed step strips (opening the portal, updating) and the update's dialog. */
+.steps-box { border: 1px solid var(--line); border-radius: 14px; padding: 6px 16px 16px; margin: 12px 0 24px; background: #111114; }
+.steps-box h3, .update-dialog h3 { color: var(--accent); margin: 10px 0 12px; }
+.steps-box .portal-steps { margin-bottom: 0; }
+.downloads { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 8px 0 14px; }
+a.install[href] { text-decoration: none; }
+.update-dialog { max-width: min(980px, 94vw); }
+.crop.wide-crop { width: 240px; height: 150px; border-radius: 12px; background-repeat: no-repeat; }
+.portal-steps .step:has(.wide-crop) { width: 240px; }
+.phone-list { background: #000; color: #f2f2f2; border-radius: 22px; font-family: system-ui, sans-serif; }
+.file-row { font-size: 0.72rem; white-space: normal; word-break: break-all; }
+.small-install { padding: 6px 14px; font-size: 0.9rem; }
+.small-row { color: #a0a0a6; font-size: 0.75rem; border-top: none; }

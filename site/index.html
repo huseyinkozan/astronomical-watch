@@ -123,6 +123,8 @@
      data-tr="Saatte başlatılır, saatin kendi Wi-Fi ağı üzerinden telefonda ya da bilgisayarda açılır: saat ve yer, yüz sayfaları, alarmlar, ayarlar ve güncellemeler. Tamamını görmek için bir sayfaya tıklayın."></p>
   <!-- How to reach the portal: the watch's pictures (cut by CSS, both languages) and a phone's
        Wi-Fi list drawn here, plain and of no brand. -->
+  <div class="steps-box">
+  <h3 data-en="Opening the setup portal" data-tr="Kurulum portalını açma"></h3>
   <ol class="portal-steps">
     <li class="step">
       <div class="crop setup-crop"><img data-shot-img="face-0" alt=""><span class="ring" style="left: 117px; top: 154px; width: 34px; height: 34px; border-radius: 50%;"></span></div>
@@ -150,6 +152,7 @@
       <p data-en="The setup page opens by itself (otherwise go to 192.168.4.1)." data-tr="Kurulum sayfası kendiliğinden açılır (açılmazsa 192.168.4.1 adresine gidin)."></p>
     </li>
   </ol>
+  </div>
   <div class="portal-shots">
     <button type="button" class="portal-shot" data-shot="portal"><img alt=""><span data-en="Settings" data-tr="Ayarlar"></span></button>
     <button type="button" class="portal-shot" data-shot="portal-faces"><img alt=""><span data-en="Face pages" data-tr="Yüz sayfaları"></span></button>
@@ -196,6 +199,54 @@
   <p class="small" id="release" hidden></p>
   <p class="small"><span data-en="The images: " data-tr="Kurulum dosyaları: "></span><a href="https://gitlab.com/huseyinkozan/astronomical-watch/-/releases" data-en="releases on GitLab" data-tr="GitLab sürümleri"></a> ·
      <a href="https://github.com/huseyinkozan/astronomical-watch/releases" data-en="releases on GitHub" data-tr="GitHub sürümleri"></a></p>
+  <h3 data-en="Update" data-tr="Güncelleme"></h3>
+  <p data-en="A new version installs from a phone through the watch's setup portal; the settings, face pages and alarms stay. Download the file on the phone while it is online, then upload it to the watch."
+     data-tr="Yeni bir sürüm telefondan, saatin kurulum portalıyla yüklenir; ayarlar, yüz sayfaları ve alarmlar kalır. Dosyayı telefon internetteyken indirin, sonra saate yükleyin."></p>
+  <div class="downloads">
+    <a class="install update-link" id="downloadUpdate" href="https://gitlab.com/huseyinkozan/astronomical-watch/-/releases" data-en="Download the update" data-tr="Güncelleme dosyasını indir"></a>
+    <button type="button" id="updateOpen" data-en="Step by step" data-tr="Adım adım"></button>
+  </div>
+  <dialog id="updateDialog" class="update-dialog">
+    <h3 data-en="Updating the watch" data-tr="Saati güncelleme"></h3>
+    <ol class="portal-steps">
+      <li class="step">
+        <div class="crop phone-list">
+          <div class="wifi-head" data-en="Downloads" data-tr="İndirilenler"></div>
+          <div class="wifi-row chosen file-row"><span class="update-name">astronomical_watch-v0.0.10.bin</span></div>
+          <div class="wifi-row small-row" data-en="1.9 MB · done" data-tr="1,9 MB · tamamlandı"></div>
+        </div>
+        <p data-en="On the phone, while it is online, download the update file:" data-tr="Telefon internetteyken güncelleme dosyasını indirin:"></p>
+        <a class="install small-install update-link" href="https://gitlab.com/huseyinkozan/astronomical-watch/-/releases" data-en="Download" data-tr="İndir"></a>
+      </li>
+      <li class="arrow" aria-hidden="true"><span>&#10140;</span></li>
+      <li class="step">
+        <div class="crop setup-crop"><img data-shot-img="17-setup" alt=""><span class="ring" style="left: 18px; top: 20px; width: 128px; height: 40px; border-radius: 8px;"></span></div>
+        <p data-en="Open the setup portal and connect the phone to it, as shown above. On USB or at 30 % battery at least." data-tr="Kurulum portalını açıp telefonu bağlayın (yukarıdaki gibi). Saat USB'de ya da pili en az %30 olmalı."></p>
+      </li>
+      <li class="arrow" aria-hidden="true"><span>&#10140;</span><small data-en="tap" data-tr="dokunun"></small></li>
+      <li class="step">
+        <div class="crop wide-crop" data-shot-bg="portal" data-scale="0.6" data-y-en="0" data-y-tr="0"><span class="ring" style="left: 172px; top: 103px; width: 63px; height: 28px; border-radius: 8px;"></span></div>
+        <p data-en="On the setup page, tap the Update tab." data-tr="Kurulum sayfasında Güncelleme sekmesine dokunun."></p>
+      </li>
+      <li class="arrow" aria-hidden="true"><span>&#10140;</span><small data-en="tap" data-tr="dokunun"></small></li>
+      <li class="step">
+        <div class="crop wide-crop" data-shot-bg="update" data-scale="0.6" data-y-en="1436" data-y-tr="1390"><span class="ring" style="left: 11px; top: 62px; width: 62px; height: 20px; border-radius: 6px;"></span></div>
+        <p data-en="Choose the downloaded file." data-tr="İndirdiğiniz dosyayı seçin."></p>
+      </li>
+      <li class="arrow" aria-hidden="true"><span>&#10140;</span><small data-en="tap" data-tr="dokunun"></small></li>
+      <li class="step">
+        <div class="crop wide-crop" data-shot-bg="update" data-scale="0.6" data-y-en="1436" data-y-tr="1390"><span class="ring" style="left: 6px; top: 86px; width: 229px; height: 34px; border-radius: 8px;"></span></div>
+        <p data-en="Tap Install and wait about half a minute, the phone near the watch." data-tr="Yükle'ye dokunup yarım dakika kadar bekleyin; telefon saatin yanında kalsın."></p>
+      </li>
+      <li class="arrow" aria-hidden="true"><span>&#10140;</span></li>
+      <li class="step">
+        <div class="crop setup-crop"><img data-shot-img="18-about" alt=""><span class="ring" style="left: 54px; top: 76px; width: 56px; height: 20px; border-radius: 6px;"></span></div>
+        <p data-en="The watch restarts. Info, About shows the new version." data-tr="Saat yeniden başlar. Bilgi, Hakkında yeni sürümü gösterir."></p>
+      </li>
+    </ol>
+    <form method="dialog"><button type="submit" data-en="Close" data-tr="Kapat"></button></form>
+  </dialog>
+  <p class="small"><span data-en="First install without a browser: the full image, " data-tr="Tarayıcısız ilk kurulum için tam görüntü: "></span><a id="downloadFull" href="https://gitlab.com/huseyinkozan/astronomical-watch/-/releases">astronomical_watch-&lt;version&gt;-full.bin</a></p>
   <p class="small" data-en="No port? Hold BOOT while pressing PWR for the download mode. Without a browser:" data-tr="Port görünmüyor mu? İndirme modu için BOOT'u basılı tutup PWR'a basın. Tarayıcısız:"></p>
   <pre><code>pip install esptool
 esptool --chip esp32s3 -p /dev/ttyACM0 write-flash 0x0 astronomical_watch-&lt;version&gt;-full.bin</code></pre>

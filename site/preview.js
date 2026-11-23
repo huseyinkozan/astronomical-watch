@@ -407,7 +407,15 @@ function translate() {
   document.getElementById('guideList').innerHTML = '';
   guide.forEach((g) => { const li = document.createElement('li'); li.textContent = g[index()]; document.getElementById('guideList').appendChild(li); });
   document.querySelectorAll('[data-shot-img]').forEach((img) => { img.src = 'screenshots/' + language + '/' + img.dataset.shotImg + '.png'; });
-  document.querySelectorAll('[data-shot-bg]').forEach((e) => { e.style.backgroundImage = 'url(screenshots/' + language + '/' + e.dataset.shotBg + '.png)'; });
+  document.querySelectorAll('[data-shot-bg]').forEach((e) => {
+    e.style.backgroundImage = 'url(screenshots/' + language + '/' + e.dataset.shotBg + '.png)';
+    if (e.dataset.scale) {
+      // The portal's pictures are 400 px wide; the part from data-y-<language> down.
+      const k = +e.dataset.scale;
+      e.style.backgroundSize = (400 * k) + 'px auto';
+      e.style.backgroundPosition = '0 ' + (-(+e.dataset['y' + (language === 'tr' ? 'Tr' : 'En')]) * k) + 'px';
+    }
+  });
   document.querySelectorAll('.portal-shot img').forEach((img) => {
     img.src = 'screenshots/' + language + '/' + img.parentElement.dataset.shot + '.png';
   });
@@ -434,10 +442,12 @@ document.querySelectorAll('.portal-shot').forEach((b) => b.addEventListener('cli
 const releaseSources = [
   () => fetch('https://gitlab.com/api/v4/projects/huseyinkozan%2Fastronomical-watch/releases/permalink/latest')
     .then((r) => (r.ok ? r.json() : null))
-    .then((r) => (r && r.tag_name ? { tag: r.tag_name, date: r.released_at, url: r._links.self } : null)),
+    .then((r) => (r && r.tag_name ? { tag: r.tag_name, date: r.released_at, url: r._links.self,
+      files: ((r.assets && r.assets.links) || []).map((l) => ({ name: l.name, url: l.direct_asset_url || l.url })) } : null)),
   () => fetch('https://api.github.com/repos/huseyinkozan/astronomical-watch/releases/latest')
     .then((r) => (r.ok ? r.json() : null))
-    .then((r) => (r && r.tag_name ? { tag: r.tag_name, date: r.published_at, url: r.html_url } : null)),
+    .then((r) => (r && r.tag_name ? { tag: r.tag_name, date: r.published_at, url: r.html_url,
+      files: (r.assets || []).map((a) => ({ name: a.name, url: a.browser_download_url })) } : null)),
 ];
 if (location.hostname.endsWith('github.io')) releaseSources.reverse();
 releaseSources[0]().catch(() => null)
@@ -458,6 +468,17 @@ function showRelease() {
   a.textContent = language === 'tr' ? 'sürüm notları' : 'release notes';
   e.append(a);
   e.hidden = false;
+  // The download buttons go straight to the release's files.
+  const update = latestRelease.files.find((f) => /^astronomical_watch-v[0-9.]+\.bin$/.test(f.name));
+  const full = latestRelease.files.find((f) => /-full\.bin$/.test(f.name));
+  if (update) {
+    document.querySelectorAll('.update-link').forEach((a) => { a.href = update.url; });
+    document.querySelectorAll('.update-name').forEach((n) => { n.textContent = update.name; });
+  }
+  if (full) {
+    document.getElementById('downloadFull').href = full.url;
+    document.getElementById('downloadFull').textContent = full.name;
+  }
 }
 // Without Web Serial (Firefox, Safari, phones) the install cannot run: the button says so.
 if (!('serial' in navigator)) {
@@ -465,6 +486,7 @@ if (!('serial' in navigator)) {
   document.getElementById('installJump').tabIndex = -1;
   document.getElementById('noSerial').hidden = false;
 }
+document.getElementById('updateOpen').addEventListener('click', () => document.getElementById('updateDialog').showModal());
 document.getElementById('helpOpen').addEventListener('click', () => document.getElementById('helpDialog').showModal());
 document.getElementById('boot').addEventListener('click', back);
 document.getElementById('pwr').addEventListener('click', power);
