@@ -105,6 +105,16 @@
   watch and paste them here.</small>
   <label for="placeName" data-tr="Yerin adı (saatte görünür)">Name of the place (shown on the watch)</label>
   <input id="placeName" autocomplete="off" maxlength="23" placeholder="e.g. Summer house" data-tr-ph="Örneğin: Yazlık">
+  <label data-tr="Gelgit gecikmesi (Ay'ın geçişinden yüksek suya)">Tide interval (from the Moon's transit to high water)</label>
+  <div class="row">
+    <div><label for="tideHours" data-tr="Saat">Hours</label><input id="tideHours" type="number" min="0" max="12" step="1"></div>
+    <div><label for="tideMinutes" data-tr="Dakika">Minutes</label><input id="tideMinutes" type="number" min="0" max="59" step="1"></div>
+  </div>
+  <small data-tr="Kıyınızın gelgit tablosundan bulun: bir yüksek su saatinden, ondan önce Ay'ın meridyenden geçtiği saati çıkarın (saatte Gözlem sayfasındaki seyir almanağı, Ay için Meridyen satırında gösterir). Boş bırakılırsa gelgit gösterilmez. Gösterge suyun ne zaman yüksek ya da alçak olduğunu gösterir, ne kadar olduğunu değil; Akdeniz, Karadeniz, Baltık gibi neredeyse kapalı denizlerde gelgit birkaç santimetredir.">Find
+  it from your coast's tide table: a high water's time minus the Moon's meridian transit before it
+  (on the watch, the Observing page's nautical almanac shows it for the Moon, as Mer. pass). Left empty, the tide is not shown. The gauge tells when the
+  water is high or low, not how high; in nearly closed seas such as the Mediterranean, the Black
+  Sea or the Baltic the tide is a few centimetres.</small>
 </fieldset>
 
 <fieldset>
@@ -700,7 +710,8 @@ const faceCorners = [['Nothing', 'Boş'], ['Moon phase', 'Ay evresi'], ['Weekday
   ['Minute (MM)', 'Dakika (DD)', '19', '19'], ['Second', 'Saniye', '42', '42'], null,
   ['Time icon', 'Zaman simgesi'], null, ['Time (HH:MM)', 'Saat (SS:DD)', '19:19', '19:19'],
   ['Wi-Fi icon (lit while the setup portal runs)', 'Wi-Fi simgesi (kurulum portalı açıkken yanar)'],
-  ['Cycle icon (colours only while the cycle page is unlocked)', 'Döngü simgesi (renkler yalnız döngü sayfası açıkken)']];
+  ['Cycle icon (colours only while the cycle page is unlocked)', 'Döngü simgesi (renkler yalnız döngü sayfası açıkken)'],
+  ['Tide wave icon (needs the tide interval)', 'Gelgit dalga simgesi (gelgit gecikmesi gerekir)']];
 // FaceConfig::TimeIcon: the alarm days and the hourglass of their own (AlarmDays, TimerGlass,
 // offered no more) show as it.
 const AlarmDaysCorner = 13, TimeIconCorner = 14, TimerGlassCorner = 15;
@@ -754,7 +765,8 @@ const gaugeItems = [['Nothing', 'Boş'], ['Day or night', 'Gündüz ya da gece']
   ['Hour', 'Saat'], ['Minute', 'Dakika'], ['Second (not on the always-on face)', 'Saniye (beklemede yok)'],
   ['Display timeout, time left (always-on: until it switches off without motion)',
    'Ekran zaman aşımı, kalan süre (beklemede: hareketsiz kapanmaya kalan)'],
-  ['Menstrual cycle (colours only while the cycle page is unlocked)', 'Adet döngüsü (renkler yalnız döngü sayfası açıkken)']];
+  ['Menstrual cycle (colours only while the cycle page is unlocked)', 'Adet döngüsü (renkler yalnız döngü sayfası açıkken)'],
+  ['Tide (cyan rising, blue falling; needs the tide interval)', 'Gelgit (yükselirken camgöbeği, alçalırken mavi; gelgit gecikmesi gerekir)']];
 const gaugeCounterFills = [['since it was saved', 'kaydedildiğinden beri'], ['yearly', 'yıllık'], ['the last 30 days', 'son 30 gün'],
   ['the last 100 days', 'son 100 gün']];
 const DayCounterGauge = 14, HourGauge = 16;
@@ -1162,11 +1174,20 @@ function setEquipment(s) {
   for (const id of tenthsFields) if (s[id] !== undefined) $(id).value = s[id] > 0 ? String(s[id] / 10) : '';
   // The aiming part's satellite in tenths of a degree, west negative.
   if (s.satLon !== undefined) $('satLon').value = String(s.satLon / 10);
+  // The tide's interval in minutes, -1: not set (Settings::TideInterval).
+  if (s.tideInterval !== undefined) {
+    $('tideHours').value = s.tideInterval >= 0 ? String(Math.floor(s.tideInterval / 60)) : '';
+    $('tideMinutes').value = s.tideInterval >= 0 ? String(s.tideInterval % 60) : '';
+  }
 }
 function equipmentFields(fields) {
   for (const id of equipment.concat(eyepieceFields)) if ($(id).value !== '') fields.set(id, String(Math.round(Number($(id).value))));
   for (const id of tenthsFields) fields.set(id, String(Math.round(Number($(id).value || 0) * 10)));
   if ($('satLon').value !== '') fields.set('satLon', String(Math.round(Number($('satLon').value) * 10)));
+  // Both empty: off; up to half a lunar day (12 h 25 min).
+  const tideEmpty = $('tideHours').value === '' && $('tideMinutes').value === '';
+  const tide = Math.round(Number($('tideHours').value || 0)) * 60 + Math.round(Number($('tideMinutes').value || 0));
+  fields.set('tideInterval', String(tideEmpty ? -1 : Math.max(0, Math.min(745, tide))));
 }
 
 $('save').addEventListener('click', async () => {

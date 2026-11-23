@@ -24,14 +24,14 @@ PORT = 8765
 STATE = {
     'timeout': 10, 'alwaysOn': 1, 'brightness': 77, 'autoOff': 30, 'face': 0, 'offset': 180,
     'lat': 41.0082, 'lon': 28.9784, 'hijri': 0, 'aodDay': 25, 'aodNight': 2,
-    'devMode': 0, 'usbStayOn': 1, 'nightMode': 1, 'isha': 17, 'language': 0, 'clockOrder': 0, 'clockHidden': 0, 'infoOrder': 0,
-    'infoHidden': 0, 'settingsOrder': 0, 'settingsHidden': 0, 'mirror': 0, 'planetsOrder': 0, 'planetsHidden': 0,
+    'devMode': 0, 'usbStayOn': 1, 'nightMode': 1, 'isha': 17, 'language': 0, 'clockOrder': 0, 'clockHidden': 0, 'infoOrder': 0 | 1 << 3 | 2 << 6 | 3 << 9 | 6 << 12 | 4 << 15 | 5 << 18,
+    'infoHidden': 1 << 6, 'settingsOrder': 0 | 1 << 3 | 2 << 6 | 3 << 9 | 4 << 12 | 6 << 15 | 7 << 18 | 5 << 21, 'settingsHidden': 0, 'mirror': 0, 'planetsOrder': 0, 'planetsHidden': 0,
     'pagesOrder': 0 | 1 << 3 | 4 << 6 | 5 << 9 | 2 << 12 | 3 << 15, 'toolsOrder': 0 | 3 << 3 | 4 << 6 | 5 << 9 | 1 << 12 | 2 << 15, 'toolsHidden': 1 << 6,
     'observingOrder': 1 | 2 << 3 | 3 << 6 | 4 << 9 | 5 << 12 | 6 << 15 | 0 << 18 | 7 << 21, 'observingHidden': 1 << 6 | 1 << 7,
     'bootCounter': 1,
     'scopeFocal': 1000, 'scopeAperture': 125, 'ep1Focal': 250, 'ep1Field': 52, 'ep2Focal': 100, 'ep2Field': 52,
     'ep3Focal': 0, 'ep3Field': 52, 'ep4Focal': 0, 'ep4Field': 52, 'camFocal': 24, 'camFNumber': 28, 'camSensor': 1,
-    'baseShutter': 7, 'ndStops': 10, 'trailMinutes': 60, 'trailInterval': 30, 'satLon': 420,
+    'baseShutter': 7, 'ndStops': 10, 'trailMinutes': 60, 'trailInterval': 30, 'satLon': 420, 'tideInterval': -1,
     'version': 'preview', 'battery': 80, 'usb': 0, 'updateMin': 30, 'coreDump': 0,
     'zone': 'Europe/Istanbul', 'place': 'Istanbul',
     'cities': [['London', 'Europe/London'], ['New York', 'America/New_York']],
@@ -40,7 +40,7 @@ STATE = {
     'alarms': ['0|7|0|0|0|31|1', '1|0|0|1|-10|127|1'],
     # FaceConfig::defaults, as FaceConfig::encode writes them, and the catalogues' sizes.
     'faces': '1,1,1,0,7,12,2,0,20,2,13,1,17,0,0,0,0,0,0,0,0,27;1,0,1,0,6,2,4,0,20,2,0,1,17,0,0,0,0,0,0,0,0,25;2,0,0,0,6,0,0,0,20,2,8,1,17,0,0,0,0,0,0,0,0,88;0,0,1,0,0,2,5,0,20,2,8,1,17,0,0,0,0,0,0,0,0,89;0,0,0,0,0,0,2,4,20,0,0,0,0,0,0,0,0,0,0,0,0,8/1,2,3,19,0,0,0,0',
-    'faceItems': [20, 17],
+    'faceItems': [21, 20],
     'faceDefaults': '1,1,1,0,7,12,2,0,20,2,13,1,17,0,0,0,0,0,0,0,0,27;1,0,1,0,6,2,4,0,20,2,0,1,17,0,0,0,0,0,0,0,0,25;2,0,0,0,6,0,0,0,20,2,8,1,17,0,0,0,0,0,0,0,0,88;0,0,1,0,0,2,5,0,20,2,8,1,17,0,0,0,0,0,0,0,0,89;0,0,0,0,0,0,2,4,20,0,0,0,0,0,0,0,0,0,0,0,0,8/1,2,3,19,0,0,0,0',
 }
 # The emergency card (/api/card), a made-up one.
