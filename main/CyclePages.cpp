@@ -542,6 +542,7 @@ void CyclePages::openInput( Input input )
     openOverlay( PinOverlay );
     m_input = input;
     m_typed[0] = '\0';
+    m_pinWrong = false;
     m_pinHeader = lv_obj_create( m_overlay );
     lv_obj_remove_style_all( m_pinHeader );
     lv_obj_set_size( m_pinHeader, Panel::WIDTH, s_keypadY - 4 );
@@ -567,6 +568,7 @@ void CyclePages::onKey( void *user, Calculator::Key key )
     if ( self->waitLeftSeconds() > 0 ) {
         return;
     }
+    self->m_pinWrong = false;
     const size_t length = strlen( self->m_typed );
     const bool pin = self->m_input <= OldPinChange;
     const size_t limit = pin ? 4 : 7;
@@ -610,6 +612,7 @@ void CyclePages::submitInput()
                 s_pinWaitUntil = clockSeconds() + s_pinWaitSeconds;
             }
             m_typed[0] = '\0';
+            m_pinWrong = true;
             lv_obj_invalidate( m_pinHeader );
             return;
         }
@@ -638,6 +641,7 @@ void CyclePages::submitInput()
         if ( hash( m_typed ) != m_firstPin ) {
             m_input = NewPin;
             m_typed[0] = '\0';
+            m_pinWrong = true;
             lv_obj_invalidate( m_pinHeader );
             return;
         }
@@ -691,6 +695,11 @@ bool CyclePages::press( const char *name )
     if ( strncmp( name, "pin ", 4 ) == 0 && m_open == PinOverlay ) {
         snprintf( m_typed, sizeof( m_typed ), "%s", name + 4 );
         submitInput();
+        return true;
+    }
+    // The new PIN's entry, as the settings part's PIN row: "B pin" types into it.
+    if ( strcmp( name, "newpin" ) == 0 && interactive() ) {
+        openInput( NewPin );
         return true;
     }
     if ( strcmp( name, "teen" ) == 0 ) {

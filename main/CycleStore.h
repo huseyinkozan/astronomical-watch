@@ -13,4 +13,7 @@ public:
     static void load( CycleLog &log );
     static esp_err_t save( const CycleLog &log );
     static esp_err_t erase();
+    // The screenshots' scene (development "D") keeps its log in RAM: saves are skipped until the
+    // next reset, so that a tap or "B teen" cannot write it over the owner's.
+    static void holdSaves();
 };

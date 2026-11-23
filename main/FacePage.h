@@ -66,7 +66,7 @@ private:
     lv_obj_t *m_wifiIcon = nullptr;  // FaceConfig::WifiIcon, from m_inputs.wifiOn
     lv_obj_t *m_tideIcon = nullptr;  // FaceConfig::TideIcon, from the table's tide
     lv_obj_t *m_cycleIcon = nullptr;  // FaceConfig::CycleIcon, from the face table's cycle
-    int m_cycleKey = 0;               // what the cycle icon shows, to draw it again on a change
+    int64_t m_cycleKey = 0;               // what the cycle icon shows, to draw it again on a change
     int m_tideKey = -1;               // the tide icon's level in percent (-1: none), likewise
     FaceConfig::Page m_page = {};
     FaceText::Inputs m_inputs = {};

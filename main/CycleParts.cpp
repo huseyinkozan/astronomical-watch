@@ -155,7 +155,8 @@ void CyclePages::drawSpiral( lv_layer_t *layer, const lv_area_t &area ) const
         const bool fertile = cycleDay > 0 && s.fertileFirst > 0 && cycleDay >= s.fertileFirst && cycleDay <= s.fertileLast &&
                              ( s.nextMean == 0 || day - start < s.nextMean );
         spiralPoint( t, 18, x, y, angle );
-        if ( t <= 0 && ( m_log->get( day ) & CycleLog::Intercourse ) ) {
+        // The adolescent mode shows no intercourse marks (a log may keep older ones).
+        if ( !s.teen && t <= 0 && ( m_log->get( day ) & CycleLog::Intercourse ) ) {
             const lv_color_t colour = fertile ? CycleDraw::blue() : CycleDraw::grey();
             CycleDraw::spermEgg( layer, x, y, static_cast<int>( angle ), faded( colour, share ) );
         } else if ( fertile ) {
@@ -201,8 +202,11 @@ void CyclePages::drawSpiral( lv_layer_t *layer, const lv_area_t &area ) const
     shortDate( m_today, line1, sizeof( line1 ) );
     centred( layer, &jetbrains_mono_18, white(), s_cy + 40, line1 );
 
-    // Below: the carry-a-pad hint, the estimate's warning, the next period's range with a drop.
-    if ( s.carryPad ) {
+    // Below: 90+ days without a period or the carry-a-pad hint, the estimate's warning, the next
+    // period's range with a drop.
+    if ( s.warnings & Cycle::NoPeriod90 ) {
+        centred( layer, &jetbrains_mono_16, CycleDraw::amber(), 392, Language::text( Language::CycleNoPeriod90 ) );
+    } else if ( s.carryPad ) {
         centred( layer, &jetbrains_mono_16, CycleDraw::amber(), 392, Language::text( Language::CycleCarryPad ) );
     }
     // Two lines between the lower gauges (wrapped by the label).
@@ -305,7 +309,7 @@ void CyclePages::drawCalendar( lv_layer_t *layer, const lv_area_t &area ) const
         } else if ( day > m_today && s.nextEarly > 0 && start > 0 && day - start >= s.nextEarly && day - start <= s.nextLate ) {
             kinds[count++] = 2;  // an estimated drop
         }
-        if ( value & CycleLog::Intercourse ) {
+        if ( !s.teen && ( value & CycleLog::Intercourse ) ) {
             kinds[count++] = 3;
         } else if ( fertile ) {
             kinds[count++] = 4;
@@ -569,8 +573,9 @@ void CyclePages::drawHayiz( lv_layer_t *layer, const lv_area_t &area ) const
          Language::text( hayz ? Language::HayizPrayerNot : Language::HayizPrayerYes ), white() );
     row( layer, 160, Language::text( Language::HayizFasting ),
          Language::text( hayz ? Language::HayizFastNot : Language::HayizFastYes ), white() );
-    snprintf( value, sizeof( value ), Language::text( Language::HistoryDays ), 10 );
-    row( layer, 208, Language::text( Language::HayizMost ), value, textGrey() );
+    // Diyanet: a hayz lasts 3 to 10 days.
+    snprintf( value, sizeof( value ), Language::text( Language::HayizRange ), 3, 10 );
+    row( layer, 208, Language::text( Language::HayizNow ), value, textGrey() );
     snprintf( value, sizeof( value ), Language::text( Language::HistoryDays ), 15 );
     row( layer, 256, Language::text( Language::HayizLeast ), value, textGrey() );
     snprintf( value, sizeof( value ), Language::text( Language::HistoryDays ), Hayiz::balance( *m_log ) );
@@ -711,7 +716,9 @@ void CyclePages::drawLegend( lv_layer_t *layer, const lv_area_t &area ) const
     const Language::Text names[8] = { Language::LegendPast,       Language::LegendFuture,     Language::LegendBleeding,
                                       Language::LegendBleedingEst, Language::LegendFertile,   Language::LegendFertileEst,
                                       Language::LegendOvulation,  Language::LegendIntercourse };
-    for ( int i = 0; i < 8; ++i ) {
+    // The adolescent mode has no fertile window and no intercourse: the first four rows only.
+    const int rows = m_state.teen ? 4 : 8;
+    for ( int i = 0; i < rows; ++i ) {
         const int cy = y + 14;
         switch ( i ) {
         case 0:
@@ -795,7 +802,9 @@ void CyclePages::drawPinHeader( lv_layer_t *layer, const lv_area_t &area ) const
         centred( layer, &jetbrains_mono_26, white(), 76, m_typed[0] != '\0' ? m_typed : ( m_input == FirstPeriod ? "2025.9" : "0" ) );
     }
     // C on an empty entry goes back (but from the PIN that unlocks the page).
-    if ( m_input != CheckPin ) {
+    if ( m_pinWrong && waitLeftSeconds() <= 0 ) {
+        centred( layer, &jetbrains_mono_18, CycleDraw::amber(), 112, Language::text( Language::PinWrong ) );
+    } else if ( m_input != CheckPin ) {
         centred( layer, &jetbrains_mono_14, textGrey(), 112, Language::text( Language::PinHint ) );
     }
     (void)area;

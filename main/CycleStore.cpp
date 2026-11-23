@@ -6,6 +6,7 @@
 static const char *TAG = "cycle";
 static const char *s_namespace = "cycle";
 static const char *s_key = "log";
+static bool s_held = false;
 
 void CycleStore::load( CycleLog &log )
 {
@@ -21,8 +22,16 @@ void CycleStore::load( CycleLog &log )
     nvs_close( handle );
 }
 
+void CycleStore::holdSaves()
+{
+    s_held = true;
+}
+
 esp_err_t CycleStore::save( const CycleLog &log )
 {
+    if ( s_held ) {
+        return ESP_OK;
+    }
     nvs_handle_t handle = 0;
     esp_err_t err = nvs_open( s_namespace, NVS_READWRITE, &handle );
     if ( err == ESP_OK ) {

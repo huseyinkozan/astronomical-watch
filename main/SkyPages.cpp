@@ -134,7 +134,7 @@ void SkyPages::build( lv_obj_t *sunPage, lv_obj_t *twilightPage, lv_obj_t *praye
         lv_obj_remove_style_all( m_tideCurve );
         lv_obj_set_pos( m_tideCurve, 40, 98 );
         lv_obj_set_size( m_tideCurve, 330, 112 );
-        lv_obj_remove_flag( m_tideCurve, LV_OBJ_FLAG_CLICKABLE );
+        lv_obj_set_clickable( m_tideCurve, false );
         lv_obj_add_event_cb( m_tideCurve, onDrawTideCurve, LV_EVENT_DRAW_MAIN, this );
         m_tideMessage = lv_label_create( tidePage );
         lv_obj_set_style_text_font( m_tideMessage, &jetbrains_mono_26, 0 );

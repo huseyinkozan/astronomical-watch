@@ -477,6 +477,7 @@ static bool pollHostCommands()
         }
         if ( s_hostLine[0] == 'D' && s_hostLine[1] == '\0' ) {
             s_scene = true;
+            CycleStore::holdSaves();
             sceneCycleLog();
             // The published pictures show the default face pages and corner gauges, in RAM only
             // (FaceStore keeps the owner's; only the portal saves them).

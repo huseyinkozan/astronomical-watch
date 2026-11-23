@@ -140,6 +140,7 @@ private:
     Overlay m_open = NoOverlay;
     Input m_input = CheckPin;
     char m_typed[12] = {};
+    bool m_pinWrong = false;     // shown until the next key
     uint32_t m_firstPin = 0;     // the new PIN's hash while it is repeated
     // The wrong PINs and the wait after three are kept in RTC memory (CyclePages.cpp): a PWR
     // press and a wake must not clear them.

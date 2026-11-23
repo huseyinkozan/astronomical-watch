@@ -528,7 +528,7 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   `Calculator::keyForChar`, kind, "unit <n>", level, hold, input, beat, bar, cpr, "tempo <bpm>"; observing page: mode, "drag <min>", now, hold,
   flip, "scroll <px>", eyepiece, calc, body, aim, satellite),
   "Y <item> <value>" sets a setting by its number (as the portal; "Y 61 0" shows the cycle
-  page's parts), "B entry <flow> <intercourse>", "B pin <digits>", "B teen", "B legend",
+  page's parts), "B entry <flow> <intercourse>", "B newpin" (the new PIN's entry), "B pin <digits>", "B teen", "B legend",
   "B month <step>" on the cycle page, "R <s>" a test
   alarm, "K <n> <text>" defines an alarm, "Q" ends active mode as without the always-on face,
   "H" makes the next PWR wake a phantom (it must go back to sleep), "W" starves the idle task

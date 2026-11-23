@@ -484,6 +484,7 @@ public:
         WarnLong,
         WarnLongBleeding,
         WarnNoPeriod,
+        CycleNoPeriod90, // the spiral's line below the date
         WarnHeavy,
         WarnBetween,
         WarnDoctor,
@@ -506,7 +507,7 @@ public:
         HayizPrayerYes,
         HayizFastNot,
         HayizFastYes,
-        HayizMost,
+        HayizRange,     // "%d-%d days": the shortest and longest hayz
         HayizLeast,
         HayizMakeUp,
         HayizAsk,

@@ -264,7 +264,11 @@ void FacePage::update( const FaceText::Inputs &inputs )
         lv_obj_invalidate( m_wifiIcon );
     }
     if ( m_root != nullptr && inputs.table != nullptr ) {
-        const int key = ( inputs.table->cycleStart * 64 + inputs.day ) * 2 + ( inputs.cycleColour ? 1 : 0 );
+        // Every value the icon draws: an edited period changes its days, not only its start.
+        const FaceTable &t = *inputs.table;
+        int64_t key = static_cast<int64_t>( t.cycleStart ) * 32 + inputs.day;
+        key = ( key * 512 + t.cycleLength ) * 64 + t.cyclePeriod;
+        key = ( ( key * 128 + t.fertileFirst ) * 128 + t.fertileLast ) * 2 + ( inputs.cycleColour ? 1 : 0 );
         if ( key != m_cycleKey ) {
             m_cycleKey = key;
             lv_obj_invalidate( m_cycleIcon );
