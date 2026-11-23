@@ -177,8 +177,9 @@ There is no separate "period started" entry: a logged bleeding day starts a cycl
   - hayız lasts at least 3 and at most 10 days; at least 15 days of purity (tuhr) lie between
     two;
   - clean days between two bleeding days within the 10 days count as hayız (the common Hanafi
-    teaching; Diyanet's fetvas found say it for lohusalık, not in these words for hayız: to be
-    confirmed with the owner's sources before release);
+    teaching, "fâsid tuhr"; checked 2026-11-23: ilmihal sources agree, Diyanet's board says it for
+    spotting after the usual days within ten days and for lohusalık; not found in these words for
+    hayız on Diyanet's site, kept as built);
   - bleeding of fewer than 3 days, or starting within 15 days of the last hayız's end, is
     istihaze;
   - bleeding beyond 10 days: the habit (âdet), the length in days of the last valid hayız,
