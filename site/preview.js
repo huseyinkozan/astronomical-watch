@@ -495,6 +495,7 @@ document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click',
     document.getElementById(t.dataset.tab).hidden = !on;
   });
 }));
+document.getElementById('portalStepsOpen').addEventListener('click', () => document.getElementById('portalStepsDialog').showModal());
 document.getElementById('updateOpen').addEventListener('click', () => document.getElementById('updateDialog').showModal());
 document.getElementById('helpOpen').addEventListener('click', () => document.getElementById('helpDialog').showModal());
 document.getElementById('boot').addEventListener('click', back);

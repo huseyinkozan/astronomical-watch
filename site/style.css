@@ -224,3 +224,5 @@ main h3 { color: var(--accent); }
 .tab { border: 1px solid var(--line); border-bottom: none; border-radius: 10px 10px 0 0; background: transparent; color: var(--dim); }
 .tab.selected { background: var(--panel); color: var(--accent); border-color: var(--accent); }
 .command-steps li { margin: 0.6rem 0; }
+/* A subheading's "?" sits as the section's, a little closer to its smaller title. */
+.heading h3 + .help-button { margin-top: 0.4rem; }

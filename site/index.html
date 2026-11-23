@@ -118,12 +118,15 @@
 </section>
 
 <section id="portal">
-  <h2 data-en="Setup portal" data-tr="Kurulum portalı"></h2>
-  <p class="hint" data-en="Started on the watch, it opens on a phone or a computer over the watch's own Wi-Fi: the time and place, the face pages, the alarms, the settings and updates. Click a page to see it whole."
-     data-tr="Saatte başlatılır, saatin kendi Wi-Fi ağı üzerinden telefonda ya da bilgisayarda açılır: saat ve yer, yüz sayfaları, alarmlar, ayarlar ve güncellemeler. Tamamını görmek için bir sayfaya tıklayın."></p>
+  <div class="heading">
+    <h2 data-en="Setup portal" data-tr="Kurulum portalı"></h2>
+    <button type="button" class="help-button" id="portalStepsOpen" aria-label="How to open it">?</button>
+  </div>
+  <p class="hint" data-en="Started on the watch, it opens on a phone or a computer over the watch's own Wi-Fi: the time and place, the face pages, the alarms, the settings and updates. Click a page to see it whole; the &quot;?&quot; shows how to open it."
+     data-tr="Saatte başlatılır, saatin kendi Wi-Fi ağı üzerinden telefonda ya da bilgisayarda açılır: saat ve yer, yüz sayfaları, alarmlar, ayarlar ve güncellemeler. Tamamını görmek için bir sayfaya tıklayın; nasıl açıldığını &quot;?&quot; gösterir."></p>
   <!-- How to reach the portal: the watch's pictures (cut by CSS, both languages) and a phone's
        Wi-Fi list drawn here, plain and of no brand. -->
-  <div class="steps-box">
+  <dialog id="portalStepsDialog" class="update-dialog">
   <h3 data-en="Opening the setup portal" data-tr="Kurulum portalını açma"></h3>
   <ol class="portal-steps">
     <li class="step">
@@ -152,7 +155,8 @@
       <p data-en="The setup page opens by itself (otherwise go to 192.168.4.1)." data-tr="Kurulum sayfası kendiliğinden açılır (açılmazsa 192.168.4.1 adresine gidin)."></p>
     </li>
   </ol>
-  </div>
+  <form method="dialog"><button type="submit" data-en="Close" data-tr="Kapat"></button></form>
+  </dialog>
   <div class="portal-shots">
     <button type="button" class="portal-shot" data-shot="portal"><img alt=""><span data-en="Settings" data-tr="Ayarlar"></span></button>
     <button type="button" class="portal-shot" data-shot="portal-faces"><img alt=""><span data-en="Face pages" data-tr="Yüz sayfaları"></span></button>
@@ -220,12 +224,14 @@ esptool --chip esp32s3 -p &lt;port&gt; write-flash 0x0 <span class="full-name">a
               data-tr="Port: Windows'ta COM3 gibi, Linux'ta /dev/ttyACM0, macOS'ta /dev/cu.usbmodem… Görünmüyor mu? İndirme modu için BOOT'u basılı tutup PWR'a basın."></span></li>
     </ol>
   </div>
-  <h3 data-en="Update" data-tr="Güncelleme"></h3>
+  <div class="heading">
+    <h3 data-en="Update" data-tr="Güncelleme"></h3>
+    <button type="button" class="help-button" id="updateOpen" aria-label="Step by step">?</button>
+  </div>
   <p data-en="A new version installs from a phone through the watch's setup portal; the settings, face pages and alarms stay. Download the file on the phone while it is online, then upload it to the watch."
      data-tr="Yeni bir sürüm telefondan, saatin kurulum portalıyla yüklenir; ayarlar, yüz sayfaları ve alarmlar kalır. Dosyayı telefon internetteyken indirin, sonra saate yükleyin."></p>
   <div class="downloads">
     <a class="install update-link" id="downloadUpdate" href="https://gitlab.com/huseyinkozan/astronomical-watch/-/releases" data-en="Download the update" data-tr="Güncelleme dosyasını indir"></a>
-    <button type="button" id="updateOpen" data-en="Step by step" data-tr="Adım adım"></button>
   </div>
   <dialog id="updateDialog" class="update-dialog">
     <h3 data-en="Updating the watch" data-tr="Saati güncelleme"></h3>
@@ -242,7 +248,7 @@ esptool --chip esp32s3 -p &lt;port&gt; write-flash 0x0 <span class="full-name">a
       <li class="arrow" aria-hidden="true"><span>&#10140;</span></li>
       <li class="step">
         <div class="crop setup-crop"><img data-shot-img="17-setup" alt=""><span class="ring" style="left: 18px; top: 20px; width: 128px; height: 40px; border-radius: 8px;"></span></div>
-        <p data-en="Open the setup portal and connect the phone to it, as shown above. On USB or at 30 % battery at least." data-tr="Kurulum portalını açıp telefonu bağlayın (yukarıdaki gibi). Saat USB'de ya da pili en az %30 olmalı."></p>
+        <p data-en="Open the setup portal and connect the phone to it (the &quot;?&quot; of the Setup portal shows how). On USB or at 30 % battery at least." data-tr="Kurulum portalını açıp telefonu bağlayın (Kurulum portalı başlığındaki &quot;?&quot; anlatır). Saat USB'de ya da pili en az %30 olmalı."></p>
       </li>
       <li class="arrow" aria-hidden="true"><span>&#10140;</span><small data-en="tap" data-tr="dokunun"></small></li>
       <li class="step">
