@@ -135,6 +135,17 @@ static bool s_timerRunning = false;
 static Portal s_portal;
 #endif
 
+// A restart from active mode (a new language, an update, the factory reset): the display stops
+// first, as at the end of active mode, so that the accelerometer is powered down and no tool
+// sound plays on (both live outside the ESP32 and survive its restart).
+[[noreturn]] static void restartWatch()
+{
+    if ( s_displayOn ) {
+        s_display.stop();
+    }
+    esp_restart();
+}
+
 // The own time zone for the always-on face (the UTC offset and its next clock changes), copied
 // when active mode ends: the minute wakes do not read NVS.
 RTC_DATA_ATTR static Zone s_alwaysOnZone;
@@ -295,7 +306,7 @@ static bool pollHostCommands()
             // As the settings row does: save, then restart in the new language.
             s_settings.setValue( Settings::Language, language );
             s_settings.save();
-            esp_restart();
+            restartWatch();
         }
         int settingItem = 0;
         int settingValue = 0;
@@ -1130,7 +1141,7 @@ static void applyPortalData( const Portal::Received &received )
 #if CONFIG_WATCH_SETUP_PORTAL
     s_portal.stop();
 #endif
-    esp_restart();
+    restartWatch();
 }
 
 // Setup page taps, data from the browser and the portal timeout. Returns true while the portal
@@ -1159,7 +1170,7 @@ static bool servicePortal( bool everySecond )
         // A new language: every page is built again in it after the restart.
         ESP_LOGI( TAG, "Language changed: restart" );
         s_settings.save();
-        esp_restart();
+        restartWatch();
     }
     if ( requests & Display::TogglePortal ) {
         if ( s_portal.isRunning() ) {
@@ -1193,7 +1204,7 @@ static bool servicePortal( bool everySecond )
         }
         if ( s_languageChanged ) {
             ESP_LOGI( TAG, "Language changed: restart" );
-            esp_restart();
+            restartWatch();
         }
     }
     s_portal.setBattery( s_batteryPercent, s_usbPower );
@@ -1202,7 +1213,7 @@ static bool servicePortal( bool everySecond )
         ESP_LOGI( TAG, "Update written: restart" );
         vTaskDelay( pdMS_TO_TICKS( 1000 ) );
         s_portal.stop();
-        esp_restart();
+        restartWatch();
     }
     if ( s_portal.isRunning() && s_portal.idleSeconds() >= CONFIG_WATCH_SETUP_PORTAL_TIMEOUT_S ) {
         ESP_LOGI( TAG, "Setup portal timeout" );
