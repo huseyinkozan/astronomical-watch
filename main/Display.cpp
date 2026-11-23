@@ -2130,6 +2130,7 @@ void Display::onSettingClicked( lv_event_t *event )
         const Settings::Item item = static_cast<Settings::Item>( i );
         display->m_settings->next( item );
         display->showSetting( i );
+        display->m_requests |= SaveSettings;
         ESP_LOGI( TAG, "Setting %d: %s", i, lv_label_get_text( display->m_settingValues[i] ) );
         if ( item == Settings::Language ) {
             display->m_requests |= Restart;

@@ -266,7 +266,8 @@ resets the watch instead of only warning; development command "W" tests it). Rea
 - Hijri months start by local crescent visibility (Odeh's criterion at the watch's location) or
   by Diyanet's 1978 Istanbul rule (anywhere on land), chosen in the portal.
 - Settings are separate from UI code and persist across reboots, deep sleep and off mode (NVS,
-  `main/Settings.*`); the Kconfig values are their defaults. Test builds that need other values
+  `main/Settings.*`); the Kconfig values are their defaults. A tap on a settings row saves at
+  once (`Display::SaveSettings`): a restart before active mode ends would lose it otherwise. Test builds that need other values
   set `CONFIG_WATCH_TEST_SETTINGS`, which ignores the saved settings.
 - Touch input: rows of 7.8 x 26 mm inside the corner gauges, one tap steps a value; no vertical scrolling
   inside the pages but the launcher's list; sliding off a row cancels the tap. Three tiles side by side

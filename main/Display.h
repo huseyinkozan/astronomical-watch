@@ -78,7 +78,10 @@ public:
         // The settings page's factory reset, tapped twice: the main task erases and restarts.
         FactoryReset = 8,
         // The cycle page saved a change: the face table's cycle is computed again.
-        CycleChanged = 16
+        CycleChanged = 16,
+        // A settings row changed a value: the main task saves it at once, so that a restart
+        // before active mode ends (a reset, a crash, a flash) does not lose it.
+        SaveSettings = 32
     };
 
     // Starts LVGL, the panel and touch (BSP), sets the brightness and builds the pages. A tap on

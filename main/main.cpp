@@ -1152,6 +1152,9 @@ static bool servicePortal( bool everySecond )
     if ( ( requests & Display::FactoryReset ) || s_portal.takeReset() ) {
         factoryReset();
     }
+    if ( requests & Display::SaveSettings ) {
+        s_settings.save();
+    }
     if ( requests & Display::Restart ) {
         // A new language: every page is built again in it after the restart.
         ESP_LOGI( TAG, "Language changed: restart" );
