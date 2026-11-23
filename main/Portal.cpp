@@ -64,7 +64,7 @@ static const char *s_fieldNames[] = { "timeout", "alwaysOn", "devMode",    "auto
                                                          "ep2Focal", "ep2Field", "ep3Focal", "ep3Field", "ep4Focal",
                                                          "ep4Field", "camFocal", "camFNumber", "camSensor",
                                                          "baseShutter", "ndStops", "trailMinutes", "trailInterval",
-                                                         "satLon", "cycleOrder", "cycleHidden" };
+                                                         "satLon", "cycleOrder", "cycleHidden", "tideInterval" };
 // One name per setting: a missing one would be read as a null name.
 static_assert( sizeof( s_fieldNames ) / sizeof( s_fieldNames[0] ) == Settings::ItemCount, "a field name per setting" );
 // The emergency card's fields (EmergencyCard::Field), in /api/card.

@@ -510,6 +510,7 @@ static const char *s_texts[][2] = {
     { "change", "değiştir" },
     { "not set", "girilmedi" },
     { "The clock is before the last entry (%s)", "Saat son kaydın gerisinde (%s)" },
+    { "Tide", "Gelgit" },
 };
 // One pair per text: a missing one would shift every text after it.
 static_assert( sizeof( s_texts ) / sizeof( s_texts[0] ) == Language::TextCount, "a text pair per Language::Text" );

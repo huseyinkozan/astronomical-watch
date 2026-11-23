@@ -519,6 +519,7 @@ public:
         CycleChange,
         CycleNotSet,
         CycleClockBack,
+        PartTide,
         TextCount
     };
 

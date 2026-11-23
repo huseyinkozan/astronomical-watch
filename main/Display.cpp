@@ -93,7 +93,9 @@ enum SettingsPart
     SetupPart,
     SetupCodePart,  // the network as a QR code
 #endif
-    ResetPart,      // the factory reset (last: the saved part orders keep their numbers)
+    ResetPart,      // the factory reset (the saved part orders keep their numbers: new parts after it)
+    SettingsBattery,  // from the information page (2026-11-23)
+    SettingsAbout,
     SettingsPartCount
 };
 
@@ -103,7 +105,7 @@ static const Language::Text s_clockParts[ClockPages::PartCount] = {
     Language::Days, Language::AlarmsPartName };
 static const Language::Text s_infoParts[Display::InfoCount] = {
     Language::Sun, Language::Twilight, Language::PrayerTimes, Language::Moon, Language::SunCompass, Language::Time,
-    Language::Battery, Language::PartAbout };
+    Language::PartTide };
 static const Language::Text s_planetsParts[PlanetPages::PartCount] = {
     Language::PartSolarSystem, Language::PartSky, Language::RiseAndSet, Language::Distance };
 static const Language::Text s_toolsParts[ToolPages::PartCount] = {
@@ -120,7 +122,7 @@ static const Language::Text s_settingsParts[SettingsPartCount] = {
 #if CONFIG_WATCH_SETUP_PORTAL
     Language::PartSetup, Language::PartQrCode,
 #endif
-    Language::PartReset
+    Language::PartReset, Language::Battery, Language::PartAbout
 };
 struct PageEntry
 {
@@ -184,12 +186,12 @@ struct Shot
     { "prayer", InfoPage, Display::InfoPrayer },
     { "moon", InfoPage, Display::InfoMoon }, { "compass", InfoPage, Display::InfoCompass },
     { "time", InfoPage, Display::InfoTime },
-    { "battery", InfoPage, Display::InfoBattery }, { "settings", SettingsPage, SettingsRows },
+    { "battery", SettingsPage, SettingsBattery }, { "settings", SettingsPage, SettingsRows },
     { "settings-2", SettingsPage, SettingsMoreRows }, { "setup-info", SettingsPage, SetupInfoPart },
 #if CONFIG_WATCH_SETUP_PORTAL
     { "setup", SettingsPage, SetupPart },
 #endif
-    { "about", InfoPage, Display::InfoAbout },
+    { "about", SettingsPage, SettingsAbout },
 #if CONFIG_WATCH_SETUP_PORTAL
     // Last, so that the numbers of the others stay those of the published pictures.
     { "setup-code", SettingsPage, SetupCodePart },
@@ -212,6 +214,7 @@ struct Shot
     { "cycle-history", CyclePage, CyclePages::HistoryPart }, { "cycle-moon", CyclePage, CyclePages::MoonPart },
     { "cycle-pregnancy", CyclePage, CyclePages::PregnancyPart }, { "cycle-hayiz", CyclePage, CyclePages::HayizPart },
     { "cycle-settings", CyclePage, CyclePages::SettingsPart },
+    { "tide", InfoPage, Display::InfoTide },
 };
 [[maybe_unused]] static const int s_shotCount = sizeof( s_shots ) / sizeof( s_shots[0] );
 
@@ -483,19 +486,10 @@ void Display::buildInfoPage()
     m_info.build( tile, InfoCount, Language::text( Language::InfoPageName ) );
     m_sky.build( m_info.part( InfoSun ), m_info.part( InfoTwilight ), m_info.part( InfoPrayer ),
                  m_info.part( InfoMoon ), m_info.part( InfoCompass ), m_info.part( InfoTime ) );
-    buildAboutPage( m_info.part( InfoAbout ) );
-    lv_obj_t *batteryPage = m_info.part( InfoBattery );
-    lv_obj_t *title = createLabel( batteryPage, &jetbrains_mono_26, -120 );
-    lv_label_set_text( title, Language::text( Language::Battery ) );
-    m_percentLabel = createLabel( batteryPage, &jetbrains_mono_48, -50 );
-    m_voltageLabel = createLabel( batteryPage, &jetbrains_mono_26, 20 );
-    m_chargeLabel = createLabel( batteryPage, &jetbrains_mono_26, 70 );
-    m_unpluggedLabel = createLabel( batteryPage, &jetbrains_mono_26, 120 );
     m_sky.setPlace( m_setupTexts[0] );
     if ( m_haveSky ) {
         m_sky.show( m_day, m_now, m_offsetMinutes );
     }
-    showBattery();
     applyOrders();
 }
 
@@ -510,6 +504,14 @@ void Display::buildSettingsPage()
     buildSetupCodePage( m_settingsPage.part( SetupCodePart ) );
 #endif
     buildResetPart( m_settingsPage.part( ResetPart ) );
+    buildAboutPage( m_settingsPage.part( SettingsAbout ) );
+    lv_obj_t *batteryPage = m_settingsPage.part( SettingsBattery );
+    lv_obj_t *title = createLabel( batteryPage, &jetbrains_mono_26, -120 );
+    lv_label_set_text( title, Language::text( Language::Battery ) );
+    m_percentLabel = createLabel( batteryPage, &jetbrains_mono_48, -50 );
+    m_voltageLabel = createLabel( batteryPage, &jetbrains_mono_26, 20 );
+    m_chargeLabel = createLabel( batteryPage, &jetbrains_mono_26, 70 );
+    m_unpluggedLabel = createLabel( batteryPage, &jetbrains_mono_26, 120 );
     for ( int i = 0; i < 2; ++i ) {
         lv_obj_set_flex_flow( settingsParts[i], LV_FLEX_FLOW_COLUMN );
         // The rows of the second part start where those of the first do: a single row in the
@@ -547,6 +549,7 @@ void Display::buildSettingsPage()
 #if CONFIG_WATCH_SETUP_PORTAL
     applySetup();
 #endif
+    showBattery();
     applyOrders();
 }
 
@@ -821,12 +824,12 @@ void Display::freeApp()
     } else if ( page == InfoPage ) {
         m_info.forget();
         m_sky.forget();
+    } else {
+        m_settingsPage.forget();
         m_percentLabel = nullptr;
         m_voltageLabel = nullptr;
         m_chargeLabel = nullptr;
         m_unpluggedLabel = nullptr;
-    } else {
-        m_settingsPage.forget();
         for ( int i = 0; i < Settings::PageItemCount; ++i ) {
             m_settingRows[i] = nullptr;
             m_settingValues[i] = nullptr;
@@ -1603,9 +1606,9 @@ void Display::onFaceClicked( lv_event_t *event )
     input.countdownRunning = self->m_clock.countdownEndMs() > 0;
     const FaceTap::Target target = FaceTap::at( input, self->m_pressX, self->m_pressY );
     // By FaceTap::Target: the stacked page and its part.
-    static const int s_pages[] = { -1, InfoPage, InfoPage, InfoPage, InfoPage, InfoPage, PlanetsPage, ClockPage, ClockPage,
+    static const int s_pages[] = { -1, InfoPage, InfoPage, InfoPage, SettingsPage, InfoPage, PlanetsPage, ClockPage, ClockPage,
                                    ClockPage, ClockPage, ClockPage, ClockPage, ClockPage, SettingsPage, SettingsPage, ToolsPage, CyclePage };
-    static const int s_parts[] = { -1, InfoSun, InfoMoon, InfoPrayer, InfoBattery, InfoTime, PlanetPages::SkyPart,
+    static const int s_parts[] = { -1, InfoSun, InfoMoon, InfoPrayer, SettingsBattery, InfoTime, PlanetPages::SkyPart,
                                    ClockPages::WorldPart, ClockPages::GregorianPart, ClockPages::HijriPart,
                                    ClockPages::DaysPart, ClockPages::AlarmsPart, ClockPages::StopwatchPart,
                                    ClockPages::TimerPart, SettingsRows,

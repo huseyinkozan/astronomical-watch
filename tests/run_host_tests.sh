@@ -10,10 +10,10 @@ build-host/holy_days_test
 build-host/regatta_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/HolyDaysTest.cpp main/HolyDays.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/holy_days_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/RegattaTest.cpp main/Regatta.cpp -o build-host/regatta_test
-g++ -std=c++17 -O2 -Wall -Wextra -I main tests/CornersTest.cpp main/Corners.cpp main/Sky.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/corners_test
+g++ -std=c++17 -O2 -Wall -Wextra -I main tests/CornersTest.cpp main/Corners.cpp main/Sky.cpp main/Almanac.cpp main/Planets.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/corners_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/ZonesTest.cpp main/Zones.cpp -o build-host/zones_test
-g++ -std=c++17 -O2 -Wall -Wextra -I main tests/SkyTest.cpp main/Sky.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/sky_test
-g++ -std=c++17 -O2 -Wall -Wextra -I main tests/PrayerTest.cpp main/Sky.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/prayer_test
+g++ -std=c++17 -O2 -Wall -Wextra -I main tests/SkyTest.cpp main/Sky.cpp main/Almanac.cpp main/Planets.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/sky_test
+g++ -std=c++17 -O2 -Wall -Wextra -I main tests/PrayerTest.cpp main/Sky.cpp main/Almanac.cpp main/Planets.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/prayer_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/PartOrderTest.cpp main/PartOrder.cpp -o build-host/part_order_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/TallyTest.cpp main/Tally.cpp main/Morse.cpp -o build-host/tally_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/CalculatorTest.cpp main/Calculator.cpp main/Units.cpp -o build-host/calculator_test
@@ -22,13 +22,13 @@ g++ -std=c++17 -O2 -Wall -Wextra -I main tests/BatteryLimitTest.cpp main/Battery
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/NightRedTest.cpp main/NightRed.cpp -o build-host/night_red_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/FaceConfigTest.cpp main/FaceConfig.cpp -o build-host/face_config_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/FaceTapTest.cpp main/FaceTap.cpp -o build-host/face_tap_test
-g++ -std=c++17 -O2 -Wall -Wextra -I main tests/FaceTextTest.cpp main/FaceText.cpp main/FaceTable.cpp main/FaceConfig.cpp main/Language.cpp main/Zones.cpp main/Sky.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/face_text_test
-g++ -std=c++17 -O2 -Wall -Wextra -I main tests/AodSmallTest.cpp main/FaceText.cpp main/FaceTable.cpp main/FaceConfig.cpp main/Language.cpp main/Zones.cpp main/Sky.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/aod_small_test
+g++ -std=c++17 -O2 -Wall -Wextra -I main tests/FaceTextTest.cpp main/FaceText.cpp main/FaceTable.cpp main/FaceConfig.cpp main/Language.cpp main/Zones.cpp main/Sky.cpp main/Almanac.cpp main/Planets.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/face_text_test
+g++ -std=c++17 -O2 -Wall -Wextra -I main tests/AodSmallTest.cpp main/FaceText.cpp main/FaceTable.cpp main/FaceConfig.cpp main/Language.cpp main/Zones.cpp main/Sky.cpp main/Almanac.cpp main/Planets.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/aod_small_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/AnalogClockTest.cpp main/AnalogClock.cpp -o build-host/analog_clock_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/MilkyWayTest.cpp main/MilkyWay.cpp main/Astronomy.cpp -o build-host/milky_way_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/SevenSegmentTest.cpp main/SevenSegment.cpp -o build-host/seven_segment_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/TableTextTest.cpp main/TableText.cpp -o build-host/table_text_test
-g++ -std=c++17 -O2 -Wall -Wextra -I main tests/AlarmsTest.cpp main/Alarms.cpp main/AlarmIcons.cpp main/Zones.cpp main/Sky.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/alarms_test
+g++ -std=c++17 -O2 -Wall -Wextra -I main tests/AlarmsTest.cpp main/Alarms.cpp main/AlarmIcons.cpp main/Zones.cpp main/Sky.cpp main/Almanac.cpp main/Planets.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/alarms_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/AstrolabeTest.cpp main/Astrolabe.cpp main/Astronomy.cpp -o build-host/astrolabe_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/ObservingTest.cpp main/Observing.cpp main/Messier.cpp main/Optics.cpp main/Astronomy.cpp -o build-host/observing_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/NavigationTest.cpp main/Almanac.cpp main/Aiming.cpp main/Magnetic.cpp main/Planets.cpp main/Astronomy.cpp -o build-host/navigation_test
@@ -38,7 +38,7 @@ g++ -std=c++17 -O2 -Wall -Wextra -I main tests/HayizTest.cpp main/Hayiz.cpp main
 build-host/tide_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/TideTest.cpp main/Tide.cpp -o build-host/tide_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/PlanetsTest.cpp main/Planets.cpp main/Astronomy.cpp -o build-host/planets_test
-g++ -std=c++17 -O2 -Wall -Wextra -I main tools/make_corner_table.cpp main/Corners.cpp main/Sky.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/make_corner_table
+g++ -std=c++17 -O2 -Wall -Wextra -I main tools/make_corner_table.cpp main/Corners.cpp main/Sky.cpp main/Almanac.cpp main/Planets.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/make_corner_table
 build-host/cycle_log_test
 build-host/cycle_test
 build-host/hayiz_test

@@ -4,6 +4,7 @@
 
 #include "Astronomy.h"
 #include "Hijri.h"
+#include "Tide.h"
 
 // What the astronomy pages show (M10): values computed once for a local day, and the ones that
 // change by the second. Plain C++ like Astronomy, so the host tests can use it too.
@@ -45,6 +46,9 @@ public:
         Astronomy::Crossings moonBefore;   // yesterday's moonrise and moonset
         Astronomy::Crossings moonAfter;    // tomorrow's
         Astronomy::MoonPhase phase;  // at local noon
+        // The tide (Tide::at): the Moon's upper transits at the observer's longitude from
+        // yesterday to the day after tomorrow (0 for a day without one).
+        int64_t moonTransits[::Tide::TransitCount];
         Hijri::Date hijri;
         Hijri::Crescent crescent;    // this evening
         bool darkWindow;             // tonight's astronomical night has time without the Moon

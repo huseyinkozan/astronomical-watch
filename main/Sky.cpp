@@ -1,5 +1,7 @@
 #include "Sky.h"
 
+#include "Almanac.h"
+
 #include "MilkyWay.h"
 
 #include <cmath>
@@ -94,6 +96,12 @@ Sky::Day Sky::computeDay( int day, int utcOffsetMinutes, const Astronomy::Observ
     result.moonBefore = Astronomy::moonDay( result.localMidnight - s_dayS, observer );
     result.moonAfter = Astronomy::moonDay( result.localMidnight + s_dayS, observer );
     result.phase = Astronomy::moonPhase( result.localMidnight + s_dayS / 2 );
+    for ( int i = 0; i < ::Tide::TransitCount; ++i ) {
+        int64_t transit = 0;
+        const int64_t midnight = result.localMidnight + ( i - 1 ) * s_dayS;
+        result.moonTransits[i] =
+            Almanac::meridianPassage( Almanac::Moon, midnight, observer.longitude, transit ) ? transit : 0;
+    }
     result.hijri = Hijri::date( day, utcOffsetMinutes, observer, method );
     result.crescent = Hijri::crescent( day, utcOffsetMinutes, observer );
     result.nextSeason = Astronomy::nextSeason( result.localMidnight, result.season );

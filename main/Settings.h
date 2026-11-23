@@ -79,6 +79,7 @@ public:
         SatelliteLongitude,  // the aiming part's own satellite, tenths of a degree east (NavParts)
         CycleOrder,      // the cycle page's parts (PartOrder)
         CycleHidden,     // all hidden by default: the page stays out of the launcher until shown
+        TideInterval,    // minutes from the Moon's transit to high water at the place (Tide); -1: off
         ItemCount
     };
     // The items before this one are on the watch's settings page; FaceStyle is chosen by a

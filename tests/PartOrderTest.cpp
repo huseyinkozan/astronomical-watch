@@ -57,6 +57,30 @@ int main()
     check( "older order count", PartOrder::decode( encode( six, 6 ), 0, 7, -1, parts ), 7 );
     check( "older order kept", parts[0] == 5 && parts[1] == 3 && parts[5] == 4, 1 );
     check( "older order new part last", parts[6], 6 );
+    // The tide's regrouping (docs/superpowers/plans/2026-11-23-tide.md, Task 2): the defaults of
+    // Settings.cpp, written out here as they are there.
+    // Info: Sun 0, Twilight 1, Prayer 2, Moon 3, Compass 4, Time 5, Tide 6; the tide after the Moon.
+    const int infoDefault = 0 | 1 << 3 | 2 << 6 | 3 << 9 | 6 << 12 | 4 << 15 | 5 << 18;
+    check( "info default: seven", PartOrder::decode( infoDefault, 1 << 6, 7, -1, parts ), 6 );
+    const int infoShown[6] = { 0, 1, 2, 3, 4, 5 };
+    for ( int i = 0; i < 6; ++i ) {
+        check( "info default: the tide hidden, the rest in order", parts[i], infoShown[i] );
+    }
+    check( "info default: the tide after the Moon", PartOrder::decode( infoDefault, 0, 7, -1, parts ), 7 );
+    check( "info default: Moon then Tide", parts[3] * 10 + parts[4], 36 );
+    // Settings (portal build): Rows 0, More 1, SetupInfo 2, Setup 3, Code 4, Reset 5, Battery 6,
+    // About 7; the reset stays last.
+    const int settingsDefault = 0 | 1 << 3 | 2 << 6 | 3 << 9 | 4 << 12 | 6 << 15 | 7 << 18 | 5 << 21;
+    check( "settings default: eight", PartOrder::decode( settingsDefault, 0, 8, 3, parts ), 8 );
+    check( "settings default: battery, about, reset", parts[5] * 100 + parts[6] * 10 + parts[7], 675 );
+    // Without the portal: Rows 0, More 1, SetupInfo 2, Reset 3, Battery 4, About 5.
+    const int settingsNoPortal = 0 | 1 << 3 | 2 << 6 | 4 << 9 | 5 << 12 | 3 << 15;
+    check( "settings without the portal: six", PartOrder::decode( settingsNoPortal, 0, 6, -1, parts ), 6 );
+    check( "settings without the portal: reset last", parts[5], 3 );
+    // A saved order of eight parts on a page that now has seven decodes to seven parts, no more.
+    const int oldEight[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
+    check( "old info order: seven", PartOrder::decode( encode( oldEight, 8 ), 0, 7, -1, parts ), 7 );
+
     printf( "Part order: 23 checks, %d failures\n", failures );
     return failures == 0 ? 0 : 1;
 }

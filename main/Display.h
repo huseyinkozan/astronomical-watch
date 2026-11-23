@@ -34,7 +34,9 @@
 class Display
 {
 public:
-    // The parts of the information page, top to bottom.
+    // The parts of the information page, by their numbers in the saved order (Settings::InfoOrder
+    // puts the tide after the Moon). The battery and the about parts moved to the settings page
+    // for the tide (2026-11-23: a page holds at most eight parts).
     enum InfoPart
     {
         InfoSun,
@@ -43,8 +45,7 @@ public:
         InfoMoon,
         InfoCompass,
         InfoTime,
-        InfoBattery,
-        InfoAbout,
+        InfoTide,
         InfoCount
     };
 

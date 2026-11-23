@@ -5,8 +5,10 @@
 #include <cstdio>
 #include <cstdlib>
 
+#include "Almanac.h"
 #include "Dates.h"
 #include "Sky.h"
+#include "Tide.h"
 
 static int failures = 0;
 static int checks = 0;
@@ -60,6 +62,19 @@ int main()
     check( "ISO week 2026-01-01", Dates::isoWeek( Dates::dayNumber( 2026, 1, 1 ) ), 1, 0 );
     check( "day of year 2026-06-21", Dates::dayOfYear( Dates::dayNumber( 2026, 6, 21 ) ), 172, 0 );
     check( "weekday 2026-06-21 (Sunday)", Dates::weekday( Dates::dayNumber( 2026, 6, 21 ) ), 6, 0 );
+    // The Moon's upper transits for the tide: yesterday to the day after tomorrow, as the almanac
+    // gives them, a lunar day (24 h 20 min to 25 h 30 min) apart.
+    for ( int i = 0; i < Tide::TransitCount; ++i ) {
+        int64_t expected = 0;
+        const bool has = Almanac::meridianPassage( Almanac::Moon, june.localMidnight + ( i - 1 ) * 86400LL,
+                                                   istanbul.longitude, expected );
+        check( "moon transit as the almanac's", static_cast<double>( june.moonTransits[i] ),
+               has ? static_cast<double>( expected ) : 0.0, 0 );
+        if ( i > 0 && june.moonTransits[i] != 0 && june.moonTransits[i - 1] != 0 ) {
+            const double gap = static_cast<double>( june.moonTransits[i] - june.moonTransits[i - 1] );
+            check( "moon transits a lunar day apart", gap, ( 87600.0 + 91800.0 ) / 2, ( 91800.0 - 87600.0 ) / 2 );
+        }
+    }
     printf( "Sky time page: %d checks, %d failures\n", checks, failures );
     return failures == 0 ? 0 : 1;
 }
