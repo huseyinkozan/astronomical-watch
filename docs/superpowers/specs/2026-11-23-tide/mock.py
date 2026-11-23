@@ -1,5 +1,6 @@
 # Tide mock-ups (2026-11-23), drawn over the watch's own screenshots: A a corner gauge, B a corner
-# icon, C a text line, D an information part with the day's curve, E the portal's setting.
+# icon, C a text line, D an information part with the day's curve, E the portal's setting (only
+# the interval: the gauge and the icon join the Faces tab's existing corner lists).
 # The model (research/tide-gauge.md): high water at the Moon's transit plus the place's lunitidal
 # interval, a semidiurnal cosine of 12 h 25 min, its range larger at new and full Moon (spring)
 # than at the quarters (neap). The example: the screenshots' scene (21 June 2026, 19:19), a
@@ -148,7 +149,7 @@ def option_e():
     d = ImageDraw.Draw(im)
     sans = ImageFont.truetype('/usr/share/fonts/noto/NotoSans-Regular.ttf', 17) if os.path.exists('/usr/share/fonts/noto/NotoSans-Regular.ttf') else F18
     bold = ImageFont.truetype('/usr/share/fonts/noto/NotoSans-Bold.ttf', 20) if os.path.exists('/usr/share/fonts/noto/NotoSans-Bold.ttf') else F20
-    d.rounded_rectangle([14, 20, W - 14, 470], radius=10, outline=(70, 70, 76), width=1)
+    d.rounded_rectangle([14, 20, W - 14, 380], radius=10, outline=(70, 70, 76), width=1)
     d.text((26, 10), ' Gelgit ', font=bold, fill=(230, 230, 230), stroke_width=0)
     d.text((30, 56), 'Gecikme (Ay geçişinden yüksek suya)', font=sans, fill=(230, 230, 230))
     d.rounded_rectangle([30, 86, 180, 122], radius=6, fill=(40, 40, 46), outline=(90, 90, 96))
@@ -163,10 +164,6 @@ def option_e():
     for line in help_lines:
         d.text((30, y), line, font=sans, fill=(170, 170, 176))
         y += 26
-    d.text((30, 392), 'Köşe göstergesi: Gelgit', font=sans, fill=(230, 230, 230))
-    d.rounded_rectangle([30, 420, W - 30, 456], radius=6, fill=(40, 40, 46), outline=(90, 90, 96))
-    d.text((42, 426), 'Gelgit (yükselir, alçalır)', font=sans, fill=(240, 240, 240))
-    d.polygon([(W - 56, 434), (W - 44, 434), (W - 50, 442)], fill=(200, 200, 206))
     return im
 
 
