@@ -186,9 +186,10 @@ alarm's days, else the bell dim; `main/FaceText.*`; today's and tomorrow's event
 blood type (else "Emergency" for a card without it), in red, also without a valid time; a tap
 opens the card. The corners include the Wi-Fi icon (light blue while the setup portal runs, dim
 otherwise, none on the always-on face; a tap opens the setup part), bottom right on the default
-pages (the owner's choice of 2026-11-22), and the tide's wave (`Tide::waveHeight`: a calm line at
-a fifth of the box at low water, the crest at the top at high water, blue under a lighter line;
-the always-on face its line in white; a tap opens the tide part). A text longer than its
+pages (the owner's choice of 2026-11-22), and the tide's wave in a round window (`Tide::waveHeight`:
+a calm line at a fifth of the ring's box at low water, the crest at the top at high water, blue
+under a lighter line, cut to a grey ring; the always-on face the ring and the line in white; one
+per page as the other drawn icons; a tap opens the tide part). A text longer than its
 slot (`FaceConfig::textWidth`) is cut to whole characters, a name before its number.
 `main/FacePage.*` draws a page in active mode. A short tap on it opens a part as the launcher
 does (`main/FaceTap.*`, host-tested; not after a swipe or a long press): the Sun or the Moon on

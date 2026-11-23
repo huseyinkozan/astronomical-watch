@@ -123,15 +123,17 @@ void SkyPages::build( lv_obj_t *sunPage, lv_obj_t *twilightPage, lv_obj_t *praye
         tideKinds[4] = TablePart::OneValue;
         tideKinds[5] = TablePart::Line;
         TablePart::Layout layout = tableLayout( Language::text( Language::PartTide ), 6, tideKinds );
-        layout.top = 0;
-        layout.titleGap = 186;
-        layout.pitch = 36;
+        // The title where the other parts have theirs (under the page's name), the curve below
+        // it clear of the upper corner gauges, the rows below the curve.
+        layout.top = 60;
+        layout.titleGap = 160;
+        layout.pitch = 34;
         m_tide.text().setColours( 5, TableText::Grey, TableText::Grey );
         m_tide.build( tidePage, layout );
         m_tideCurve = lv_obj_create( tidePage );
         lv_obj_remove_style_all( m_tideCurve );
-        lv_obj_set_pos( m_tideCurve, 24, 46 );
-        lv_obj_set_size( m_tideCurve, 340, 128 );
+        lv_obj_set_pos( m_tideCurve, 40, 98 );
+        lv_obj_set_size( m_tideCurve, 330, 112 );
         lv_obj_remove_flag( m_tideCurve, LV_OBJ_FLAG_CLICKABLE );
         lv_obj_add_event_cb( m_tideCurve, onDrawTideCurve, LV_EVENT_DRAW_MAIN, this );
         m_tideMessage = lv_label_create( tidePage );

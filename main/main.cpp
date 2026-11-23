@@ -312,9 +312,10 @@ static bool pollHostCommands()
         int settingValue = 0;
         if ( sscanf( s_hostLine, "Y %d %d", &settingItem, &settingValue ) == 2 && settingItem >= 0 &&
              settingItem < Settings::ItemCount ) {
-            // A setting by its number (Settings::Item), as the portal would set it; saved when
-            // active mode ends.
+            // A setting by its number (Settings::Item), as the portal would set it; saved at once,
+            // as a settings row's tap (USB can keep active mode from ever ending).
             const bool set = s_settings.setValue( static_cast<Settings::Item>( settingItem ), settingValue );
+            s_settings.save();
             ESP_LOGI( TAG, "Setting %d = %d: %s", settingItem, settingValue, set ? "set" : "refused" );
             s_display.refreshSettings();
             continue;

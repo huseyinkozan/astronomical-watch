@@ -705,10 +705,9 @@ void FacePage::onDrawTimeIcon( lv_event_t *event )
     }
 }
 
-// The Wi-Fi sign with a gear at its lower right (the setup portal's settings), lit while the
-// portal runs, else dim like the bell without an alarm.
-// The tide's wave (Tide::waveHeight): the water as columns from its surface down, the surface a
-// lighter line; nothing without the interval.
+// The tide's wave (Tide::waveHeight) in a round window (the owner's wish, 2026-11-23): a grey
+// ring, the water as columns from its surface down, the surface a lighter line, both cut to the
+// ring; nothing without the interval.
 void FacePage::onDrawTideIcon( lv_event_t *event )
 {
     const FacePage *face = static_cast<FacePage *>( lv_event_get_user_data( event ) );
@@ -716,11 +715,22 @@ void FacePage::onDrawTideIcon( lv_event_t *event )
         return;
     }
     lv_layer_t *layer = lv_event_get_layer( event );
-    lv_area_t box;
-    lv_obj_get_coords( face->m_tideIcon, &box );
-    const int width = lv_area_get_width( &box );
-    const int height = lv_area_get_height( &box );
+    int32_t cx = 0;
+    int32_t cy = 0;
+    boxCentre( face->m_tideIcon, cx, cy );
+    const int radius = 20;
+    const int inner = radius - 2;  // inside the ring's 2 px
     const int level = face->m_tideKey * 10;
+    lv_draw_arc_dsc_t ring;
+    lv_draw_arc_dsc_init( &ring );
+    ring.color = lv_color_hex( 0x969696 );
+    ring.width = 2;
+    ring.center.x = cx;
+    ring.center.y = cy;
+    ring.radius = radius;
+    ring.start_angle = 0;
+    ring.end_angle = 360;
+    lv_draw_arc( layer, &ring );
     lv_draw_rect_dsc_t water;
     lv_draw_rect_dsc_init( &water );
     water.bg_color = lv_color_hex( 0x4080E0 );
@@ -728,23 +738,35 @@ void FacePage::onDrawTideIcon( lv_event_t *event )
     lv_draw_line_dsc_init( &surface );
     surface.color = lv_color_hex( 0x96C8FF );
     surface.width = 2;
+    int32_t lastX = 0;
     int32_t lastY = 0;
-    for ( int x = 0; x < width; ++x ) {
-        const float h = Tide::waveHeight( level, ( x + 0.5f ) / width );
-        const int32_t y = box.y1 + static_cast<int32_t>( lroundf( ( height - 1 ) * ( 1.0f - h ) ) );
-        const lv_area_t column = { box.x1 + x, y, box.x1 + x, box.y2 };
-        lv_draw_rect( layer, &water, &column );
-        if ( x > 0 ) {
-            surface.p1.x = box.x1 + x - 1;
+    bool lastInside = false;
+    for ( int dx = -inner; dx <= inner; ++dx ) {
+        // The wave over the ring's box (its whole width and height), the column inside the ring.
+        const float h = Tide::waveHeight( level, ( dx + inner + 0.5f ) / ( 2 * inner + 1 ) );
+        const int32_t y = cy - inner + static_cast<int32_t>( lroundf( 2 * inner * ( 1.0f - h ) ) );
+        const int32_t half = static_cast<int32_t>( sqrtf( static_cast<float>( inner * inner - dx * dx ) ) );
+        const int32_t top = y > cy - half ? y : cy - half;
+        if ( top <= cy + half ) {
+            const lv_area_t column = { cx + dx, top, cx + dx, cy + half };
+            lv_draw_rect( layer, &water, &column );
+        }
+        const bool inside = y >= cy - half;
+        if ( inside && lastInside ) {
+            surface.p1.x = lastX;
             surface.p1.y = lastY;
-            surface.p2.x = box.x1 + x;
+            surface.p2.x = cx + dx;
             surface.p2.y = y;
             lv_draw_line( layer, &surface );
         }
+        lastX = cx + dx;
         lastY = y;
+        lastInside = inside;
     }
 }
 
+// The Wi-Fi sign with a gear at its lower right (the setup portal's settings), lit while the
+// portal runs, else dim like the bell without an alarm.
 void FacePage::onDrawWifiIcon( lv_event_t *event )
 {
     const FacePage *face = static_cast<FacePage *>( lv_event_get_user_data( event ) );

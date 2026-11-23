@@ -258,26 +258,33 @@ static void addCycleIcon( AlwaysOn::Face &face, const FaceTable &table, int toda
     addSmallText( face, number, cx, cy, AlwaysOn::White );
 }
 
-// The tide's wave (Tide::waveHeight) as its surface line alone, white, in a 44 px box around the
-// corner's centre: the always-on face's shapes are 1-bit lines.
+// The tide's wave (Tide::waveHeight) in its round window, as on the active face: the ring and the
+// surface line inside it, white (the always-on face's shapes are 1-bit lines).
 static void addTideIcon( AlwaysOn::Face &face, const Tide::State &tide, int cx, int cy )
 {
     if ( !tide.valid ) {
         return;
     }
-    const int size = 44;
-    const int steps = 11;
+    const int radius = 20;
+    const int inner = radius - 3;
+    addShape( face, AlwaysOn::RingShape, AlwaysOn::White, cx, cy, radius, 2 );
+    const int steps = 10;
     int lastX = 0;
     int lastY = 0;
+    bool lastInside = false;
     for ( int i = 0; i <= steps; ++i ) {
         const float x = static_cast<float>( i ) / steps;
-        const int px = cx - size / 2 + static_cast<int>( lroundf( x * ( size - 1 ) ) );
-        const int py = cy - size / 2 + static_cast<int>( lroundf( ( size - 1 ) * ( 1.0f - Tide::waveHeight( tide.level, x ) ) ) );
-        if ( i > 0 ) {
+        const int dx = static_cast<int>( lroundf( ( x - 0.5f ) * 2 * inner ) );
+        const int px = cx + dx;
+        const int py = cy - inner + static_cast<int>( lroundf( 2 * inner * ( 1.0f - Tide::waveHeight( tide.level, x ) ) ) );
+        const int half = static_cast<int>( sqrtf( static_cast<float>( inner * inner - dx * dx ) ) );
+        const bool inside = py >= cy - half;
+        if ( inside && lastInside ) {
             addShape( face, AlwaysOn::LineShape, AlwaysOn::White, lastX, lastY, 0, 2, px, py );
         }
         lastX = px;
         lastY = py;
+        lastInside = inside;
     }
 }
 
