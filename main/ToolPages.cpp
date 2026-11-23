@@ -1187,7 +1187,9 @@ void ToolPages::onDrawLevel( lv_event_t *event )
 
 void ToolPages::setLevelShown( bool shown )
 {
-    if ( shown == m_levelShown ) {
+    // The accelerometer's own state counts too, as the observing page's alidade switches the
+    // same stream: a flag of our own left on by a quick page change would not start it again.
+    if ( shown == m_levelShown && ( m_motion == nullptr || m_motion->streaming() == shown ) ) {
         return;
     }
     m_levelShown = shown;

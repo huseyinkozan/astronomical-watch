@@ -60,4 +60,6 @@ private:
 
     i2c_master_dev_handle_t m_device = nullptr;
     bool m_streaming = false;
+    // When the stream was powered up (esp_timer time): its first samples are not read yet.
+    int64_t m_streamStartUs = 0;
 };

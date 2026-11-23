@@ -107,13 +107,21 @@ esp_err_t Motion::sample( Reading &reading )
     return err != ESP_OK ? err : off;
 }
 
+static const int64_t s_streamSettleUs = 40000;
+
 esp_err_t Motion::setStreaming( bool on )
 {
     if ( m_device == nullptr || on == m_streaming ) {
         return ESP_OK;
     }
-    m_streaming = on;
     const esp_err_t err = on ? powerUp( CTRL2_2G_56HZ ) : powerDown();
+    // Off only once the power-down worked, so that the next call (the display's stop at the
+    // latest) tries again: the sensor keeps its power across the ESP32's sleep. A power-up that
+    // failed counts as on, for the same reason; its reads fail and are skipped.
+    m_streaming = on || err != ESP_OK;
+    if ( on ) {
+        m_streamStartUs = esp_timer_get_time();
+    }
     ESP_LOGI( TAG, "Accelerometer streaming %s: %s", on ? "on" : "off", esp_err_to_name( err ) );
     return err;
 }
@@ -127,6 +135,11 @@ esp_err_t Motion::readLatest( int16_t mg[3] )
 {
     if ( m_device == nullptr || !m_streaming ) {
         return ESP_ERR_INVALID_STATE;
+    }
+    // Until two samples' time after the power-up (56 Hz) the data registers still hold the value
+    // from before the power-down, or zeros: the level's filter would start from it.
+    if ( esp_timer_get_time() - m_streamStartUs < s_streamSettleUs ) {
+        return ESP_ERR_NOT_FINISHED;
     }
     uint8_t data[6] = {};
     const esp_err_t err = readRegisters( REG_AX_L, data, sizeof( data ) );
