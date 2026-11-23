@@ -53,6 +53,8 @@ const cornerIcons = [
    'Kurulum portalı açıkken açık mavi, değilken sönük. Dokununca Wi-Fi kurulumu açılır.'],
   ['cycle', 'Cycle icon', 'Döngü simgesi', 'The menstrual cycle\'s day inside a ring of the cycle: red the period, blue the fertile days. Grey while the cycle page is locked and on the always-on face. A tap opens the cycle page.',
    'Adet döngüsünün günü, döngünün halkası içinde: kırmızı adet, mavi doğurgan günler. Döngü sayfası kilitliyken ve bekleme yüzünde gri. Dokununca döngü sayfası açılır.'],
+  ['tide', 'Tide wave icon', 'Gelgit dalga simgesi', 'A wave as high as the tide: a calm line at low water, the crest at the top at high water. Needs the tide interval in the portal; a tap opens the tide part.',
+   'Gelgit kadar yüksek bir dalga: alçak suda düz bir çizgi, yüksek suda tepe en üstte. Portalda gelgit gecikmesi gerekir; dokununca gelgit bölümü açılır.'],
 ];
 const cornerTexts = [['Weekday', 'Hafta günü', 'Sun', 'Paz'], ['Day of the month', 'Ayın günü', '21', '21'],
   ['Hijri day of the month', 'Hicri ayın günü', '5', '5'], ['Month', 'Ay adı', 'Jun', 'Haz'],
@@ -78,6 +80,8 @@ const gaugeRows = [
   ['Display timeout, time left', 'Ekran zaman aşımı, kalan süre', 'Full at a touch, then shrinking: orange at 40 %, red at 20 %. On the always-on face: the time left until the watch switches off lying still. Default bottom right.',
    'Dokununca dolar, sonra azalır: %40\'ta turuncu, %20\'de kırmızı. Bekleme yüzünde: saat hareketsiz kalırsa kapanmasına kalan süre. Varsayılan: sağ alt.'],
   ['Menstrual cycle', 'Adet döngüsü', 'The cycle\'s days, the period and the fertile days in colour; grey while the cycle page is locked.', 'Döngünün günleri, adet ve doğurgan günler renkli; döngü sayfası kilitliyken gri.'],
+  ['Tide', 'Gelgit', 'The tide\'s level from the Moon: cyan while the water rises, blue while it falls. It tells when the water is high or low, not how high; needs the tide interval in the portal.',
+   'Ay\'dan hesaplanan gelgit seviyesi: su yükselirken camgöbeği, alçalırken mavi. Suyun ne zaman yüksek ya da alçak olduğunu gösterir, ne kadar olduğunu değil; portalda gelgit gecikmesi gerekir.'],
 ];
 
 const templateRows = [
@@ -117,6 +121,7 @@ function L2(pair) { return pair[language === 'tr' ? 1 : 0]; }
 function iconPicture(id) {
   const box = document.createElement('div');
   box.className = 'icon';
+  if (!iconSpots[id]) return box;  // no screenshot of it yet
   const [shot, x, y, size = ICON] = iconSpots[id];
   box.style.width = size + 'px';
   box.style.height = size + 'px';

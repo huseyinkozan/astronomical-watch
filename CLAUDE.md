@@ -186,7 +186,9 @@ alarm's days, else the bell dim; `main/FaceText.*`; today's and tomorrow's event
 blood type (else "Emergency" for a card without it), in red, also without a valid time; a tap
 opens the card. The corners include the Wi-Fi icon (light blue while the setup portal runs, dim
 otherwise, none on the always-on face; a tap opens the setup part), bottom right on the default
-pages (the owner's choice of 2026-11-22). A text longer than its
+pages (the owner's choice of 2026-11-22), and the tide's wave (`Tide::waveHeight`: a calm line at
+a fifth of the box at low water, the crest at the top at high water, blue under a lighter line;
+the always-on face its line in white; a tap opens the tide part). A text longer than its
 slot (`FaceConfig::textWidth`) is cut to whole characters, a name before its number.
 `main/FacePage.*` draws a page in active mode. A short tap on it opens a part as the launcher
 does (`main/FaceTap.*`, host-tested; not after a swipe or a long press): the Sun or the Moon on
@@ -205,7 +207,8 @@ chosen in the portal, the same on every page (`FaceConfig::GaugeItem`, kept afte
 day or night, the battery, the Moon's pass or phase, the next prayer time, sunrise, sunset,
 moonrise or moonset from the previous one, the week, the month, the Hijri month, the year, a day
 counter (since it was saved, yearly, the last 30 or 100 days), the Sun's altitude, the hour, the
-minute or the second, which stays empty on the always-on face, or the display timeout's time left,
+minute or the second, which stays empty on the always-on face, the tide (`Tide`: cyan rising,
+blue falling, empty without the interval), or the display timeout's time left,
 which the always-on face turns into the time left until the power-off without motion, `Motion::offShareLeft`). `main/Corners.*` computes them
 (host-tested rules), `main/CornerView.*` draws them on LVGL's top layer, `AlwaysOn` with its own
 bitmaps. The defaults: top left the day (yellow, sunrise to sunset) or the night (blue), top right the
@@ -286,7 +289,10 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   the page name, their own hidden top edge deciding; colours, not LVGL opacity;
   `Display::narrowLauncherRows`, in the list's scroll event; the owner's choice of 2026-11-21). The stacked pages: clock (world clock, stopwatch, countdown,
   Gregorian and Hijri calendars, day counters, alarms; `main/ClockPages.*`), information (sun,
-  twilight, prayer times, moon, compass, time, battery, about; the Sun part shows the time to
+  twilight, prayer times, moon, tide, compass, time; the tide after the Moon and hidden by
+  default; the battery and about parts moved to the settings page for it, 2026-11-23: a page
+  holds at most eight parts, `PartOrder`'s 3-bit fields; the Info order and mask have new NVS
+  keys for the new numbering; the Sun part shows the time to
   sunset or sunrise and, while the Sun is up, a turnaround time, now plus half the daylight left,
   `Sky::turnaround`; the Time part's UTC row names its date when it is not the local one),
   planets (the seven planets and the
@@ -294,7 +300,7 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   set, distances; `main/PlanetPages.*`, the day's rise and set computed in the main task on the
   page's request, 0.4 s; design: `docs/superpowers/specs/2026-11-19-planets-design.md`) and
   settings (settings, more settings, what the portal set, setup portal, its QR code, factory
-  reset; the setup part always shown; the reset, tapped twice within 3 s or confirmed on the
+  reset, battery, about, the last two shown before the reset; the setup part always shown; the reset, tapped twice within 3 s or confirmed on the
   portal's update tab, erases every NVS store but the event log, the portal's password and the
   RTC's rate correction, then restarts: `factoryReset` in `main.cpp`, `Settings::factoryReset`), tools (torch, calculator, unit converter, spirit level, counter, random,
   metronome, emergency card; the metronome hidden by default, the card while it is empty;
@@ -457,6 +463,16 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   settings (the always-on wakes keep a copy in RTC memory). Each portal save that sets the clock
   also corrects the PCF85063's rate (Offset register, `Settings::RtcOffset`) from its error since
   the last set, when at least two days have passed.
+- Tide (`main/Tide.*`, host-tested; design `docs/superpowers/specs/2026-11-23-tide-design.md`): an
+  approximation from the Moon alone, as Casio's tide graph: high water at the Moon's upper and
+  lower transits plus the place's lunitidal interval (`Settings::TideInterval`, minutes, -1 off,
+  set in the portal's location box), the level a cosine of half the time between two upper
+  transits; the transits from yesterday to the day after tomorrow come with `Sky::Day` and are
+  copied into `FaceTable` (`FaceTable::tide()` for the gauge, the icon and the always-on face).
+  The Info part (`SkyPages::showTide`) draws the local day's curve, today's high and low waters,
+  the state, the Moon's strength and the interval. Its help is worded for users anywhere: the
+  gauge tells when the water is high or low, not how high; nearly closed seas have a tide of
+  centimetres.
 - Prayer times (`Sky::prayerTimes`): Diyanet's method, the Sun's values taken once a day like
   Diyanet; checked against its published 2026 tables (`tests/PrayerTest.cpp`, all within a
   minute). The prayer part shows the current or next kerahat interval (`Sky::kerahat`, Diyanet's

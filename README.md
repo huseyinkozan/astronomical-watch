@@ -13,6 +13,8 @@ Try it in the browser and install it from there: **https://huseyinkozan.gitlab.i
   the Moon's paths (with the Milky Way and the planets), with lines and corners of information
 - Sun: rise, set, noon, twilights, golden and blue hours, day length, a sun compass
 - Moon: phase, illumination, age, rise and set, the new crescent; the Hijri date
+- Tide: an approximate tide from the Moon and the coast's interval, as a corner gauge, a wave
+  icon and a day's curve
 - Prayer times by Diyanet's method; solar, ezani and sidereal time, the qibla time
 - Planets: the solar system, the sky, rise and set, distances
 - Clock page: world clock, stopwatch, countdown (with a regatta start), Gregorian and Hijri
