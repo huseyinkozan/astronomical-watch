@@ -485,10 +485,11 @@ void Display::buildInfoPage()
     lv_obj_t *tile = m_tiles[AppTile];
     m_info.build( tile, InfoCount, Language::text( Language::InfoPageName ) );
     m_sky.build( m_info.part( InfoSun ), m_info.part( InfoTwilight ), m_info.part( InfoPrayer ),
-                 m_info.part( InfoMoon ), m_info.part( InfoCompass ), m_info.part( InfoTime ) );
+                 m_info.part( InfoMoon ), m_info.part( InfoCompass ), m_info.part( InfoTime ), m_info.part( InfoTide ) );
     m_sky.setPlace( m_setupTexts[0] );
     if ( m_haveSky ) {
         m_sky.show( m_day, m_now, m_offsetMinutes );
+        m_sky.showTide( m_day, m_settings->value( Settings::TideInterval ), m_now.time, m_offsetMinutes );
     }
     applyOrders();
 }
@@ -1325,6 +1326,7 @@ void Display::showSky( const Sky::Day &day, const Sky::Now &now, const Astronomy
         return;
     }
     m_sky.show( day, now, utcOffsetMinutes );
+    m_sky.showTide( day, m_settings->value( Settings::TideInterval ), now.time, utcOffsetMinutes );
     m_day = day;
     m_now = now;
     m_offsetMinutes = utcOffsetMinutes;

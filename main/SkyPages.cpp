@@ -3,6 +3,7 @@
 #include "Fonts.h"
 #include "Language.h"
 #include "Dates.h"
+#include "Tide.h"
 
 #include <cmath>
 #include <cstdarg>
@@ -110,8 +111,39 @@ static const char *prayerName( int prayer )
 }
 
 void SkyPages::build( lv_obj_t *sunPage, lv_obj_t *twilightPage, lv_obj_t *prayerPage, lv_obj_t *moonPage,
-                      lv_obj_t *compassPage, lv_obj_t *timePage )
+                      lv_obj_t *compassPage, lv_obj_t *timePage, lv_obj_t *tidePage )
 {
+    // The tide: the title, the curve below it, then the rows (mock-up D).
+    {
+        TablePart::RowKind tideKinds[TableText::MaxRows] = {};
+        tideKinds[0] = TablePart::TwoValues;
+        tideKinds[1] = TablePart::TwoValues;
+        tideKinds[2] = TablePart::OneValue;
+        tideKinds[3] = TablePart::OneValue;
+        tideKinds[4] = TablePart::OneValue;
+        tideKinds[5] = TablePart::Line;
+        TablePart::Layout layout = tableLayout( Language::text( Language::PartTide ), 6, tideKinds );
+        layout.top = 0;
+        layout.titleGap = 186;
+        layout.pitch = 36;
+        m_tide.text().setColours( 5, TableText::Grey, TableText::Grey );
+        m_tide.build( tidePage, layout );
+        m_tideCurve = lv_obj_create( tidePage );
+        lv_obj_remove_style_all( m_tideCurve );
+        lv_obj_set_pos( m_tideCurve, 24, 46 );
+        lv_obj_set_size( m_tideCurve, 340, 128 );
+        lv_obj_remove_flag( m_tideCurve, LV_OBJ_FLAG_CLICKABLE );
+        lv_obj_add_event_cb( m_tideCurve, onDrawTideCurve, LV_EVENT_DRAW_MAIN, this );
+        m_tideMessage = lv_label_create( tidePage );
+        lv_obj_set_style_text_font( m_tideMessage, &jetbrains_mono_26, 0 );
+        lv_obj_set_style_text_color( m_tideMessage, lv_color_hex( 0xA0A0A0 ), 0 );
+        lv_obj_set_style_text_align( m_tideMessage, LV_TEXT_ALIGN_CENTER, 0 );
+        lv_label_set_text_fmt( m_tideMessage, "%s\n%s", Language::text( Language::TideNotSet ),
+                               Language::text( Language::TideSetInPortal ) );
+        lv_obj_center( m_tideMessage );
+        m_tideKey = 0;
+    }
+
     // Prayer times: the six times, the kerahat interval, the next one with the time left, the
     // method.
     TablePart::RowKind kinds[TableText::MaxRows] = {};
@@ -391,7 +423,164 @@ void SkyPages::forget()
     m_prayer.forget();
     m_moon.forget();
     m_time.forget();
+    m_tide.forget();
+    m_tideCurve = nullptr;
+    m_tideMessage = nullptr;
     m_compassArrow = nullptr;
     m_compassNorth = nullptr;
     m_compassText = nullptr;
+}
+
+void SkyPages::showTide( const Sky::Day &day, int intervalMinutes, int64_t now, int utcOffsetMinutes )
+{
+    if ( !m_built || m_tideCurve == nullptr ) {
+        return;
+    }
+    const Tide::State state = Tide::at( day.moonTransits, intervalMinutes, day.phase.ageDays, now );
+    const bool on = intervalMinutes != Tide::Off && state.valid;
+    lv_obj_set_hidden( m_tideMessage, on );
+    lv_obj_set_hidden( m_tideCurve, !on );
+    // The rows' names and the note with the curve; without the interval the title and the
+    // message alone.
+    static const Language::Text s_names[5] = { Language::TideHighRow, Language::TideLowRow, Language::TideNowRow,
+                                               Language::Moon, Language::TideIntervalRow };
+    for ( int row = 0; row < 5; ++row ) {
+        m_tide.text().set( row, 0, on ? Language::text( s_names[row] ) : "" );
+        if ( !on ) {
+            m_tide.text().set( row, 1, "" );
+            m_tide.text().set( row, 2, "" );
+        }
+    }
+    m_tide.text().setLine( 5, on ? Language::text( Language::TideApprox ) : "" );
+    if ( !on ) {
+        m_tideKey = 0;
+        m_tide.refresh();
+        return;
+    }
+    // The day's samples, again for a new day or interval.
+    const int key = day.day * 1000 + intervalMinutes + 1;
+    if ( key != m_tideKey ) {
+        m_tideKey = key;
+        for ( int i = 0; i < TideSamples; ++i ) {
+            const Tide::State sample = Tide::at( day.moonTransits, intervalMinutes, day.phase.ageDays,
+                                                 day.localMidnight + i * 900 );
+            m_tideLevels[i] = static_cast<int16_t>( sample.valid ? sample.level : -1 );
+            m_tideRising[i] = sample.rising;
+        }
+        // Today's high and low waters, local HH:MM, two of each at most.
+        Tide::Water waters[6];
+        const int count = Tide::waters( day.moonTransits, intervalMinutes, day.localMidnight, day.localMidnight + 86400,
+                                        waters, 6 );
+        int highs = 0;
+        int lows = 0;
+        for ( int i = 0; i < count; ++i ) {
+            const int64_t local = waters[i].time + static_cast<int64_t>( utcOffsetMinutes ) * 60;
+            const int minuteOfDay = static_cast<int>( ( ( local % 86400 ) + 86400 ) % 86400 / 60 );
+            char text[8];
+            snprintf( text, sizeof( text ), "%02d:%02d", minuteOfDay / 60, minuteOfDay % 60 );
+            int &column = waters[i].high ? highs : lows;
+            if ( column < 2 ) {
+                m_tide.text().set( waters[i].high ? 0 : 1, 1 + column, text );
+                ++column;
+            }
+        }
+        for ( ; highs < 2; ++highs ) {
+            m_tide.text().set( 0, 1 + highs, "" );
+        }
+        for ( ; lows < 2; ++lows ) {
+            m_tide.text().set( 1, 1 + lows, "" );
+        }
+        const Sky::Tide strength = Sky::tide( day.phase );
+        m_tide.text().set( 3, 1, Language::text( strength == Sky::TideSpring ? Language::TideSpring
+                                                 : ( strength == Sky::TideNeap ? Language::TideNeap : Language::TideMiddle ) ) );
+        char interval[24];
+        snprintf( interval, sizeof( interval ), Language::text( Language::TideIntervalFmt ), intervalMinutes / 60,
+                  intervalMinutes % 60 );
+        m_tide.text().set( 4, 1, interval );
+    }
+    char text[32];
+    snprintf( text, sizeof( text ), Language::text( state.rising ? Language::TideRisingFmt : Language::TideFallingFmt ),
+              state.level / 10 );
+    m_tide.text().set( 2, 1, text );
+    m_tide.refresh();
+    const int nowShare = now >= day.localMidnight && now < day.localMidnight + 86400
+                             ? static_cast<int>( ( now - day.localMidnight ) * 1000 / 86400 )
+                             : -1;
+    if ( nowShare / 5 != m_tideNow / 5 ) {
+        m_tideNow = nowShare;
+        lv_obj_invalidate( m_tideCurve );
+    }
+}
+
+// The curve: the day's samples as lines, cyan rising and blue falling (the gauge's colours), the
+// hours 0, 6, 12, 18 and 24 as ticks, the moment as a white line and dot.
+void SkyPages::onDrawTideCurve( lv_event_t *event )
+{
+    const SkyPages *self = static_cast<SkyPages *>( lv_event_get_user_data( event ) );
+    lv_layer_t *layer = lv_event_get_layer( event );
+    lv_area_t box;
+    lv_obj_get_coords( self->m_tideCurve, &box );
+    const int32_t width = lv_area_get_width( &box ) - 1;
+    const int32_t top = box.y1 + 4;
+    const int32_t bottom = box.y2 - 22;
+    lv_draw_line_dsc_t line;
+    lv_draw_line_dsc_init( &line );
+    line.width = 1;
+    line.color = lv_color_hex( 0x505050 );
+    line.p1.x = box.x1;
+    line.p1.y = bottom;
+    line.p2.x = box.x2;
+    line.p2.y = bottom;
+    lv_draw_line( layer, &line );
+    lv_draw_label_dsc_t label;
+    lv_draw_label_dsc_init( &label );
+    label.font = &jetbrains_mono_16;
+    label.color = lv_color_hex( 0xA0A0A0 );
+    for ( int hour = 0; hour <= 24; hour += 6 ) {
+        const int32_t x = box.x1 + width * hour / 24;
+        line.p1.x = x;
+        line.p1.y = bottom;
+        line.p2.x = x;
+        line.p2.y = bottom + 4;
+        lv_draw_line( layer, &line );
+        char text[4];
+        snprintf( text, sizeof( text ), "%02d", hour );
+        label.text = text;
+        label.text_local = 1;
+        const lv_area_t area = { x - 10, bottom + 5, x + 10, bottom + 21 };
+        lv_draw_label( layer, &label, &area );
+    }
+    line.width = 3;
+    for ( int i = 1; i < TideSamples; ++i ) {
+        if ( self->m_tideLevels[i - 1] < 0 || self->m_tideLevels[i] < 0 ) {
+            continue;
+        }
+        line.color = lv_color_hex( self->m_tideRising[i] ? 0x40D0E0 : 0x4080E0 );
+        line.p1.x = box.x1 + width * ( i - 1 ) / ( TideSamples - 1 );
+        line.p1.y = bottom - 4 - ( bottom - 4 - top ) * self->m_tideLevels[i - 1] / 1000;
+        line.p2.x = box.x1 + width * i / ( TideSamples - 1 );
+        line.p2.y = bottom - 4 - ( bottom - 4 - top ) * self->m_tideLevels[i] / 1000;
+        lv_draw_line( layer, &line );
+    }
+    if ( self->m_tideNow < 0 ) {
+        return;
+    }
+    const int32_t x = box.x1 + width * self->m_tideNow / 1000;
+    line.width = 1;
+    line.color = lv_color_white();
+    line.p1.x = x;
+    line.p1.y = top;
+    line.p2.x = x;
+    line.p2.y = bottom;
+    lv_draw_line( layer, &line );
+    const int sample = self->m_tideNow * ( TideSamples - 1 ) / 1000;
+    if ( self->m_tideLevels[sample] >= 0 ) {
+        const int32_t y = bottom - 4 - ( bottom - 4 - top ) * self->m_tideLevels[sample] / 1000;
+        lv_draw_rect_dsc_t dot;
+        lv_draw_rect_dsc_init( &dot );
+        dot.radius = LV_RADIUS_CIRCLE;
+        dot.bg_color = lv_color_white();
+        const lv_area_t area = { x - 6, y - 6, x + 6, y + 6 };
+        lv_draw_rect( layer, &dot, &area );
+    }
 }

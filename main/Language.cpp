@@ -511,6 +511,16 @@ static const char *s_texts[][2] = {
     { "not set", "girilmedi" },
     { "The clock is before the last entry (%s)", "Saat son kaydın gerisinde (%s)" },
     { "Tide", "Gelgit" },
+    { "High", "Yüksek" },
+    { "Low", "Alçak" },
+    { "Now", "Şimdi" },
+    { "rising %d %%", "yükselir %%%d" },
+    { "falling %d %%", "alçalır %%%d" },
+    { "Interval", "Gecikme" },
+    { "%d h %02d min", "%d sa %02d dk" },
+    { "approximate: Moon only", "yaklaşık: yalnız Ay" },
+    { "Interval not set:", "Gecikme girilmedi:" },
+    { "set it in the portal", "portalda girin" },
 };
 // One pair per text: a missing one would shift every text after it.
 static_assert( sizeof( s_texts ) / sizeof( s_texts[0] ) == Language::TextCount, "a text pair per Language::Text" );

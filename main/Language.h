@@ -520,6 +520,16 @@ public:
         CycleNotSet,
         CycleClockBack,
         PartTide,
+        TideHighRow,
+        TideLowRow,
+        TideNowRow,
+        TideRisingFmt,
+        TideFallingFmt,
+        TideIntervalRow,
+        TideIntervalFmt,
+        TideApprox,
+        TideNotSet,
+        TideSetInPortal,
         TextCount
     };
 
