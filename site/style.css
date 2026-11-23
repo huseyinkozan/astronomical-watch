@@ -217,3 +217,10 @@ a.install[href] { text-decoration: none; }
 .file-row { font-size: 0.72rem; white-space: normal; word-break: break-all; }
 .small-install { padding: 6px 14px; font-size: 0.9rem; }
 .small-row { color: #a0a0a6; font-size: 0.75rem; border-top: none; }
+/* Every subheading in the site's yellow. */
+main h3 { color: var(--accent); }
+/* The install section's tabs. */
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 14px; flex-wrap: wrap; }
+.tab { border: 1px solid var(--line); border-bottom: none; border-radius: 10px 10px 0 0; background: transparent; color: var(--dim); }
+.tab.selected { background: var(--panel); color: var(--accent); border-color: var(--accent); }
+.command-steps li { margin: 0.6rem 0; }

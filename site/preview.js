@@ -477,7 +477,7 @@ function showRelease() {
   }
   if (full) {
     document.getElementById('downloadFull').href = full.url;
-    document.getElementById('downloadFull').textContent = full.name;
+    document.querySelectorAll('#downloadFull, .full-name').forEach((n) => { n.textContent = full.name; });
   }
 }
 // Without Web Serial (Firefox, Safari, phones) the install cannot run: the button says so.
@@ -486,6 +486,15 @@ if (!('serial' in navigator)) {
   document.getElementById('installJump').tabIndex = -1;
   document.getElementById('noSerial').hidden = false;
 }
+// The install section's tabs: the browser's (default) and the command line's.
+document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click', () => {
+  document.querySelectorAll('.tab').forEach((t) => {
+    const on = t === tab;
+    t.classList.toggle('selected', on);
+    t.setAttribute('aria-selected', String(on));
+    document.getElementById(t.dataset.tab).hidden = !on;
+  });
+}));
 document.getElementById('updateOpen').addEventListener('click', () => document.getElementById('updateDialog').showModal());
 document.getElementById('helpOpen').addEventListener('click', () => document.getElementById('helpDialog').showModal());
 document.getElementById('boot').addEventListener('click', back);

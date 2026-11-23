@@ -190,15 +190,36 @@
 
 <section id="install">
   <h2 data-en="Install" data-tr="Kurulum"></h2>
-  <p data-en="Connect the watch with USB, then press the button (Chrome or Edge on a computer). The first install clears the watch's settings; later versions install from the watch's own setup page, from a phone."
-     data-tr="Saati USB ile bağlayın, sonra düğmeye basın (bilgisayarda Chrome ya da Edge). İlk kurulum saatin ayarlarını siler; sonraki sürümler saatin kendi kurulum sayfasından, telefondan kurulur."></p>
-  <esp-web-install-button manifest="firmware/manifest.json">
-    <button slot="activate" type="button" class="install" data-en="Install on the watch" data-tr="Saate kur"></button>
-    <span slot="unsupported" data-en="This browser cannot reach USB: use Chrome or Edge on a computer, or the command below." data-tr="Bu tarayıcı USB'ye erişemiyor: bilgisayarda Chrome ya da Edge kullanın ya da aşağıdaki komutu."></span>
-  </esp-web-install-button>
-  <p class="small" id="release" hidden></p>
-  <p class="small"><span data-en="The images: " data-tr="Kurulum dosyaları: "></span><a href="https://gitlab.com/huseyinkozan/astronomical-watch/-/releases" data-en="releases on GitLab" data-tr="GitLab sürümleri"></a> ·
-     <a href="https://github.com/huseyinkozan/astronomical-watch/releases" data-en="releases on GitHub" data-tr="GitHub sürümleri"></a></p>
+  <div class="tabs" role="tablist">
+    <button type="button" role="tab" class="tab selected" data-tab="installBrowser" aria-selected="true" data-en="From the browser" data-tr="Tarayıcıdan kurulum"></button>
+    <button type="button" role="tab" class="tab" data-tab="installCommand" aria-selected="false" data-en="From the command line" data-tr="Komut satırından"></button>
+  </div>
+  <div class="tab-panel" id="installBrowser" role="tabpanel">
+    <p data-en="Connect the watch with USB, then press the button (Chrome or Edge on a computer). The first install clears the watch's settings; later versions install from a phone (Update, below)."
+       data-tr="Saati USB ile bağlayın, sonra düğmeye basın (bilgisayarda Chrome ya da Edge). İlk kurulum saatin ayarlarını siler; sonraki sürümler telefondan kurulur (aşağıda Güncelleme)."></p>
+    <esp-web-install-button manifest="firmware/manifest.json">
+      <button slot="activate" type="button" class="install" data-en="Install on the watch" data-tr="Saate kur"></button>
+      <span slot="unsupported" data-en="This browser cannot reach USB: use Chrome or Edge on a computer, or the command line tab." data-tr="Bu tarayıcı USB'ye erişemiyor: bilgisayarda Chrome ya da Edge kullanın ya da Komut satırından sekmesini."></span>
+    </esp-web-install-button>
+    <p class="small" id="release" hidden></p>
+    <p class="small"><span data-en="The images: " data-tr="Kurulum dosyaları: "></span><a href="https://gitlab.com/huseyinkozan/astronomical-watch/-/releases" data-en="releases on GitLab" data-tr="GitLab sürümleri"></a> ·
+       <a href="https://github.com/huseyinkozan/astronomical-watch/releases" data-en="releases on GitHub" data-tr="GitHub sürümleri"></a></p>
+    <p class="small" data-en="No port? Hold BOOT while pressing PWR for the download mode." data-tr="Port görünmüyor mu? İndirme modu için BOOT'u basılı tutup PWR'a basın."></p>
+  </div>
+  <div class="tab-panel" id="installCommand" role="tabpanel" hidden>
+    <p data-en="Any computer can install it with Python's esptool. The first install clears the watch's settings."
+       data-tr="Her bilgisayar Python'un esptool'u ile kurabilir. İlk kurulum saatin ayarlarını siler."></p>
+    <ol class="command-steps">
+      <li><span data-en="Install Python from its site: " data-tr="Python'u kendi sitesinden kurun: "></span><a href="https://www.python.org/downloads/">python.org/downloads</a>
+        (<a href="https://wiki.python.org/moin/BeginnersGuide/Download" data-en="its guide for beginners" data-tr="yeni başlayanlar için rehberi"></a>).</li>
+      <li><span data-en="Download the full image: " data-tr="Tam görüntüyü indirin: "></span><a id="downloadFull" href="https://gitlab.com/huseyinkozan/astronomical-watch/-/releases">astronomical_watch-&lt;version&gt;-full.bin</a></li>
+      <li><span data-en="Connect the watch with USB and run, in the folder of the file:" data-tr="Saati USB ile bağlayıp dosyanın bulunduğu klasörde çalıştırın:"></span>
+        <pre><code>pip install esptool
+esptool --chip esp32s3 -p &lt;port&gt; write-flash 0x0 <span class="full-name">astronomical_watch-&lt;version&gt;-full.bin</span></code></pre>
+        <span class="small" data-en="The port: COM3 or similar on Windows, /dev/ttyACM0 on Linux, /dev/cu.usbmodem… on macOS. None? Hold BOOT while pressing PWR for the download mode."
+              data-tr="Port: Windows'ta COM3 gibi, Linux'ta /dev/ttyACM0, macOS'ta /dev/cu.usbmodem… Görünmüyor mu? İndirme modu için BOOT'u basılı tutup PWR'a basın."></span></li>
+    </ol>
+  </div>
   <h3 data-en="Update" data-tr="Güncelleme"></h3>
   <p data-en="A new version installs from a phone through the watch's setup portal; the settings, face pages and alarms stay. Download the file on the phone while it is online, then upload it to the watch."
      data-tr="Yeni bir sürüm telefondan, saatin kurulum portalıyla yüklenir; ayarlar, yüz sayfaları ve alarmlar kalır. Dosyayı telefon internetteyken indirin, sonra saate yükleyin."></p>
@@ -246,10 +267,6 @@
     </ol>
     <form method="dialog"><button type="submit" data-en="Close" data-tr="Kapat"></button></form>
   </dialog>
-  <p class="small"><span data-en="First install without a browser: the full image, " data-tr="Tarayıcısız ilk kurulum için tam görüntü: "></span><a id="downloadFull" href="https://gitlab.com/huseyinkozan/astronomical-watch/-/releases">astronomical_watch-&lt;version&gt;-full.bin</a></p>
-  <p class="small" data-en="No port? Hold BOOT while pressing PWR for the download mode. Without a browser:" data-tr="Port görünmüyor mu? İndirme modu için BOOT'u basılı tutup PWR'a basın. Tarayıcısız:"></p>
-  <pre><code>pip install esptool
-esptool --chip esp32s3 -p /dev/ttyACM0 write-flash 0x0 astronomical_watch-&lt;version&gt;-full.bin</code></pre>
 </section>
 
 <section id="guide">
