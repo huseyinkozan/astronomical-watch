@@ -51,7 +51,7 @@ const pages = [
     ['3-timer', 'Timer', 'Geri sayım'], ['4-gregorian', 'Calendar', 'Miladi takvim'], ['5-hijri', 'Hijri calendar', 'Hicri takvim'],
     ['6-days', 'Day counters', 'Gün sayaçları'], ['24-alarms', 'Alarms', 'Alarmlar']] },
   { name: ['Info', 'Bilgi'], parts: [['7-sun', 'Sun', 'Güneş'], ['8-twilight', 'Twilight', 'Alacakaranlık'],
-    ['9-prayer', 'Prayer times', 'Namaz vakitleri'], ['10-moon', 'Moon', 'Ay'], ['11-compass', 'Sun compass', 'Güneş pusulası'],
+    ['9-prayer', 'Prayer times', 'Namaz vakitleri'], ['10-moon', 'Moon', 'Ay'], ['50-tide', 'Tide', 'Gelgit'], ['11-compass', 'Sun compass', 'Güneş pusulası'],
     ['12-time', 'Time', 'Zaman']] },
   { name: ['Tools', 'Araçlar'], parts: [['26-torch', 'Torch', 'Fener'], ['29-calculator', 'Calculator', 'Hesap makinesi'],
     ['30-converter', 'Unit converter', 'Birim çevirici'], ['31-level', 'Spirit level', 'Su terazisi'], ['27-counter', 'Counter', 'Sayaç'],

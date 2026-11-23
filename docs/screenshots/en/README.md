@@ -89,7 +89,7 @@ Three tiles side by side: the watch face, the page list (launcher) and the page 
 </tr>
 <tr>
 <td><img src="5-hijri.png" width="120" alt="5-hijri"></td>
-<td><img src="11-compass.png" width="120" alt="11-compass"></td>
+<td><img src="50-tide.png" width="120" alt="50-tide"></td>
 <td><img src="27-counter.png" width="120" alt="27-counter"></td>
 <td><img src="37-photo.png" width="120" alt="37-photo"></td>
 <td></td>
@@ -98,30 +98,30 @@ Three tiles side by side: the watch face, the page list (launcher) and the page 
 </tr>
 <tr>
 <td><img src="6-days.png" width="120" alt="6-days"></td>
-<td><img src="12-time.png" width="120" alt="12-time"></td>
+<td><img src="11-compass.png" width="120" alt="11-compass"></td>
 <td><img src="28-random.png" width="120" alt="28-random"></td>
 <td><img src="38-almanac.png" width="120" alt="38-almanac"></td>
 <td></td>
 <td><img src="48-cycle-hayiz.png" width="120" alt="48-cycle-hayiz"></td>
-<td><img src="42-reset.png" width="120" alt="42-reset"></td>
+<td><img src="13-battery.png" width="120" alt="13-battery"></td>
 </tr>
 <tr>
 <td><img src="24-alarms.png" width="120" alt="24-alarms"></td>
-<td><img src="13-battery.png" width="120" alt="13-battery"></td>
+<td><img src="12-time.png" width="120" alt="12-time"></td>
 <td><img src="40-metronome.png" width="120" alt="40-metronome"></td>
 <td><img src="32-astrolabe.png" width="120" alt="32-astrolabe"></td>
 <td></td>
 <td><img src="49-cycle-settings.png" width="120" alt="49-cycle-settings"></td>
-<td></td>
+<td><img src="18-about.png" width="120" alt="18-about"></td>
 </tr>
 <tr>
 <td></td>
-<td><img src="18-about.png" width="120" alt="18-about"></td>
+<td></td>
 <td><img src="41-card.png" width="120" alt="41-card"></td>
 <td><img src="39-aiming.png" width="120" alt="39-aiming"></td>
 <td></td>
 <td></td>
-<td></td>
+<td><img src="42-reset.png" width="120" alt="42-reset"></td>
 </tr>
 </table>
 

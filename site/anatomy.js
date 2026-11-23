@@ -11,6 +11,8 @@ const iconSpots = {
   time: ['face-0', 344, 68],
   wifi: ['face-2', 340, 432],
   cycle: ['face-cycle', 64, 432, 62],
+  // face-tide: the second face page with the tide's icon top left (the interval set by "Y 62 85").
+  tide: ['face-tide', 66, 70],
 };
 const ICON = 52;
 
@@ -53,8 +55,8 @@ const cornerIcons = [
    'Kurulum portalı açıkken açık mavi, değilken sönük. Dokununca Wi-Fi kurulumu açılır.'],
   ['cycle', 'Cycle icon', 'Döngü simgesi', 'The menstrual cycle\'s day inside a ring of the cycle: red the period, blue the fertile days. Grey while the cycle page is locked and on the always-on face. A tap opens the cycle page.',
    'Adet döngüsünün günü, döngünün halkası içinde: kırmızı adet, mavi doğurgan günler. Döngü sayfası kilitliyken ve bekleme yüzünde gri. Dokununca döngü sayfası açılır.'],
-  ['tide', 'Tide wave icon', 'Gelgit dalga simgesi', 'A wave as high as the tide: a calm line at low water, the crest at the top at high water. Needs the tide interval in the portal; a tap opens the tide part.',
-   'Gelgit kadar yüksek bir dalga: alçak suda düz bir çizgi, yüksek suda tepe en üstte. Portalda gelgit gecikmesi gerekir; dokununca gelgit bölümü açılır.'],
+  ['tide', 'Tide wave icon', 'Gelgit dalga simgesi', 'A wave as high as the tide in a round window: a calm line at low water, the crest at the top at high water. Needs the tide interval in the portal; a tap opens the tide part.',
+   'Yuvarlak bir pencerede gelgit kadar yüksek bir dalga: alçak suda düz bir çizgi, yüksek suda tepe en üstte. Portalda gelgit gecikmesi gerekir; dokununca gelgit bölümü açılır.'],
 ];
 const cornerTexts = [['Weekday', 'Hafta günü', 'Sun', 'Paz'], ['Day of the month', 'Ayın günü', '21', '21'],
   ['Hijri day of the month', 'Hicri ayın günü', '5', '5'], ['Month', 'Ay adı', 'Jun', 'Haz'],

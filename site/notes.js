@@ -25,6 +25,8 @@ const notes = {
   '9-prayer': ['Diyanet\'s method, within a minute of its published tables, and the current or next kerahat interval.',
                'Diyanet\'in yöntemiyle, yayımladığı tablolarla dakikası dakikasına; şu anki ya da sıradaki kerahat vakti.'],
   '10-moon': ['The Moon\'s phase, its rise and set and more.', 'Ay\'ın evresi, doğuşu, batışı ve fazlası.'],
+  '50-tide': ['An approximate tide from the Moon and the coast\'s interval, set in the portal: the day\'s curve (cyan rising, blue falling), the high and low waters, the state now. It tells when the water is high or low, not how high. Hidden by default.',
+              'Ay\'dan ve kıyının portalda girilen gecikmesinden yaklaşık gelgit: günün eğrisi (yükselirken camgöbeği, alçalırken mavi), yüksek ve alçak sular, şimdiki durum. Suyun ne zaman yüksek ya da alçak olduğunu gösterir, ne kadar olduğunu değil. Varsayılan gizli.'],
   '11-compass': ['Hold the watch flat and turn it until its top points at the Sun: the arrow then points north.', 'Saati düz tutun ve üstü Güneş\'i gösterene kadar çevirin: ok kuzeyi gösterir.'],
   '12-time': ['Solar time, the equation of time, Ezani time, sidereal time, the qibla time and UTC.', 'Güneş saati, zaman denklemi, ezani saat, yıldız zamanı, kıble saati ve UTC.'],
   '13-battery': ['The charge, the voltage and whether it charges.', 'Şarj, gerilim ve şarj olup olmadığı.'],
