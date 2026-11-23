@@ -31,7 +31,31 @@ const features = [
    'Döngü sayfası: yalnız saatte adet döngüsü takibi, isteğe bağlı PIN ile; tahminler korunma için değildir'],
   ['A dim always-on face, a red night mode, gauges in the screen corners', 'Soluk bekleme yüzü, gece kırmızısı modu, ekran köşelerinde göstergeler'],
   ['Setup page over the watch\'s own Wi-Fi; English and Turkish', 'Saatin kendi Wi-Fi\'ı üzerinden kurulum sayfası; İngilizce ve Türkçe'],
+  ['Tide: an approximate tide from the Moon and the coast\'s interval, as a corner gauge, a wave icon and the day\'s curve',
+   'Gelgit: Ay\'dan ve kıyının gecikmesinden yaklaşık gelgit; köşe göstergesi, dalga simgesi ve günün eğrisi', 'v0.0.11'],
 ];
+
+// Features, parts and face items newer than the latest release (their third or fourth field: the
+// version they come with) get a "next version" mark while the site runs ahead of the release
+// (it is built from the main branch); the mark goes by itself once that version is out. Without
+// the latest version's number (offline) nothing is marked.
+function upcoming(since) {
+  if (!since || !latestRelease) return false;
+  const parse = (tag) => tag.replace(/^v/, '').split('.').map(Number);
+  const out = parse(latestRelease.tag);
+  const wanted = parse(since);
+  for (let i = 0; i < 3; i++) {
+    if ((out[i] || 0) !== (wanted[i] || 0)) return (out[i] || 0) < (wanted[i] || 0);
+  }
+  return false;
+}
+function soonMark(since) {
+  if (!upcoming(since)) return null;
+  const mark = document.createElement('span');
+  mark.className = 'soon';
+  mark.textContent = language === 'tr' ? 'sonraki sürümde' : 'in the next version';
+  return mark;
+}
 
 const guide = [
   ['PWR: wakes the watch, and sends it to the always-on face or to sleep', 'PWR: saati uyandırır, bekleme yüzüne ya da uykuya gönderir'],
@@ -51,7 +75,7 @@ const pages = [
     ['3-timer', 'Timer', 'Geri sayım'], ['4-gregorian', 'Calendar', 'Miladi takvim'], ['5-hijri', 'Hijri calendar', 'Hicri takvim'],
     ['6-days', 'Day counters', 'Gün sayaçları'], ['24-alarms', 'Alarms', 'Alarmlar']] },
   { name: ['Info', 'Bilgi'], parts: [['7-sun', 'Sun', 'Güneş'], ['8-twilight', 'Twilight', 'Alacakaranlık'],
-    ['9-prayer', 'Prayer times', 'Namaz vakitleri'], ['10-moon', 'Moon', 'Ay'], ['50-tide', 'Tide', 'Gelgit'], ['11-compass', 'Sun compass', 'Güneş pusulası'],
+    ['9-prayer', 'Prayer times', 'Namaz vakitleri'], ['10-moon', 'Moon', 'Ay'], ['50-tide', 'Tide', 'Gelgit', 'v0.0.11'], ['11-compass', 'Sun compass', 'Güneş pusulası'],
     ['12-time', 'Time', 'Zaman']] },
   { name: ['Tools', 'Araçlar'], parts: [['26-torch', 'Torch', 'Fener'], ['29-calculator', 'Calculator', 'Hesap makinesi'],
     ['30-converter', 'Unit converter', 'Birim çevirici'], ['31-level', 'Spirit level', 'Su terazisi'], ['27-counter', 'Counter', 'Sayaç'],
@@ -288,6 +312,8 @@ function draw(slide) {
     where = page.name[index()] + ': ' + page.parts[state.part][1 + index()];
   }
   document.getElementById('where').textContent = where;
+  const partMark = state.tile === 2 ? soonMark(pages[state.page].parts[state.part][3]) : null;
+  if (partMark) document.getElementById('where').append(' ', partMark);
   const key = state.tile === 0 ? (state.aod ? 'always-on' : 'face') : state.tile === 1 ? 'launcher' : pages[state.page].parts[state.part][0];
   document.getElementById('note').textContent = notes[key] ? notes[key][index()] : '';
   // Pages with more views than one: a click on the screen steps them.
@@ -404,7 +430,13 @@ function translate() {
   document.querySelectorAll('[data-en]').forEach((e) => { e.textContent = e.dataset[language]; });
   document.getElementById('language').textContent = language === 'tr' ? 'English' : 'Türkçe';
   document.getElementById('featureList').innerHTML = '';
-  features.forEach((f) => { const li = document.createElement('li'); li.textContent = f[index()]; document.getElementById('featureList').appendChild(li); });
+  features.forEach((f) => {
+    const li = document.createElement('li');
+    li.textContent = f[index()];
+    const mark = soonMark(f[2]);
+    if (mark) li.append(' ', mark);
+    document.getElementById('featureList').appendChild(li);
+  });
   document.getElementById('guideList').innerHTML = '';
   guide.forEach((g) => { const li = document.createElement('li'); li.textContent = g[index()]; document.getElementById('guideList').appendChild(li); });
   document.querySelectorAll('[data-shot-img]').forEach((img) => { img.src = 'screenshots/' + language + '/' + img.dataset.shotImg + '.png'; });
@@ -457,6 +489,7 @@ releaseSources[0]().catch(() => null)
     if (!release) return;
     latestRelease = release;
     showRelease();
+    translate();  // the "next version" marks, now that the latest version is known
   });
 let latestRelease = null;
 function showRelease() {

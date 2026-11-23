@@ -56,7 +56,7 @@ const cornerIcons = [
   ['cycle', 'Cycle icon', 'Döngü simgesi', 'The menstrual cycle\'s day inside a ring of the cycle: red the period, blue the fertile days. Grey while the cycle page is locked and on the always-on face. A tap opens the cycle page.',
    'Adet döngüsünün günü, döngünün halkası içinde: kırmızı adet, mavi doğurgan günler. Döngü sayfası kilitliyken ve bekleme yüzünde gri. Dokununca döngü sayfası açılır.'],
   ['tide', 'Tide wave icon', 'Gelgit dalga simgesi', 'A wave as high as the tide in a round window: a calm line at low water, the crest at the top at high water. Needs the tide interval in the portal; a tap opens the tide part.',
-   'Yuvarlak bir pencerede gelgit kadar yüksek bir dalga: alçak suda düz bir çizgi, yüksek suda tepe en üstte. Portalda gelgit gecikmesi gerekir; dokununca gelgit bölümü açılır.'],
+   'Yuvarlak bir pencerede gelgit kadar yüksek bir dalga: alçak suda düz bir çizgi, yüksek suda tepe en üstte. Portalda gelgit gecikmesi gerekir; dokununca gelgit bölümü açılır.', 'v0.0.11'],
 ];
 const cornerTexts = [['Weekday', 'Hafta günü', 'Sun', 'Paz'], ['Day of the month', 'Ayın günü', '21', '21'],
   ['Hijri day of the month', 'Hicri ayın günü', '5', '5'], ['Month', 'Ay adı', 'Jun', 'Haz'],
@@ -83,7 +83,7 @@ const gaugeRows = [
    'Dokununca dolar, sonra azalır: %40\'ta turuncu, %20\'de kırmızı. Bekleme yüzünde: saat hareketsiz kalırsa kapanmasına kalan süre. Varsayılan: sağ alt.'],
   ['Menstrual cycle', 'Adet döngüsü', 'The cycle\'s days, the period and the fertile days in colour; grey while the cycle page is locked.', 'Döngünün günleri, adet ve doğurgan günler renkli; döngü sayfası kilitliyken gri.'],
   ['Tide', 'Gelgit', 'The tide\'s level from the Moon: cyan while the water rises, blue while it falls. It tells when the water is high or low, not how high; needs the tide interval in the portal.',
-   'Ay\'dan hesaplanan gelgit seviyesi: su yükselirken camgöbeği, alçalırken mavi. Suyun ne zaman yüksek ya da alçak olduğunu gösterir, ne kadar olduğunu değil; portalda gelgit gecikmesi gerekir.'],
+   'Ay\'dan hesaplanan gelgit seviyesi: su yükselirken camgöbeği, alçalırken mavi. Suyun ne zaman yüksek ya da alçak olduğunu gösterir, ne kadar olduğunu değil; portalda gelgit gecikmesi gerekir.', 'v0.0.11'],
 ];
 
 const templateRows = [
@@ -142,6 +142,15 @@ function thumbnail(shot) {
 }
 
 // A table of rows; each row is a list of cells (text or an element).
+// A name, with the "next version" mark when the item is newer than the latest release.
+function named(name, since) {
+  const mark = typeof soonMark === 'function' ? soonMark(since) : null;
+  if (!mark) return name;
+  const cell = document.createElement('span');
+  cell.append(name, ' ', mark);
+  return cell;
+}
+
 function tableOf(head, rows) {
   const table = document.createElement('table');
   const tr = document.createElement('tr');
@@ -175,10 +184,10 @@ function drawAnatomyTable() {
   const example = tr ? 'Örnek' : 'Example';
   const what = tr ? 'Ne gösterir' : 'What it shows';
   if (id === 'gauges') {
-    box.appendChild(tableOf([item, what], gaugeRows.map((r) => [r[tr ? 1 : 0], r[tr ? 3 : 2]])));
+    box.appendChild(tableOf([item, what], gaugeRows.map((r) => [named(r[tr ? 1 : 0], r[4]), r[tr ? 3 : 2]])));
   } else if (id === 'icons') {
     box.appendChild(tableOf([tr ? 'Simge' : 'Icon', tr ? 'Adı' : 'Name', tr ? 'Ne işe yarar' : 'What it does'],
-                            cornerIcons.map((r) => [iconPicture(r[0]), r[tr ? 2 : 1], r[tr ? 4 : 3]])));
+                            cornerIcons.map((r) => [iconPicture(r[0]), named(r[tr ? 2 : 1], r[5]), r[tr ? 4 : 3]])));
     box.appendChild(paragraph(L2(anatomyText.iconsText)));
     box.appendChild(tableOf([item, example], cornerTexts.map((r) => [r[tr ? 1 : 0], r[tr ? 3 : 2]])));
   } else if (id === 'texts') {

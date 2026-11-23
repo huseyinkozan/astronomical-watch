@@ -226,3 +226,6 @@ main h3 { color: var(--accent); }
 .command-steps li { margin: 0.6rem 0; }
 /* A subheading's "?" sits as the section's, a little closer to its smaller title. */
 .heading h3 + .help-button { margin-top: 0.4rem; }
+/* "In the next version": an item the site shows before its release. */
+.soon { display: inline-block; font-size: 0.75em; line-height: 1.5; padding: 0 7px; border-radius: 7px; white-space: nowrap;
+        background: #3a2a0c; border: 1px solid #6a4a12; color: #ffd590; vertical-align: middle; }
