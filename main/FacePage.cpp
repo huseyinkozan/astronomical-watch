@@ -773,6 +773,10 @@ void FacePage::onDrawCycleIcon( lv_event_t *event )
     arc.center.x = cx;
     arc.center.y = cy;
     arc.radius = 21;
+    // A gap of 2 degrees each side, less for long cycles: past 90 days a day has under 4 degrees,
+    // and an end before the start would draw the arc the long way round.
+    const float step = 360.0f / length;
+    const float gap = step >= 8 ? 2 : step / 4;
     for ( int d = 1; d <= length; ++d ) {
         uint32_t hex = 0x969696;
         if ( in.cycleColour && table != nullptr ) {
@@ -787,8 +791,8 @@ void FacePage::onDrawCycleIcon( lv_event_t *event )
             colour = lv_color_mix( colour, lv_color_black(), 80 );
         }
         arc.color = colour;
-        arc.start_angle = -90 + ( d - 1 ) * 360.0f / length + 2;
-        arc.end_angle = -90 + d * 360.0f / length - 2;
+        arc.start_angle = -90 + ( d - 1 ) * step + gap;
+        arc.end_angle = -90 + d * step - gap;
         lv_draw_arc( layer, &arc );
     }
     if ( day <= 0 ) {

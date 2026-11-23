@@ -109,6 +109,18 @@ int main()
     s = Cycle::analyse( s_log, Today );
     check( "mid-cycle spotting: no new cycle", s.count, 1 );
     check( "mid-cycle spotting: no warning", s.periods[0].warnings & Cycle::BetweenPeriods, 0 );
+
+    // The log is a ring of 366 days: day 20496 (Today - 292) is its index 0. A period across that
+    // wrap is still one period, and the cycles after it keep their lengths.
+    reset();
+    for ( int k = 0; k <= 10; ++k ) {
+        bleed( Today - 294 + 28 * k, 5 );
+    }
+    s = Cycle::analyse( s_log, Today );
+    check( "ring wrap: eleven periods", s.count, 11 );
+    check( "ring wrap: the first starts before the wrap", s.periods[0].start, Today - 294 );
+    check( "ring wrap: and lasts across it", s.periods[0].length, 5 );
+    check( "ring wrap: its cycle", s.periods[0].cycleLength, 28 );
     reset();
     bleed( Today - 30, 5 );
     bleed( Today - 1, 2, 1 );    // two light days: a light period

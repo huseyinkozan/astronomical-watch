@@ -602,10 +602,20 @@ static void buildFaceTable( const Astronomy::Observer &observer, int offsetMinut
     }
     snprintf( s_faceTable.bloodType, sizeof( s_faceTable.bloodType ), "%s", s_card.fields[EmergencyCard::BloodType] );
     s_faceTable.emergencyCard = !s_card.empty();
+    // The cycle page writes the log in the LVGL task (an entry, its delete): read a copy taken
+    // under the display's lock. Static: 400 bytes off the main task's stack; a lock that timed
+    // out keeps the last copy.
+    static CycleLog cycleLog;
+    if ( !s_displayOn ) {
+        cycleLog = s_cycleLog;
+    } else if ( bsp_display_lock( 1000 ) ) {
+        cycleLog = s_cycleLog;
+        bsp_display_unlock();
+    }
     // A Ramadan that ended this Hijri year, for the cycle page's make-up fasts: from Shawwal on,
     // a few Hijri months back (each a second or so: here in the main task, once a day).
     const Hijri::Date &hijri = s_skyDay.hijri;
-    if ( s_cycleLog.newestDay != 0 && hijri.day > 0 && hijri.month >= 10 && hijri.year > s_cycleLog.lastRamadanYear ) {
+    if ( cycleLog.newestDay != 0 && hijri.day > 0 && hijri.month >= 10 && hijri.year > cycleLog.lastRamadanYear ) {
         const Hijri::Method method = static_cast<Hijri::Method>( s_settings.value( Settings::HijriMethod ) );
         Hijri::Month month = Hijri::month( s_skyDay.day - hijri.day, offsetMinutes, observer, method );
         for ( int step = 0; step < 3 && month.month > 9; ++step ) {
@@ -615,7 +625,7 @@ static void buildFaceTable( const Astronomy::Observer &observer, int offsetMinut
             s_display.addCycleRamadan( month.year, month.firstDay, month.length );
         }
     }
-    const Cycle::State cycle = Cycle::analyse( s_cycleLog, s_skyDay.day );
+    const Cycle::State cycle = Cycle::analyse( cycleLog, s_skyDay.day );
     if ( cycle.cycleDay > 0 ) {
         s_faceTable.cycleStart = cycle.periods[cycle.count - 1].start;
         s_faceTable.cycleLength = static_cast<int16_t>( cycle.meanLength > 0 ? cycle.meanLength : 28 );

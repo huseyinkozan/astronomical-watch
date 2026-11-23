@@ -234,8 +234,6 @@ static void addClock( AlwaysOn::Face &face, const AodStyle &style, int centreY, 
     addSprite( face, left + style.x[2], top + style.y[2], &style.colon, AlwaysOn::White );
 }
 
-// The weekday icon: the lit notches (the first n on the n-th day of the week, Monday one) as
-// chords of the ring, and the day's first letter.
 // The cycle icon, always neutral here (the page's lock is never open in always-on): the passed
 // days as short white strokes around the ring, the day's number inside.
 static void addCycleIcon( AlwaysOn::Face &face, const FaceTable &table, int today, int cx, int cy )
@@ -246,9 +244,11 @@ static void addCycleIcon( AlwaysOn::Face &face, const FaceTable &table, int toda
     const int length = table.cycleLength > 0 ? table.cycleLength : 28;
     const int day = today - table.cycleStart + 1;
     const float step = 360.0f / length;
+    // As the active face's icon: a smaller gap for long cycles.
+    const float gap = step >= 8 ? 2 : step / 4;
     for ( int d = 1; d <= day && d <= length; ++d ) {
-        const float a0 = ( 270 + ( d - 1 ) * step + 2 ) * static_cast<float>( M_PI ) / 180.0f;
-        const float a1 = ( 270 + d * step - 2 ) * static_cast<float>( M_PI ) / 180.0f;
+        const float a0 = ( 270 + ( d - 1 ) * step + gap ) * static_cast<float>( M_PI ) / 180.0f;
+        const float a1 = ( 270 + d * step - gap ) * static_cast<float>( M_PI ) / 180.0f;
         addShape( face, AlwaysOn::LineShape, AlwaysOn::White, static_cast<int>( lroundf( cx + 20 * cosf( a0 ) ) ),
                   static_cast<int>( lroundf( cy + 20 * sinf( a0 ) ) ), 0, 2,
                   static_cast<int>( lroundf( cx + 20 * cosf( a1 ) ) ), static_cast<int>( lroundf( cy + 20 * sinf( a1 ) ) ) );
@@ -258,6 +258,8 @@ static void addCycleIcon( AlwaysOn::Face &face, const FaceTable &table, int toda
     addSmallText( face, number, cx, cy, AlwaysOn::White );
 }
 
+// The weekday icon: the lit notches (the first n on the n-th day of the week, Monday one) as
+// chords of the ring, and the day's first letter.
 static void addWeekday( AlwaysOn::Face &face, int cx, int cy, int weekday )
 {
     const float step = 360.0f / 7;

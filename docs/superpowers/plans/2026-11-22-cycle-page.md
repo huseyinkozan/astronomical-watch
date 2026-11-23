@@ -288,3 +288,26 @@ paragraph, the corner items, the dev commands), `tools/screenshot.py` doc number
   (scene), the portal preview with the delete button; commit "Wire the cycle page to the main
   task, the portal and the docs".
 - [ ] Final whole-branch review (fresh reviewer), fix Critical/Important with tests, commit.
+
+## Deferred minors of the final review (status 2026-11-23)
+
+Done:
+- The entry overlay had no cancel; setting a PIN had no way back but BOOT: Cancel button and the
+  overlays' own back chevron (the owner's first look, 2026-11-22).
+- Mid-cycle spotting tests: added with the spotting rule.
+- The main task analysed the log without the display lock while the LVGL task wrote it: it
+  analyses a copy taken under the lock.
+- The face icon's day arcs turned the long way for cycles over 90 days (a day under 4 degrees):
+  the gaps shrink with the day's share, on the always-on icon too.
+- Two stale comments (CornerView's packed phases, AlwaysOn's weekday icon).
+- A test of a period across the log ring's wrap.
+
+Open (each changes what the screen shows: to do with screenshots from the board):
+- Adolescent mode still draws past intercourse marks and the legend's fertile rows.
+- The 90+ days warning is not on the spiral; the hayız part lacks the 3-day minimum row.
+- No text for a wrong PIN (Language's PinWrong and PinHint are unused).
+- The icon's key ignores phase edits until the next face table.
+- The hayız part's visibility (setHayizShown) is read only when the page is built.
+- The page can be shown only from the portal (by design so far).
+- The Ramadan search may run again at a rebuild when the display lock times out.
+- CycleDraw::inClip reads LVGL's private _clip_area.

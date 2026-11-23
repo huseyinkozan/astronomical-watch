@@ -19,8 +19,8 @@ static const uint32_t s_timeoutStepMs = 200;
 static const int s_timeoutMinMove = 5;
 static const int s_timeoutGrowth = 400;
 static std::atomic<int> s_timeoutLeft( 1000 );
-// The cycle gauge's phases, packed so that one store changes them together: length (8 bits),
-// period, fertile first, fertile last (8 each), and the colour flag in bit 31... kept in two words.
+// The cycle gauge's phases, packed so that one store changes them together: the length, the
+// period, the fertile window's first and last day, 8 bits each; the colour flag is its own.
 static std::atomic<uint32_t> s_cyclePhases( 0 );
 static std::atomic<bool> s_cycleColour( false );
 // The channel: the gauge's colour at this share of its brightness.
