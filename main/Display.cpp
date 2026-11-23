@@ -1607,7 +1607,7 @@ void Display::onFaceClicked( lv_event_t *event )
     const FaceTap::Target target = FaceTap::at( input, self->m_pressX, self->m_pressY );
     // By FaceTap::Target: the stacked page and its part.
     static const int s_pages[] = { -1, InfoPage, InfoPage, InfoPage, SettingsPage, InfoPage, PlanetsPage, ClockPage, ClockPage,
-                                   ClockPage, ClockPage, ClockPage, ClockPage, ClockPage, SettingsPage, SettingsPage, ToolsPage, CyclePage };
+                                   ClockPage, ClockPage, ClockPage, ClockPage, ClockPage, SettingsPage, SettingsPage, ToolsPage, CyclePage, InfoPage };
     static const int s_parts[] = { -1, InfoSun, InfoMoon, InfoPrayer, SettingsBattery, InfoTime, PlanetPages::SkyPart,
                                    ClockPages::WorldPart, ClockPages::GregorianPart, ClockPages::HijriPart,
                                    ClockPages::DaysPart, ClockPages::AlarmsPart, ClockPages::StopwatchPart,
@@ -1617,7 +1617,7 @@ void Display::onFaceClicked( lv_event_t *event )
 #else
                                    SettingsRows,
 #endif
-                                   ToolPages::CardPart, CyclePages::SpiralPart };
+                                   ToolPages::CardPart, CyclePages::SpiralPart, InfoTide };
     static_assert( sizeof( s_pages ) / sizeof( s_pages[0] ) == FaceTap::TargetCount, "a page per target" );
     static_assert( sizeof( s_parts ) / sizeof( s_parts[0] ) == FaceTap::TargetCount, "a part per target" );
     ESP_LOGI( TAG, "Face tap at %d,%d: target %d", self->m_pressX, self->m_pressY, target );

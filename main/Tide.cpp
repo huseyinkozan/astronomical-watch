@@ -68,6 +68,20 @@ Tide::State Tide::at( const int64_t transits[TransitCount], int intervalMinutes,
     return state;
 }
 
+float Tide::waveHeight( int level, float x )
+{
+    const float calm = 0.2f;
+    const float crestX = 0.68f;
+    float shape = 0;
+    if ( x < crestX ) {
+        shape = ( x / crestX ) * ( x / crestX );
+    } else {
+        const float front = 1.0f - std::pow( ( x - crestX ) / ( 1.0f - crestX ), 0.6f );
+        shape = front > 0 ? front : 0;
+    }
+    return calm + ( 1.0f - calm ) * ( level / 1000.0f ) * shape;
+}
+
 int Tide::waters( const int64_t transits[TransitCount], int intervalMinutes, int64_t from, int64_t to, Water out[],
                   int max )
 {

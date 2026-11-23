@@ -37,4 +37,10 @@ public:
     // The high and low waters in [from, to), in time order; returns how many (at most `max`).
     static int waters( const int64_t transits[TransitCount], int intervalMinutes, int64_t from, int64_t to, Water out[],
                        int max );
+
+    // The wave icon (the owner's pick, docs/superpowers/specs/2026-11-23-tide/mock2.png, B3): the
+    // water's surface at `x` (0 left to 1 right) as a share of the icon's height, for a `level` in
+    // thousandths: a calm line at 0.2 at low water; the crest, at 68 % of the width with a slow
+    // rise and a steep front, at the top at high water.
+    static float waveHeight( int level, float x );
 };

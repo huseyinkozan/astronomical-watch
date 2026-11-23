@@ -70,6 +70,8 @@ FaceTap::Target FaceTap::gaugeTarget( int gauge )
         return TimePart;
     case FaceConfig::TimeoutGauge:
         return SettingsPart;
+    case FaceConfig::TideGauge:
+        return TidePart;
     case FaceConfig::CycleGauge:
         return CyclePart;
     default:
@@ -105,6 +107,8 @@ FaceTap::Target FaceTap::cornerTarget( int item, bool stopwatchRunning, bool cou
         return countdownRunning ? CountdownPart : ( stopwatchRunning ? StopwatchPart : AlarmsPart );
     case FaceConfig::WifiIcon:
         return SetupPart;
+    case FaceConfig::TideIcon:
+        return TidePart;
     case FaceConfig::CycleIcon:
         return CyclePart;
     default:

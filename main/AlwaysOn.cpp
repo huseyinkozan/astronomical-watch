@@ -258,6 +258,29 @@ static void addCycleIcon( AlwaysOn::Face &face, const FaceTable &table, int toda
     addSmallText( face, number, cx, cy, AlwaysOn::White );
 }
 
+// The tide's wave (Tide::waveHeight) as its surface line alone, white, in a 44 px box around the
+// corner's centre: the always-on face's shapes are 1-bit lines.
+static void addTideIcon( AlwaysOn::Face &face, const Tide::State &tide, int cx, int cy )
+{
+    if ( !tide.valid ) {
+        return;
+    }
+    const int size = 44;
+    const int steps = 11;
+    int lastX = 0;
+    int lastY = 0;
+    for ( int i = 0; i <= steps; ++i ) {
+        const float x = static_cast<float>( i ) / steps;
+        const int px = cx - size / 2 + static_cast<int>( lroundf( x * ( size - 1 ) ) );
+        const int py = cy - size / 2 + static_cast<int>( lroundf( ( size - 1 ) * ( 1.0f - Tide::waveHeight( tide.level, x ) ) ) );
+        if ( i > 0 ) {
+            addShape( face, AlwaysOn::LineShape, AlwaysOn::White, lastX, lastY, 0, 2, px, py );
+        }
+        lastX = px;
+        lastY = py;
+    }
+}
+
 // The weekday icon: the lit notches (the first n on the n-th day of the week, Monday one) as
 // chords of the ring, and the day's first letter.
 static void addWeekday( AlwaysOn::Face &face, int cx, int cy, int weekday )
@@ -599,6 +622,8 @@ const AlwaysOn::Face &AlwaysOn::layout( const Look &look, const Rtc::DateTime &t
             addTimeIcon( face, look.alarms, x, y );
         } else if ( item == FaceConfig::WifiIcon ) {
             // Nothing: the setup portal never runs in always-on.
+        } else if ( item == FaceConfig::TideIcon ) {
+            addTideIcon( face, look.table.tide( in.now ), x, y );
         } else if ( item == FaceConfig::CycleIcon ) {
             if ( in.timeValid ) {
                 addCycleIcon( face, look.table, Dates::dayNumber( in.year, in.month, in.day ), x, y );
@@ -615,7 +640,8 @@ int AlwaysOn::gaugeColour( Corners::Kind kind )
 {
     // By Corners::Kind; orange and the Moon's dark grey have no idle-mode colour.
     static const int colours[] = { -1,     Yellow, Blue,  Green, Yellow, Red,   White, White, White,
-                                   Yellow, White,  Yellow, White, Green,  Blue,  Yellow, White, White, Red, Yellow, White };
+                                   Yellow, White,  Yellow, White, Green,  Blue,  Yellow, White, White, Red, Yellow, White,
+                                   Cyan,   Blue };
     static_assert( sizeof( colours ) / sizeof( colours[0] ) == Corners::KindCount, "an idle colour per kind" );
     return colours[kind];
 }
@@ -862,6 +888,7 @@ static void computeGauges( const AlwaysOn::Look &look, int64_t utcNow, int offse
 {
     Corners::Context context = {};
     context.timeoutLeft = offLeft;
+    context.tide = look.table.tide( utcNow );
     if ( look.table.cycleStart > 0 ) {
         const int64_t local = utcNow + static_cast<int64_t>( offsetMinutes ) * 60;
         const int today = static_cast<int>( ( local >= 0 ? local : local - 86399 ) / 86400 );

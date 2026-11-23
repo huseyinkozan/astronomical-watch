@@ -3,6 +3,7 @@
 #include <cstdint>
 
 #include "Sky.h"
+#include "Tide.h"
 
 // The four corner gauges (CLAUDE.md, touch input and layout): quarter circles along the screen's
 // rounded corners, on every active page and on the always-on face.
@@ -49,6 +50,8 @@ public:
         TimeoutLow,     // 20 % of it or less
         TimeoutMiddle,  // above 20 %, 40 % or less
         CycleKind,      // the menstrual cycle (CornerView colours it by phase while unlocked)
+        TideRising,     // the tide's level while the water rises
+        TideFalling,    // and while it falls
         KindCount
     };
 
@@ -106,6 +109,7 @@ public:
         int timeoutLeft;
         int cycleDay;     // the cycle's day, 0: none logged
         int cycleLength;  // its mean length (or 28)
+        Tide::State tide;  // the tide now (Tide::at); not valid without the interval set
         bool alwaysOn;
     };
 

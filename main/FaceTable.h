@@ -4,6 +4,7 @@
 
 #include "Astronomy.h"
 #include "Sky.h"
+#include "Tide.h"
 #include "Zones.h"
 
 // What the face slots need beyond the clock, taken when the sky day is computed: today's and
@@ -54,6 +55,14 @@ public:
     int8_t cyclePeriod;
     int8_t fertileFirst;
     int8_t fertileLast;
+    // The tide for its gauge and icon (Tide): the Moon's upper transits from Sky::Day, the
+    // place's interval (Tide::Off: not set) and the Moon's age at local noon.
+    int64_t moonTransits[Tide::TransitCount];
+    int16_t tideInterval;
+    float moonAge;
+
+    // The tide at `now`; not valid without the interval or the transits around it.
+    Tide::State tide( int64_t now ) const;
 
     // Tomorrow's sun and prayer times are computed here (Astronomy::sunDay, Sky::prayerTimes),
     // not with a whole Sky::computeDay.

@@ -105,3 +105,8 @@ bool FaceTable::next( int64_t now, bool prayer, Event &event ) const
     }
     return false;
 }
+
+Tide::State FaceTable::tide( int64_t now ) const
+{
+    return Tide::at( moonTransits, tideInterval, moonAge, now );
+}

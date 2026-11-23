@@ -32,6 +32,7 @@ public:
         SetupPart,      // the settings page's setup portal part
         EmergencyPart,  // the tools page's emergency card
         CyclePart,      // the cycle page's spiral
+        TidePart,       // the information page's tide
         TargetCount     // Display's tables of pages and parts have one entry per target
     };
 

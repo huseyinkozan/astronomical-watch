@@ -135,6 +135,8 @@ void FacePage::build( lv_obj_t *tile )
     lv_obj_add_event_cb( m_timeIcon, onDrawTimeIcon, LV_EVENT_DRAW_MAIN, this );
     m_wifiIcon = createBox( m_root, weekdaySize, weekdaySize );
     lv_obj_add_event_cb( m_wifiIcon, onDrawWifiIcon, LV_EVENT_DRAW_MAIN, this );
+    m_tideIcon = createBox( m_root, weekdaySize, weekdaySize );
+    lv_obj_add_event_cb( m_tideIcon, onDrawTideIcon, LV_EVENT_DRAW_MAIN, this );
     // Larger than the ring: today's mark sits outside it.
     m_cycleIcon = createBox( m_root, weekdaySize + 22, weekdaySize + 22 );
     lv_obj_add_event_cb( m_cycleIcon, onDrawCycleIcon, LV_EVENT_DRAW_MAIN, this );
@@ -196,6 +198,7 @@ void FacePage::apply()
     bool timeIcon = false;
     bool wifiIcon = false;
     bool cycleIcon = false;
+    bool tideIcon = false;
     for ( int i = 0; i < 4; ++i ) {
         const int item = m_page.items[FaceConfig::TopLeft + i];
         // One icon of each kind: the first corner that asks for it.
@@ -214,6 +217,10 @@ void FacePage::apply()
         if ( item == FaceConfig::WifiIcon && !wifiIcon ) {
             wifiIcon = true;
             centreAt( m_wifiIcon, FaceConfig::CornerX[i], FaceConfig::CornerY[i] );
+        }
+        if ( item == FaceConfig::TideIcon && !tideIcon ) {
+            tideIcon = true;
+            centreAt( m_tideIcon, FaceConfig::CornerX[i], FaceConfig::CornerY[i] );
         }
         if ( item == FaceConfig::CycleIcon && !cycleIcon ) {
             cycleIcon = true;
@@ -239,6 +246,7 @@ void FacePage::apply()
     lv_obj_set_hidden( m_timeIcon, !timeIcon );
     lv_obj_set_hidden( m_wifiIcon, !wifiIcon );
     lv_obj_set_hidden( m_cycleIcon, !cycleIcon );
+    lv_obj_set_hidden( m_tideIcon, !tideIcon );
     // The clock and the texts again for the new page.
     m_hour = -1;
     update( m_inputs );
@@ -260,6 +268,12 @@ void FacePage::update( const FaceText::Inputs &inputs )
         if ( key != m_cycleKey ) {
             m_cycleKey = key;
             lv_obj_invalidate( m_cycleIcon );
+        }
+        const Tide::State tide = inputs.table->tide( inputs.now );
+        const int tideKey = tide.valid ? tide.level / 10 : -1;
+        if ( tideKey != m_tideKey ) {
+            m_tideKey = tideKey;
+            lv_obj_invalidate( m_tideIcon );
         }
     }
     if ( m_root == nullptr ) {
@@ -693,6 +707,44 @@ void FacePage::onDrawTimeIcon( lv_event_t *event )
 
 // The Wi-Fi sign with a gear at its lower right (the setup portal's settings), lit while the
 // portal runs, else dim like the bell without an alarm.
+// The tide's wave (Tide::waveHeight): the water as columns from its surface down, the surface a
+// lighter line; nothing without the interval.
+void FacePage::onDrawTideIcon( lv_event_t *event )
+{
+    const FacePage *face = static_cast<FacePage *>( lv_event_get_user_data( event ) );
+    if ( face->m_inputs.table == nullptr || face->m_tideKey < 0 ) {
+        return;
+    }
+    lv_layer_t *layer = lv_event_get_layer( event );
+    lv_area_t box;
+    lv_obj_get_coords( face->m_tideIcon, &box );
+    const int width = lv_area_get_width( &box );
+    const int height = lv_area_get_height( &box );
+    const int level = face->m_tideKey * 10;
+    lv_draw_rect_dsc_t water;
+    lv_draw_rect_dsc_init( &water );
+    water.bg_color = lv_color_hex( 0x4080E0 );
+    lv_draw_line_dsc_t surface;
+    lv_draw_line_dsc_init( &surface );
+    surface.color = lv_color_hex( 0x96C8FF );
+    surface.width = 2;
+    int32_t lastY = 0;
+    for ( int x = 0; x < width; ++x ) {
+        const float h = Tide::waveHeight( level, ( x + 0.5f ) / width );
+        const int32_t y = box.y1 + static_cast<int32_t>( lroundf( ( height - 1 ) * ( 1.0f - h ) ) );
+        const lv_area_t column = { box.x1 + x, y, box.x1 + x, box.y2 };
+        lv_draw_rect( layer, &water, &column );
+        if ( x > 0 ) {
+            surface.p1.x = box.x1 + x - 1;
+            surface.p1.y = lastY;
+            surface.p2.x = box.x1 + x;
+            surface.p2.y = y;
+            lv_draw_line( layer, &surface );
+        }
+        lastY = y;
+    }
+}
+
 void FacePage::onDrawWifiIcon( lv_event_t *event )
 {
     const FacePage *face = static_cast<FacePage *>( lv_event_get_user_data( event ) );

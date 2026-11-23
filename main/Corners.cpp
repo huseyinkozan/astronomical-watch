@@ -250,6 +250,11 @@ static Corners::Gauge gaugeOf( int item, int parameter, const Corners::Input &in
             gauge = { 0, share > 1000 ? 1000 : share, Corners::CycleKind, false };
         }
         return gauge;
+    case FaceConfig::TideGauge:
+        if ( context.tide.valid ) {
+            gauge = { 0, context.tide.level, context.tide.rising ? Corners::TideRising : Corners::TideFalling, false };
+        }
+        return gauge;
     case FaceConfig::DayCounterGauge:
         if ( counterShare( context, parameter, t, passed ) ) {
             gauge = { 0, passed, Corners::Counter, false };

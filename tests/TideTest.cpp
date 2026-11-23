@@ -2,6 +2,7 @@
 // Build and run: sh tests/run_host_tests.sh
 
 #include <cstdio>
+#include <cmath>
 #include <cstdlib>
 
 #include "Tide.h"
@@ -78,6 +79,15 @@ int main()
     check( "waters: second low", waters[1].high, 0 );
     check( "waters: second time", waters[1].time, T1 + I + 22350 );
     check( "waters: third high", waters[2].time, T1 + I + 44700 );
+
+    // The wave icon (B3, the owner's pick): a calm line at 20 % of the height at low water, the
+    // crest at the top at high water, the crest at 68 % of the width.
+    near( "wave: calm at low water, left", std::lround( Tide::waveHeight( 0, 0.1f ) * 1000 ), 200, 0 );
+    near( "wave: calm at low water, crest", std::lround( Tide::waveHeight( 0, 0.68f ) * 1000 ), 200, 0 );
+    near( "wave: high water's crest at the top", std::lround( Tide::waveHeight( 1000, 0.68f ) * 1000 ), 1000, 1 );
+    near( "wave: half way", std::lround( Tide::waveHeight( 500, 0.68f ) * 1000 ), 600, 1 );
+    near( "wave: the left edge stays calm", std::lround( Tide::waveHeight( 1000, 0.0f ) * 1000 ), 200, 1 );
+    check( "wave: the front falls steeply", Tide::waveHeight( 1000, 0.80f ) < Tide::waveHeight( 1000, 0.56f ), 1 );
 
     printf( "Tide: %d checks, %d failures\n", checks, failures );
     return failures == 0 ? 0 : 1;

@@ -43,7 +43,9 @@ static const uint32_t s_activeColours[] = { 0x000000, 0xFFD040, 0x5078FF, 0x40D0
                                             // orange before it as the battery.
                                             0xFFFFFF, 0xFF4030, 0xFF8020,
                                             // The cycle, neutral grey (its phase colours below).
-                                            0x969696 };
+                                            0x969696,
+                                            // The tide: cyan rising, blue falling.
+                                            0x40D0E0, 0x4080E0 };
 static_assert( sizeof( s_activeColours ) / sizeof( s_activeColours[0] ) == Corners::KindCount, "a colour per kind" );
 
 static float clamp01( float value )

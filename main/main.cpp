@@ -625,6 +625,12 @@ static void buildFaceTable( const Astronomy::Observer &observer, int offsetMinut
             s_display.addCycleRamadan( month.year, month.firstDay, month.length );
         }
     }
+    // The tide for its gauge and icon, here and on the always-on face.
+    for ( int i = 0; i < Tide::TransitCount; ++i ) {
+        s_faceTable.moonTransits[i] = s_skyDay.moonTransits[i];
+    }
+    s_faceTable.tideInterval = static_cast<int16_t>( s_settings.value( Settings::TideInterval ) );
+    s_faceTable.moonAge = static_cast<float>( s_skyDay.phase.ageDays );
     const Cycle::State cycle = Cycle::analyse( cycleLog, s_skyDay.day );
     if ( cycle.cycleDay > 0 ) {
         s_faceTable.cycleStart = cycle.periods[cycle.count - 1].start;
@@ -935,6 +941,7 @@ static void updateDisplay()
     context.charging = s_usbPower && s_pmu.charging();
     context.hijriDay = s_skyValid ? s_skyDay.hijri.day : 0;
     context.timeoutLeft = s_timeoutLeft;
+    context.tide = s_faceTable.tide( context.now );
     if ( s_faceTable.cycleStart > 0 ) {
         context.cycleDay = s_skyDay.day - s_faceTable.cycleStart + 1;
         context.cycleLength = s_faceTable.cycleLength;

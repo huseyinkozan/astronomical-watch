@@ -255,6 +255,18 @@ int main()
         check( "cycle past its length: full", one( FaceConfig::CycleGauge, 0, at( 0, 12, 0 ) ), Corners::CycleKind, 0, 1000 );
         context.cycleDay = 0;
         check( "no cycle logged: empty", one( FaceConfig::CycleGauge, 0, at( 0, 12, 0 ) ), Corners::Empty, 0, 0 );
+        // The tide (Tide::State from the caller): the level, cyan rising, blue falling; nothing
+        // without the interval set.
+        context.tide = {};
+        context.tide.valid = true;
+        context.tide.level = 600;
+        context.tide.rising = true;
+        check( "tide rising", one( FaceConfig::TideGauge, 0, at( 0, 12, 0 ) ), Corners::TideRising, 0, 600 );
+        context.tide.rising = false;
+        check( "tide falling", one( FaceConfig::TideGauge, 0, at( 0, 12, 0 ) ), Corners::TideFalling, 0, 600 );
+        check( "tide on the always-on face", one( FaceConfig::TideGauge, 0, at( 0, 12, 0 ), true ), Corners::TideFalling, 0, 600 );
+        context.tide.valid = false;
+        check( "tide off: empty", one( FaceConfig::TideGauge, 0, at( 0, 12, 0 ) ), Corners::Empty, 0, 0 );
         const Corners::Gauge below = Corners::timeoutGauge( -20 );
         check( "timeout gauge: at least empty", below, Corners::TimeoutLow, 0, 0 );
         check( "sun altitude 45", one( FaceConfig::SunAltitudeGauge, 0, at( 0, 12, 0 ) ), Corners::Altitude, 0, 500 );

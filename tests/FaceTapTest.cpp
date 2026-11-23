@@ -89,6 +89,9 @@ int main()
     check( "text: minute", FaceTap::textTarget( FaceConfig::MinuteText ), FaceTap::TimePart );
     check( "text: none", FaceTap::textTarget( FaceConfig::NoText ), FaceTap::NoTarget );
 
+    // The tide's gauge and wave icon open the Info page's tide part.
+    check( "tide gauge opens the tide", FaceTap::gaugeTarget( FaceConfig::TideGauge ), FaceTap::TidePart );
+    check( "tide icon opens the tide", FaceTap::cornerTarget( FaceConfig::TideIcon, false, false ), FaceTap::TidePart );
     printf( "Face tap: %d checks, %d failures\n", checks, failures );
     return failures == 0 ? 0 : 1;
 }
