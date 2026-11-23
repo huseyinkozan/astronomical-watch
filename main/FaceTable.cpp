@@ -1,5 +1,7 @@
 #include "FaceTable.h"
 
+#include "Almanac.h"
+
 #include <cstdio>
 
 static const int64_t s_dayS = 86400;
@@ -62,6 +64,15 @@ void FaceTable::follow( int day, int utcOffsetMinutes, const Astronomy::Observer
         const Astronomy::SunDay sun = Astronomy::sunDay( localMidnight + i * s_dayS, observer );
         addDay( *this, sun.riseSet, Sky::prayerTimes( day + i, observer, ishaAngle ) );
     }
+    // The tide's transits for the new day (Sky::computeDay's rule), so that
+    // an always-on face kept for days still shows it.
+    for ( int i = 0; i < Tide::TransitCount; ++i ) {
+        int64_t transit = 0;
+        moonTransits[i] = Almanac::meridianPassage( Almanac::Moon, localMidnight + ( i - 1 ) * s_dayS,
+                                                    observer.longitude, transit )
+                              ? transit
+                              : 0;
+    }
     // Every Hijri month has at least 29 days.
     const int days = day - localDay;
     if ( hijriDay > 0 && days > 0 && hijriDay + days <= 29 ) {
@@ -108,7 +119,7 @@ bool FaceTable::next( int64_t now, bool prayer, Event &event ) const
 
 Tide::State FaceTable::tide( int64_t now ) const
 {
-    return Tide::at( moonTransits, tideInterval, moonAge, now );
+    return Tide::at( moonTransits, tideInterval, now );
 }
 
 void FaceTable::setTide( const Sky::Day &day, int intervalMinutes, bool located )
@@ -117,5 +128,4 @@ void FaceTable::setTide( const Sky::Day &day, int intervalMinutes, bool located 
         moonTransits[i] = day.moonTransits[i];
     }
     tideInterval = static_cast<int16_t>( located ? intervalMinutes : Tide::Off );
-    moonAge = static_cast<float>( day.phase.ageDays );
 }

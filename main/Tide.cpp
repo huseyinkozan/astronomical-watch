@@ -4,7 +4,6 @@
 
 namespace {
 
-const double s_synodicMonth = 29.530589;
 // A lunar day: how far the first and the last span reach beyond the known transits (before
 // yesterday's transit plus the interval, a morning would have no tide; an always-on face's table
 // a day or two old still has one, and then no more).
@@ -43,7 +42,7 @@ int spans( const int64_t transits[Tide::TransitCount], int intervalMinutes, Span
 
 }  // namespace
 
-Tide::State Tide::at( const int64_t transits[TransitCount], int intervalMinutes, double moonAge, int64_t now )
+Tide::State Tide::at( const int64_t transits[TransitCount], int intervalMinutes, int64_t now )
 {
     State state = {};
     if ( intervalMinutes < 0 ) {
@@ -60,18 +59,12 @@ Tide::State Tide::at( const int64_t transits[TransitCount], int intervalMinutes,
             continue;
         }
         const double phase = ( now - span.start ) / span.period;
-        const double whole = std::floor( phase );
-        const double part = phase - whole;
+        const double part = phase - std::floor( phase );
         state.valid = true;
         state.level = static_cast<int>( std::lround( 500.0 * ( 1.0 + std::cos( 2.0 * M_PI * part ) ) ) );
         state.rising = part >= 0.5;
-        state.nextHigh = span.start + std::llround( ( whole + 1.0 ) * span.period );
-        state.nextLow = span.start + std::llround( ( part < 0.5 ? whole + 0.5 : whole + 1.5 ) * span.period );
         break;
     }
-    // Spring tides at new and full Moon, neap tides at the quarters: the absolute value turns the
-    // month's one cosine into two peaks.
-    state.spring = static_cast<int>( std::lround( 1000.0 * std::fabs( std::cos( 2.0 * M_PI * moonAge / s_synodicMonth ) ) ) );
     return state;
 }
 

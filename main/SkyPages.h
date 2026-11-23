@@ -50,8 +50,9 @@ private:
     lv_obj_t *m_tideMessage = nullptr;
     int16_t m_tideLevels[TideSamples] = {};
     bool m_tideRising[TideSamples] = {};
-    int m_tideKey = 0;
-    int m_tideNow = -1;  // thousandths of the day, -1: not today
+    int64_t m_tideKey = 0;  // the day, the interval and the UTC offset the samples are for
+    int m_tideNow = -1;     // thousandths of the day, -1: not today
+    int m_tideBucket = -2;  // the moment's place in steps of 5 thousandths (-1: not today), drawn
     bool m_built = false;
     char m_place[32] = {};
     lv_obj_t *m_compassArrow = nullptr;

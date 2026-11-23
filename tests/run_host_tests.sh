@@ -6,8 +6,6 @@ cd "$(dirname "$0")/.."
 mkdir -p build-host
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/AstronomyTest.cpp main/Astronomy.cpp main/Hijri.cpp -o build-host/astronomy_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/HijriTest.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/hijri_test
-build-host/holy_days_test
-build-host/regatta_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/HolyDaysTest.cpp main/HolyDays.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/holy_days_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/RegattaTest.cpp main/Regatta.cpp -o build-host/regatta_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/CornersTest.cpp main/Corners.cpp main/Sky.cpp main/Almanac.cpp main/Planets.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/corners_test
@@ -22,8 +20,8 @@ g++ -std=c++17 -O2 -Wall -Wextra -I main tests/BatteryLimitTest.cpp main/Battery
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/NightRedTest.cpp main/NightRed.cpp -o build-host/night_red_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/FaceConfigTest.cpp main/FaceConfig.cpp -o build-host/face_config_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/FaceTapTest.cpp main/FaceTap.cpp -o build-host/face_tap_test
-g++ -std=c++17 -O2 -Wall -Wextra -I main tests/FaceTextTest.cpp main/FaceText.cpp main/FaceTable.cpp main/Tide.cpp main/FaceConfig.cpp main/Language.cpp main/Zones.cpp main/Sky.cpp main/Almanac.cpp main/Planets.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/face_text_test
-g++ -std=c++17 -O2 -Wall -Wextra -I main tests/AodSmallTest.cpp main/FaceText.cpp main/FaceTable.cpp main/Tide.cpp main/FaceConfig.cpp main/Language.cpp main/Zones.cpp main/Sky.cpp main/Almanac.cpp main/Planets.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/aod_small_test
+g++ -std=c++17 -O2 -Wall -Wextra -I main tests/FaceTextTest.cpp main/FaceText.cpp main/FaceTable.cpp main/Tide.cpp main/Almanac.cpp main/Planets.cpp main/FaceConfig.cpp main/Language.cpp main/Zones.cpp main/Sky.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/face_text_test
+g++ -std=c++17 -O2 -Wall -Wextra -I main tests/AodSmallTest.cpp main/FaceText.cpp main/FaceTable.cpp main/Tide.cpp main/Almanac.cpp main/Planets.cpp main/FaceConfig.cpp main/Language.cpp main/Zones.cpp main/Sky.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/aod_small_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/AnalogClockTest.cpp main/AnalogClock.cpp -o build-host/analog_clock_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/MilkyWayTest.cpp main/MilkyWay.cpp main/Astronomy.cpp -o build-host/milky_way_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/SevenSegmentTest.cpp main/SevenSegment.cpp -o build-host/seven_segment_test
@@ -35,13 +33,15 @@ g++ -std=c++17 -O2 -Wall -Wextra -I main tests/NavigationTest.cpp main/Almanac.c
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/CycleLogTest.cpp main/CycleLog.cpp -o build-host/cycle_log_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/CycleTest.cpp main/Cycle.cpp main/CycleLog.cpp -o build-host/cycle_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/HayizTest.cpp main/Hayiz.cpp main/CycleLog.cpp -o build-host/hayiz_test
-build-host/tide_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/TideTest.cpp main/Tide.cpp main/Sky.cpp main/Almanac.cpp main/Planets.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/tide_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tests/PlanetsTest.cpp main/Planets.cpp main/Astronomy.cpp -o build-host/planets_test
 g++ -std=c++17 -O2 -Wall -Wextra -I main tools/make_corner_table.cpp main/Corners.cpp main/Sky.cpp main/Almanac.cpp main/Planets.cpp main/MilkyWay.cpp main/Dates.cpp main/Hijri.cpp main/Astronomy.cpp -o build-host/make_corner_table
 build-host/cycle_log_test
 build-host/cycle_test
 build-host/hayiz_test
+build-host/holy_days_test
+build-host/regatta_test
+build-host/tide_test
 build-host/astronomy_test tests/astronomy_reference.csv
 build-host/hijri_test
 build-host/corners_test

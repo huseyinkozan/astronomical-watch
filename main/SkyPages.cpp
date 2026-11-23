@@ -144,6 +144,7 @@ void SkyPages::build( lv_obj_t *sunPage, lv_obj_t *twilightPage, lv_obj_t *praye
                                Language::text( Language::TideSetInPortal ) );
         lv_obj_center( m_tideMessage );
         m_tideKey = 0;
+        m_tideBucket = -2;
     }
 
     // Prayer times: the six times, the kerahat interval, the next one with the time left, the
@@ -438,7 +439,7 @@ void SkyPages::showTide( const Sky::Day &day, int intervalMinutes, int64_t now, 
     if ( !m_built || m_tideCurve == nullptr ) {
         return;
     }
-    const Tide::State state = Tide::at( day.moonTransits, intervalMinutes, day.phase.ageDays, now );
+    const Tide::State state = Tide::at( day.moonTransits, intervalMinutes, now );
     // The message only without the interval; a moment out of the transits' reach (rare: an
     // old table) leaves the curve and the rows of the day.
     const bool on = intervalMinutes != Tide::Off;
@@ -462,12 +463,13 @@ void SkyPages::showTide( const Sky::Day &day, int intervalMinutes, int64_t now, 
         return;
     }
     // The day's samples, again for a new day or interval.
-    const int key = day.day * 1000 + intervalMinutes + 1;
+    // A new day, interval or UTC offset (daylight saving time): the samples and times again.
+    const int64_t key = ( static_cast<int64_t>( day.day ) * 1000 + intervalMinutes + 1 ) * 2000 + utcOffsetMinutes + 1000;
     if ( key != m_tideKey ) {
         m_tideKey = key;
+        lv_obj_invalidate( m_tideCurve );
         for ( int i = 0; i < TideSamples; ++i ) {
-            const Tide::State sample = Tide::at( day.moonTransits, intervalMinutes, day.phase.ageDays,
-                                                 day.localMidnight + i * 900 );
+            const Tide::State sample = Tide::at( day.moonTransits, intervalMinutes, day.localMidnight + i * 900 );
             m_tideLevels[i] = static_cast<int16_t>( sample.valid ? sample.level : -1 );
             m_tideRising[i] = sample.rising;
         }
@@ -510,8 +512,10 @@ void SkyPages::showTide( const Sky::Day &day, int intervalMinutes, int64_t now, 
     const int nowShare = now >= day.localMidnight && now < day.localMidnight + 86400
                              ? static_cast<int>( ( now - day.localMidnight ) * 1000 / 86400 )
                              : -1;
-    if ( nowShare / 5 != m_tideNow / 5 ) {
-        m_tideNow = nowShare;
+    m_tideNow = nowShare;
+    const int bucket = nowShare < 0 ? -1 : nowShare / 5;
+    if ( bucket != m_tideBucket ) {
+        m_tideBucket = bucket;
         lv_obj_invalidate( m_tideCurve );
     }
 }

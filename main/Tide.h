@@ -17,16 +17,12 @@ public:
 
     struct State
     {
-        bool valid;        // an interval set and transits around the moment
-        int level;         // thousandths: 0 low water, 1000 high water
+        bool valid;  // an interval set and transits around the moment
+        int level;   // thousandths: 0 low water, 1000 high water
         bool rising;
-        int64_t nextHigh;  // 0 when unknown
-        int64_t nextLow;
-        int spring;        // thousandths: 1000 at new and full Moon, 0 at the quarters
     };
 
-    // `moonAge`: days since the new Moon.
-    static State at( const int64_t transits[TransitCount], int intervalMinutes, double moonAge, int64_t now );
+    static State at( const int64_t transits[TransitCount], int intervalMinutes, int64_t now );
 
     struct Water
     {

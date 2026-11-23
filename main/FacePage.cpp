@@ -741,14 +741,15 @@ void FacePage::onDrawTideIcon( lv_event_t *event )
     int32_t lastX = 0;
     int32_t lastY = 0;
     bool lastInside = false;
-    for ( int dx = -inner; dx <= inner; ++dx ) {
+    // Columns 2 px wide (half the draw calls: it is drawn again on every frame of a page slide).
+    for ( int dx = -inner; dx <= inner; dx += 2 ) {
         // The wave over the ring's box (its whole width and height), the column inside the ring.
         const float h = Tide::waveHeight( level, ( dx + inner + 0.5f ) / ( 2 * inner + 1 ) );
         const int32_t y = cy - inner + static_cast<int32_t>( lroundf( 2 * inner * ( 1.0f - h ) ) );
         const int32_t half = static_cast<int32_t>( sqrtf( static_cast<float>( inner * inner - dx * dx ) ) );
         const int32_t top = y > cy - half ? y : cy - half;
         if ( top <= cy + half ) {
-            const lv_area_t column = { cx + dx, top, cx + dx, cy + half };
+            const lv_area_t column = { cx + dx, top, cx + dx + 1, cy + half };
             lv_draw_rect( layer, &water, &column );
         }
         const bool inside = y >= cy - half;

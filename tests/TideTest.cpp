@@ -41,36 +41,28 @@ int main()
     const int64_t transits[Tide::TransitCount] = { T0, T1, T2, T3 };
     const int I = 19200;
 
-    Tide::State s = Tide::at( transits, 320, 7.4, T1 + I );
+    Tide::State s = Tide::at( transits, 320, T1 + I );
     check( "atHighWater: valid", s.valid, 1 );
     check( "atHighWater: level", s.level, 1000 );
-    s = Tide::at( transits, 320, 7.4, T1 + I + 22350 );
+    s = Tide::at( transits, 320, T1 + I + 22350 );
     near( "atLowWater: level", s.level, 0, 2 );
-    check( "risingBeforeHigh", Tide::at( transits, 320, 7.4, T1 + I - 3600 ).rising, 1 );
-    check( "fallingAfterHigh", Tide::at( transits, 320, 7.4, T1 + I + 3600 ).rising, 0 );
+    check( "risingBeforeHigh", Tide::at( transits, 320, T1 + I - 3600 ).rising, 1 );
+    check( "fallingAfterHigh", Tide::at( transits, 320, T1 + I + 3600 ).rising, 0 );
 
-    // At a transit the next high water is the interval away; the low before it has passed.
-    s = Tide::at( transits, 320, 7.4, T1 );
-    check( "nextTimes: high", s.nextHigh, T1 + I );
-    check( "nextTimes: low", s.nextLow, T1 + I + 22350 );
 
-    check( "off", Tide::at( transits, Tide::Off, 7.4, T1 ).valid, 0 );
+    check( "off", Tide::at( transits, Tide::Off, T1 ).valid, 0 );
 
     // A day without an upper transit (about once a month): the neighbours bridge it.
     const int64_t gap[Tide::TransitCount] = { T0, 0, T2, T3 };
-    s = Tide::at( gap, 320, 7.4, T0 + I + 89400 );
+    s = Tide::at( gap, 320, T0 + I + 89400 );
     check( "noTransitDay: valid", s.valid, 1 );
     near( "noTransitDay: level", s.level, 1000, 5 );
 
     // The longest interval just after today's transit: high water from yesterday's.
-    s = Tide::at( transits, 745, 7.4, T1 + 60 );
+    s = Tide::at( transits, 745, T1 + 60 );
     check( "longIntervalEarly: valid", s.valid, 1 );
     check( "longIntervalEarly: just after high", s.level >= 990, 1 );
 
-    // Spring at new and full Moon, neap at the quarters.
-    check( "spring: new Moon", Tide::at( transits, 320, 0, T1 ).spring, 1000 );
-    check( "spring: first quarter", Tide::at( transits, 320, 7.38, T1 ).spring < 50, 1 );
-    check( "spring: full Moon", Tide::at( transits, 320, 14.77, T1 ).spring > 950, 1 );
 
     // A day from T1: high, low, high, low.
     Tide::Water waters[8];
@@ -102,7 +94,7 @@ int main()
         const Sky::Day sky = Sky::computeDay( day, 180, istanbul, Hijri::Diyanet, 17 );
         for ( int k = 0; k < 4; ++k ) {
             for ( int minute = 0; minute < 1440; minute += 10 ) {
-                if ( !Tide::at( sky.moonTransits, intervals[k], sky.phase.ageDays, sky.localMidnight + minute * 60 ).valid ) {
+                if ( !Tide::at( sky.moonTransits, intervals[k], sky.localMidnight + minute * 60 ).valid ) {
                     ++blank;
                 }
             }

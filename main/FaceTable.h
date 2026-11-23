@@ -55,11 +55,10 @@ public:
     int8_t cyclePeriod;
     int8_t fertileFirst;
     int8_t fertileLast;
-    // The tide for its gauge and icon (Tide): the Moon's upper transits from Sky::Day, the
-    // place's interval (Tide::Off: not set) and the Moon's age at local noon.
+    // The tide for its gauge and icon (Tide): the Moon's upper transits from Sky::Day and the
+    // place's interval (Tide::Off: not set).
     int64_t moonTransits[Tide::TransitCount];
     int16_t tideInterval;
-    float moonAge;
 
     // The tide's inputs from the day: off without a location (at longitude 0 the times would be
     // hours off) or without the interval (Tide::Off).

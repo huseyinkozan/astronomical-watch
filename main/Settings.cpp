@@ -61,11 +61,12 @@ static const ItemInfo s_items[Settings::ItemCount] = {
     // tide after the Moon and hidden (Display::InfoPart).
     { "info_order2", 0 | 1 << 3 | 2 << 6 | 3 << 9 | 6 << 12 | 4 << 15 | 5 << 18, 0, {}, 0, 16777215 },
     { "info_hidden2", 1 << 6, 0, {}, 0, 255 },
-    // The battery and the about parts before the factory reset (Display.cpp, SettingsPart).
+    // The battery and the about parts before the factory reset (Display.cpp, SettingsPart); a new
+    // key, so that an order saved for the six parts before them gives way to this default.
 #if CONFIG_WATCH_SETUP_PORTAL
-    { "set_order", 0 | 1 << 3 | 2 << 6 | 3 << 9 | 4 << 12 | 6 << 15 | 7 << 18 | 5 << 21, 0, {}, 0, 16777215 },
+    { "set_order2", 0 | 1 << 3 | 2 << 6 | 3 << 9 | 4 << 12 | 6 << 15 | 7 << 18 | 5 << 21, 0, {}, 0, 16777215 },
 #else
-    { "set_order", 0 | 1 << 3 | 2 << 6 | 4 << 9 | 5 << 12 | 3 << 15, 0, {}, 0, 16777215 },
+    { "set_order2", 0 | 1 << 3 | 2 << 6 | 4 << 9 | 5 << 12 | 3 << 15, 0, {}, 0, 16777215 },
 #endif
     { "pwr_pullup", 0, 2, { 0, 1 }, 0, 0 },
     { "unplug_min", 0, 0, {}, 0, 70000000 },

@@ -292,8 +292,8 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   Gregorian and Hijri calendars, day counters, alarms; `main/ClockPages.*`), information (sun,
   twilight, prayer times, moon, tide, compass, time; the tide after the Moon and hidden by
   default; the battery and about parts moved to the settings page for it, 2026-11-23: a page
-  holds at most eight parts, `PartOrder`'s 3-bit fields; the Info order and mask have new NVS
-  keys for the new numbering; the Sun part shows the time to
+  holds at most eight parts, `PartOrder`'s 3-bit fields; the Info order and mask and the settings
+  order have new NVS keys for the new layout; the Sun part shows the time to
   sunset or sunrise and, while the Sun is up, a turnaround time, now plus half the daylight left,
   `Sky::turnaround`; the Time part's UTC row names its date when it is not the local one),
   planets (the seven planets and the
@@ -469,7 +469,9 @@ resets the watch instead of only warning; development command "W" tests it). Rea
   lower transits plus the place's lunitidal interval (`Settings::TideInterval`, minutes, -1 off,
   set in the portal's location box), the level a cosine of half the time between two upper
   transits; the transits from yesterday to the day after tomorrow come with `Sky::Day` and are
-  copied into `FaceTable` (`FaceTable::tide()` for the gauge, the icon and the always-on face).
+  copied into `FaceTable` (`FaceTable::tide()` for the gauge, the icon and the always-on face, whose
+  new day computes them again in `FaceTable::follow`); the model reaches a lunar day beyond the
+  known transits, so that no morning is without a tide.
   The Info part (`SkyPages::showTide`) draws the local day's curve, today's high and low waters,
   the state, the Moon's strength and the interval. Its help is worded for users anywhere: the
   gauge tells when the water is high or low, not how high; nearly closed seas have a tide of

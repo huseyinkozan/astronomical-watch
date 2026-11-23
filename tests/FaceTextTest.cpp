@@ -282,6 +282,16 @@ int main()
     check( "tide without the interval: none", !tide.tide( sky.localMidnight + 43200 ).valid );
     tide.setTide( sky, 320, true );
     check( "tide with both", tide.tide( sky.localMidnight + 43200 ).valid );
+    // An always-on face kept for days: following a new day computes that day's transits again.
+    FaceTable aged = tide;
+    aged.follow( day + 3, offset, istanbul, 17 );
+    const Sky::Day skyLater = Sky::computeDay( day + 3, offset, istanbul, Hijri::LocalCrescent, 17 );
+    bool same = true;
+    for ( int i = 0; i < Tide::TransitCount; ++i ) {
+        same = same && aged.moonTransits[i] == skyLater.moonTransits[i];
+    }
+    check( "tide followed: the new day's transits", same );
+    check( "tide followed: valid days later", aged.tide( skyLater.localMidnight + 43200 ).valid );
 
     printf( "Face text: %d checks, %d failures\n", s_checks, s_failures );
     return s_failures == 0 ? 0 : 1;
