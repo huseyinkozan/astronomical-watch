@@ -149,7 +149,7 @@ def option_e():
     d = ImageDraw.Draw(im)
     sans = ImageFont.truetype('/usr/share/fonts/noto/NotoSans-Regular.ttf', 17) if os.path.exists('/usr/share/fonts/noto/NotoSans-Regular.ttf') else F18
     bold = ImageFont.truetype('/usr/share/fonts/noto/NotoSans-Bold.ttf', 20) if os.path.exists('/usr/share/fonts/noto/NotoSans-Bold.ttf') else F20
-    d.rounded_rectangle([14, 20, W - 14, 380], radius=10, outline=(70, 70, 76), width=1)
+    d.rounded_rectangle([14, 20, W - 14, 430], radius=10, outline=(70, 70, 76), width=1)
     d.text((26, 10), ' Gelgit ', font=bold, fill=(230, 230, 230), stroke_width=0)
     d.text((30, 56), 'Gecikme (Ay geçişinden yüksek suya)', font=sans, fill=(230, 230, 230))
     d.rounded_rectangle([30, 86, 180, 122], radius=6, fill=(40, 40, 46), outline=(90, 90, 96))
@@ -158,8 +158,11 @@ def option_e():
     help_lines = ['Limanınızın gelgit tablosundan: bir', 'yüksek su saatinden, ondan önceki Ay',
                   'geçişini çıkarın (saatin Ay sayfası',
                   'gösterir). Boş bırakılırsa gelgit', 'gösterilmez.', '',
-                  'Türkiye kıyılarında gelgit birkaç',
-                  'santimetredir; gösterge okyanus', 'kıyıları içindir.']
+                  'Gösterge suyun ne zaman yüksek ya da',
+                  'alçak olduğunu gösterir, ne kadar',
+                  'olduğunu değil. Akdeniz, Karadeniz,',
+                  'Baltık gibi neredeyse kapalı',
+                  'denizlerde gelgit birkaç santimetredir.']
     y = 140
     for line in help_lines:
         d.text((30, y), line, font=sans, fill=(170, 170, 176))

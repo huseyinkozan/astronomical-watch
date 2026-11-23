@@ -3,8 +3,10 @@
 ## Intent
 
 The owner's Casio shows the tide; the watch should too, from what it already knows (the Moon)
-and one setting of the place. It is an approximation for ocean coasts: Turkey's seas are
-microtidal (a few cm to some tens of cm), so the help says where it is of use. Research:
+and one setting of the place. It is an approximation, of use where the tide is large: the help
+says, for users anywhere (the firmware is published for everyone), that the gauge tells when the
+water is high or low, not how high, and that in nearly closed seas (the Mediterranean, the Black
+Sea, the Baltic) the tide is a few centimetres; no country is named. Research:
 `research/tide-gauge.md` (not in git); mock-ups: `2026-11-23-tide/mock.png` (A-E) and
 `2026-11-23-tide/mock2.png` (the icon's three shapes).
 
